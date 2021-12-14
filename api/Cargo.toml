@@ -1,0 +1,11 @@
+[package]
+name = "proxmox-datacenter-manager"
+description = "Proxmox Datacenter Manager API"
+homepage = "https://www.proxmox.com"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

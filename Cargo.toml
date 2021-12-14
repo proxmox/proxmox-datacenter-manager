@@ -1,0 +1,20 @@
+[workspace.package]
+version = "0.1.0"
+authors = [
+    "Thomas Lamprecht <t.lamprecht@proxmox.com>",
+    "Proxmox Support Team <support@proxmox.com>",
+]
+edition = "2021"
+license = "AGPL-3"
+repository = "https://git.proxmox.com/?p=proxmox-datacenter-manager.git"
+
+exclude = [ "build" ]
+
+[workspace]
+members = [
+    "api",
+]
+
+[workspace.dependencies]
+# regular crates
+anyhow = "1.0"
