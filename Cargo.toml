@@ -13,6 +13,7 @@ exclude = [ "build" ]
 [workspace]
 members = [
     "api",
+    "api/pdm-buildcfg",
 ]
 
 [workspace.dependencies]

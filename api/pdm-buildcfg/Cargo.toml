@@ -1,0 +1,9 @@
+[package]
+name = "pdm-buildcfg"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "macros used for PDM related paths such as configdir and rundir"
+build = "build.rs"
+
+[dependencies]
