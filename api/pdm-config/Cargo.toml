@@ -1,0 +1,28 @@
+[package]
+name = "pdm-config"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+description = "Configuration file management for PDM"
+
+[dependencies]
+anyhow.workspace = true
+hex.workspace = true
+lazy_static.workspace = true
+libc.workspace = true
+nix.workspace = true
+once_cell.workspace = true
+openssl.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+proxmox-router = { workspace = true, default-features = false }
+proxmox-schema.workspace = true
+proxmox-section-config.workspace = true
+proxmox-shared-memory.workspace = true
+proxmox-sys = { workspace = true, features = [ "acl", "crypt", "timer" ] }
+proxmox-time.workspace = true
+
+pdm-api-types.workspace = true
+pdm-buildcfg.workspace = true
