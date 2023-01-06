@@ -10,14 +10,60 @@ repository.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+base64.workspace = true
+bitflags.workspace = true
+futures.workspace = true
+h2.workspace = true
+handlebars.workspace = true
+hex.workspace = true
 http.workspace = true
 hyper.workspace = true
+lazy_static.workspace = true
+libc.workspace = true
+log.workspace = true
+nix.workspace = true
+once_cell.workspace = true
+openssl.workspace = true
+pam-sys.workspace = true
+pam.workspace = true
+percent-encoding.workspace = true
+regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+syslog.workspace = true
+termcolor.workspace = true
+thiserror.workspace = true
 tokio = { workspace = true, features = [ "fs", "io-util", "io-std", "macros", "net", "parking_lot", "process", "rt", "rt-multi-thread", "signal", "time" ] }
+tokio-openssl.workspace = true
+tokio-stream.workspace = true
+tokio-util = { workspace = true, features = [ "codec" ] }
+tower-service.workspace = true
+url.workspace = true
+walkdir.workspace = true
+xdg.workspace = true
+zstd.workspace = true
 
+proxmox-async.workspace = true
+proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
+proxmox-io.workspace = true
+proxmox-lang.workspace = true
 proxmox-rest-server.workspace = true
 proxmox-router = { workspace = true, features = [ "cli", "server"] }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
+proxmox-section-config.workspace = true
+proxmox-serde = { workspace = true, features = [ "serde_json" ] }
+proxmox-shared-memory.workspace = true
+proxmox-subscription.workspace = true
+proxmox-sys = { workspace = true, features = [ "sortable-macro", "timer" ] }
+proxmox-tfa.workspace = true
+proxmox-time.workspace = true
+proxmox-uuid.workspace = true
 
+proxmox-acme-rs.workspace = true
+proxmox-apt.workspace = true
+proxmox-openid.workspace = true
+
+pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
+pdm-config.workspace = true
+pdm-ticket.workspace = true
