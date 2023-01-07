@@ -16,6 +16,7 @@ members = [
     "api/pdm-buildcfg",
     "api/pdm-api-types",
     "api/pdm-config",
+    "api/pdm-ticket",
 ]
 
 [workspace.dependencies]
@@ -34,6 +35,8 @@ proxmox-uuid = "1"
 pdm-api-types = { path = "api/pdm-api-types" }
 pdm-buildcfg = { path = "api/pdm-buildcfg" }
 pdm-config = { path = "api/pdm-config" }
+# TODO: move this+PBS ones out to a e.g. proxmox-auth-ticket crate
+pdm-ticket = { path = "api/pdm-ticket" }
 
 # regular crates
 anyhow = "1.0"
@@ -42,6 +45,7 @@ hex = "0.4.3"
 http = "0.2"
 hyper = { version = "0.14", features = [ "full" ] }
 lazy_static = "1.4"
+openssl = "0.10.40"
 percent-encoding = "2.1"
 regex = "1.5.5"
 serde = { version = "1.0", features = ["derive"] }
