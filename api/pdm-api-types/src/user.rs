@@ -116,7 +116,7 @@ pub struct UserWithTokens {
         },
     }
 )]
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 /// ApiToken properties.
 pub struct ApiToken {
     pub tokenid: Authid,

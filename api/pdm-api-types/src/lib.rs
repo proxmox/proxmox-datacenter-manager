@@ -367,7 +367,7 @@ pub enum RealmType {
         },
     },
 )]
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 /// Basic Information about a realm
 pub struct BasicRealmInfo {
