@@ -77,7 +77,7 @@ regex = "1.5.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_plain = "1"
-syslog = "4.0"
+syslog = "6.0"
 termcolor = "1.1.2"
 thiserror = "1.0"
 tokio = "1.6"
@@ -88,4 +88,4 @@ tower-service = "0.3.0"
 url = "2.1"
 walkdir = "2"
 xdg = "2.2"
-zstd = { version = "0.6", features = [ "bindgen" ] }
+zstd = { version = "0.12", features = [ "bindgen" ] }
