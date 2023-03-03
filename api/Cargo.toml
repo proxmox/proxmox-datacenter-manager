@@ -47,14 +47,15 @@ proxmox-async.workspace = true
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
 proxmox-io.workspace = true
 proxmox-lang.workspace = true
-proxmox-rest-server.workspace = true
+proxmox-rest-server = { workspace = true, features = [ "templates" ] }
 proxmox-router = { workspace = true, features = [ "cli", "server"] }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-section-config.workspace = true
 proxmox-serde = { workspace = true, features = [ "serde_json" ] }
 proxmox-shared-memory.workspace = true
+proxmox-sortable-macro.workspace = true
 proxmox-subscription.workspace = true
-proxmox-sys = { workspace = true, features = [ "sortable-macro", "timer" ] }
+proxmox-sys = { workspace = true, features = [ "timer" ] }
 proxmox-tfa.workspace = true
 proxmox-time.workspace = true
 proxmox-uuid.workspace = true

@@ -1,10 +1,7 @@
-use std::future::Future;
-use std::os::unix::io::AsRawFd;
 use std::path::Path;
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 use futures::*;
 use http::request::Parts;
 use http::Response;
@@ -12,23 +9,18 @@ use hyper::header;
 use hyper::{Body, StatusCode};
 use url::form_urlencoded;
 
-use http::{HeaderMap, Method};
-use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
+use openssl::ssl::SslAcceptor;
 use serde_json::{json, Value};
-use tokio_stream::wrappers::ReceiverStream;
 
 use proxmox_lang::try_block;
 use proxmox_router::{
     list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
-    UserInformation,
 };
 use proxmox_schema::api;
+use proxmox_sortable_macro::sortable;
 use proxmox_sys::fs::CreateOptions;
-use proxmox_sys::linux::socket::set_tcp_keepalive;
 
-use proxmox_rest_server::{
-    cookie_from_header, ApiConfig, AuthError, RestEnvironment, RestServer, ServerAdapter,
-};
+use proxmox_rest_server::{cookie_from_header, ApiConfig, RestEnvironment, RestServer};
 
 use pdm_buildcfg::configdir;
 
@@ -75,32 +67,6 @@ fn main() -> Result<(), Error> {
     }
 
     proxmox_async::runtime::main(run())
-}
-
-struct PDMProxyAdapter;
-
-impl ServerAdapter for PDMProxyAdapter {
-    fn get_index(
-        &self,
-        env: RestEnvironment,
-        parts: Parts,
-    ) -> Pin<Box<dyn Future<Output = Response<Body>> + Send>> {
-        Box::pin(get_index_future(env, parts))
-    }
-
-    fn check_auth<'a>(
-        &'a self,
-        headers: &'a HeaderMap,
-        method: &'a Method,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>>
-                + Send
-                + 'a,
-        >,
-    > {
-        Box::pin(async move { auth::check_auth(headers, method).await })
-    }
 }
 
 /// check for a cookie with the user-preferred language, fallback to the config one if not set or
@@ -207,11 +173,11 @@ fn version() -> Result<Value, Error> {
     }))
 }
 
-// NOTE: must be sorted!
-const SUBDIRS: SubdirMap = &[
+#[sortable]
+const SUBDIRS: SubdirMap = &sorted!([
     ("ping", &Router::new().get(&API_METHOD_PING)),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
-];
+]);
 
 const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -234,29 +200,6 @@ async fn run() -> Result<(), Error> {
 
     auth::init();
 
-    let mut config = ApiConfig::new(
-        pdm_buildcfg::JS_DIR,
-        &ROUTER, // TODO
-        RpcEnvironmentType::PUBLIC,
-        PDMProxyAdapter,
-    )?;
-
-    config.add_alias("extjs", "/usr/share/javascript/extjs");
-    config.add_alias("qrcodejs", "/usr/share/javascript/qrcodejs");
-    config.add_alias("fontawesome", "/usr/share/fonts-font-awesome");
-    config.add_alias("xtermjs", "/usr/share/pve-xtermjs");
-    config.add_alias("locale", "/usr/share/pdm-i18n");
-    config.add_alias(
-        "proxmox-extjs-widget-toolkit",
-        "/usr/share/javascript/proxmox-widget-toolkit",
-    );
-    config.add_alias("docs", "/usr/share/doc/proxmox-datacenter-manager/html");
-
-    //let mut indexpath = PathBuf::from(pdm_buildcfg::JS_DIR);
-    //indexpath.push("index.hbs");
-    //config.register_template("index", &indexpath)?;
-    config.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?;
-
     let api_user = pdm_config::api_user()?;
     let mut commando_sock =
         proxmox_rest_server::CommandSocket::new(proxmox_rest_server::our_ctrl_sock(), api_user.gid);
@@ -264,19 +207,35 @@ async fn run() -> Result<(), Error> {
     let dir_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
 
-    config.enable_access_log(
-        pdm_buildcfg::API_ACCESS_LOG_FN,
-        Some(dir_opts.clone()),
-        Some(file_opts.clone()),
-        &mut commando_sock,
-    )?;
-
-    config.enable_auth_log(
-        pdm_buildcfg::API_AUTH_LOG_FN,
-        Some(dir_opts.clone()),
-        Some(file_opts.clone()),
-        &mut commando_sock,
-    )?;
+    let config = ApiConfig::new(pdm_buildcfg::JS_DIR, RpcEnvironmentType::PUBLIC)
+        .index_handler_func(|e, p| Box::pin(get_index_future(e, p)))
+        .auth_handler_func(|h, m| Box::pin(auth::check_auth(h, m)))
+        .aliases([
+            ("extjs", "/usr/share/javascript/extjs"),
+            ("qrcodejs", "/usr/share/javascript/qrcodejs"),
+            ("fontawesome", "/usr/share/fonts-font-awesome"),
+            ("xtermjs", "/usr/share/pve-xtermjs"),
+            ("locale", "/usr/share/pdm-i18n"),
+            (
+                "proxmox-extjs-widget-toolkit",
+                "/usr/share/javascript/proxmox-widget-toolkit",
+            ),
+            ("docs", "/usr/share/doc/proxmox-datacenter-manager/html"),
+        ])
+        .formatted_router(&["api2"], &ROUTER)
+        .register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
+        .enable_access_log(
+            pdm_buildcfg::API_ACCESS_LOG_FN,
+            Some(dir_opts.clone()),
+            Some(file_opts.clone()),
+            &mut commando_sock,
+        )?
+        .enable_auth_log(
+            pdm_buildcfg::API_AUTH_LOG_FN,
+            Some(dir_opts.clone()),
+            Some(file_opts.clone()),
+            &mut commando_sock,
+        )?;
 
     let rest_server = RestServer::new(config);
     proxmox_rest_server::init_worker_tasks(
@@ -306,11 +265,12 @@ async fn run() -> Result<(), Error> {
         }
     })?;
 
+    let connections =
+        proxmox_rest_server::connection::AcceptBuilder::with_acceptor(acceptor).debug(debug);
     let server = daemon::create_daemon(
         ([0, 0, 0, 0, 0, 0, 0, 0], 8443).into(),
         move |listener| {
-            let connections = accept_connections(listener, acceptor, debug);
-            let connections = hyper::server::accept::from_stream(ReceiverStream::new(connections));
+            let connections = connections.accept(listener);
 
             Ok(async {
                 daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
@@ -364,109 +324,9 @@ fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
     let key_path = configdir!("/auth/proxy.key");
     let cert_path = configdir!("/auth/proxy.pem");
 
-    let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
-    acceptor
-        .set_private_key_file(key_path, SslFiletype::PEM)
-        .map_err(|err| format_err!("unable to read proxy key {key_path} - {err}"))?;
-    acceptor
-        .set_certificate_chain_file(cert_path)
-        .map_err(|err| format_err!("unable to read proxy cert {cert_path} - {err}"))?;
-    acceptor.set_options(openssl::ssl::SslOptions::NO_RENEGOTIATION);
-    acceptor.check_private_key().unwrap();
-
-    Ok(acceptor.build())
-}
-
-type ClientStreamResult =
-    Result<std::pin::Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>, Error>;
-const MAX_PENDING_ACCEPTS: usize = 1024;
-
-fn accept_connections(
-    listener: tokio::net::TcpListener,
-    acceptor: Arc<Mutex<openssl::ssl::SslAcceptor>>,
-    debug: bool,
-) -> tokio::sync::mpsc::Receiver<ClientStreamResult> {
-    let (sender, receiver) = tokio::sync::mpsc::channel(MAX_PENDING_ACCEPTS);
-
-    tokio::spawn(accept_connection(listener, acceptor, debug, sender));
-
-    receiver
-}
-
-async fn accept_connection(
-    listener: tokio::net::TcpListener,
-    acceptor: Arc<Mutex<openssl::ssl::SslAcceptor>>,
-    debug: bool,
-    sender: tokio::sync::mpsc::Sender<ClientStreamResult>,
-) {
-    let accept_counter = Arc::new(());
-    let mut shutdown_future = proxmox_rest_server::shutdown_future().fuse();
-
-    loop {
-        let (sock, _peer) = select! {
-            res = listener.accept().fuse() => match res {
-                Ok(conn) => conn,
-                Err(err) => {
-                    eprintln!("error accepting tcp connection: {err}");
-                    continue;
-                }
-            },
-            _ =  shutdown_future => break,
-        };
-
-        sock.set_nodelay(true).unwrap();
-        let _ = set_tcp_keepalive(sock.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
-
-        let ssl = {
-            // limit acceptor_guard scope
-            // Acceptor can be reloaded using the command socket "reload-certificate" command
-            let acceptor_guard = acceptor.lock().unwrap();
-
-            match openssl::ssl::Ssl::new(acceptor_guard.context()) {
-                Ok(ssl) => ssl,
-                Err(err) => {
-                    eprintln!("failed to create Ssl object from Acceptor context - {err}");
-                    continue;
-                }
-            }
-        };
-
-        let stream = match tokio_openssl::SslStream::new(ssl, sock) {
-            Ok(stream) => stream,
-            Err(err) => {
-                eprintln!("failed to create SslStream using ssl and connection socket - {err}");
-                continue;
-            }
-        };
-
-        let mut stream = Box::pin(stream);
-        let sender = sender.clone();
-
-        if Arc::strong_count(&accept_counter) > MAX_PENDING_ACCEPTS {
-            eprintln!("connection rejected - to many open connections");
-            continue;
-        }
-
-        let accept_counter = Arc::clone(&accept_counter);
-        tokio::spawn(async move {
-            let accept_future =
-                tokio::time::timeout(Duration::new(10, 0), stream.as_mut().accept());
-
-            let result = accept_future.await;
-
-            match result {
-                Ok(Ok(())) => {
-                    if sender.send(Ok(stream)).await.is_err() && debug {
-                        eprintln!("detect closed connection channel");
-                    }
-                }
-                Ok(Err(err)) => log::debug!("https handshake failed - {err}"),
-                Err(_) => log::debug!("https handshake timeout"),
-            }
-
-            drop(accept_counter); // decrease reference count
-        });
-    }
+    proxmox_rest_server::connection::TlsAcceptorBuilder::new()
+        .certificate_paths_pem(key_path, cert_path)
+        .build()
 }
 
 // TODO: move scheduling stuff to own module
