@@ -13,6 +13,7 @@ use openssl::ssl::SslAcceptor;
 use serde_json::{json, Value};
 
 use proxmox_lang::try_block;
+use proxmox_rest_server::{cookie_from_header, daemon, ApiConfig, RestEnvironment, RestServer};
 use proxmox_router::{
     list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
 };
@@ -20,13 +21,9 @@ use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 use proxmox_sys::fs::CreateOptions;
 
-use proxmox_rest_server::{cookie_from_header, ApiConfig, RestEnvironment, RestServer};
-
 use pdm_buildcfg::configdir;
 
 use pdm_api_types::Authid;
-
-use proxmox_rest_server::daemon;
 
 use proxmox_datacenter_manager::auth;
 
@@ -37,24 +34,8 @@ fn main() -> Result<(), Error> {
 
     proxmox_datacenter_manager::env::sanitize_environment_vars();
 
-    let mut args = std::env::args();
-    args.next();
-    for arg in args {
-        match arg.as_ref() {
-            "setup" => {
-                let code = match auth::setup_keys() {
-                    Ok(_) => 0,
-                    Err(err) => {
-                        eprintln!("got error on setup - {err}");
-                        -1
-                    }
-                };
-                std::process::exit(code);
-            }
-            _ => {
-                eprintln!("did not understand argument {arg}");
-            }
-        }
+    if std::env::args().nth(1).is_some() {
+        bail!("unexpected command line parameters");
     }
 
     let api_uid = pdm_config::api_user()?.uid;
