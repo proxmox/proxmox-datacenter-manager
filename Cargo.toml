@@ -12,11 +12,14 @@ exclude = [ "build" ]
 
 [workspace]
 members = [
-    "api",
     "api/pdm-buildcfg",
     "api/pdm-api-types",
     "api/pdm-config",
     "api/pdm-ticket",
+
+    "api/pdm-api-common",
+    "api/proxmox-datacenter-api",
+    "api/proxmox-datacenter-proxy",
 ]
 
 [workspace.dependencies]
@@ -47,6 +50,7 @@ proxmox-apt = "0.9.0"
 proxmox-openid = "0.9.8"
 
 # PDM workspace
+pdm-api-common = { path = "api/pdm-api-common" }
 pdm-api-types = { path = "api/pdm-api-types" }
 pdm-buildcfg = { path = "api/pdm-buildcfg" }
 pdm-config = { path = "api/pdm-config" }

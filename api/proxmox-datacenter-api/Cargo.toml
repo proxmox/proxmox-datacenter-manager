@@ -1,6 +1,6 @@
 [package]
-name = "proxmox-datacenter-manager"
-description = "Proxmox Datacenter Manager API"
+name = "proxmox-datacenter-api"
+description = "Proxmox Datacenter Manager Privileged API Server"
 homepage = "https://www.proxmox.com"
 
 version.workspace = true
@@ -64,6 +64,7 @@ proxmox-acme-rs.workspace = true
 proxmox-apt.workspace = true
 proxmox-openid.workspace = true
 
+pdm-api-common.workspace = true
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-config.workspace = true

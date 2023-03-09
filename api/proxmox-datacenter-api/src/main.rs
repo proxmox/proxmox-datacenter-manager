@@ -1,129 +1,76 @@
-use std::path::Path;
-use std::sync::{Arc, Mutex};
-
 use anyhow::{bail, Error};
 use futures::*;
-use http::request::Parts;
-use http::Response;
-use hyper::header;
-use hyper::{Body, StatusCode};
-use url::form_urlencoded;
 
-use openssl::ssl::SslAcceptor;
 use serde_json::{json, Value};
 
 use proxmox_lang::try_block;
-use proxmox_rest_server::{cookie_from_header, daemon, ApiConfig, RestEnvironment, RestServer};
-use proxmox_router::{
-    list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
-};
+use proxmox_rest_server::{daemon, ApiConfig, RestServer, UnixAcceptor};
+use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironmentType, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 use proxmox_sys::fs::CreateOptions;
 
-use pdm_buildcfg::configdir;
-
-use pdm_api_types::Authid;
-
-use proxmox_datacenter_manager::auth;
+use pdm_api_common::auth;
 
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
 
 fn main() -> Result<(), Error> {
     //pbs_tools::setup_libc_malloc_opts(); // TODO: move from PBS to proxmox-sys and uncomment
 
-    proxmox_datacenter_manager::env::sanitize_environment_vars();
+    pdm_api_common::env::sanitize_environment_vars();
 
-    if std::env::args().nth(1).is_some() {
-        bail!("unexpected command line parameters");
-    }
+    create_directories()?;
 
-    let api_uid = pdm_config::api_user()?.uid;
-    let api_gid = pdm_config::api_group()?.gid;
-    let running_uid = nix::unistd::Uid::effective();
-    let running_gid = nix::unistd::Gid::effective();
-
-    if running_uid != api_uid || running_gid != api_gid {
-        bail!("proxy not running as api user or group (got uid {running_uid} gid {running_gid})");
+    let mut args = std::env::args();
+    args.next();
+    for arg in args {
+        match arg.as_ref() {
+            "setup" => {
+                let code = match auth::setup_keys() {
+                    Ok(_) => 0,
+                    Err(err) => {
+                        eprintln!("got error on setup - {err}");
+                        -1
+                    }
+                };
+                std::process::exit(code);
+            }
+            _ => {
+                eprintln!("did not understand argument {arg}");
+            }
+        }
     }
 
     proxmox_async::runtime::main(run())
 }
 
-/// check for a cookie with the user-preferred language, fallback to the config one if not set or
-/// not existing
-fn get_language(headers: &http::HeaderMap) -> String {
-    let exists = |l: &str| Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{l}.js")).exists();
+fn create_directories() -> Result<(), Error> {
+    let api_user = pdm_config::api_user()?;
 
-    match cookie_from_header(headers, "PBSLangCookie") {
-        Some(cookie_lang) if exists(&cookie_lang) => cookie_lang,
-        _ => String::from(""),
-    }
-}
+    pdm_config::setup::create_configdir()?;
 
-async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> {
-    let auth_id = env.get_auth_id();
-    let api = env.api_config();
+    pdm_config::setup::mkdir_perms(
+        pdm_buildcfg::PDM_RUN_DIR,
+        nix::unistd::ROOT,
+        api_user.gid,
+        0o1770,
+    )?;
 
-    // fixme: make all IO async
+    pdm_config::setup::mkdir_perms(
+        pdm_buildcfg::PDM_LOG_DIR,
+        nix::unistd::ROOT,
+        api_user.gid,
+        0o755,
+    )?;
 
-    let (userid, csrf_token) = match auth_id {
-        Some(auth_id) => {
-            let auth_id = auth_id.parse::<Authid>();
-            match auth_id {
-                Ok(auth_id) if !auth_id.is_token() => {
-                    let userid = auth_id.user().clone();
-                    let new_csrf_token = auth::csrf::assemble_csrf_prevention_token(&userid);
-                    (Some(userid), Some(new_csrf_token))
-                }
-                _ => (None, None),
-            }
-        }
-        None => (None, None),
-    };
+    pdm_config::setup::mkdir_perms(
+        concat!(pdm_buildcfg::PDM_LOG_DIR_M!(), "/api"),
+        api_user.uid,
+        api_user.gid,
+        0o755,
+    )?;
 
-    let nodename = proxmox_sys::nodename();
-    let user = userid.as_ref().map(|u| u.as_str()).unwrap_or("");
-
-    let csrf_token = csrf_token.unwrap_or_else(|| String::from(""));
-
-    let mut debug = false;
-    let mut template_file = "index";
-
-    if let Some(query_str) = parts.uri.query() {
-        for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
-            if k == "debug" && v != "0" && v != "false" {
-                debug = true;
-            } else if k == "console" {
-                template_file = "console";
-            }
-        }
-    }
-
-    let data = json!({
-        "NodeName": nodename,
-        "UserName": user,
-        "CSRFPreventionToken": csrf_token,
-        "language": get_language(&parts.headers),
-        "debug": debug,
-    });
-
-    let (ct, index) = match api.render_template(template_file, &data) {
-        Ok(index) => ("text/html", index),
-        Err(err) => ("text/plain", format!("Error rendering template: {err}")),
-    };
-
-    let mut resp = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, ct)
-        .body(index.into())
-        .unwrap();
-
-    if let Some(userid) = userid {
-        resp.extensions_mut().insert(Authid::from((userid, None)));
-    }
-
-    resp
+    Ok(())
 }
 
 // FIXME: add actual API, and that in a separate module
@@ -174,7 +121,7 @@ async fn run() -> Result<(), Error> {
         } else {
             log::LevelFilter::Info
         },
-        Some("proxmox-datacenter-manager-proxy"),
+        Some("proxmox-datacenter-manager-priv"),
     ) {
         bail!("unable to inititialize syslog - {err}");
     }
@@ -188,27 +135,9 @@ async fn run() -> Result<(), Error> {
     let dir_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
 
-    let config = ApiConfig::new(pdm_buildcfg::JS_DIR, RpcEnvironmentType::PUBLIC)
-        .privileged_addr(
-            std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_PRIV_SOCKET_FN)
-                .expect("bad privileged socket path"),
-        )
-        .index_handler_func(|e, p| Box::pin(get_index_future(e, p)))
+    let config = ApiConfig::new(pdm_buildcfg::JS_DIR, RpcEnvironmentType::PRIVILEGED)
         .auth_handler_func(|h, m| Box::pin(auth::check_auth(h, m)))
-        .aliases([
-            ("extjs", "/usr/share/javascript/extjs"),
-            ("qrcodejs", "/usr/share/javascript/qrcodejs"),
-            ("fontawesome", "/usr/share/fonts-font-awesome"),
-            ("xtermjs", "/usr/share/pve-xtermjs"),
-            ("locale", "/usr/share/pdm-i18n"),
-            (
-                "proxmox-extjs-widget-toolkit",
-                "/usr/share/javascript/proxmox-widget-toolkit",
-            ),
-            ("docs", "/usr/share/doc/proxmox-datacenter-manager/html"),
-        ])
         .formatted_router(&["api2"], &ROUTER)
-        .register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
         .enable_access_log(
             pdm_buildcfg::API_ACCESS_LOG_FN,
             Some(dir_opts.clone()),
@@ -228,49 +157,31 @@ async fn run() -> Result<(), Error> {
         file_opts.clone(),
     )?;
 
-    //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/proxy.key -out /etc/proxmox-backup/proxy.pem -nodes
-
-    // we build the initial acceptor here as we cannot start if this fails
-    let acceptor = make_tls_acceptor()?;
-    let acceptor = Arc::new(Mutex::new(acceptor));
-
-    // to renew the acceptor we just add a command-socket handler
-    commando_sock.register_command("reload-certificate".to_string(), {
-        let acceptor = Arc::clone(&acceptor);
-        move |_value| -> Result<_, Error> {
-            log::info!("reloading certificate");
-            match make_tls_acceptor() {
-                Err(err) => log::error!("error reloading certificate: {err}"),
-                Ok(new_acceptor) => {
-                    let mut guard = acceptor.lock().unwrap();
-                    *guard = new_acceptor;
-                }
-            }
-            Ok(Value::Null)
-        }
-    })?;
-
-    let connections =
-        proxmox_rest_server::connection::AcceptBuilder::with_acceptor(acceptor).debug(debug);
+    match std::fs::remove_file(pdm_buildcfg::PDM_PRIV_SOCKET_FN) {
+        Ok(()) => (),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => (),
+        Err(err) => bail!("failed to remove old socket: {err}"),
+    }
     let server = daemon::create_daemon(
-        ([0, 0, 0, 0, 0, 0, 0, 0], 8443).into(),
-        move |listener| {
-            let connections = connections.accept(listener);
+        std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_PRIV_SOCKET_FN)
+            .expect("bad api socket path"),
+        move |listener: tokio::net::UnixListener| {
+            let incoming = UnixAcceptor::from(listener);
 
             Ok(async {
                 daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
-                hyper::Server::builder(connections)
+                hyper::Server::builder(incoming)
                     .serve(rest_server)
                     .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
                     .map_err(Error::from)
                     .await
             })
         },
-        Some(pdm_buildcfg::PDM_PROXY_PID_FN),
+        Some(pdm_buildcfg::PDM_PRIV_PID_FN),
     );
 
-    proxmox_rest_server::write_pid(pdm_buildcfg::PDM_PROXY_PID_FN)?;
+    proxmox_rest_server::write_pid(pdm_buildcfg::PDM_PRIV_PID_FN)?;
 
     let init_result: Result<(), Error> = try_block!({
         proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
@@ -303,15 +214,6 @@ async fn run() -> Result<(), Error> {
     log::info!("done - exit server");
 
     Ok(())
-}
-
-fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
-    let key_path = configdir!("/auth/proxy.key");
-    let cert_path = configdir!("/auth/proxy.pem");
-
-    proxmox_rest_server::connection::TlsAcceptorBuilder::new()
-        .certificate_paths_pem(key_path, cert_path)
-        .build()
 }
 
 // TODO: move scheduling stuff to own module
