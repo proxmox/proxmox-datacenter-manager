@@ -222,7 +222,6 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
     /// Load the user's current challenges with the intent to create a challenge (create the file
     /// if it does not exist), and keep a lock on the file.
     fn open(&self, userid: &str) -> Result<Box<dyn UserChallengeAccess>, Error> {
-        crate::env::create_run_dir()?;
         let options = CreateOptions::new().perm(Mode::from_bits_truncate(0o0600));
         proxmox_sys::fs::create_path(CHALLENGE_DATA_PATH, Some(options.clone()), Some(options))
             .map_err(|err| {
