@@ -1,6 +1,10 @@
 //! Setup methods.
 
+//use std::os::fd::OwnedFd;
+use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
+
 use anyhow::{bail, ensure, format_err, Error};
+use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::unistd::{Gid, Uid};
 
@@ -17,7 +21,8 @@ pub fn create_configdir() -> Result<(), Error> {
 }
 
 pub fn mkdir_perms(dir: &str, uid: Uid, gid: Gid, mode: u32) -> Result<(), Error> {
-    match nix::unistd::mkdir(dir, Mode::from_bits_truncate(mode)) {
+    let nix_mode = Mode::from_bits(mode).expect("bad mode bits for nix crate");
+    match nix::unistd::mkdir(dir, nix_mode) {
         Ok(()) => (),
         Err(nix::errno::Errno::EEXIST) => {
             check_permissions(dir, uid, gid, mode)
@@ -27,7 +32,13 @@ pub fn mkdir_perms(dir: &str, uid: Uid, gid: Gid, mode: u32) -> Result<(), Error
         Err(err) => bail!("unable to create directory '{dir}' - {err}",),
     }
 
-    nix::unistd::chown(dir, Some(uid), Some(gid))
+    let fd = nix::fcntl::open(dir, OFlag::O_DIRECTORY, Mode::empty())
+        .map(|fd| unsafe { OwnedFd::from_raw_fd(fd) })
+        .map_err(|err| format_err!("unable to open created directory '{dir}' - {err}"))?;
+    // umask defaults to 022 so make sure the mode is fully honowed:
+    nix::sys::stat::fchmod(fd.as_raw_fd(), nix_mode)
+        .map_err(|err| format_err!("unable to set mode for directory '{dir}' - {err}"))?;
+    nix::unistd::fchown(fd.as_raw_fd(), Some(uid), Some(gid))
         .map_err(|err| format_err!("unable to set ownership directory '{dir}' - {err}"))?;
 
     Ok(())
@@ -46,10 +57,8 @@ pub fn check_permissions(dir: &str, uid: Uid, gid: Gid, mode: u32) -> Result<(),
 
     ensure!(st_uid == uid, "bad owner ({st_uid} != {uid})");
     ensure!(st_gid == gid, "bad group ({st_gid} != {gid})");
-    ensure!(
-        (st_mode & 0o777) == mode,
-        "bad permissions (0o{st_mode:o} & 0o700 != 0o{mode:o})"
-    );
+    let perms = st_mode & !nix::sys::stat::SFlag::S_IFMT.bits();
+    ensure!(perms == mode, "bad permissions (0o{perms:o} != 0o{mode:o})");
 
     Ok(())
 }
