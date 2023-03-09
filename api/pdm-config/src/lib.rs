@@ -13,6 +13,8 @@ use nix::unistd::{Gid, Group, Uid, User};
 
 pub use pdm_buildcfg::{BACKUP_GROUP_NAME, BACKUP_USER_NAME};
 
+pub mod setup;
+
 /// Return User info for the main system user (``getpwnam_r(3)``)
 pub fn api_user() -> Result<nix::unistd::User, Error> {
     if cfg!(test) {

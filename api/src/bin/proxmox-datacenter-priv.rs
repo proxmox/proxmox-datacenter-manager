@@ -21,6 +21,8 @@ fn main() -> Result<(), Error> {
 
     proxmox_datacenter_manager::env::sanitize_environment_vars();
 
+    create_directories()?;
+
     let mut args = std::env::args();
     args.next();
     for arg in args {
@@ -42,6 +44,35 @@ fn main() -> Result<(), Error> {
     }
 
     proxmox_async::runtime::main(run())
+}
+
+fn create_directories() -> Result<(), Error> {
+    let api_user = pdm_config::api_user()?;
+
+    pdm_config::setup::create_configdir()?;
+
+    pdm_config::setup::mkdir_perms(
+        pdm_buildcfg::PDM_RUN_DIR,
+        nix::unistd::ROOT,
+        api_user.gid,
+        0o750,
+    )?;
+
+    pdm_config::setup::mkdir_perms(
+        pdm_buildcfg::PDM_LOG_DIR,
+        nix::unistd::ROOT,
+        api_user.gid,
+        0o755,
+    )?;
+
+    pdm_config::setup::mkdir_perms(
+        concat!(pdm_buildcfg::PDM_LOG_DIR_M!(), "/api"),
+        api_user.uid,
+        api_user.gid,
+        0o755,
+    )?;
+
+    Ok(())
 }
 
 // FIXME: add actual API, and that in a separate module
@@ -128,9 +159,14 @@ async fn run() -> Result<(), Error> {
         file_opts.clone(),
     )?;
 
+    let socket_addr = rundir!("/api.sock");
+    match std::fs::remove_file(socket_addr) {
+        Ok(()) => (),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => (),
+        Err(err) => bail!("failed to remove old socket: {err}"),
+    }
     let server = daemon::create_daemon(
-        std::os::unix::net::SocketAddr::from_pathname(rundir!("/api"))
-            .expect("bad api socket path"),
+        std::os::unix::net::SocketAddr::from_pathname(socket_addr).expect("bad api socket path"),
         move |listener: tokio::net::UnixListener| {
             let incoming = UnixAcceptor::from(listener);
 
@@ -144,10 +180,10 @@ async fn run() -> Result<(), Error> {
                     .await
             })
         },
-        Some(pdm_buildcfg::PDM_PROXY_PID_FN),
+        Some(pdm_buildcfg::PDM_PRIV_PID_FN),
     );
 
-    proxmox_rest_server::write_pid(pdm_buildcfg::PDM_PROXY_PID_FN)?;
+    proxmox_rest_server::write_pid(pdm_buildcfg::PDM_PRIV_PID_FN)?;
 
     let init_result: Result<(), Error> = try_block!({
         proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
