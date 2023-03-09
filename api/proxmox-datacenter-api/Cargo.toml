@@ -44,6 +44,7 @@ xdg.workspace = true
 zstd.workspace = true
 
 proxmox-async.workspace = true
+proxmox-auth-api = { workspace = true, features = [ "api", "pam-authenticator" ] }
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
 proxmox-io.workspace = true
 proxmox-lang.workspace = true
