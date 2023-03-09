@@ -26,7 +26,7 @@ fn main() -> Result<(), Error> {
     for arg in args {
         match arg.as_ref() {
             "setup" => {
-                let code = match auth::setup_keys() {
+                let code = match proxmox_datacenter_api::auth::setup_keys() {
                     Ok(_) => 0,
                     Err(err) => {
                         eprintln!("got error on setup - {err}");

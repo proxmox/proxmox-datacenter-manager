@@ -6,13 +6,13 @@ pub mod key;
 pub mod tfa;
 pub mod ticket;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::format_err;
 
 use proxmox_router::UserInformation;
 
-use pdm_ticket::Ticket;
 use pdm_api_types::{Authid, Userid};
 use pdm_config::{token_shadow, CachedUserInfo};
+use pdm_ticket::Ticket;
 use proxmox_rest_server::{extract_cookie, AuthError};
 
 use hyper::header;
@@ -22,19 +22,6 @@ use percent_encoding::percent_decode_str;
 pub fn init() {
     let _ = key::public_auth_key(); // load with lazy_static
     let _ = csrf::csrf_secret(); // load with lazy_static
-}
-
-pub fn setup_keys() -> Result<(), Error> {
-    if let Err(err) = key::generate_auth_key() {
-        bail!("unable to generate auth key - {err}");
-    }
-    if let Err(err) = csrf::generate_csrf_key() {
-        bail!("unable to generate csrf key - {err}");
-    }
-    if let Err(err) = certs::update_self_signed_cert(false) {
-        bail!("unable to generate TLS certs - {err}");
-    }
-    Ok(())
 }
 
 struct UserAuthData {

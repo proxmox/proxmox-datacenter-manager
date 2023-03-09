@@ -1,12 +1,9 @@
-use std::path::PathBuf;
-
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
-use openssl::rsa::Rsa;
 use openssl::sha;
 
 use proxmox_lang::try_block;
-use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox_sys::fs::file_get_contents;
 
 use pdm_api_types::Userid;
 use pdm_buildcfg::configdir;
@@ -67,34 +64,6 @@ pub fn verify_csrf_prevention_token(
         Ok(age)
     })
     .map_err(|err| format_err!("invalid csrf token - {}", err))
-}
-
-pub fn generate_csrf_key() -> Result<(), Error> {
-    let path = PathBuf::from(configdir!("/auth/csrf.key"));
-
-    if path.exists() {
-        return Ok(());
-    }
-
-    let rsa = Rsa::generate(2048).unwrap();
-
-    let pem = rsa.private_key_to_pem()?;
-
-    use nix::sys::stat::Mode;
-
-    let api_user = pdm_config::api_user()?;
-
-    replace_file(
-        &path,
-        &pem,
-        CreateOptions::new()
-            .perm(Mode::from_bits_truncate(0o0640))
-            .owner(nix::unistd::ROOT)
-            .group(api_user.gid),
-        true,
-    )?;
-
-    Ok(())
 }
 
 fn compute_csrf_secret_digest(timestamp: i64, secret: &[u8], userid: &Userid) -> String {
