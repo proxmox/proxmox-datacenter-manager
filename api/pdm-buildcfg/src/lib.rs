@@ -72,6 +72,9 @@ pub const PDM_PROXY_PID_FN: &str = concat!(PDM_RUN_DIR_M!(), "/proxy.pid");
 /// the PID filename for the privileged api daemon
 pub const PDM_PRIV_PID_FN: &str = concat!(PDM_RUN_DIR_M!(), "/priv.pid");
 
+/// The privileged api socket file.
+pub const PDM_PRIV_SOCKET_FN: &str = concat!(PDM_RUN_DIR_M!(), "/api.sock");
+
 pub const PDM_SUBSCRIPTION_FN: &str = configdir!("/subscription");
 
 /// Prepend configuration directory to a file name

@@ -10,8 +10,6 @@ use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 use proxmox_sys::fs::CreateOptions;
 
-use pdm_buildcfg::rundir;
-
 use proxmox_datacenter_manager::auth;
 
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
@@ -55,7 +53,7 @@ fn create_directories() -> Result<(), Error> {
         pdm_buildcfg::PDM_RUN_DIR,
         nix::unistd::ROOT,
         api_user.gid,
-        0o750,
+        0o1770,
     )?;
 
     pdm_config::setup::mkdir_perms(
@@ -159,14 +157,14 @@ async fn run() -> Result<(), Error> {
         file_opts.clone(),
     )?;
 
-    let socket_addr = rundir!("/api.sock");
-    match std::fs::remove_file(socket_addr) {
+    match std::fs::remove_file(pdm_buildcfg::PDM_PRIV_SOCKET_FN) {
         Ok(()) => (),
         Err(err) if err.kind() == io::ErrorKind::NotFound => (),
         Err(err) => bail!("failed to remove old socket: {err}"),
     }
     let server = daemon::create_daemon(
-        std::os::unix::net::SocketAddr::from_pathname(socket_addr).expect("bad api socket path"),
+        std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_PRIV_SOCKET_FN)
+            .expect("bad api socket path"),
         move |listener: tokio::net::UnixListener| {
             let incoming = UnixAcceptor::from(listener);
 
