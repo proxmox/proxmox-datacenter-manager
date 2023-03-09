@@ -1,6 +1,7 @@
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use futures::*;
-
+use nix::sys::stat::{fchmodat, FchmodatFlags, Mode};
+use nix::unistd::{fchownat, FchownatFlags};
 use serde_json::{json, Value};
 
 use proxmox_lang::try_block;
@@ -158,6 +159,7 @@ async fn run() -> Result<(), Error> {
         file_opts.clone(),
     )?;
 
+    // FIXME: This should probably only happen at bind() time in proxmox-rest-server...
     match std::fs::remove_file(pdm_buildcfg::PDM_API_SOCKET_FN) {
         Ok(()) => (),
         Err(err) if err.kind() == io::ErrorKind::NotFound => (),
@@ -167,6 +169,30 @@ async fn run() -> Result<(), Error> {
         std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_API_SOCKET_FN)
             .expect("bad api socket path"),
         move |listener: tokio::net::UnixListener| {
+            let sockpath = pdm_buildcfg::PDM_API_SOCKET_FN;
+
+            // NOTE: NoFollowSymlink is apparently not implemented in fchmodat()...
+            fchmodat(
+                Some(libc::AT_FDCWD),
+                sockpath,
+                Mode::from_bits_truncate(0o660),
+                FchmodatFlags::FollowSymlink,
+            )
+            .map_err(|err| {
+                format_err!("unable to set mode for api socket '{sockpath:?}' - {err}")
+            })?;
+
+            fchownat(
+                None,
+                sockpath,
+                None,
+                Some(api_user.gid),
+                FchownatFlags::FollowSymlink,
+            )
+            .map_err(|err| {
+                format_err!("unable to set ownership for api socket '{sockpath}' - {err}")
+            })?;
+
             let incoming = UnixAcceptor::from(listener);
 
             Ok(async {
