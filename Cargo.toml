@@ -15,7 +15,6 @@ members = [
     "api/pdm-buildcfg",
     "api/pdm-api-types",
     "api/pdm-config",
-    "api/pdm-ticket",
 
     "api/pdm-api-common",
     "api/proxmox-datacenter-api",
@@ -55,8 +54,6 @@ pdm-api-common = { path = "api/pdm-api-common" }
 pdm-api-types = { path = "api/pdm-api-types" }
 pdm-buildcfg = { path = "api/pdm-buildcfg" }
 pdm-config = { path = "api/pdm-config" }
-# TODO: move this+PBS ones out to a e.g. proxmox-auth-ticket crate
-pdm-ticket = { path = "api/pdm-ticket" }
 #pdm-client = { path = "pdm-client" }
 
 # regular crates

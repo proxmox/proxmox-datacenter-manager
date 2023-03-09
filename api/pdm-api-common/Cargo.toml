@@ -44,6 +44,7 @@ xdg.workspace = true
 zstd.workspace = true
 
 proxmox-async.workspace = true
+proxmox-auth-api = { workspace = true, features = [ "ticket" ] }
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
 proxmox-io.workspace = true
 proxmox-lang.workspace = true
@@ -67,4 +68,3 @@ proxmox-openid.workspace = true
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-config.workspace = true
-pdm-ticket.workspace = true

@@ -69,4 +69,3 @@ pdm-api-common.workspace = true
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-config.workspace = true
-pdm-ticket.workspace = true
