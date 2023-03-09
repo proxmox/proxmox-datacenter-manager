@@ -127,7 +127,7 @@ async fn run() -> Result<(), Error> {
         bail!("unable to inititialize syslog - {err}");
     }
 
-    auth::init();
+    auth::init(true);
 
     let api_user = pdm_config::api_user()?;
     let mut commando_sock =
