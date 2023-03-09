@@ -157,13 +157,13 @@ async fn run() -> Result<(), Error> {
         file_opts.clone(),
     )?;
 
-    match std::fs::remove_file(pdm_buildcfg::PDM_PRIV_SOCKET_FN) {
+    match std::fs::remove_file(pdm_buildcfg::PDM_API_SOCKET_FN) {
         Ok(()) => (),
         Err(err) if err.kind() == io::ErrorKind::NotFound => (),
         Err(err) => bail!("failed to remove old socket: {err}"),
     }
     let server = daemon::create_daemon(
-        std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_PRIV_SOCKET_FN)
+        std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_API_SOCKET_FN)
             .expect("bad api socket path"),
         move |listener: tokio::net::UnixListener| {
             let incoming = UnixAcceptor::from(listener);
@@ -178,10 +178,10 @@ async fn run() -> Result<(), Error> {
                     .await
             })
         },
-        Some(pdm_buildcfg::PDM_PRIV_PID_FN),
+        Some(pdm_buildcfg::PDM_API_PID_FN),
     );
 
-    proxmox_rest_server::write_pid(pdm_buildcfg::PDM_PRIV_PID_FN)?;
+    proxmox_rest_server::write_pid(pdm_buildcfg::PDM_API_PID_FN)?;
 
     let init_result: Result<(), Error> = try_block!({
         proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
