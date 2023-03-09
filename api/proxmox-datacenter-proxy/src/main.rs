@@ -156,6 +156,7 @@ fn version() -> Result<Value, Error> {
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
+    ("access", &pdm_api_common::api::access::ROUTER),
     ("ping", &Router::new().get(&API_METHOD_PING)),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
 ]);
