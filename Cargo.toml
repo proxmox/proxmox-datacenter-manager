@@ -15,15 +15,17 @@ members = [
     "api/pdm-buildcfg",
 
     "api/pdm-api-types",
-    "api/pdm-client",
     "api/pdm-config",
 
     "api/pdm-api-common",
     "api/proxmox-datacenter-api",
     "api/proxmox-datacenter-proxy",
 
-    "proxmox-login",
+    "pdm-client",
+
+    "proxmox-client",
     "proxmox-datacenter-client",
+    "proxmox-login",
 ]
 
 [workspace.dependencies]
@@ -59,7 +61,11 @@ pdm-api-common = { path = "api/pdm-api-common" }
 pdm-api-types = { path = "api/pdm-api-types" }
 pdm-buildcfg = { path = "api/pdm-buildcfg" }
 pdm-config = { path = "api/pdm-config" }
-#pdm-client = { path = "pdm-client" }
+
+pdm-client = { path = "pdm-client" }
+
+proxmox-login = { path = "proxmox-login" }
+proxmox-client = { path = "proxmox-client", features = [ "hyper-client" ] }
 
 # regular crates
 anyhow = "1.0"
