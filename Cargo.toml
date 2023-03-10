@@ -25,6 +25,7 @@ members = [
 
     "proxmox-client",
     "proxmox-datacenter-client",
+    "proxmox-datacenter-manager",
     "proxmox-login",
 ]
 

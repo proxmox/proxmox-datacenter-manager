@@ -1,0 +1,17 @@
+[package]
+name = "proxmox-datacenter-manager"
+description = "Local Proxmox Datacenter Manager management CLI"
+homepage = "https://www.proxmox.com"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde_json.workspace = true
+
+proxmox-async.workspace = true
+proxmox-router = { workspace = true, features = [ "cli" ], default-features = false }
+proxmox-schema = { workspace = true, features = [ "api-macro" ] }
