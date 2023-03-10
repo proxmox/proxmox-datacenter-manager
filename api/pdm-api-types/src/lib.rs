@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use proxmox_schema::property_string::PropertyString;
 use proxmox_schema::{
     api, const_regex, ApiStringFormat, ApiType, ArraySchema, ReturnType, Schema, StringSchema,
 };
@@ -379,4 +380,53 @@ pub struct BasicRealmInfo {
     pub default: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+}
+
+#[api(
+    properties: {
+        "fingerprint": {
+            type: String,
+            format: &FINGERPRINT_SHA256_FORMAT,
+            optional: true,
+        },
+    },
+    default_key: "hostname",
+)]
+/// A node and its certificate information.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct NodeUrl {
+    /// The node address.
+    pub hostname: String,
+
+    /// Certificate fingerprint.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fingerprint: Option<String>,
+}
+
+#[api(
+    properties: {
+        "nodes": {
+            type: Array,
+            items: {
+                type: String,
+                description: "A cluster node IP or hostname.",
+            },
+        },
+    },
+)]
+/// A Proxmox VE cluster.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct PveRemote {
+    /// An id for this cluster entry.
+    pub id: String,
+
+    /// A list of cluster node addresses.
+    pub nodes: Vec<PropertyString<NodeUrl>>,
+
+    /// The userid used to access this cluster.
+    pub userid: String,
+
+    /// The encrypted access token.
+    pub token: String,
 }
