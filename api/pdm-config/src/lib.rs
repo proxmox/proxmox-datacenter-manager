@@ -5,6 +5,8 @@ pub mod domains;
 pub mod token_shadow;
 pub mod user;
 
+pub mod section_config;
+
 mod config_version_cache;
 pub use config_version_cache::ConfigVersionCache;
 
