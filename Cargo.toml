@@ -13,7 +13,9 @@ exclude = [ "build" ]
 [workspace]
 members = [
     "api/pdm-buildcfg",
+
     "api/pdm-api-types",
+    "api/pdm-client",
     "api/pdm-config",
 
     "api/pdm-api-common",

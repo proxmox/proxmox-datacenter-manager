@@ -1,0 +1,19 @@
+[package]
+name = "pdm-client"
+description = "Proxmox Datacenter Manager client library crate"
+homepage = "https://www.proxmox.com"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde_json.workspace = true
+hyper = { workspace = true, features = [ "client", "tcp", "http1", "http2" ] }
+
+pdm-buildcfg.workspace = true
+pdm-api-types.workspace = true
+
+proxmox-http.workspace = true
