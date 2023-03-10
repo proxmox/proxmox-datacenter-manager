@@ -191,8 +191,10 @@ async fn run() -> Result<(), Error> {
 
     let config = ApiConfig::new(pdm_buildcfg::JS_DIR, RpcEnvironmentType::PUBLIC)
         .privileged_addr(
-            std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_API_SOCKET_FN)
-                .expect("bad privileged socket path"),
+            std::os::unix::net::SocketAddr::from_pathname(
+                pdm_buildcfg::PDM_PRIVILEGED_API_SOCKET_FN,
+            )
+            .expect("bad privileged socket path"),
         )
         .index_handler_func(|e, p| Box::pin(get_index_future(e, p)))
         .auth_handler_func(|h, m| Box::pin(auth::check_auth(h, m)))

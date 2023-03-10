@@ -13,6 +13,8 @@ use proxmox_sys::fs::CreateOptions;
 
 use pdm_api_common::auth;
 
+pub use proxmox_datacenter_privileged_api as privileged_api;
+
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
 
 fn main() -> Result<(), Error> {
@@ -27,7 +29,7 @@ fn main() -> Result<(), Error> {
     for arg in args {
         match arg.as_ref() {
             "setup" => {
-                let code = match proxmox_datacenter_api::auth::setup_keys() {
+                let code = match privileged_api::auth::setup_keys() {
                     Ok(_) => 0,
                     Err(err) => {
                         eprintln!("got error on setup - {err}");
@@ -160,16 +162,16 @@ async fn run() -> Result<(), Error> {
     )?;
 
     // FIXME: This should probably only happen at bind() time in proxmox-rest-server...
-    match std::fs::remove_file(pdm_buildcfg::PDM_API_SOCKET_FN) {
+    match std::fs::remove_file(pdm_buildcfg::PDM_PRIVILEGED_API_SOCKET_FN) {
         Ok(()) => (),
         Err(err) if err.kind() == io::ErrorKind::NotFound => (),
         Err(err) => bail!("failed to remove old socket: {err}"),
     }
     let server = daemon::create_daemon(
-        std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_API_SOCKET_FN)
+        std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_PRIVILEGED_API_SOCKET_FN)
             .expect("bad api socket path"),
         move |listener: tokio::net::UnixListener| {
-            let sockpath = pdm_buildcfg::PDM_API_SOCKET_FN;
+            let sockpath = pdm_buildcfg::PDM_PRIVILEGED_API_SOCKET_FN;
 
             // NOTE: NoFollowSymlink is apparently not implemented in fchmodat()...
             fchmodat(
@@ -205,10 +207,10 @@ async fn run() -> Result<(), Error> {
                     .await
             })
         },
-        Some(pdm_buildcfg::PDM_API_PID_FN),
+        Some(pdm_buildcfg::PDM_PRIVILEGED_API_PID_FN),
     );
 
-    proxmox_rest_server::write_pid(pdm_buildcfg::PDM_API_PID_FN)?;
+    proxmox_rest_server::write_pid(pdm_buildcfg::PDM_PRIVILEGED_API_PID_FN)?;
 
     let init_result: Result<(), Error> = try_block!({
         proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;

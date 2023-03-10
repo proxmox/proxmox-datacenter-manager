@@ -1,5 +1,5 @@
 [package]
-name = "proxmox-datacenter-api"
+name = "proxmox-datacenter-privileged-api"
 description = "Proxmox Datacenter Manager Privileged API Server"
 homepage = "https://www.proxmox.com"
 
