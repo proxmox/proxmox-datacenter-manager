@@ -46,6 +46,9 @@ macro_rules! PDM_CACHE_DIR_M {
     };
 }
 
+/// Default port to use for PDM services.
+pub const PDM_PORT: u16 = 8443;
+
 /// namespaced directory for in-memory (tmpfs) run state
 pub const PDM_RUN_DIR: &str = PDM_RUN_DIR_M!();
 

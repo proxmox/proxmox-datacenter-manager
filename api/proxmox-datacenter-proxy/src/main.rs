@@ -254,7 +254,7 @@ async fn run() -> Result<(), Error> {
     let connections =
         proxmox_rest_server::connection::AcceptBuilder::with_acceptor(acceptor).debug(debug);
     let server = daemon::create_daemon(
-        ([0, 0, 0, 0, 0, 0, 0, 0], 8443).into(),
+        ([0, 0, 0, 0, 0, 0, 0, 0], pdm_buildcfg::PDM_PORT).into(),
         move |listener| {
             let connections = connections.accept(listener);
 
