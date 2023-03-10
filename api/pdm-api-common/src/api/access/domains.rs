@@ -1,10 +1,11 @@
 //! List Authentication domains/realms.
 
 use anyhow::Error;
+use serde_json::Value;
 
 use pdm_api_types::{BasicRealmInfo, RealmType};
 
-use proxmox_router::{Permission, Router};
+use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
 #[api(
@@ -22,8 +23,8 @@ use proxmox_schema::api;
     },
 )]
 /// Authentication domain/realm index.
-fn list_domains() -> Result<Vec<BasicRealmInfo>, Error> {
-    Ok(vec![
+fn list_domains(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<BasicRealmInfo>, Error> {
+    let mut list = vec![
         BasicRealmInfo {
             realm: "pam".to_string(),
             ty: RealmType::Pam,
@@ -36,7 +37,19 @@ fn list_domains() -> Result<Vec<BasicRealmInfo>, Error> {
             default: None,
             comment: Some("Proxmox Datacenter Manager authentication".to_string()),
         },
-    ])
+    ];
+
+    let (config, digest) = pdm_config::domains::config()?;
+
+    for (_, (section_type, v)) in config.sections.iter() {
+        let mut entry = v.clone();
+        entry["type"] = Value::from(section_type.clone());
+        list.push(serde_json::from_value(entry)?);
+    }
+
+    rpcenv["digest"] = hex::encode(digest).into();
+
+    Ok(list)
 }
 
 pub const ROUTER: Router = Router::new().get(&API_METHOD_LIST_DOMAINS);
