@@ -19,6 +19,8 @@ members = [
     "api/pdm-api-common",
     "api/proxmox-datacenter-api",
     "api/proxmox-datacenter-proxy",
+
+    "proxmox-datacenter-client",
 ]
 
 [workspace.dependencies]
