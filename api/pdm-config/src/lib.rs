@@ -22,6 +22,12 @@ pub use cached_user_info::CachedUserInfo;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigDigest([u8; 32]);
 
+impl ConfigDigest {
+    pub fn to_hex(&self) -> String {
+        hex::encode(&self.0)
+    }
+}
+
 impl From<[u8; 32]> for ConfigDigest {
     #[inline]
     fn from(digest: [u8; 32]) -> Self {

@@ -2,8 +2,7 @@ use anyhow::Error;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::property_string::PropertyString;
-use proxmox_schema::{api, ApiType};
+use proxmox_schema::ApiType;
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
 
 use pdm_api_types::{PveRemote, REMOTE_ID_SCHEMA};

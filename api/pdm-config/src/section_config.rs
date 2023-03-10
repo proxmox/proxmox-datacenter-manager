@@ -28,7 +28,7 @@ pub trait ApiSectionDataEntry: Sized {
 
     /// The default implementation only succeeds for externally tagged enums (serde's default enum
     /// representation).
-    fn to_pair_owned(self) -> Result<(String, Value), serde_json::Error>
+    fn into_pair(self) -> Result<(String, Value), serde_json::Error>
     where
         Self: Serialize,
     {
@@ -138,7 +138,7 @@ impl<T: Serialize + ApiSectionDataEntry> TryFrom<SectionConfigData<T>> for RawSe
             data.sections
                 .into_iter()
                 .try_fold(HashMap::new(), |mut acc, (id, value)| {
-                    acc.insert(id, value.to_pair_owned()?);
+                    acc.insert(id, value.into_pair()?);
                     Ok::<_, serde_json::Error>(acc)
                 })?;
 
@@ -190,5 +190,65 @@ impl<T: ApiSectionDataEntry> FromIterator<(String, T)> for SectionConfigData<T> 
         }
 
         Self { sections, order }
+    }
+}
+
+impl<T> IntoIterator for SectionConfigData<T> {
+    type IntoIter = IntoIter<T>;
+    type Item = (String, T);
+
+    fn into_iter(self) -> IntoIter<T> {
+        IntoIter {
+            sections: self.sections,
+            order: self.order.into_iter(),
+        }
+    }
+}
+
+pub struct IntoIter<T> {
+    sections: HashMap<String, T>,
+    order: std::vec::IntoIter<String>,
+}
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = (String, T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let id = self.order.next()?;
+            if let Some(data) = self.sections.remove(&id) {
+                return Some((id, data));
+            }
+        }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a SectionConfigData<T> {
+    type IntoIter = Iter<'a, T>;
+    type Item = (&'a str, &'a T);
+
+    fn into_iter(self) -> Iter<'a, T> {
+        Iter {
+            sections: &self.sections,
+            order: self.order.iter(),
+        }
+    }
+}
+
+pub struct Iter<'a, T> {
+    sections: &'a HashMap<String, T>,
+    order: std::slice::Iter<'a, String>,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = (&'a str, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let id = self.order.next()?;
+            if let Some(data) = self.sections.get(id) {
+                return Some((id, data));
+            }
+        }
     }
 }
