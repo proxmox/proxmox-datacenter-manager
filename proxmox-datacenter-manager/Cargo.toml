@@ -15,3 +15,6 @@ serde_json.workspace = true
 proxmox-async.workspace = true
 proxmox-router = { workspace = true, features = [ "cli" ], default-features = false }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
+
+pdm-config.workspace = true
+proxmox-datacenter-api.workspace = true

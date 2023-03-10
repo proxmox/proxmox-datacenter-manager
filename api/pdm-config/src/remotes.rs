@@ -44,7 +44,7 @@ static CONFIG: Lazy<SectionConfig> = Lazy::new(|| {
 
 /// In the future we may also have PMG or PBS nodes.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(tag = "type", rename_all = "kebab-case")]
 pub enum Remote {
     Pve(PveRemote),
 }
