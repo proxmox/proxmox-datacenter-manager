@@ -1,21 +1,66 @@
-pub mod acl;
-mod cached_user_info;
-pub use cached_user_info::CachedUserInfo;
-pub mod domains;
-pub mod token_shadow;
-pub mod user;
-
-pub mod section_config;
-
-mod config_version_cache;
-pub use config_version_cache::ConfigVersionCache;
-
 use anyhow::{format_err, Error};
 use nix::unistd::{Gid, Group, Uid, User};
 
 pub use pdm_buildcfg::{BACKUP_GROUP_NAME, BACKUP_USER_NAME};
 
+pub mod section_config;
+
+pub mod acl;
+pub mod domains;
+pub mod remotes;
 pub mod setup;
+pub mod token_shadow;
+pub mod user;
+
+mod config_version_cache;
+pub use config_version_cache::ConfigVersionCache;
+
+mod cached_user_info;
+pub use cached_user_info::CachedUserInfo;
+
+/// A configuration digest - a SHA256 hash.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigDigest([u8; 32]);
+
+impl From<[u8; 32]> for ConfigDigest {
+    #[inline]
+    fn from(digest: [u8; 32]) -> Self {
+        Self(digest)
+    }
+}
+
+impl Into<[u8; 32]> for ConfigDigest {
+    #[inline]
+    fn into(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+impl AsRef<[u8]> for ConfigDigest {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl AsRef<[u8; 32]> for ConfigDigest {
+    fn as_ref(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for ConfigDigest {
+    type Target = [u8; 32];
+
+    fn deref(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for ConfigDigest {
+    fn deref_mut(&mut self) -> &mut [u8; 32] {
+        &mut self.0
+    }
+}
 
 /// Return User info for the main system user (``getpwnam_r(3)``)
 pub fn api_user() -> Result<nix::unistd::User, Error> {

@@ -195,6 +195,12 @@ pub const REALM_ID_SCHEMA: Schema = StringSchema::new("Realm name.")
     .max_length(32)
     .schema();
 
+pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
+    .format(&PROXMOX_SAFE_ID_FORMAT)
+    .min_length(2)
+    .max_length(32)
+    .schema();
+
 pub const FINGERPRINT_SHA256_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&FINGERPRINT_SHA256_REGEX);
 
