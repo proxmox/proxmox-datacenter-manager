@@ -138,12 +138,12 @@ pub const HOSTNAME_SCHEMA: Schema = StringSchema::new("Hostname (as defined in R
     .schema();
 
 pub const OPENSSL_CIPHERS_TLS_1_2_SCHEMA: Schema =
-    StringSchema::new("OpenSSL cipher list used by the proxy for TLS <= 1.2")
+    StringSchema::new("OpenSSL cipher list used by the api server for TLS <= 1.2")
         .format(&OPENSSL_CIPHERS_TLS_FORMAT)
         .schema();
 
 pub const OPENSSL_CIPHERS_TLS_1_3_SCHEMA: Schema =
-    StringSchema::new("OpenSSL ciphersuites list used by the proxy for TLS 1.3")
+    StringSchema::new("OpenSSL ciphersuites list used by the api server for TLS 1.3")
         .format(&OPENSSL_CIPHERS_TLS_FORMAT)
         .schema();
 

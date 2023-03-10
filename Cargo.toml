@@ -19,7 +19,7 @@ members = [
 
     "api/pdm-api-common",
     "api/proxmox-datacenter-privileged-api",
-    "api/proxmox-datacenter-proxy",
+    "api/proxmox-datacenter-api",
 
     "pdm-client",
 

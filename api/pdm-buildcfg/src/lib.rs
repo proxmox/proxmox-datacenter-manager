@@ -13,9 +13,9 @@ pub const CONFIGDIR: &str = "/etc/proxmox-datacenter-manager";
 pub const JS_DIR: &str = "/usr/share/javascript/proxmox-datacenter-manager";
 
 // FIXME use (and add) pdm user?
-/// Unix system user used by proxmox-backup-proxy
+/// Unix system user used by proxmox-datacenter-api
 pub const BACKUP_USER_NAME: &str = "www-data";
-/// Unix system group used by proxmox-backup-proxy
+/// Unix system group used by proxmox-datacenter-api
 pub const BACKUP_GROUP_NAME: &str = "www-data";
 
 #[macro_export]
@@ -61,22 +61,22 @@ pub const PDM_STATE_DIR: &str = PDM_STATE_DIR_M!();
 /// namespaced directory for persistent logging
 pub const PDM_LOG_DIR: &str = PDM_LOG_DIR_M!();
 
-/// logfile for all API requests handled by the proxy and privileged API daemons. Note that not all
-/// failed logins can be logged here with full information, use the auth log for that.
+/// logfile for all API requests handled by the api server and privileged API daemons. Note that
+/// not all failed logins can be logged here with full information, use the auth log for that.
 pub const API_ACCESS_LOG_FN: &str = concat!(PDM_LOG_DIR_M!(), "/api/access.log");
 
 /// logfile for any failed authentication, via ticket or via token, and new successful ticket
 /// creations. This file can be useful for fail2ban.
 pub const API_AUTH_LOG_FN: &str = concat!(PDM_LOG_DIR_M!(), "/api/auth.log");
 
-/// the PID filename for the unprivileged proxy daemon
-pub const PDM_PROXY_PID_FN: &str = concat!(PDM_RUN_DIR_M!(), "/proxy.pid");
+/// the PID filename for the unprivileged api daemon
+pub const PDM_API_PID_FN: &str = concat!(PDM_RUN_DIR_M!(), "/api.pid");
 
 /// the PID filename for the privileged api daemon
 pub const PDM_PRIVILEGED_API_PID_FN: &str = concat!(PDM_RUN_DIR_M!(), "/priv.pid");
 
 /// The privileged api socket file.
-pub const PDM_PRIVILEGED_API_SOCKET_FN: &str = concat!(PDM_RUN_DIR_M!(), "/api.sock");
+pub const PDM_PRIVILEGED_API_SOCKET_FN: &str = concat!(PDM_RUN_DIR_M!(), "/priv.sock");
 
 pub const PDM_SUBSCRIPTION_FN: &str = configdir!("/subscription");
 
@@ -86,7 +86,7 @@ pub const PDM_SUBSCRIPTION_FN: &str = configdir!("/subscription");
 /// #### Example:
 /// ```
 /// use pbs_buildcfg::configdir;
-/// let cert_path = configdir!("/proxy.pfx");
+/// let cert_path = configdir!("/api.pfx");
 /// ```
 #[macro_export]
 macro_rules! configdir {

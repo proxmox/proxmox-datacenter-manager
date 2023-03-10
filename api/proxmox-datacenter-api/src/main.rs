@@ -44,7 +44,7 @@ fn main() -> Result<(), Error> {
     let running_gid = nix::unistd::Gid::effective();
 
     if running_uid != api_uid || running_gid != api_gid {
-        bail!("proxy not running as api user or group (got uid {running_uid} gid {running_gid})");
+        bail!("api not running as api user or group (got uid {running_uid} gid {running_gid})");
     }
 
     proxmox_async::runtime::main(run())
@@ -175,7 +175,7 @@ async fn run() -> Result<(), Error> {
         } else {
             log::LevelFilter::Info
         },
-        Some("proxmox-datacenter-manager-proxy"),
+        Some("proxmox-datacenter-manager-api"),
     ) {
         bail!("unable to inititialize syslog - {err}");
     }
@@ -231,7 +231,7 @@ async fn run() -> Result<(), Error> {
         file_opts.clone(),
     )?;
 
-    //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/proxy.key -out /etc/proxmox-backup/proxy.pem -nodes
+    //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/api.key -out /etc/proxmox-backup/api.pem -nodes
 
     // we build the initial acceptor here as we cannot start if this fails
     let acceptor = make_tls_acceptor()?;
@@ -270,10 +270,10 @@ async fn run() -> Result<(), Error> {
                     .await
             })
         },
-        Some(pdm_buildcfg::PDM_PROXY_PID_FN),
+        Some(pdm_buildcfg::PDM_API_PID_FN),
     );
 
-    proxmox_rest_server::write_pid(pdm_buildcfg::PDM_PROXY_PID_FN)?;
+    proxmox_rest_server::write_pid(pdm_buildcfg::PDM_API_PID_FN)?;
 
     let init_result: Result<(), Error> = try_block!({
         proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
@@ -309,8 +309,8 @@ async fn run() -> Result<(), Error> {
 }
 
 fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
-    let key_path = configdir!("/auth/proxy.key");
-    let cert_path = configdir!("/auth/proxy.pem");
+    let key_path = configdir!("/auth/api.key");
+    let cert_path = configdir!("/auth/api.pem");
 
     proxmox_rest_server::connection::TlsAcceptorBuilder::new()
         .certificate_paths_pem(key_path, cert_path)

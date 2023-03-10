@@ -8,8 +8,8 @@ use pdm_buildcfg::configdir;
 
 /// Update self signed node certificate.
 pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
-    let key_path = PathBuf::from(configdir!("/auth/proxy.key"));
-    let cert_path = PathBuf::from(configdir!("/auth/proxy.pem"));
+    let key_path = PathBuf::from(configdir!("/auth/api.key"));
+    let cert_path = PathBuf::from(configdir!("/auth/api.pem"));
 
     if key_path.exists() && cert_path.exists() && !force {
         return Ok(());
@@ -101,14 +101,14 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
     let x509 = x509.build();
     let cert_pem = x509.to_pem()?;
 
-    set_proxy_certificate(&cert_pem, &priv_pem)?;
+    set_api_certificate(&cert_pem, &priv_pem)?;
 
     Ok(())
 }
 
-pub(crate) fn set_proxy_certificate(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), Error> {
-    let key_path = PathBuf::from(configdir!("/auth/proxy.key"));
-    let cert_path = PathBuf::from(configdir!("/auth/proxy.pem"));
+pub(crate) fn set_api_certificate(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), Error> {
+    let key_path = PathBuf::from(configdir!("/auth/api.key"));
+    let cert_path = PathBuf::from(configdir!("/auth/api.pem"));
 
     //create_configdir()?;
     pdm_config::replace_api_config(&key_path, key_pem)
