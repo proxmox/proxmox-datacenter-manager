@@ -1,26 +1,11 @@
 //! List Authentication domains/realms.
 
 use anyhow::Error;
-use serde::{Deserialize, Serialize};
+
+use pdm_api_types::{BasicRealmInfo, RealmType};
 
 use proxmox_router::{Permission, Router};
 use proxmox_schema::api;
-
-#[api]
-#[derive(Clone, PartialEq, Deserialize, Serialize)]
-/// Realm information.
-struct BasicRealmInfo {
-    /// Realm name.
-    realm: String,
-
-    /// Realm type.
-    #[serde(rename = "type")]
-    ty: String,
-
-    /// Comment.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    comment: Option<String>,
-}
 
 #[api(
     returns: {
@@ -41,12 +26,14 @@ fn list_domains() -> Result<Vec<BasicRealmInfo>, Error> {
     Ok(vec![
         BasicRealmInfo {
             realm: "pam".to_string(),
-            ty: "pam".to_string(),
+            ty: RealmType::Pam,
+            default: None,
             comment: Some("Linux PAM standard authentication".to_string()),
         },
         BasicRealmInfo {
             realm: "pdm".to_string(),
-            ty: "pdm".to_string(),
+            ty: RealmType::Pdm,
+            default: None,
             comment: Some("Proxmox Datacenter Manager authentication".to_string()),
         },
     ])
