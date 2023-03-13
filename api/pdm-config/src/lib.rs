@@ -1,4 +1,4 @@
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use nix::unistd::{Gid, Group, Uid, User};
 
 pub use pdm_buildcfg::{BACKUP_GROUP_NAME, BACKUP_USER_NAME};
@@ -152,5 +152,25 @@ pub fn replace_secret_config<P: AsRef<std::path::Path>>(path: P, data: &[u8]) ->
 
     proxmox_sys::fs::replace_file(path, data, options, true)?;
 
+    Ok(())
+}
+
+/// Detect modified configuration files
+///
+/// This function fails with a reasonable error message if checksums do not match.
+pub fn detect_modified_configuration_file(
+    user_digest: Option<&str>,
+    config_digest: &[u8; 32],
+) -> Result<(), Error> {
+    use hex::FromHex;
+
+    let user_digest = match user_digest {
+        Some(digest) => <[u8; 32]>::from_hex(digest)?,
+        None => return Ok(()),
+    };
+
+    if user_digest != *config_digest {
+        bail!("detected modified configuration - file changed by other user? Try again.");
+    }
     Ok(())
 }

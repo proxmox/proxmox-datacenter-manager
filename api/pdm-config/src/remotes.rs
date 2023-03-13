@@ -57,6 +57,8 @@ impl From<PveRemote> for Remote {
 
 // To be derived via a macro from the enum.
 impl ApiSectionDataEntry for Remote {
+    const INTERNALLY_TAGGED: Option<&'static str> = Some("type");
+
     fn section_config() -> &'static SectionConfig {
         &CONFIG
     }
@@ -64,6 +66,14 @@ impl ApiSectionDataEntry for Remote {
     fn section_type(&self) -> &'static str {
         match self {
             Remote::Pve(_) => "pve",
+        }
+    }
+}
+
+impl Remote {
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Pve(r) => &r.id,
         }
     }
 }

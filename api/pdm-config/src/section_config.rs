@@ -13,17 +13,34 @@ use proxmox_section_config::SectionConfig;
 use proxmox_section_config::SectionConfigData as RawSectionConfigData;
 
 pub trait ApiSectionDataEntry: Sized {
+    const INTERNALLY_TAGGED: Option<&'static str> = None;
+
     /// Get the `SectionConfig` configuration for this enum.
     fn section_config() -> &'static SectionConfig;
 
     /// Maps an enum value to its type name.
     fn section_type(&self) -> &'static str;
 
-    fn from_value(ty: String, value: Value) -> Result<Self, serde_json::Error>
+    fn from_value(ty: String, mut value: Value) -> Result<Self, serde_json::Error>
     where
         Self: serde::de::DeserializeOwned,
     {
-        serde_json::from_value::<Self>(json!({ ty: value }))
+        if let Some(tag) = Self::INTERNALLY_TAGGED {
+            match &mut value {
+                Value::Object(obj) => {
+                    obj.insert(tag.to_string(), ty.into());
+                    serde_json::from_value::<Self>(value)
+                }
+                _ => {
+                    use serde::ser::Error;
+                    Err(serde_json::Error::custom(
+                        "cannot add type property non-object",
+                    ))
+                }
+            }
+        } else {
+            serde_json::from_value::<Self>(json!({ ty: value }))
+        }
     }
 
     /// The default implementation only succeeds for externally tagged enums (serde's default enum
@@ -32,14 +49,7 @@ pub trait ApiSectionDataEntry: Sized {
     where
         Self: Serialize,
     {
-        use serde::ser::Error;
-
-        match serde_json::to_value(self)? {
-            Value::Object(obj) if obj.len() == 1 => Ok(
-                obj.into_iter().next().unwrap(), // unwrap: we checked the length
-            ),
-            _ => Err(Error::custom("unexpected serialization method")),
-        }
+        to_pair(serde_json::to_value(self)?, Self::INTERNALLY_TAGGED)
     }
 
     /// The default implementation only succeeds for externally tagged enums (serde's default enum
@@ -48,14 +58,7 @@ pub trait ApiSectionDataEntry: Sized {
     where
         Self: Serialize,
     {
-        use serde::ser::Error;
-
-        match serde_json::to_value(self)? {
-            Value::Object(obj) if obj.len() == 1 => Ok(
-                obj.into_iter().next().unwrap(), // unwrap: we checked the length
-            ),
-            _ => Err(Error::custom("unexpected serialization method")),
-        }
+        to_pair(serde_json::to_value(self)?, Self::INTERNALLY_TAGGED)
     }
 
     fn parse_section_config(filename: &str, data: &str) -> Result<SectionConfigData<Self>, Error>
@@ -65,18 +68,33 @@ pub trait ApiSectionDataEntry: Sized {
         Ok(Self::section_config().parse(filename, data)?.try_into()?)
     }
 
-    fn store_section_config(filename: &str, data: SectionConfigData<Self>) -> Result<String, Error>
-    where
-        Self: Serialize,
-    {
-        Self::section_config().write(filename, &data.try_into()?)
-    }
-
     fn write_section_config(filename: &str, data: &SectionConfigData<Self>) -> Result<String, Error>
     where
         Self: Serialize,
     {
         Self::section_config().write(filename, &data.try_into()?)
+    }
+}
+
+fn to_pair(value: Value, tag: Option<&'static str>) -> Result<(String, Value), serde_json::Error> {
+    use serde::ser::Error;
+
+    match (value, tag) {
+        (Value::Object(mut obj), Some(tag)) => {
+            let id = obj
+                .remove(tag)
+                .ok_or_else(|| Error::custom(format!("tag {tag:?} missing in object")))?;
+            match id {
+                Value::String(id) => Ok((id, Value::Object(obj))),
+                _ => Err(Error::custom(format!(
+                    "tag {tag:?} has invalid value (not a string)"
+                ))),
+            }
+        }
+        (Value::Object(obj), None) if obj.len() == 1 => Ok(
+            obj.into_iter().next().unwrap(), // unwrap: we checked the length
+        ),
+        _ => Err(Error::custom("unexpected serialization method")),
     }
 }
 

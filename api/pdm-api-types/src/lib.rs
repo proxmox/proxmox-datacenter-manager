@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::property_string::PropertyString;
 use proxmox_schema::{
     api, const_regex, ApiStringFormat, ApiType, ArraySchema, ReturnType, Schema, StringSchema,
+    Updater,
 };
 use proxmox_time::parse_daily_duration;
 
@@ -409,6 +410,14 @@ pub struct NodeUrl {
     pub fingerprint: Option<String>,
 }
 
+#[api]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RemoteType {
+    /// A Proxmox VE node.
+    Pve,
+}
+
 #[api(
     properties: {
         "nodes": {
@@ -421,10 +430,11 @@ pub struct NodeUrl {
     },
 )]
 /// A Proxmox VE cluster.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Updater)]
 #[serde(rename_all = "kebab-case")]
 pub struct PveRemote {
     /// An id for this cluster entry.
+    #[updater(skip)]
     pub id: String,
 
     /// A list of cluster node addresses.
