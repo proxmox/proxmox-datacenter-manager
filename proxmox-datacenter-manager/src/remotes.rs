@@ -30,7 +30,7 @@ pub fn cli() -> CommandLineInterface {
 fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
-    let info = &dc_api::API_METHOD_LIST_REMOTES;
+    let info = &dc_api::remotes::API_METHOD_LIST_REMOTES;
     let data = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
