@@ -14,14 +14,14 @@ exclude = [ "build" ]
 members = [
     "api/pdm-buildcfg",
 
+    "api/pdm-api-common",
     "api/pdm-api-types",
+    "api/pdm-client",
     "api/pdm-config",
 
-    "api/pdm-api-common",
     "api/proxmox-datacenter-privileged-api",
     "api/proxmox-datacenter-api",
 
-    "pdm-client",
 
     "proxmox-client",
     "proxmox-datacenter-client",
@@ -63,8 +63,7 @@ pdm-api-types = { path = "api/pdm-api-types" }
 pdm-buildcfg = { path = "api/pdm-buildcfg" }
 pdm-config = { path = "api/pdm-config" }
 proxmox-datacenter-api = { path = "api/proxmox-datacenter-api" }
-
-pdm-client = { path = "pdm-client" }
+pdm-client = { path = "api/pdm-client" }
 
 proxmox-login = { path = "proxmox-login" }
 proxmox-client = { path = "proxmox-client", features = [ "hyper-client" ] }
