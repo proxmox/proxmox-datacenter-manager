@@ -19,14 +19,15 @@ members = [
     "api/pdm-client",
     "api/pdm-config",
 
+    "api/proxmox-client",
+    "api/proxmox-login",
+
     "api/proxmox-datacenter-privileged-api",
     "api/proxmox-datacenter-api",
 
 
-    "proxmox-client",
     "proxmox-datacenter-client",
     "proxmox-datacenter-manager",
-    "proxmox-login",
 ]
 
 [workspace.dependencies]
@@ -65,8 +66,8 @@ pdm-config = { path = "api/pdm-config" }
 proxmox-datacenter-api = { path = "api/proxmox-datacenter-api" }
 pdm-client = { path = "api/pdm-client" }
 
-proxmox-login = { path = "proxmox-login" }
-proxmox-client = { path = "proxmox-client", features = [ "hyper-client" ] }
+proxmox-login = { path = "api/proxmox-login" }
+proxmox-client = { path = "api/proxmox-client", features = [ "hyper-client" ] }
 
 # regular crates
 anyhow = "1.0"
