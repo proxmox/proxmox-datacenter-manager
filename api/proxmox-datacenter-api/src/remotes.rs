@@ -3,11 +3,20 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox_router::{http_bail, http_err, RpcEnvironment};
+use proxmox_router::{http_bail, http_err, Router, RpcEnvironment};
 use proxmox_schema::api;
 
 use pdm_api_types::{RemoteType, PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA};
 use pdm_config::remotes::Remote;
+
+pub const ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_REMOTES)
+    .post(&API_METHOD_ADD_REMOTE)
+    .match_all("id", &ITEM_ROUTER);
+
+const ITEM_ROUTER: Router = Router::new()
+    .put(&API_METHOD_UPDATE_REMOTE)
+    .delete(&API_METHOD_REMOVE_REMOTE);
 
 #[api(
     returns: {

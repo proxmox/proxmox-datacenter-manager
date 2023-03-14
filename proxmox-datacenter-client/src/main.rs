@@ -9,6 +9,7 @@ mod macros; // must go first
 
 pub mod env;
 pub mod fido;
+pub mod remotes;
 
 pub type Client = pdm_client::Client<&'static env::Env>;
 
@@ -74,7 +75,9 @@ fn main_do() -> Result<(), Error> {
         bail!("failed to initialize environment");
     }
 
-    let cmd_def = CliCommandMap::new().insert("login", CliCommand::new(&API_METHOD_LOGIN));
+    let cmd_def = CliCommandMap::new()
+        .insert("login", CliCommand::new(&API_METHOD_LOGIN))
+        .insert("remote", remotes::cli());
 
     let rpcenv = CliEnvironment::new();
     run_cli_command_with_args(

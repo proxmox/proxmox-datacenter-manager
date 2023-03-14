@@ -464,7 +464,7 @@ where
     }
 
     /// Execute a `GET` request, possibly trying multiple cluster nodes.
-    pub(crate) async fn get_request<'a, R>(&'a self, uri: &str) -> Result<ApiResponse<R>, E::Error>
+    pub async fn get<'a, R>(&'a self, uri: &str) -> Result<ApiResponse<R>, E::Error>
     where
         R: serde::de::DeserializeOwned,
     {
@@ -483,11 +483,7 @@ where
     }
 
     /// Execute a `PUT` request with the given body, possibly trying multiple cluster nodes.
-    pub(crate) async fn put_request<'a, B, R>(
-        &'a self,
-        uri: &str,
-        body: &'a B,
-    ) -> Result<ApiResponse<R>, E::Error>
+    pub async fn put<'a, B, R>(&'a self, uri: &str, body: &'a B) -> Result<ApiResponse<R>, E::Error>
     where
         B: serde::Serialize,
         R: serde::de::DeserializeOwned,
@@ -497,7 +493,7 @@ where
     }
 
     /// Execute a `POST` request with the given body, possibly trying multiple cluster nodes.
-    pub(crate) async fn post_request<'a, B, R>(
+    pub async fn post<'a, B, R>(
         &'a self,
         uri: &str,
         body: &'a B,
@@ -509,6 +505,25 @@ where
         let auth = self.login_auth().await?;
         self.json_request(&auth, http::Method::POST, uri, body)
             .await
+    }
+
+    /// Execute a `DELETE` request, possibly trying multiple cluster nodes.
+    pub async fn delete<'a, R>(&'a self, uri: &str) -> Result<ApiResponse<R>, E::Error>
+    where
+        R: serde::de::DeserializeOwned,
+    {
+        self.login().await?;
+
+        let response = self
+            .request_retry_loop(|base_uri| async {
+                self.set_auth_headers(Request::delete(self.build_uri(base_uri, uri)?))
+                    .await?
+                    .body(Vec::new())
+                    .map_err(Error::internal)
+            })
+            .await?;
+
+        Self::handle_response(response)
     }
 
     /// Helper method for a JSON request with a JSON body `B`, yielding a JSON result type `R`.
@@ -607,8 +622,8 @@ struct RawApiResponse<T> {
     #[serde(default, deserialize_with = "proxmox_login::parse::deserialize_u16")]
     pub status: Option<u16>,
     pub message: Option<String>,
-    #[serde(default, deserialize_with = "proxmox_login::parse::deserialize_u8")]
-    pub success: Option<u8>,
+    #[serde(default, deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    pub success: Option<bool>,
     pub data: Option<T>,
 
     #[serde(default, flatten)]
@@ -617,7 +632,7 @@ struct RawApiResponse<T> {
 
 impl<T> RawApiResponse<T> {
     pub fn check<E: Error>(mut self) -> Result<ApiResponse<T>, E> {
-        if self.success.unwrap_or(0) == 0 {
+        if !self.success.unwrap_or(false) {
             let status = http::StatusCode::from_u16(self.status.unwrap_or(400))
                 .unwrap_or(http::StatusCode::BAD_REQUEST);
             let message = self
