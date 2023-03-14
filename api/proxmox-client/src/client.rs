@@ -676,7 +676,7 @@ mod hyper_client_extras {
     use super::{Client, HyperClient};
     use crate::Environment;
 
-    #[derive(Clone, Debug, Default)]
+    #[derive(Default)]
     pub enum TlsOptions {
         /// Default TLS verification.
         #[default]
@@ -690,6 +690,9 @@ mod hyper_client_extras {
 
         /// Verify with a specific PEM formatted CA.
         CaCert(X509),
+
+        /// Use a callback for certificate verification.
+        Callback(Box<dyn Fn(bool, &mut x509::X509StoreContextRef) -> bool + Send + Sync + 'static>),
     }
 
     fn fp_string(fp: &[u8]) -> String {
@@ -752,6 +755,11 @@ mod hyper_client_extras {
                             return true;
                         }
                         verify_fingerprint(chain, &expected_fingerprint)
+                    });
+                }
+                TlsOptions::Callback(cb) => {
+                    connector.set_verify_callback(SslVerifyMode::PEER, move |valid, chain| {
+                        cb(valid, chain)
                     });
                 }
                 TlsOptions::CaCert(ca) => {

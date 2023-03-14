@@ -1,32 +1,58 @@
 //! Proxmox Datacenter Manager API client.
 
-use anyhow::Error;
-use hyper::client::Client as HyperClient;
+use anyhow::{format_err, Error};
+use openssl::x509;
 
-use proxmox_http::client::HttpsConnector;
+use proxmox_client::Environment;
 
 use pdm_api_types::Authid;
 
-pub struct Client {
-    _options: Options,
-    _client: HyperClient<HttpsConnector>,
+pub struct Client<E: Environment> {
+    client: proxmox_client::HyperClient<E>,
+    auth_id: Authid,
 }
 
-impl Client {
-    pub fn new(server: &str, port: u16, auth_id: &Authid, options: Options) -> Result<Self, Error> {
-        let _ = (server, port, auth_id, options);
-        todo!();
+impl<E> Client<E>
+where
+    E: Environment,
+    E::Error: From<anyhow::Error>,
+    anyhow::Error: From<E::Error>,
+{
+    pub fn new(env: E, server: &str, auth_id: Authid, options: Options) -> Result<Self, E::Error> {
+        use proxmox_client::TlsOptions;
+
+        let tls_options = match options.callback {
+            Some(cb) => TlsOptions::Callback(cb),
+            None => TlsOptions::default(),
+        };
+
+        let client = proxmox_client::HyperClient::with_options(
+            server
+                .parse()
+                .map_err(|err| format_err!("bad address: {server:?} - {err}"))?,
+            env,
+            tls_options,
+            options.http_options,
+        )?;
+
+        Ok(Self { client, auth_id })
+    }
+
+    pub async fn login(&self) -> Result<(), Error> {
+        self.client.login().await?;
+        Ok(())
     }
 }
 
 #[derive(Default)]
 // TODO: Merge this with pbs-client's stuff
 pub struct Options {
-    /// XDG base directory prefix for storing the cached ticket.
-    prefix: Option<String>,
+    /// Set a TLS verification callback.
+    callback:
+        Option<Box<dyn Fn(bool, &mut x509::X509StoreContextRef) -> bool + Send + Sync + 'static>>,
 
-    /// Certificate fingerprint.
-    fingerprint: Option<String>,
+    /// `proxmox_http` based options.
+    http_options: proxmox_http::HttpOptions,
 }
 
 impl Options {
@@ -35,15 +61,18 @@ impl Options {
         Self::default()
     }
 
-    /// XDG base directory prefix for storing the cached ticket.
-    pub fn prefix(mut self, prefix: String) -> Self {
-        self.prefix = Some(prefix);
+    /// Set a TLS verification callback.
+    pub fn tls_callback<F>(mut self, cb: F) -> Self
+    where
+        F: Fn(bool, &mut x509::X509StoreContextRef) -> bool + Send + Sync + 'static,
+    {
+        self.callback = Some(Box::new(cb));
         self
     }
 
-    /// Certificate fingerprint.
-    pub fn fingerprint(mut self, fingerprint: String) -> Self {
-        self.fingerprint = Some(fingerprint);
+    /// Set the HTTP related options.
+    pub fn http_options(mut self, http_options: proxmox_http::HttpOptions) -> Self {
+        self.http_options = http_options;
         self
     }
 }

@@ -10,10 +10,13 @@ repository.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+hex.workspace = true
+openssl.workspace = true
 serde_json.workspace = true
 hyper = { workspace = true, features = [ "client", "tcp", "http1", "http2" ] }
 
 pdm-buildcfg.workspace = true
 pdm-api-types.workspace = true
 
+proxmox-client = { workspace = true, features = [ "hyper-client" ] }
 proxmox-http.workspace = true
