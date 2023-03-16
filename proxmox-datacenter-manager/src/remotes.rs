@@ -16,8 +16,14 @@ pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_REMOTES))
         .insert("add", CliCommand::new(&API_METHOD_ADD_REMOTE))
-        .insert("remove", CliCommand::new(&API_METHOD_REMOVE_REMOTE))
-        .insert("update", CliCommand::new(&API_METHOD_UPDATE_REMOTE))
+        .insert(
+            "remove",
+            CliCommand::new(&API_METHOD_REMOVE_REMOTE).arg_param(&["id"]),
+        )
+        .insert(
+            "update",
+            CliCommand::new(&API_METHOD_UPDATE_REMOTE).arg_param(&["id"]),
+        )
         .into()
 }
 

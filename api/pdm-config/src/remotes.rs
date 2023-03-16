@@ -4,11 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::ApiType;
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
+use proxmox_sys::fs::CreateOptions;
 
 use pdm_api_types::{PveRemote, REMOTE_ID_SCHEMA};
 
 use crate::section_config::{ApiSectionDataEntry, SectionConfigData};
-use crate::{open_api_lockfile, replace_api_config, ApiLockGuard, ConfigDigest};
+use crate::{open_api_lockfile, ApiLockGuard, ConfigDigest};
 
 pub const REMOTES_CFG_FILENAME: &str = "/etc/proxmox-datacenter-manager/remotes.cfg";
 pub const REMOTES_CFG_LOCKFILE: &str = "/etc/proxmox-datacenter-manager/.remotes.lock";
@@ -29,7 +30,12 @@ pub fn config() -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
 
 pub fn save_config(config: &SectionConfigData<Remote>) -> Result<(), Error> {
     let raw = Remote::write_section_config(REMOTES_CFG_FILENAME, config)?;
-    replace_api_config(REMOTES_CFG_FILENAME, raw.as_bytes())
+    proxmox_sys::fs::replace_file(
+        REMOTES_CFG_FILENAME,
+        raw.as_bytes(),
+        CreateOptions::new(),
+        true,
+    )
 }
 
 static CONFIG: Lazy<SectionConfig> = Lazy::new(|| {

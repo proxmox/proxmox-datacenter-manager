@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::future::Future;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -612,9 +613,45 @@ where
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct NoData;
+
+impl std::error::Error for NoData {}
+impl fmt::Display for NoData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("api returned no data")
+    }
+}
+
 pub struct ApiResponse<T> {
-    pub data: T,
+    pub data: Option<T>,
     pub attribs: HashMap<String, Value>,
+}
+
+impl<T> ApiResponse<T> {
+    pub fn into_data_or_err(mut self) -> Result<T, NoData> {
+        self.data.take().ok_or(NoData)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct UnexpectedData;
+
+impl std::error::Error for UnexpectedData {}
+impl fmt::Display for UnexpectedData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("api returned unexpected data")
+    }
+}
+
+impl ApiResponse<()> {
+    pub fn nodata(self) -> Result<(), UnexpectedData> {
+        if self.data.is_some() {
+            Err(UnexpectedData)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -626,6 +663,9 @@ struct RawApiResponse<T> {
     pub success: Option<bool>,
     pub data: Option<T>,
 
+    #[serde(default)]
+    pub errors: HashMap<String, String>,
+
     #[serde(default, flatten)]
     pub attribs: HashMap<String, Value>,
 }
@@ -635,20 +675,20 @@ impl<T> RawApiResponse<T> {
         if !self.success.unwrap_or(false) {
             let status = http::StatusCode::from_u16(self.status.unwrap_or(400))
                 .unwrap_or(http::StatusCode::BAD_REQUEST);
-            let message = self
+            let mut message = self
                 .message
                 .take()
                 .unwrap_or_else(|| "no message provided".to_string());
+            for (param, error) in self.errors {
+                use std::fmt::Write;
+                let _ = write!(message, "\n{param}: {error}");
+            }
+
             return Err(E::api_error(status, message));
         }
 
-        let data = self
-            .data
-            .take()
-            .ok_or_else(|| E::bad_api("api returned no data"))?;
-
         Ok(ApiResponse {
-            data,
+            data: self.data,
             attribs: self.attribs,
         })
     }

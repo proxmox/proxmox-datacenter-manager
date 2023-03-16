@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_client::Environment;
 
-use pdm_api_types::{Authid, PveRemote};
+use pdm_api_types::PveRemote;
 
 /// In the future we may also have PMG or PBS nodes.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -17,7 +17,6 @@ pub enum Remote {
 
 pub struct Client<E: Environment> {
     client: proxmox_client::HyperClient<E>,
-    auth_id: Authid,
 }
 
 impl<E> Client<E>
@@ -26,7 +25,7 @@ where
     E::Error: From<anyhow::Error>,
     anyhow::Error: From<E::Error>,
 {
-    pub fn new(env: E, server: &str, auth_id: Authid, options: Options) -> Result<Self, E::Error> {
+    pub fn new(env: E, server: &str, options: Options) -> Result<Self, E::Error> {
         use proxmox_client::TlsOptions;
 
         let tls_options = match options.callback {
@@ -43,7 +42,7 @@ where
             options.http_options,
         )?;
 
-        Ok(Self { client, auth_id })
+        Ok(Self { client })
     }
 
     pub async fn login(&self) -> Result<(), Error> {
@@ -51,8 +50,35 @@ where
         Ok(())
     }
 
-    pub async fn remote_list(&self) -> Result<Vec<Remote>, Error> {
-        Ok(self.client.get("/api2/extjs/remotes").await?.data)
+    pub async fn list_remotes(&self) -> Result<Vec<Remote>, Error> {
+        Ok(self
+            .client
+            .get("/api2/extjs/remotes")
+            .await?
+            .into_data_or_err()?)
+    }
+
+    pub async fn add_remote(&self, remote: &Remote) -> Result<(), Error> {
+        self.client
+            .post::<_, ()>("/api2/extjs/remotes", remote)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_remote(
+        &self,
+        remote: &str,
+        updater: &pdm_api_types::PveRemoteUpdater,
+    ) -> Result<(), Error> {
+        let path = format!("/api2/extjs/remotes/{remote}");
+        self.client.put(&path, updater).await?.nodata()?;
+        Ok(())
+    }
+
+    pub async fn remove_remote(&self, remote: &str) -> Result<(), Error> {
+        let path = format!("/api2/extjs/remotes/{remote}");
+        self.client.delete(&path).await?.nodata()?;
+        Ok(())
     }
 }
 

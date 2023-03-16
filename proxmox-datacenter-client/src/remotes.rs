@@ -1,11 +1,10 @@
-use anyhow::{format_err, Error};
-use serde_json::{json, Value};
+use anyhow::Error;
+use serde_json::Value;
 
 use proxmox_router::cli::{
     format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
     OUTPUT_FORMAT,
 };
-use proxmox_router::{ApiHandler, RpcEnvironment};
 use proxmox_schema::{api, property_string};
 
 use pdm_api_types::{PveRemote, RemoteType, REMOTE_ID_SCHEMA};
@@ -16,9 +15,15 @@ use crate::client;
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_REMOTES))
-        // .insert("add", CliCommand::new(&API_METHOD_ADD_REMOTE))
-        // .insert("remove", CliCommand::new(&API_METHOD_REMOVE_REMOTE))
-        // .insert("update", CliCommand::new(&API_METHOD_UPDATE_REMOTE))
+        .insert("add", CliCommand::new(&API_METHOD_ADD_REMOTE))
+        .insert(
+            "remove",
+            CliCommand::new(&API_METHOD_REMOVE_REMOTE).arg_param(&["id"]),
+        )
+        .insert(
+            "update",
+            CliCommand::new(&API_METHOD_UPDATE_REMOTE).arg_param(&["id"]),
+        )
         .into()
 }
 
@@ -33,10 +38,10 @@ pub fn cli() -> CommandLineInterface {
     }
 )]
 /// List all the remotes this instance is managing.
-async fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
+async fn list_remotes(param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
-    let entries = client()?.remote_list().await?;
+    let entries = client()?.list_remotes().await?;
 
     if output_format == "text" {
         if entries.is_empty() {
@@ -68,7 +73,6 @@ async fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(
     Ok(())
 }
 
-/*
 // FIXME: Support `OneOf` in schema so we can just use the `Remote` enum api schema here as input.
 #[api(
     input: {
@@ -82,19 +86,14 @@ async fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(
     }
 )]
 /// Add a new remote.
-fn add_remote(
-    r#type: RemoteType,
-    remote: pdm_api_types::PveRemote,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-    let mut param = serde_json::to_value(remote)?;
-    param["type"] = serde_json::to_value(r#type)?;
+async fn add_remote(r#type: RemoteType, remote: pdm_api_types::PveRemote) -> Result<(), Error> {
+    let client = client()?;
 
-    let info = &dc_api::remotes::API_METHOD_ADD_REMOTE;
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv).map(drop),
-        _ => unreachable!(),
+    match r#type {
+        RemoteType::Pve => client.add_remote(&Remote::Pve(remote)).await?,
     }
+
+    Ok(())
 }
 
 // FIXME: Support `OneOf` in schema so we can just use the `Remote` enum api schema here as input.
@@ -110,19 +109,9 @@ fn add_remote(
     }
 )]
 /// Update a remote.
-fn update_remote(
-    id: String,
-    updater: pdm_api_types::PveRemoteUpdater,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-    let mut param = serde_json::to_value(updater)?;
-    param["id"] = id.into();
-
-    let info = &dc_api::remotes::API_METHOD_UPDATE_REMOTE;
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv).map(drop),
-        _ => unreachable!(),
-    }
+async fn update_remote(id: String, updater: pdm_api_types::PveRemoteUpdater) -> Result<(), Error> {
+    client()?.update_remote(&id, &updater).await?;
+    Ok(())
 }
 
 #[api(
@@ -133,13 +122,7 @@ fn update_remote(
     }
 )]
 /// Add a new remote.
-fn remove_remote(id: String, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
-    let param = json!({ "id": id });
-
-    let info = &dc_api::remotes::API_METHOD_REMOVE_REMOTE;
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv).map(drop),
-        _ => unreachable!(),
-    }
+async fn remove_remote(id: String) -> Result<(), Error> {
+    client()?.remove_remote(&id).await?;
+    Ok(())
 }
-*/

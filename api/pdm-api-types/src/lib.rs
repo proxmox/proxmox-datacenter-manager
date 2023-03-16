@@ -438,11 +438,14 @@ pub struct PveRemote {
     pub id: String,
 
     /// A list of cluster node addresses.
+    #[updater(serde(skip_serializing_if = "Option::is_none"))]
     pub nodes: Vec<PropertyString<NodeUrl>>,
 
     /// The userid used to access this cluster.
+    #[updater(serde(skip_serializing_if = "Option::is_none"))]
     pub userid: String,
 
     /// The encrypted access token.
+    #[updater(serde(skip_serializing_if = "Option::is_none"))]
     pub token: String,
 }

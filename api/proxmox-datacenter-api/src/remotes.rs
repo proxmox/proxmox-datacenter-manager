@@ -6,7 +6,7 @@ use serde_json::Value;
 use proxmox_router::{http_bail, http_err, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pdm_api_types::{RemoteType, PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA};
+use pdm_api_types::{PveRemote, RemoteType, PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA};
 use pdm_config::remotes::Remote;
 
 pub const ROUTER: Router = Router::new()
@@ -38,10 +38,15 @@ pub fn list_remotes(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<Remote>, Erro
     Ok(remotes.into_iter().map(|(_id, value)| value).collect())
 }
 
+// FIXME: need to have a type spanning all remote types here... SOMEHOW... (eg. oneOf support)
 #[api(
     input: {
         properties: {
             type: { type: RemoteType },
+            remote: {
+                flatten: true,
+                type: PveRemote,
+            },
         },
     },
 )]

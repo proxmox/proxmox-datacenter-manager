@@ -33,12 +33,6 @@ pub fn client() -> Result<Client, Error> {
             .ok_or_else(|| format_err!("no server address specified"))?
     );
 
-    let auth_id = env()
-        .userid
-        .as_deref()
-        .ok_or_else(|| format_err!("no userid specified"))?
-        .parse()?;
-
     let options = pdm_client::Options::default().tls_callback(|valid, store| {
         if valid {
             return true;
@@ -53,7 +47,7 @@ pub fn client() -> Result<Client, Error> {
         }
     });
 
-    Client::new(env(), &address, auth_id, options)
+    Client::new(env(), &address, options)
 }
 
 fn main() {
