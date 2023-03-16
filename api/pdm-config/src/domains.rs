@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use proxmox_schema::{ApiType, Schema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use crate::{open_api_lockfile, replace_api_config, ApiLockGuard};
+use crate::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
 use pdm_api_types::{OpenIdRealmConfig, REALM_ID_SCHEMA};
 
 lazy_static! {
@@ -49,7 +49,7 @@ pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DOMAINS_CFG_FILENAME, config)?;
-    replace_api_config(DOMAINS_CFG_FILENAME, raw.as_bytes())
+    replace_privileged_config(DOMAINS_CFG_FILENAME, raw.as_bytes())
 }
 
 // shell completion helper

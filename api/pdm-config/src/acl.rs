@@ -12,7 +12,7 @@ use proxmox_schema::{ApiStringFormat, ApiType, Schema, StringSchema};
 
 use pdm_api_types::{Authid, Role, Userid, ROLE_NAME_NO_ACCESS};
 
-use crate::{open_api_lockfile, replace_api_config, ApiLockGuard};
+use crate::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
 
 lazy_static! {
     /// Map of pre-defined [Roles](Role) to their associated [privileges](PRIVILEGES) combination
@@ -732,7 +732,7 @@ pub fn save_config(acl: &AclTree) -> Result<(), Error> {
 
     acl.write_config(&mut raw)?;
 
-    replace_api_config(ACL_CFG_FILENAME, &raw)
+    replace_privileged_config(ACL_CFG_FILENAME, &raw)
 }
 
 #[cfg(test)]

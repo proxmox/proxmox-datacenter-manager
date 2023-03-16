@@ -120,10 +120,13 @@ pub fn open_api_lockfile<P: AsRef<std::path::Path>>(
     Ok(ApiLockGuard(Some(file)))
 }
 
-/// Atomically write data to file owned by "root:api-user" with permission "0640"
+/// Atomically write data to file owned by `root:api-user` with permission `0640`
 ///
 /// Only the superuser can write those files, but group 'api-user' can read them.
-pub fn replace_api_config<P: AsRef<std::path::Path>>(path: P, data: &[u8]) -> Result<(), Error> {
+pub fn replace_privileged_config<P: AsRef<std::path::Path>>(
+    path: P,
+    data: &[u8],
+) -> Result<(), Error> {
     let api_user = api_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
     // set the correct owner/group/permissions while saving file
@@ -131,6 +134,22 @@ pub fn replace_api_config<P: AsRef<std::path::Path>>(path: P, data: &[u8]) -> Re
     let options = proxmox_sys::fs::CreateOptions::new()
         .perm(mode)
         .owner(nix::unistd::ROOT)
+        .group(api_user.gid);
+
+    proxmox_sys::fs::replace_file(path, data, options, true)?;
+
+    Ok(())
+}
+
+/// Atomically write data to file owned by `api-user:api-user` with permission `0660`.
+pub fn replace_config<P: AsRef<std::path::Path>>(path: P, data: &[u8]) -> Result<(), Error> {
+    let api_user = api_user()?;
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
+    // set the correct owner/group/permissions while saving file
+    // owner(rw) = root, group(r)= api-user
+    let options = proxmox_sys::fs::CreateOptions::new()
+        .perm(mode)
+        .owner(api_user.uid)
         .group(api_user.gid);
 
     proxmox_sys::fs::replace_file(path, data, options, true)?;
