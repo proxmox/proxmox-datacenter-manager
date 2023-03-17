@@ -1,13 +1,11 @@
 //! Manage remote configuration.
 
 use anyhow::{bail, Error};
-use serde_json::Value;
 
 use proxmox_router::{http_bail, http_err, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pdm_api_types::{PveRemote, RemoteType, PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA};
-use pdm_config::remotes::Remote;
+use pdm_api_types::{Remote, PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA};
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_REMOTES)
@@ -42,20 +40,15 @@ pub fn list_remotes(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<Remote>, Erro
 #[api(
     input: {
         properties: {
-            type: { type: RemoteType },
-            remote: {
+            entry: {
                 flatten: true,
-                type: PveRemote,
+                type: Remote,
             },
         },
     },
 )]
 /// List all the remotes this instance is managing.
-pub fn add_remote(r#type: RemoteType, params: Value) -> Result<(), Error> {
-    let entry = match r#type {
-        RemoteType::Pve => Remote::Pve(serde_json::from_value(params)?),
-    };
-
+pub fn add_remote(entry: Remote) -> Result<(), Error> {
     let (mut remotes, _) = pdm_config::remotes::config()?;
 
     let id = entry.id().to_owned();

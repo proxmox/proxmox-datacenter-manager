@@ -7,8 +7,7 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::{api, property_string};
 
-use pdm_api_types::{PveRemote, RemoteType, REMOTE_ID_SCHEMA};
-use pdm_client::Remote;
+use pdm_api_types::{Remote, REMOTE_ID_SCHEMA};
 
 use crate::client;
 
@@ -77,22 +76,16 @@ async fn list_remotes(param: Value) -> Result<(), Error> {
 #[api(
     input: {
         properties: {
-            type: { type: RemoteType },
-            remote: {
+            entry: {
                 flatten: true,
-                type: PveRemote,
+                type: Remote,
             },
         }
     }
 )]
 /// Add a new remote.
-async fn add_remote(r#type: RemoteType, remote: pdm_api_types::PveRemote) -> Result<(), Error> {
-    let client = client()?;
-
-    match r#type {
-        RemoteType::Pve => client.add_remote(&Remote::Pve(remote)).await?,
-    }
-
+async fn add_remote(entry: Remote) -> Result<(), Error> {
+    client()?.add_remote(&entry).await?;
     Ok(())
 }
 

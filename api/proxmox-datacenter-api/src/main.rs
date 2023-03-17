@@ -212,7 +212,8 @@ async fn run() -> Result<(), Error> {
             ("docs", "/usr/share/doc/proxmox-datacenter-manager/html"),
         ])
         .formatted_router(&["api2"], &ROUTER)
-        .register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
+        // FIXME: disabled for testing on pure debian
+        //.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
         .enable_access_log(
             pdm_buildcfg::API_ACCESS_LOG_FN,
             Some(dir_opts.clone()),

@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::property_string::PropertyString;
 use proxmox_schema::{
-    api, const_regex, ApiStringFormat, ApiType, ArraySchema, ReturnType, Schema, StringSchema,
-    Updater,
+    api, const_regex, ApiStringFormat, ApiType, ArraySchema, EnumEntry, OneOfSchema, ReturnType,
+    Schema, StringSchema, Updater,
 };
 use proxmox_time::parse_daily_duration;
 
@@ -448,4 +448,42 @@ pub struct PveRemote {
     /// The encrypted access token.
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
     pub token: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Updater)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum Remote {
+    Pve(PveRemote),
+}
+
+impl ApiType for Remote {
+    const API_SCHEMA: Schema = OneOfSchema::new(
+        "A remote API entry",
+        &(
+            "type",
+            false,
+            &StringSchema::new("The remote type")
+                .format(&ApiStringFormat::Enum(&[EnumEntry::new(
+                    "pve",
+                    "a Proxmox VE remote entry",
+                )]))
+                .schema(),
+        ),
+        &[("pve", &PveRemote::API_SCHEMA)],
+    )
+    .schema();
+}
+
+impl From<PveRemote> for Remote {
+    fn from(pve: PveRemote) -> Self {
+        Remote::Pve(pve)
+    }
+}
+
+impl Remote {
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Pve(r) => &r.id,
+        }
+    }
 }

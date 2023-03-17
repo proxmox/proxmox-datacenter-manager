@@ -2,18 +2,10 @@
 
 use anyhow::{format_err, Error};
 use openssl::x509;
-use serde::{Deserialize, Serialize};
 
 use proxmox_client::Environment;
 
-use pdm_api_types::PveRemote;
-
-/// In the future we may also have PMG or PBS nodes.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "kebab-case")]
-pub enum Remote {
-    Pve(PveRemote),
-}
+use pdm_api_types::Remote;
 
 pub struct Client<E: Environment> {
     client: proxmox_client::HyperClient<E>,

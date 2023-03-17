@@ -1,11 +1,10 @@
 use anyhow::Error;
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 
 use proxmox_schema::ApiType;
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
 
-use pdm_api_types::{PveRemote, REMOTE_ID_SCHEMA};
+use pdm_api_types::{PveRemote, Remote, REMOTE_ID_SCHEMA};
 
 use crate::section_config::{ApiSectionDataEntry, SectionConfigData};
 use crate::{open_api_lockfile, replace_config, ApiLockGuard, ConfigDigest};
@@ -42,19 +41,6 @@ static CONFIG: Lazy<SectionConfig> = Lazy::new(|| {
     this
 });
 
-/// In the future we may also have PMG or PBS nodes.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "kebab-case")]
-pub enum Remote {
-    Pve(PveRemote),
-}
-
-impl From<PveRemote> for Remote {
-    fn from(pve: PveRemote) -> Self {
-        Remote::Pve(pve)
-    }
-}
-
 // To be derived via a macro from the enum.
 impl ApiSectionDataEntry for Remote {
     const INTERNALLY_TAGGED: Option<&'static str> = Some("type");
@@ -66,14 +52,6 @@ impl ApiSectionDataEntry for Remote {
     fn section_type(&self) -> &'static str {
         match self {
             Remote::Pve(_) => "pve",
-        }
-    }
-}
-
-impl Remote {
-    pub fn id(&self) -> &str {
-        match self {
-            Self::Pve(r) => &r.id,
         }
     }
 }
