@@ -6,10 +6,9 @@ use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 use http::Uri;
-use openssl::hash::MessageDigest;
 use openssl::x509;
 
-use proxmox_client::TfaChallenge;
+use proxmox_client::{FingerprintCache, TfaChallenge};
 
 use crate::XDG;
 
@@ -21,12 +20,12 @@ const WEBAUTHN: u8 = 8;
 
 /// We store the last used user id in here.
 const USERID_PATH: &str = xdg_path!("userid");
+const FINGERPRINT_CACHE_PATH: &str = xdg_path!("fingerprints");
 
-#[derive(Default)]
 pub struct Env {
     pub server: Option<String>,
     pub userid: Option<String>,
-    pub cert_fingerprint: Option<String>,
+    pub fingerprint_cache: FingerprintCache,
 }
 
 impl Env {
@@ -34,7 +33,17 @@ impl Env {
     where
         A: Iterator<Item = String>,
     {
-        let mut this = Self::default();
+        let mut this = Self {
+            server: None,
+            userid: None,
+            fingerprint_cache: FingerprintCache::new(),
+        };
+
+        if let Some(file) = XDG.find_cache_file(FINGERPRINT_CACHE_PATH) {
+            let cache = std::fs::read_to_string(&file)?;
+            this.fingerprint_cache.load(&cache)?;
+        }
+
         let args = this.parse_arguments(args)?;
         Ok((this, args))
     }
@@ -113,41 +122,24 @@ impl Env {
     }
 
     pub fn verify_cert(&self, chain: &mut x509::X509StoreContextRef) -> Result<bool, Error> {
-        let cert = chain
-            .current_cert()
-            .ok_or_else(|| format_err!("no certificate in chain?"))?;
-
-        let fp = match cert.digest(MessageDigest::sha256()) {
-            Err(err) => bail!("error calculating certificate fingerprint: {err}"),
-            Ok(fp) => fp,
-        };
-
-        println!(
-            "Invalid certificate with SHA256 fingerprint {}.",
-            fp_string(&fp)
-        );
-        std::io::stdout().write_all(b"Do you want to continue? [N/y] ")?;
-        std::io::stdout().flush()?;
-        let reply = match std::io::stdin().lines().next() {
+        let result = match self.server.as_deref() {
+            Some(server) => self.fingerprint_cache.verify(server, chain)?,
             None => return Ok(false),
-            Some(line) => line?.to_ascii_lowercase(),
         };
 
-        Ok(reply == "y" || reply == "yes")
-    }
-}
-
-fn fp_string(fp: &[u8]) -> String {
-    use std::fmt::Write as _;
-
-    let mut out = String::new();
-    for b in fp {
-        if !out.is_empty() {
-            out.push(':');
+        if result.modified {
+            let data = self.fingerprint_cache.write()?;
+            match XDG
+                .place_cache_file(FINGERPRINT_CACHE_PATH)
+                .and_then(|path| std::fs::write(path, data.as_bytes()))
+            {
+                Ok(()) => (),
+                Err(err) => eprintln!("failed to store userid in cache: {}", err),
+            }
         }
-        let _ = write!(out, "{b:02x}");
+
+        Ok(result.valid)
     }
-    out
 }
 
 impl Env {
@@ -179,8 +171,7 @@ impl proxmox_client::Environment for &Env {
         }
 
         if let Some(path) = XDG.find_cache_file(USERID_PATH) {
-            let userid = std::fs::read(path)?;
-            let userid = String::from_utf8(userid)?;
+            let userid = std::fs::read_to_string(path)?;
             let userid = userid.trim_start().trim_end();
             if !userid.is_empty() {
                 println!("Using userid {userid:?}");

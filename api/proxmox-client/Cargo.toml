@@ -10,7 +10,9 @@ repository.workspace = true
 [dependencies]
 anyhow.workspace = true
 base64.workspace = true
+hex.workspace = true
 http.workspace = true
+libc.workspace = true # for isatty default value
 log = { workspace = true, optional = true }
 once_cell.workspace = true
 openssl.workspace = true
