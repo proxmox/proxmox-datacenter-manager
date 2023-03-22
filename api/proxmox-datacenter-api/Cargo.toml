@@ -63,9 +63,12 @@ proxmox-uuid.workspace = true
 
 proxmox-acme-rs.workspace = true
 proxmox-apt.workspace = true
+proxmox-client.workspace = true
 proxmox-openid.workspace = true
 
 pdm-api-common.workspace = true
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-config.workspace = true
+
+pve-client.workspace = true

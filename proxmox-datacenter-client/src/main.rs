@@ -96,18 +96,3 @@ async fn login() -> Result<(), Error> {
 
     Ok(())
 }
-
-/*
-fn parse_fingerprint(s: &str) -> Result<[u8; 32], Error> {
-    use hex::FromHex;
-
-    let hex: Vec<u8> = s
-        .as_bytes()
-        .iter()
-        .copied()
-        .filter(|&b| b != b':')
-        .collect();
-
-    <[u8; 32]>::from_hex(&hex).map_err(|_| format_err!("failed to parse fingerprint"))
-}
-*/

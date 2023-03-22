@@ -22,6 +22,8 @@ members = [
     "api/proxmox-client",
     "api/proxmox-login",
 
+    "api/pve-client",
+
     "api/proxmox-datacenter-privileged-api",
     "api/proxmox-datacenter-api",
 
@@ -65,6 +67,8 @@ pdm-buildcfg = { path = "api/pdm-buildcfg" }
 pdm-config = { path = "api/pdm-config" }
 proxmox-datacenter-api = { path = "api/proxmox-datacenter-api" }
 pdm-client = { path = "api/pdm-client" }
+
+pve-client = { path = "api/pve-client" }
 
 proxmox-login = { path = "api/proxmox-login" }
 proxmox-client = { path = "api/proxmox-client", features = [ "hyper-client" ] }

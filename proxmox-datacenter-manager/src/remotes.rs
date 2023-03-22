@@ -23,6 +23,10 @@ pub fn cli() -> CommandLineInterface {
             "update",
             CliCommand::new(&API_METHOD_UPDATE_REMOTE).arg_param(&["id"]),
         )
+        .insert(
+            "version",
+            CliCommand::new(&dc_api::remotes::API_METHOD_VERSION).arg_param(&["id"]),
+        )
         .into()
 }
 

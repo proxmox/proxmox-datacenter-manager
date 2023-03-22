@@ -445,7 +445,7 @@ pub struct PveRemote {
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
     pub userid: String,
 
-    /// The encrypted access token.
+    /// The access token's secret.
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
     pub token: String,
 }
