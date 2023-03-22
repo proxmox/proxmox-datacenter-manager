@@ -14,11 +14,7 @@ use serde_json::{json, Value};
 
 use proxmox_lang::try_block;
 use proxmox_rest_server::{cookie_from_header, daemon, ApiConfig, RestEnvironment, RestServer};
-use proxmox_router::{
-    list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
-};
-use proxmox_schema::api;
-use proxmox_sortable_macro::sortable;
+use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
 use proxmox_sys::fs::CreateOptions;
 
 use pdm_buildcfg::configdir;
@@ -126,46 +122,6 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> 
     resp
 }
 
-// FIXME: add actual API, and that in a separate module
-#[api(
-    access: {
-        description: "Anyone can access this, just a cheap check if the API daemon is online.",
-        permission: &Permission::World,
-    }
-)]
-/// A simple ping method. returns "pong"
-fn ping() -> Result<String, Error> {
-    Ok("pong".to_string())
-}
-
-// FIXME: version should be only accessible to valid user (albeit no specific priv)
-#[api(
-    access: {
-        description: "Anyone can access this.",
-        permission: &Permission::World,
-    }
-)]
-/// Return the program's version/release info
-fn version() -> Result<Value, Error> {
-    Ok(json!({
-        "version": pdm_buildcfg::PROXMOX_PKG_VERSION,
-        "release": pdm_buildcfg::PROXMOX_PKG_RELEASE,
-        "repoid": pdm_buildcfg::PROXMOX_PKG_REPOID
-    }))
-}
-
-#[sortable]
-const SUBDIRS: SubdirMap = &sorted!([
-    ("access", &pdm_api_common::api::access::ROUTER),
-    ("remotes", &proxmox_datacenter_api::remotes::ROUTER),
-    ("ping", &Router::new().get(&API_METHOD_PING)),
-    ("version", &Router::new().get(&API_METHOD_VERSION)),
-]);
-
-const ROUTER: Router = Router::new()
-    .get(&list_subdirs_api_method!(SUBDIRS))
-    .subdirs(SUBDIRS);
-
 async fn run() -> Result<(), Error> {
     let debug = std::env::var("PROXMOX_DEBUG").is_ok();
 
@@ -211,7 +167,7 @@ async fn run() -> Result<(), Error> {
             ),
             ("docs", "/usr/share/doc/proxmox-datacenter-manager/html"),
         ])
-        .formatted_router(&["api2"], &ROUTER)
+        .formatted_router(&["api2"], &proxmox_datacenter_api::ROUTER)
         // FIXME: disabled for testing on pure debian
         //.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
         .enable_access_log(
