@@ -25,7 +25,7 @@ pub fn cli() -> CommandLineInterface {
         )
         .insert(
             "version",
-            CliCommand::new(&dc_api::remotes::API_METHOD_VERSION).arg_param(&["id"]),
+            CliCommand::new(&API_METHOD_REMOTE_VERSION).arg_param(&["id"]),
         )
         .into()
 }
@@ -161,4 +161,31 @@ fn remove_remote(id: String, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Erro
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv).map(drop),
         _ => unreachable!(),
     }
+}
+
+#[api(
+    input: {
+        properties: {
+            id: { schema: REMOTE_ID_SCHEMA },
+        }
+    }
+)]
+/// Add a new remote.
+async fn remote_version(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
+    let output_format = get_output_format(&param);
+
+    let info = &dc_api::remotes::API_METHOD_VERSION;
+    let mut data = match info.handler {
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
+        _ => unreachable!(),
+    };
+
+    format_and_print_result_full(
+        &mut data,
+        &info.returns,
+        &output_format,
+        &Default::default(),
+    );
+
+    Ok(())
 }

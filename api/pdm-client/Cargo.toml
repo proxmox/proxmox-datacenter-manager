@@ -23,3 +23,6 @@ pdm-config.workspace = true
 
 proxmox-client = { workspace = true, features = [ "hyper-client" ] }
 proxmox-http.workspace = true
+
+# for the pve api types
+pve-client.workspace = true

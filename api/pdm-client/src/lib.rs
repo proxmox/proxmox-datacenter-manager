@@ -72,6 +72,14 @@ where
         self.client.delete(&path).await?.nodata()?;
         Ok(())
     }
+
+    pub async fn remote_version(
+        &self,
+        remote: &str,
+    ) -> Result<pve_client::types::VersionResponse, Error> {
+        let path = format!("/api2/extjs/remotes/{remote}/version");
+        Ok(self.client.get(&path).await?.into_data_or_err()?)
+    }
 }
 
 #[derive(Default)]

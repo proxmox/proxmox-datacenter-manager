@@ -3,8 +3,11 @@
 use anyhow::{bail, format_err, Error};
 
 use proxmox_client::Environment;
-use proxmox_router::{http_bail, http_err, Router, RpcEnvironment};
+use proxmox_router::{
+    http_bail, http_err, list_subdirs_api_method, Router, RpcEnvironment, SubdirMap,
+};
 use proxmox_schema::api;
+use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::{PveRemote, Remote, PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA};
 use pdm_config::section_config::SectionConfigData;
@@ -16,7 +19,12 @@ pub const ROUTER: Router = Router::new()
 
 const ITEM_ROUTER: Router = Router::new()
     .put(&API_METHOD_UPDATE_REMOTE)
-    .delete(&API_METHOD_REMOVE_REMOTE);
+    .delete(&API_METHOD_REMOVE_REMOTE)
+    .get(&list_subdirs_api_method!(SUBDIRS))
+    .subdirs(SUBDIRS);
+
+#[sortable]
+const SUBDIRS: SubdirMap = &sorted!([("version", &Router::new().get(&API_METHOD_VERSION)),]);
 
 pub fn get_remote<'a>(
     config: &'a SectionConfigData<Remote>,
@@ -193,6 +201,7 @@ pub fn remove_remote(id: String) -> Result<(), Error> {
             id: { schema: REMOTE_ID_SCHEMA },
         },
     },
+    returns: { type: pve_client::types::VersionResponse },
 )]
 /// Query the remote's version.
 ///

@@ -32,7 +32,7 @@ where
         };
 
         let client = proxmox_client::HyperClient::with_options(
-            server
+            format!("https://{server}:8006")
                 .parse()
                 .map_err(|err| format_err!("bad address: {server:?} - {err}"))?,
             env,

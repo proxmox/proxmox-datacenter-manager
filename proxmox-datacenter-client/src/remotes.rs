@@ -2,10 +2,10 @@ use anyhow::Error;
 use serde_json::Value;
 
 use proxmox_router::cli::{
-    format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
-    OUTPUT_FORMAT,
+    format_and_print_result, format_and_print_result_full, get_output_format, CliCommand,
+    CliCommandMap, CommandLineInterface, OUTPUT_FORMAT,
 };
-use proxmox_schema::{api, property_string};
+use proxmox_schema::{api, property_string, ApiType, ReturnType};
 
 use pdm_api_types::{Remote, REMOTE_ID_SCHEMA};
 
@@ -22,6 +22,10 @@ pub fn cli() -> CommandLineInterface {
         .insert(
             "update",
             CliCommand::new(&API_METHOD_UPDATE_REMOTE).arg_param(&["id"]),
+        )
+        .insert(
+            "version",
+            CliCommand::new(&API_METHOD_REMOTE_VERSION).arg_param(&["id"]),
         )
         .into()
 }
@@ -117,5 +121,29 @@ async fn update_remote(id: String, updater: pdm_api_types::PveRemoteUpdater) -> 
 /// Add a new remote.
 async fn remove_remote(id: String) -> Result<(), Error> {
     client()?.remove_remote(&id).await?;
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            id: { schema: REMOTE_ID_SCHEMA },
+        }
+    }
+)]
+/// Add a new remote.
+async fn remote_version(id: String, param: Value) -> Result<(), Error> {
+    let output_format = get_output_format(&param);
+
+    let data = client()?.remote_version(&id).await?;
+    format_and_print_result_full(
+        &mut serde_json::to_value(data)?,
+        &ReturnType {
+            optional: false,
+            schema: &pve_client::types::VersionResponse::API_SCHEMA,
+        },
+        &output_format,
+        &Default::default(),
+    );
     Ok(())
 }
