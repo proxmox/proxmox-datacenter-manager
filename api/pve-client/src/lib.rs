@@ -5,6 +5,8 @@ use openssl::x509;
 
 use proxmox_client::Environment;
 
+pub mod helpers;
+
 #[path = "generated/code.rs"]
 mod code;
 #[path = "generated/types.rs"]

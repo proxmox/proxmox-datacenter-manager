@@ -12,6 +12,8 @@ repository.workspace = true
 anyhow.workspace = true
 hex.workspace = true
 openssl.workspace = true
+percent-encoding.workspace = true
+regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_plain.workspace = true
@@ -19,4 +21,5 @@ hyper = { workspace = true, features = [ "client", "tcp", "http1", "http2" ] }
 
 proxmox-client = { workspace = true, features = [ "hyper-client" ] }
 proxmox-http.workspace = true
+proxmox-login.workspace = true
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }

@@ -39,7 +39,9 @@ Schema2Rust::register_format('pve-bridge-id' => { code => 'verify_pve_bridge_id'
 Schema2Rust::register_format('pve-configid' => { code => 'verify_pve_configid' });
 Schema2Rust::register_format('pve-groupid' => { code => 'verify_pve_groupid' });
 Schema2Rust::register_format('pve-userid' => { code => 'verify_pve_userid' });
-Schema2Rust::register_format('pve-node' => { code => 'verify_pve_node' });
+# copied from JSONSchema's verify_pve_node sub:
+Schema2Rust::register_format('pve-node' => { regex => '^([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)$' });
+#Schema2Rust::register_format('pve-node' => { code => 'verify_pve_node' });
 Schema2Rust::register_format('pve-priv' => { code => 'verify_pve_privileges' });
 Schema2Rust::register_format('pve-realm' => { code => 'verify_pve_realm' });
 
@@ -103,7 +105,7 @@ api(GET => '/version', 'version', 'return-name' => 'VersionResponse');
 # );
 # api(GET => '/cluster/resources', 'cluster_resources', 'return-name' => 'ClusterResources');
 # 
-# api(GET => '/nodes', 'list_nodes', 'return-name' => 'ClusterNodeIndexResponse');
+api(GET => '/nodes', 'list_nodes', 'return-name' => 'ClusterNodeIndexResponse');
 # api(
 #     GET => '/nodes/{node}/config',
 #     'get_node_config',
@@ -119,7 +121,7 @@ api(GET => '/version', 'version', 'return-name' => 'VersionResponse');
 # api(GET => '/nodes/{node}/tasks/{upid}/status', 'get_task_status', 'return-name' => 'TaskStatus');
 # api(GET => '/nodes/{node}/tasks/{upid}/log', 'get_task_log', 'return-name' => 'TaskLogLine', attribs => 1);
 # 
-# api(GET => '/nodes/{node}/qemu', 'list_qemu', 'param-name' => 'FixmeListQemu', 'return-name' => 'VmEntry');
+api(GET => '/nodes/{node}/qemu', 'list_qemu', 'param-name' => 'FixmeListQemu', 'return-name' => 'VmEntry');
 # api(GET => '/nodes/{node}/qemu/{vmid}/config', 'qemu_get_config', 'param-name' => 'FixmeQemuGetConfig', 'return-name' => 'QemuConfig');
 # api(POST => '/nodes/{node}/qemu/{vmid}/config', 'qemu_update_config_async', 'param-name' => 'UpdateQemuConfig');
 # api(POST => '/nodes/{node}/qemu/{vmid}/status/start',    'start_qemu_async',    'output-type' => 'PveUpid', 'param-name' => 'StartQemu');
@@ -129,7 +131,7 @@ api(GET => '/version', 'version', 'return-name' => 'VersionResponse');
 # Schema2Rust::derive('StopQemu' => 'Default');
 # Schema2Rust::derive('ShutdownQemu' => 'Default');
 # 
-# api(GET => '/nodes/{node}/lxc', 'list_lxc', 'param-name' => 'FixmeListLxc', 'return-name' => 'LxcEntry');
+api(GET => '/nodes/{node}/lxc', 'list_lxc', 'param-name' => 'FixmeListLxc', 'return-name' => 'LxcEntry');
 # api(POST => '/nodes/{node}/lxc/{vmid}/status/start',     'start_lxc_async',     'output-type' => 'PveUpid', 'param-name' => 'StartLxc');
 # api(POST => '/nodes/{node}/lxc/{vmid}/status/stop',      'stop_lxc_async',      'output-type' => 'PveUpid', 'param-name' => 'StopLxc');
 # api(POST => '/nodes/{node}/lxc/{vmid}/status/shutdown',  'shutdown_lxc_async',  'output-type' => 'PveUpid', 'param-name' => 'ShutdownLxc');

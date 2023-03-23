@@ -88,7 +88,6 @@
 //! - /cluster/resources
 //! - /cluster/status
 //! - /cluster/tasks
-//! - /nodes
 //! - /nodes/{node}
 //! - /nodes/{node}/aplinfo
 //! - /nodes/{node}/apt
@@ -168,7 +167,6 @@
 //! - /nodes/{node}/hardware/usb
 //! - /nodes/{node}/hosts
 //! - /nodes/{node}/journal
-//! - /nodes/{node}/lxc
 //! - /nodes/{node}/lxc/{vmid}
 //! - /nodes/{node}/lxc/{vmid}/clone
 //! - /nodes/{node}/lxc/{vmid}/config
@@ -214,7 +212,6 @@
 //! - /nodes/{node}/netstat
 //! - /nodes/{node}/network
 //! - /nodes/{node}/network/{iface}
-//! - /nodes/{node}/qemu
 //! - /nodes/{node}/qemu/{vmid}
 //! - /nodes/{node}/qemu/{vmid}/agent
 //! - /nodes/{node}/qemu/{vmid}/agent/exec
@@ -352,6 +349,7 @@
 //! ```
 use proxmox_client::{Environment, Error};
 
+use crate::helpers::*;
 use crate::types::*;
 use crate::Client;
 
@@ -361,6 +359,45 @@ where
     E::Error: From<anyhow::Error>,
     anyhow::Error: From<E::Error>,
 {
+    /// LXC container index (per node).
+    pub async fn list_lxc(&self, node: &str) -> Result<Vec<LxcEntry>, E::Error> {
+        let url = format!("/api2/extjs/nodes/{node}/lxc");
+        Ok(self
+            .client
+            .get(&url)
+            .await?
+            .data
+            .ok_or_else(|| E::Error::bad_api("api returned no data"))?)
+    }
+
+    /// Cluster node index.
+    pub async fn list_nodes(&self) -> Result<Vec<ClusterNodeIndexResponse>, E::Error> {
+        let url = format!("/api2/extjs/nodes");
+        Ok(self
+            .client
+            .get(&url)
+            .await?
+            .data
+            .ok_or_else(|| E::Error::bad_api("api returned no data"))?)
+    }
+
+    /// Virtual machine index (per node).
+    pub async fn list_qemu(
+        &self,
+        node: &str,
+        full: Option<bool>,
+    ) -> Result<Vec<VmEntry>, E::Error> {
+        let (mut query, mut sep) = (String::new(), '?');
+        add_query_arg(&mut query, &mut sep, "full", &full);
+        let url = format!("/api2/extjs/nodes/{node}/qemu{query}");
+        Ok(self
+            .client
+            .get(&url)
+            .await?
+            .data
+            .ok_or_else(|| E::Error::bad_api("api returned no data"))?)
+    }
+
     /// API version details, including some parts of the global datacenter
     /// config.
     pub async fn version(&self) -> Result<VersionResponse, E::Error> {

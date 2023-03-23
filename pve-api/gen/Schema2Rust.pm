@@ -59,17 +59,26 @@ my sub count_defined_values : prototype($) {
     return scalar(grep { defined($hash->{$_}) } keys $hash->%*);
 }
 
-my sub api_to_string : prototype($$$$);
+my sub api_to_string : prototype($$$$$);
 # $derive_optional => For structs only, if an api entry contains *only* the 'optional' flag then
 #     we can just leave out the schema completely.
-sub api_to_string : prototype($$$$) {
-    my ($indent, $out, $api, $derive_optional) = @_;
+sub api_to_string : prototype($$$$$) {
+    my ($indent, $out, $api, $derive_optional, $regexes_fh) = @_;
 
     return if !$API || !$api->%*;
 
     $derive_optional //= '';
 
+    if (my $regexes = $api->{-regexes}) {
+        for my $name (sort keys %$regexes) {
+            my $value = $regexes->{$name};
+            print {$regexes_fh} "$name = r##\"$value\"##;\n";
+        }
+    }
+
     for my $key (sort keys $api->%*) {
+        next if $key eq '-regexes';
+
         my $value = $api->{$key};
         next if !defined($value);
 
@@ -92,7 +101,7 @@ sub api_to_string : prototype($$$$) {
             if ($value->%*) {
                 my $inner_str = '';
                 open(my $inner_fh, '>', \$inner_str);
-                api_to_string("$indent    ", $inner_fh, $value, $next_derive_optional);
+                api_to_string("$indent    ", $inner_fh, $value, $next_derive_optional, $regexes_fh);
                 close($inner_fh);
 
                 if (length($inner_str)) {
@@ -112,9 +121,17 @@ my sub print_api_string : prototype($$$) {
     return '' if !$API;
 
     my $api_str = '';
+    my $regexes_str = '';
     open(my $api_str_fh, '>', \$api_str);
-    api_to_string("    ", $api_str_fh, $api, $kind);
+    open(my $regexes_fh, '>', \$regexes_str);
+    api_to_string("    ", $api_str_fh, $api, $kind, $regexes_fh);
+    close($regexes_fh);
     close($api_str_fh);
+    if (length($regexes_str)) {
+        print {$out} "const_regex! {\n\n";
+        print {$out} $regexes_str;
+        print {$out} "\n}\n\n";
+    }
     if (length($api_str)) {
         print {$out} "#[api(\n${api_str})]\n";
     } else {
@@ -180,7 +197,7 @@ EOF
 
     if ($API) {
         print {$out} <<"EOF";
-use proxmox_schema::api;
+use proxmox_schema::{api, const_regex, ApiStringFormat};
 
 EOF
     }
@@ -215,8 +232,9 @@ EOF
 my $code_header = <<"CODE";
 use proxmox_client::{Error, Environment};
 
-use crate::types::*;
 use crate::Client;
+use crate::helpers::*;
+use crate::types::*;
 
 impl<E> Client<E>
 where
@@ -433,6 +451,35 @@ my sub namify_type : prototype($;@) {
     return $out;
 }
 
+my sub namify_const : prototype($;@) {
+    my $out = '';
+    for my $arg_ (@_) {
+        confess "namify_const: undef\n" if !defined $arg_;
+        my $arg = ($arg_ =~ s/-/_/gr);
+
+        $out .= '_' if length($out);
+
+        my $was_underscore = 1;
+        my $was_lowercase = 0;
+        for my $i (0..(length($arg)-1)) {
+            my $ch = substr($arg, $i, 1);
+            if ($ch eq '_') {
+                $was_underscore = 1;
+            } elsif ($was_underscore) {
+                $was_underscore = 0;
+                $out .= ($ch =~ tr/a-z/A-Z/r);
+            } elsif ($was_lowercase) {
+                $out .= '_' if $ch =~ /[A-Z]/;
+                $out .= ($ch =~ tr/a-z/A-Z/r);
+            } else {
+                $out .= ($ch =~ tr/a-z/A-Z/r);
+            }
+            $was_lowercase = ($ch =~ /[^A-Z]/);
+        }
+    }
+    return $out;
+}
+
 my sub quote_string : prototype($) {
     my ($s) = @_;
     return '"' . ($s =~ s/(["\\])/\\$1/gr) . '"';
@@ -520,8 +567,14 @@ my sub get_format : prototype($$) {
     }
 
     if (ref($format) eq 'CODE') {
-        my $code = get_code_format($format_name);
-        return { code => $code };
+        #my $code = get_code_format($format_name);
+        #
+        #return { code => $code };
+
+        my $info = $registered_formats->{$format_name}
+            or die "info for format '$format_name' required\n";
+
+        return { %$info };
     }
 
     die "WEIRD FORMAT TYPE: ".ref($format)."\n";
@@ -688,6 +741,10 @@ my sub string_type : prototype($$$) {
         my $fmt = get_format($format, $name_hint);
         if (my $code = $fmt->{code}) {
             $api_props->{format} = "ApiStringFormat::VerifyFn($code)";
+        } elsif (my $regex = $fmt->{regex}) {
+            my $re_name = namify_const(${name_hint}, 're');
+            $api_props->{-regexes}->{$re_name} = $regex;
+            $api_props->{format} = "&ApiStringFormat::Pattern(&$re_name)";
         } elsif (my $ty = $fmt->{property_string}) {
             $api_props->{format} = "ApiStringFormat::PropertyString(${ty}::API_SCHEMA)";
         } else {
