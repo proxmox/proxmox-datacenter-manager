@@ -57,7 +57,7 @@ proxmox-shared-memory.workspace = true
 proxmox-sortable-macro.workspace = true
 proxmox-subscription.workspace = true
 proxmox-sys = { workspace = true, features = [ "timer" ] }
-proxmox-tfa.workspace = true
+proxmox-tfa = { workspace = true, features = [ "api" ] }
 proxmox-time.workspace = true
 proxmox-uuid.workspace = true
 

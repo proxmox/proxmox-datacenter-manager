@@ -1,5 +1,8 @@
 //! Provides authentication primitives for the HTTP server
 
+use std::future::Future;
+use std::pin::Pin;
+
 use anyhow::{bail, Error};
 use once_cell::sync::OnceCell;
 
@@ -10,7 +13,7 @@ use proxmox_rest_server::AuthError;
 use proxmox_router::UserInformation;
 use proxmox_tfa::api::{OpenUserChallengeData, TfaConfig};
 
-use pdm_api_types::RealmRef;
+use pdm_api_types::{RealmRef, Userid};
 use pdm_config::CachedUserInfo;
 
 pub mod certs;
@@ -129,6 +132,19 @@ fn lookup_authenticator(realm: &RealmRef) -> Result<Box<dyn Authenticator + Send
         // "pdm" => Ok(Box::new(PdmAuthenticator)),
         realm => bail!("unknown realm '{}'", realm),
     }
+}
+
+/// Authenticate users
+pub(crate) fn authenticate_user<'a>(
+    userid: &'a Userid,
+    password: &'a str,
+) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
+    Box::pin(async move {
+        lookup_authenticator(userid.realm())?
+            .authenticate_user(userid.name(), password)
+            .await?;
+        Ok(())
+    })
 }
 
 struct PdmLockedTfaConfig {
