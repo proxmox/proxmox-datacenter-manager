@@ -1,10 +1,7 @@
 //! Proxmox Datacenter Manager API client.
 
-use std::fmt;
-
 use anyhow::{bail, format_err, Error};
 use openssl::x509;
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use proxmox_client::Environment;
@@ -176,7 +173,7 @@ impl Options {
     }
 }
 
-#[derive(Serialize)]
+#[derive(serde::Serialize)]
 struct AddTfaEntry {
     #[serde(rename = "type")]
     ty: proxmox_tfa::TfaType,

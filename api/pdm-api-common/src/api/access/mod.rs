@@ -5,6 +5,7 @@ use proxmox_sortable_macro::sortable;
 
 mod domains;
 mod tfa;
+mod users;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
@@ -14,6 +15,7 @@ const SUBDIRS: SubdirMap = &sorted!([
         "ticket",
         &Router::new().post(&proxmox_auth_api::api::API_METHOD_CREATE_TICKET),
     ),
+    ("users", &users::ROUTER),
 ]);
 
 pub const ROUTER: Router = Router::new()

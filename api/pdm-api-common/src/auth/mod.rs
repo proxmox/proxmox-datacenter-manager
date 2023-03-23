@@ -124,7 +124,9 @@ impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
     //}
 }
 
-fn lookup_authenticator(realm: &RealmRef) -> Result<Box<dyn Authenticator + Send + Sync>, Error> {
+pub(crate) fn lookup_authenticator(
+    realm: &RealmRef,
+) -> Result<Box<dyn Authenticator + Send + Sync>, Error> {
     match realm.as_str() {
         "pam" => Ok(Box::new(proxmox_auth_api::Pam::new(
             "proxmox-datacenter-auth",
