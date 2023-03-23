@@ -127,6 +127,10 @@ async fn remove_remote(id: String) -> Result<(), Error> {
 #[api(
     input: {
         properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
             id: { schema: REMOTE_ID_SCHEMA },
         }
     }

@@ -10,6 +10,7 @@ mod macros; // must go first
 pub mod env;
 pub mod fido;
 pub mod remotes;
+pub mod user;
 
 pub type Client = pdm_client::Client<&'static env::Env>;
 
@@ -71,7 +72,8 @@ fn main_do() -> Result<(), Error> {
 
     let cmd_def = CliCommandMap::new()
         .insert("login", CliCommand::new(&API_METHOD_LOGIN))
-        .insert("remote", remotes::cli());
+        .insert("remote", remotes::cli())
+        .insert("user", user::cli());
 
     let rpcenv = CliEnvironment::new();
     run_cli_command_with_args(

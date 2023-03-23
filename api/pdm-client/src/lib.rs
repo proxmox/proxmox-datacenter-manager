@@ -1,7 +1,11 @@
 //! Proxmox Datacenter Manager API client.
 
-use anyhow::{format_err, Error};
+use std::fmt;
+
+use anyhow::{bail, format_err, Error};
 use openssl::x509;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use proxmox_client::Environment;
 
@@ -80,6 +84,63 @@ where
         let path = format!("/api2/extjs/remotes/{remote}/version");
         Ok(self.client.get(&path).await?.into_data_or_err()?)
     }
+
+    pub async fn list_user_tfa(
+        &self,
+        userid: &str,
+    ) -> Result<Vec<proxmox_tfa::TypedTfaInfo>, Error> {
+        let path = format!("/api2/extjs/access/tfa/{userid}");
+        Ok(self.client.get(&path).await?.into_data_or_err()?)
+    }
+
+    pub async fn remove_tfa_entry(
+        &self,
+        userid: &str,
+        password: Option<&str>,
+        id: &str,
+    ) -> Result<(), Error> {
+        let path = format!("/api2/extjs/access/tfa/{userid}/{id}");
+
+        let mut request = json!({});
+        if let Some(pw) = password {
+            request["password"] = pw.into();
+        }
+
+        self.client
+            .delete_with_body(&path, &request)
+            .await?
+            .nodata()?;
+        Ok(())
+    }
+
+    pub async fn add_recovery_keys(
+        &self,
+        userid: &str,
+        password: Option<&str>,
+        description: &str,
+    ) -> Result<Vec<String>, Error> {
+        let path = format!("/api2/extjs/access/tfa/{userid}");
+
+        let result: proxmox_tfa::TfaUpdateInfo = self
+            .client
+            .post(
+                &path,
+                &AddTfaEntry {
+                    ty: proxmox_tfa::TfaType::Recovery,
+                    description: Some(description.to_string()),
+                    password: password.map(str::to_owned),
+                    ..AddTfaEntry::empty()
+                },
+            )
+            .await?
+            .into_data_or_err()?;
+
+        if result.recovery.is_empty() {
+            bail!("api returned empty list of recovery keys");
+        }
+
+        Ok(result.recovery)
+    }
 }
 
 #[derive(Default)]
@@ -112,5 +173,34 @@ impl Options {
     pub fn http_options(mut self, http_options: proxmox_http::HttpOptions) -> Self {
         self.http_options = http_options;
         self
+    }
+}
+
+#[derive(Serialize)]
+struct AddTfaEntry {
+    #[serde(rename = "type")]
+    ty: proxmox_tfa::TfaType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    totp: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    challenge: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    password: Option<String>,
+}
+
+impl AddTfaEntry {
+    const fn empty() -> Self {
+        Self {
+            ty: proxmox_tfa::TfaType::Recovery,
+            description: None,
+            totp: None,
+            value: None,
+            challenge: None,
+            password: None,
+        }
     }
 }

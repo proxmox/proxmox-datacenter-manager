@@ -31,6 +31,7 @@ proxmox-client = { workspace = true, features = [ "hyper-client" ] }
 proxmox-router = { workspace = true, features = [ "cli" ], default-features = false }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-sys.workspace = true
+proxmox-tfa = { workspace = true, features = [ "types" ] }
 
 # for the pve API types:
 pve-client.workspace = true

@@ -2,11 +2,8 @@
 
 use anyhow::Error;
 
-use proxmox_router::{
-    http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
-};
+use proxmox_router::{http_bail, http_err, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
-use proxmox_sortable_macro::sortable;
 use proxmox_tfa::api::methods;
 
 use pdm_api_types::{

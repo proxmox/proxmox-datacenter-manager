@@ -29,6 +29,12 @@ pub struct Env {
 }
 
 impl Env {
+    pub fn need_userid(&self) -> Result<&str, Error> {
+        self.userid
+            .as_deref()
+            .ok_or_else(|| format_err!("no userid to login with was specified"))
+    }
+
     pub fn from_args<A>(args: A) -> Result<(Self, Vec<String>), Error>
     where
         A: Iterator<Item = String>,

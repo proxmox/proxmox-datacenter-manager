@@ -527,6 +527,21 @@ where
         Self::handle_response(response)
     }
 
+    /// Execute a `DELETE` request with the given body, possibly trying multiple cluster nodes.
+    pub async fn delete_with_body<'a, B, R>(
+        &'a self,
+        uri: &str,
+        body: &'a B,
+    ) -> Result<ApiResponse<R>, E::Error>
+    where
+        B: serde::Serialize,
+        R: serde::de::DeserializeOwned,
+    {
+        let auth = self.login_auth().await?;
+        self.json_request(&auth, http::Method::DELETE, uri, body)
+            .await
+    }
+
     /// Helper method for a JSON request with a JSON body `B`, yielding a JSON result type `R`.
     pub(crate) async fn json_request<'a, B, R>(
         &'a self,
