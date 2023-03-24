@@ -138,6 +138,14 @@ where
 
         Ok(result.recovery)
     }
+
+    pub async fn pve_list_nodes(
+        &self,
+        remote: &str,
+    ) -> Result<Vec<pve_client::types::ClusterNodeIndexResponse>, Error> {
+        let path = format!("/api2/extjs/pve/{remote}/nodes");
+        Ok(self.client.get(&path).await?.into_data_or_err()?)
+    }
 }
 
 #[derive(Default)]

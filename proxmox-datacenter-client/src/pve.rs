@@ -1,4 +1,4 @@
-//! VM management CLI.
+//! PVE node commands.
 
 use anyhow::Error;
 use serde_json::Value;
@@ -14,8 +14,15 @@ use pdm_api_types::{Remote, REMOTE_ID_SCHEMA};
 use crate::client;
 
 pub fn cli() -> CommandLineInterface {
+    CliCommandMap::new().insert("node", node_cli()).into()
+}
+
+fn node_cli() -> CommandLineInterface {
     CliCommandMap::new()
-        .insert("list", CliCommand::new(&API_METHOD_LIST_VMS))
+        .insert(
+            "list",
+            CliCommand::new(&API_METHOD_LIST_NODES).arg_param(&["remote"]),
+        )
         .into()
 }
 
@@ -31,19 +38,19 @@ pub fn cli() -> CommandLineInterface {
     }
 )]
 /// List all the remotes this instance is managing.
-async fn list_vms(param: Value) -> Result<(), Error> {
+async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
-    let entries = client()?.list_remotes().await?;
+    let entries = client()?.pve_list_nodes(&remote).await?;
 
     if output_format == "text" {
         if entries.is_empty() {
-            println!("No vms available.");
+            println!("No remotes configured");
             return Ok(());
         }
 
-        for vm in entries {
-            todo!();
+        for entry in entries {
+            println!("{}: {}", entry.node, entry.status);
         }
     } else {
         let data = serde_json::to_value(entries)?;
