@@ -483,6 +483,20 @@ where
         Self::handle_response(response)
     }
 
+    /// Execute a `GET` request with the given body, possibly trying multiple cluster nodes.
+    pub async fn get_with_body<'a, B, R>(
+        &'a self,
+        uri: &str,
+        body: &'a B,
+    ) -> Result<ApiResponse<R>, E::Error>
+    where
+        B: serde::Serialize,
+        R: serde::de::DeserializeOwned,
+    {
+        let auth = self.login_auth().await?;
+        self.json_request(&auth, http::Method::GET, uri, body).await
+    }
+
     /// Execute a `PUT` request with the given body, possibly trying multiple cluster nodes.
     pub async fn put<'a, B, R>(&'a self, uri: &str, body: &'a B) -> Result<ApiResponse<R>, E::Error>
     where

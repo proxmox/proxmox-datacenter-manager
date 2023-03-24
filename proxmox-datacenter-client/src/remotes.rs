@@ -70,8 +70,7 @@ async fn list_remotes(param: Value) -> Result<(), Error> {
             }
         }
     } else {
-        let data = serde_json::to_value(entries)?;
-        format_and_print_result(&data, &output_format);
+        format_and_print_result(&entries, &output_format);
     }
     Ok(())
 }
