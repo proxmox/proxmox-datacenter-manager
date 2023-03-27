@@ -587,7 +587,7 @@ sub integer_type : prototype($$) {
 
     my $ty;
     if (!defined($min) && !defined($max)) {
-        $ty = 'isize';
+        $ty = 'i64';
     } elsif (defined($min) && defined($max)) {
         if ($min >= 0) {
             if ($max < 0x100) {
@@ -610,12 +610,12 @@ sub integer_type : prototype($$) {
         }
     } elsif (defined($min)) {
         if ($min >= 0) {
-            $ty = 'usize';
+            $ty = 'u64';
         } else {
-            $ty = 'isize';
+            $ty = 'i64';
         }
     } else { # defined $max
-        $ty = 'isize';
+        $ty = 'i64';
     }
 
     $api_props->{minimum} = $min if defined $min;
