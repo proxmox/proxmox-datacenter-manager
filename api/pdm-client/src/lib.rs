@@ -147,6 +147,17 @@ where
         Ok(self.client.get(&path).await?.into_data_or_err()?)
     }
 
+    pub async fn pve_cluster_resources(
+        &self,
+        remote: &str,
+        kind: Option<pve_client::types::ClusterResourceKind>,
+    ) -> Result<Vec<pve_client::types::ClusterResource>, Error> {
+        let mut query = format!("/api2/extjs/pve/{remote}/resources");
+        let mut sep = '?';
+        pve_client::helpers::add_query_arg(&mut query, &mut sep, "kind", &kind);
+        Ok(self.client.get(&query).await?.into_data_or_err()?)
+    }
+
     pub async fn pve_list_qemu(
         &self,
         remote: &str,

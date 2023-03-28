@@ -8,11 +8,9 @@ where
         *separator = '&';
         query.push_str(name);
         query.push('=');
-        // FIXME: percent-encode:
         query.extend(percent_encoding::percent_encode(
             value.to_string().as_bytes(),
             percent_encoding::NON_ALPHANUMERIC,
         ));
-        query.push_str(&value.to_string());
     }
 }

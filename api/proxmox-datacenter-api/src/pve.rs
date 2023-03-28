@@ -22,11 +22,13 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("lxc", &LXC_ROUTER),
     ("nodes", &NODES_ROUTER),
     ("qemu", &QEMU_ROUTER),
+    ("resources", &RESOURCES_ROUTER),
 ]);
 
+const LXC_ROUTER: Router = Router::new().get(&API_METHOD_LIST_LXC);
 const NODES_ROUTER: Router = Router::new().get(&API_METHOD_LIST_NODES);
 const QEMU_ROUTER: Router = Router::new().get(&API_METHOD_LIST_QEMU);
-const LXC_ROUTER: Router = Router::new().get(&API_METHOD_LIST_LXC);
+const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
 
 pub type PveClient = pve_client::Client<PveEnv>;
 
@@ -97,6 +99,34 @@ pub async fn list_nodes(
 
     match get_remote(&remotes, &remote)? {
         Remote::Pve(pve) => connect(pve)?.list_nodes().await,
+    }
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            kind: {
+                type: pve_client::types::ClusterResourceKind,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "List all the resources in a PVE cluster.",
+        items: { type: pve_client::types::ClusterResource },
+    },
+)]
+/// Query the cluster's resources.
+pub async fn cluster_resources(
+    remote: String,
+    kind: Option<pve_client::types::ClusterResourceKind>,
+) -> Result<Vec<pve_client::types::ClusterResource>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?.cluster_resources(kind).await,
     }
 }
 

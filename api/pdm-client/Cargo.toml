@@ -11,10 +11,11 @@ repository.workspace = true
 [dependencies]
 anyhow.workspace = true
 hex.workspace = true
+hyper = { workspace = true, features = [ "client", "tcp", "http1", "http2" ] }
+log.workspace = true
 openssl.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-hyper = { workspace = true, features = [ "client", "tcp", "http1", "http2" ] }
 webauthn-rs.workspace = true
 
 pdm-buildcfg.workspace = true

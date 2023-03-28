@@ -4,10 +4,10 @@ use anyhow::Error;
 use serde_json::Value;
 
 use proxmox_router::cli::{
-    format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
-    OUTPUT_FORMAT,
+    format_and_print_result, format_and_print_result_full, get_output_format, CliCommand,
+    CliCommandMap, CommandLineInterface, OUTPUT_FORMAT,
 };
-use proxmox_schema::api;
+use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 
 use pdm_api_types::{NODE_SCHEMA, REMOTE_ID_SCHEMA};
 
@@ -18,6 +18,10 @@ pub fn cli() -> CommandLineInterface {
         .insert("lxc", lxc_cli())
         .insert("node", node_cli())
         .insert("qemu", qemu_cli())
+        .insert(
+            "resources",
+            CliCommand::new(&API_METHOD_CLUSTER_RESOURCES).arg_param(&["remote", "kind"]),
+        )
         .into()
 }
 
@@ -77,6 +81,49 @@ async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
     } else {
         format_and_print_result(&entries, &output_format);
     }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            kind: {
+                type: pve_client::types::ClusterResourceKind,
+                optional: true,
+            },
+            remote: { schema: REMOTE_ID_SCHEMA },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn cluster_resources(
+    remote: String,
+    kind: Option<pve_client::types::ClusterResourceKind>,
+    param: Value,
+) -> Result<(), Error> {
+    const CLUSTER_LIST_SCHEMA: Schema = ArraySchema::new(
+        "cluster resources",
+        &pve_client::types::ClusterResource::API_SCHEMA,
+    )
+    .schema();
+
+    let output_format = get_output_format(&param);
+
+    let data = client()?.pve_cluster_resources(&remote, kind).await?;
+
+    format_and_print_result_full(
+        &mut serde_json::to_value(data)?,
+        &ReturnType {
+            optional: false,
+            schema: &CLUSTER_LIST_SCHEMA,
+        },
+        &output_format,
+        &Default::default(),
+    );
     Ok(())
 }
 
