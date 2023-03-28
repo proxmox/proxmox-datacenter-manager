@@ -27,19 +27,19 @@ pub struct ClusterNodeIndexResponse {
     pub level: Option<String>,
 
     /// Number of available CPUs.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub maxcpu: Option<isize>,
+    pub maxcpu: Option<i64>,
 
     /// Number of available memory in bytes.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub maxmem: Option<isize>,
+    pub maxmem: Option<i64>,
 
     /// Used memory in bytes.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mem: Option<isize>,
+    pub mem: Option<i64>,
 
     /// The cluster node name.
     pub node: String,
@@ -51,9 +51,9 @@ pub struct ClusterNodeIndexResponse {
     pub status: ClusterNodeIndexResponseStatus,
 
     /// Node uptime in seconds.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub uptime: Option<isize>,
+    pub uptime: Option<i64>,
 }
 
 #[api]
@@ -72,6 +72,189 @@ pub enum ClusterNodeIndexResponseStatus {
 }
 serde_plain::derive_display_from_serialize!(ClusterNodeIndexResponseStatus);
 serde_plain::derive_fromstr_from_deserialize!(ClusterNodeIndexResponseStatus);
+
+const_regex! {
+
+CLUSTER_RESOURCE_NODE_RE = r##"^([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)$"##;
+CLUSTER_RESOURCE_STORAGE_RE = r##"^[a-zA-Z][a-zA-Z0-9\-_.]*[a-zA-Z0-9]$"##;
+
+}
+
+#[api(
+    properties: {
+        cpu: {
+            minimum: 0.0,
+            optional: true,
+        },
+        disk: {
+            minimum: 0,
+            optional: true,
+        },
+        maxcpu: {
+            minimum: 0.0,
+            optional: true,
+        },
+        maxdisk: {
+            minimum: 0,
+            optional: true,
+        },
+        mem: {
+            minimum: 0,
+            optional: true,
+        },
+        node: {
+            format: &ApiStringFormat::Pattern(&CLUSTER_RESOURCE_NODE_RE),
+            optional: true,
+        },
+        storage: {
+            format: &ApiStringFormat::Pattern(&CLUSTER_RESOURCE_STORAGE_RE),
+            optional: true,
+        },
+        vmid: {
+            minimum: 1,
+            optional: true,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ClusterResource {
+    /// The cgroup mode the node operates under (when type == node).
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "cgroup-mode")]
+    pub cgroup_mode: Option<i64>,
+
+    /// Allowed storage content types (when type == storage).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<StorageContent>,
+
+    /// CPU utilization (when type in node,qemu,lxc).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu: Option<f64>,
+
+    /// Used disk space in bytes (when type in storage), used root image spave
+    /// for VMs (type in qemu,lxc).
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disk: Option<u64>,
+
+    /// HA service status (for HA managed VMs).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hastate: Option<String>,
+
+    /// Id.
+    pub id: String,
+
+    /// Support level (when type == node).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub level: Option<String>,
+
+    /// Number of available CPUs (when type in node,qemu,lxc).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maxcpu: Option<f64>,
+
+    /// Storage size in bytes (when type in storage), root image size for VMs
+    /// (type in qemu,lxc).
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maxdisk: Option<u64>,
+
+    /// Number of available memory in bytes (when type in node,qemu,lxc).
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maxmem: Option<i64>,
+
+    /// Used memory in bytes (when type in node,qemu,lxc).
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mem: Option<u64>,
+
+    /// Name of the resource.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    /// The cluster node name (when type in node,storage,qemu,lxc).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node: Option<String>,
+
+    /// More specific type, if available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugintype: Option<String>,
+
+    /// The pool name (when type in pool,qemu,lxc).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pool: Option<String>,
+
+    /// Resource type dependent status.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+
+    /// The storage identifier (when type == storage).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub storage: Option<String>,
+
+    #[serde(rename = "type")]
+    pub ty: ClusterResourceType,
+
+    /// Node uptime in seconds (when type in node,qemu,lxc).
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uptime: Option<i64>,
+
+    /// The numerical vmid (when type in qemu,lxc).
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vmid: Option<u64>,
+}
+
+#[api]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum ClusterResourceKind {
+    #[serde(rename = "vm")]
+    /// vm.
+    Vm,
+    #[serde(rename = "storage")]
+    /// storage.
+    Storage,
+    #[serde(rename = "node")]
+    /// node.
+    Node,
+    #[serde(rename = "sdn")]
+    /// sdn.
+    Sdn,
+}
+serde_plain::derive_display_from_serialize!(ClusterResourceKind);
+serde_plain::derive_fromstr_from_deserialize!(ClusterResourceKind);
+
+#[api]
+/// Resource type.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum ClusterResourceType {
+    #[serde(rename = "node")]
+    /// node.
+    Node,
+    #[serde(rename = "storage")]
+    /// storage.
+    Storage,
+    #[serde(rename = "pool")]
+    /// pool.
+    Pool,
+    #[serde(rename = "qemu")]
+    /// qemu.
+    Qemu,
+    #[serde(rename = "lxc")]
+    /// lxc.
+    Lxc,
+    #[serde(rename = "openvz")]
+    /// openvz.
+    Openvz,
+    #[serde(rename = "sdn")]
+    /// sdn.
+    Sdn,
+}
+serde_plain::derive_display_from_serialize!(ClusterResourceType);
+serde_plain::derive_fromstr_from_deserialize!(ClusterResourceType);
 
 #[api]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -105,19 +288,19 @@ pub struct LxcEntry {
     pub lock: Option<String>,
 
     /// Root disk size in bytes.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub maxdisk: Option<isize>,
+    pub maxdisk: Option<i64>,
 
     /// Maximum memory in bytes.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub maxmem: Option<isize>,
+    pub maxmem: Option<i64>,
 
     /// Maximum SWAP memory in bytes.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub maxswap: Option<isize>,
+    pub maxswap: Option<i64>,
 
     /// Container name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -130,14 +313,42 @@ pub struct LxcEntry {
     pub tags: Option<String>,
 
     /// Uptime.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub uptime: Option<isize>,
+    pub uptime: Option<i64>,
 
     /// The (unique) ID of the VM.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_usize")]
-    pub vmid: usize,
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    pub vmid: u64,
 }
+
+#[api]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum StorageContent {
+    #[serde(rename = "backup")]
+    /// backup.
+    Backup,
+    #[serde(rename = "images")]
+    /// images.
+    Images,
+    #[serde(rename = "iso")]
+    /// iso.
+    Iso,
+    #[serde(rename = "none")]
+    /// none.
+    None,
+    #[serde(rename = "rootdir")]
+    /// rootdir.
+    Rootdir,
+    #[serde(rename = "snippets")]
+    /// snippets.
+    Snippets,
+    #[serde(rename = "vztmpl")]
+    /// vztmpl.
+    Vztmpl,
+}
+serde_plain::derive_display_from_serialize!(StorageContent);
+serde_plain::derive_fromstr_from_deserialize!(StorageContent);
 
 #[api]
 /// Object.
@@ -195,23 +406,23 @@ pub struct VmEntry {
     pub lock: Option<String>,
 
     /// Root disk size in bytes.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub maxdisk: Option<isize>,
+    pub maxdisk: Option<i64>,
 
     /// Maximum memory in bytes.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub maxmem: Option<isize>,
+    pub maxmem: Option<i64>,
 
     /// VM name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
     /// PID of running qemu process.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pid: Option<isize>,
+    pub pid: Option<i64>,
 
     /// QEMU QMP agent status.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -234,11 +445,11 @@ pub struct VmEntry {
     pub tags: Option<String>,
 
     /// Uptime.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_isize")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub uptime: Option<isize>,
+    pub uptime: Option<i64>,
 
     /// The (unique) ID of the VM.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_usize")]
-    pub vmid: usize,
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    pub vmid: u64,
 }

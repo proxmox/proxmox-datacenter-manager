@@ -85,7 +85,6 @@
 //! - /cluster/options
 //! - /cluster/replication
 //! - /cluster/replication/{id}
-//! - /cluster/resources
 //! - /cluster/status
 //! - /cluster/tasks
 //! - /nodes/{node}
@@ -359,6 +358,22 @@ where
     E::Error: From<anyhow::Error>,
     anyhow::Error: From<E::Error>,
 {
+    /// Resources index (cluster wide).
+    pub async fn cluster_resources(
+        &self,
+        ty: Option<ClusterResourceKind>,
+    ) -> Result<Vec<ClusterResource>, E::Error> {
+        let (mut query, mut sep) = (String::new(), '?');
+        add_query_arg(&mut query, &mut sep, "type", &ty);
+        let url = format!("/api2/extjs/cluster/resources{query}");
+        Ok(self
+            .client
+            .get(&url)
+            .await?
+            .data
+            .ok_or_else(|| E::Error::bad_api("api returned no data"))?)
+    }
+
     /// LXC container index (per node).
     pub async fn list_lxc(&self, node: &str) -> Result<Vec<LxcEntry>, E::Error> {
         let url = format!("/api2/extjs/nodes/{node}/lxc");

@@ -523,18 +523,6 @@ my sub type_of : prototype($) {
     die "missing 'type' and failed to guess\n";
 }
 
-my sub get_code_format : prototype($) {
-    my ($name) = @_;
-
-    my $info = $registered_formats->{$name}
-        or die "info for format '$name' required\n";
-
-    my $code = $info->{code}
-        or die "registered format '$name' requires a verify function\n";
-
-    return $code;
-}
-
 my sub get_format : prototype($$) {
     my ($format, $name) = @_;
 
@@ -567,10 +555,6 @@ my sub get_format : prototype($$) {
     }
 
     if (ref($format) eq 'CODE') {
-        #my $code = get_code_format($format_name);
-        #
-        #return { code => $code };
-
         my $info = $registered_formats->{$format_name}
             or die "info for format '$format_name' required\n";
 
@@ -624,6 +608,15 @@ sub integer_type : prototype($$) {
     return $ty;
 }
 
+my sub floatify : prototype($$) {
+    my ($hash, $mem) = @_;
+    if (defined(my $n = $hash->{$mem})) {
+        if ($n !~ /\./) {
+            $hash->{$mem} = "$n.0";
+        }
+    }
+}
+
 sub number_type : prototype($$) {
     my ($schema, $api_props) = @_;
     my $min = delete $schema->{minimum};
@@ -634,6 +627,10 @@ sub number_type : prototype($$) {
 
     $api_props->{minimum} = $min if defined $min;
     $api_props->{maximum} = $max if defined $max;
+
+    floatify($api_props, 'minimum');
+    floatify($api_props, 'maximum');
+    floatify($api_props, 'default');
 
     return $ty;
 }
@@ -745,6 +742,9 @@ my sub string_type : prototype($$$) {
             my $re_name = namify_const(${name_hint}, 're');
             $api_props->{-regexes}->{$re_name} = $regex;
             $api_props->{format} = "&ApiStringFormat::Pattern(&$re_name)";
+        } elsif (my $ty = $fmt->{type}) {
+            # Return a "raw" type.
+            return $ty;
         } elsif (my $ty = $fmt->{property_string}) {
             $api_props->{format} = "ApiStringFormat::PropertyString(${ty}::API_SCHEMA)";
         } else {
@@ -830,8 +830,8 @@ sub handle_def : prototype($$$) {
             "#[serde(deserialize_with = \"crate::api_type_helpers::deserialize_bool\")]";
         $def->{api}->{default} = bool(delete $schema->{default});
     } elsif ($type eq 'number') {
-        $def->{type} = number_type($schema, $def->{api});
         $def->{api}->{default} = delete $schema->{default};
+        $def->{type} = number_type($schema, $def->{api});
     } elsif ($type eq 'string') {
         $def->{type} = string_type($schema, $def->{api}, $name_hint);
     } elsif ($type eq 'object') {

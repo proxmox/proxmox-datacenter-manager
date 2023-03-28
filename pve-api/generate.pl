@@ -15,6 +15,9 @@ use PVE::API2::AccessControl;
 use PVE::API2::Nodes;
 use PVE::API2::NodeConfig;
 
+# This is used to build the pve-storage-content enum:
+use PVE::Storage::Plugin;
+
 use lib './gen';
 use Schema2Rust;
 
@@ -53,8 +56,8 @@ Schema2Rust::register_format('pve-qm-bootdev' => { code => 'verify_pve_qm_bootde
 Schema2Rust::register_format('pve-qm-bootdisk' => { code => 'verify_pve_qm_bootdisk' });
 Schema2Rust::register_format('pve-qm-usb-device' => { code => 'verify_pve_qm_usb_device' });
 Schema2Rust::register_format('pve-startup-order' => { code => 'verify_pve_startup_order' });
-Schema2Rust::register_format('pve-storage-id' => { code => 'verify_pve_storage_id' });
-Schema2Rust::register_format('pve-storage-content' => { code => 'verify_pve_storage_content' });
+Schema2Rust::register_format('pve-storage-id' => { regex => '^[a-zA-Z][a-zA-Z0-9\-_.]*[a-zA-Z0-9]$' });
+Schema2Rust::register_format('pve-storage-content' => { type => 'StorageContent' });
 Schema2Rust::register_format('pve-tag' => { code => 'verify_pve_tag' });
 Schema2Rust::register_format('pve-volume-id' => { code => 'verify_pve_qm_volume_id' });
 Schema2Rust::register_format('pve-volume-id-or-qm-path' => { code => 'verify_pve_volume_id_or_qm_path' });
@@ -87,6 +90,10 @@ Schema2Rust::register_format('pve-ipv6-config' => { code => 'verify_ipv6_config'
 # This is used as both a task status and guest status.
 Schema2Rust::generate_enum('IsRunning', { type => 'string', enum => ['running', 'stopped'] });
 
+# pve-storage-content uses verify_
+my $storage_content_types = [sort keys PVE::Storage::Plugin::valid_content_types('dir')->%*];
+Schema2Rust::generate_enum('StorageContent', { type => 'string', enum => $storage_content_types });
+
 sub api : prototype($$$;%) {
     my ($method, $api_url, $rust_method_name, %extra) = @_;
     return Schema2Rust::api($method, $api_url, $rust_method_name, %extra);
@@ -95,16 +102,16 @@ sub api : prototype($$$;%) {
 # FIXME: this needs the return schema specified first:
 api(GET => '/version', 'version', 'return-name' => 'VersionResponse');
 
-# # Deal with 'type' in `/cluster/resources` being different between input and output.
-# Schema2Rust::generate_enum(
-#     'ClusterResourceKind',
-#     {
-#         type => 'string',
-#         enum => ['vm', 'storage', 'node', 'sdn'],
-#     }
-# );
-# api(GET => '/cluster/resources', 'cluster_resources', 'return-name' => 'ClusterResources');
-# 
+# Deal with 'type' in `/cluster/resources` being different between input and output.
+Schema2Rust::generate_enum(
+    'ClusterResourceKind',
+    {
+        type => 'string',
+        enum => ['vm', 'storage', 'node', 'sdn'],
+    }
+);
+api(GET => '/cluster/resources', 'cluster_resources', 'return-name' => 'ClusterResource');
+
 api(GET => '/nodes', 'list_nodes', 'return-name' => 'ClusterNodeIndexResponse');
 # api(
 #     GET => '/nodes/{node}/config',
