@@ -4,19 +4,20 @@ use anyhow::Error;
 use serde_json::Value;
 
 use proxmox_router::cli::{
-    format_and_print_result, format_and_print_result_full, get_output_format, CliCommand,
-    CliCommandMap, CommandLineInterface, OUTPUT_FORMAT,
+    format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
+    OUTPUT_FORMAT,
 };
-use proxmox_schema::{api, property_string, ApiType, ReturnType};
+use proxmox_schema::api;
 
-use pdm_api_types::{Remote, NODE_SCHEMA, REMOTE_ID_SCHEMA};
+use pdm_api_types::{NODE_SCHEMA, REMOTE_ID_SCHEMA};
 
 use crate::client;
 
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
+        .insert("lxc", lxc_cli())
         .insert("node", node_cli())
-        .insert("vm", vm_cli())
+        .insert("qemu", qemu_cli())
         .into()
 }
 
@@ -29,11 +30,20 @@ fn node_cli() -> CommandLineInterface {
         .into()
 }
 
-fn vm_cli() -> CommandLineInterface {
+fn qemu_cli() -> CommandLineInterface {
     CliCommandMap::new()
         .insert(
             "list",
-            CliCommand::new(&API_METHOD_LIST_VMS).arg_param(&["remote"]),
+            CliCommand::new(&API_METHOD_LIST_QEMU).arg_param(&["remote"]),
+        )
+        .into()
+}
+
+fn lxc_cli() -> CommandLineInterface {
+    CliCommandMap::new()
+        .insert(
+            "list",
+            CliCommand::new(&API_METHOD_LIST_LXC).arg_param(&["remote"]),
         )
         .into()
 }
@@ -86,14 +96,50 @@ async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
     }
 )]
 /// List all the remotes this instance is managing.
-async fn list_vms(remote: String, node: Option<String>, param: Value) -> Result<(), Error> {
+async fn list_qemu(remote: String, node: Option<String>, param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
-    let entries = client()?.pve_list_vms(&remote, node.as_deref()).await?;
+    let entries = client()?.pve_list_qemu(&remote, node.as_deref()).await?;
 
     if output_format == "text" {
         if entries.is_empty() {
             println!("No vms available");
+            return Ok(());
+        }
+
+        for entry in entries {
+            println!("{}: {}", entry.vmid, entry.status);
+        }
+    } else {
+        format_and_print_result(&entries, &output_format);
+    }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn list_lxc(remote: String, node: Option<String>, param: Value) -> Result<(), Error> {
+    let output_format = get_output_format(&param);
+
+    let entries = client()?.pve_list_lxc(&remote, node.as_deref()).await?;
+
+    if output_format == "text" {
+        if entries.is_empty() {
+            println!("No containers available");
             return Ok(());
         }
 

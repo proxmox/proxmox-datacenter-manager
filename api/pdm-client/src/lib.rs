@@ -147,12 +147,29 @@ where
         Ok(self.client.get(&path).await?.into_data_or_err()?)
     }
 
-    pub async fn pve_list_vms(
+    pub async fn pve_list_qemu(
         &self,
         remote: &str,
         node: Option<&str>,
     ) -> Result<Vec<pve_client::types::VmEntry>, Error> {
-        let path = format!("/api2/extjs/pve/{remote}/vms");
+        let path = format!("/api2/extjs/pve/{remote}/qemu");
+        let request = match node {
+            None => json!({}),
+            Some(node) => json!({ "node": node }),
+        };
+        Ok(self
+            .client
+            .get_with_body(&path, &request)
+            .await?
+            .into_data_or_err()?)
+    }
+
+    pub async fn pve_list_lxc(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+    ) -> Result<Vec<pve_client::types::VmEntry>, Error> {
+        let path = format!("/api2/extjs/pve/{remote}/lxc");
         let request = match node {
             None => json!({}),
             Some(node) => json!({ "node": node }),

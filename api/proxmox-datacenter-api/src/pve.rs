@@ -18,10 +18,15 @@ const MAIN_ROUTER: Router = Router::new()
     .subdirs(SUBDIRS);
 
 #[sortable]
-const SUBDIRS: SubdirMap = &sorted!([("nodes", &NODES_ROUTER), ("vms", &VMS_ROUTER)]);
+const SUBDIRS: SubdirMap = &sorted!([
+    ("lxc", &LXC_ROUTER),
+    ("nodes", &NODES_ROUTER),
+    ("qemu", &QEMU_ROUTER),
+]);
 
 const NODES_ROUTER: Router = Router::new().get(&API_METHOD_LIST_NODES);
-const VMS_ROUTER: Router = Router::new().get(&API_METHOD_LIST_VMS);
+const QEMU_ROUTER: Router = Router::new().get(&API_METHOD_LIST_QEMU);
+const LXC_ROUTER: Router = Router::new().get(&API_METHOD_LIST_LXC);
 
 pub type PveClient = pve_client::Client<PveEnv>;
 
@@ -111,11 +116,8 @@ pub async fn list_nodes(
         items: { type: pve_client::types::VmEntry },
     },
 )]
-/// Query the remote's version.
-///
-/// FIXME: Should we add an option to explicitly query the entire cluster to get a full version
-/// overview?
-pub async fn list_vms(
+/// Query the remote's list of qemu VMs. If no node is provided, the all nodes are queried.
+pub async fn list_qemu(
     remote: String,
     node: Option<String>,
 ) -> Result<Vec<pve_client::types::VmEntry>, Error> {
@@ -126,16 +128,49 @@ pub async fn list_vms(
     };
 
     if let Some(node) = node {
-        let x = pve.list_qemu(&node, None).await?;
-        log::info!("GOT VM LIST: {}", x.len());
-        for a in &x {
-            log::info!("==> {}", a.vmid);
-        }
-        Ok(x)
+        pve.list_qemu(&node, None).await
     } else {
         let mut entry = Vec::new();
         for node in pve.list_nodes().await? {
             entry.extend(pve.list_qemu(&node.node, None).await?);
+        }
+        Ok(entry)
+    }
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "Get a list of containers.",
+        items: { type: pve_client::types::VmEntry },
+    },
+)]
+/// Query the remote's list of lxc containers. If no node is provided, the all nodes are queried.
+pub async fn list_lxc(
+    remote: String,
+    node: Option<String>,
+) -> Result<Vec<pve_client::types::LxcEntry>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    if let Some(node) = node {
+        pve.list_lxc(&node).await
+    } else {
+        let mut entry = Vec::new();
+        for node in pve.list_nodes().await? {
+            entry.extend(pve.list_lxc(&node.node).await?);
         }
         Ok(entry)
     }
