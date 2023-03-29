@@ -72,7 +72,22 @@ sub api_to_string : prototype($$$$$) {
     if (my $regexes = $api->{-regexes}) {
         for my $name (sort keys %$regexes) {
             my $value = $regexes->{$name};
-            print {$regexes_fh} "$name = r##\"$value\"##;\n";
+            if (ref($value) eq 'ARRAY') {
+                my $comma = '';
+                print {$regexes_fh} "$name = concat!(";
+                for (@$value) {
+                    print {$regexes_fh} $comma; $comma = ', ';
+
+                    if (ref($_)) {
+                        print {$regexes_fh} $$_;
+                    } else {
+                        print {$regexes_fh} "r##\"$_\"##";
+                    }
+                }
+                print {$regexes_fh} ");\n";
+            } else {
+                print {$regexes_fh} "$name = r##\"$value\"##;\n";
+            }
         }
     }
 
