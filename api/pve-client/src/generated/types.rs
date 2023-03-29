@@ -143,7 +143,7 @@ pub struct ClusterResource {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hastate: Option<String>,
 
-    /// Id.
+    /// Resource id.
     pub id: String,
 
     /// Support level (when type == node).
