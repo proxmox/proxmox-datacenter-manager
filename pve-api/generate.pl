@@ -31,68 +31,74 @@ Schema2Rust::init_api($__API_ROOT);
 local $SIG{__DIE__} = sub { die "$Schema2Rust::__err_path: $_[0]" };
 local $SIG{__WARN__} = sub { warn "$Schema2Rust::__err_path: $_[0]" };
 
+# From JSONSchema.pm, but we can't use perl-re directly, particularly `qr//`...
+my $CONFIGID_RE = '^(?i:[a-z][a-z0-9_-]+)$';
+
 # Disable `#[api]` generation for now, it's incomplete/untested.
 #$Schema2Rust::API = 0;
 
 ## Schema2Rust::register_format('CIDR' => { code => 'verify_cidr' });
-## Schema2Rust::register_format('mac-addr' => { code => 'verify_mac_addr' });
+Schema2Rust::register_format('mac-addr' => { regex => '^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$' });
 ## Schema2Rust::register_format('pve-acme-alias' => { code => 'verify_pve_acme_alias' });
 ## Schema2Rust::register_format('pve-acme-domain' => { code => 'verify_pve_acme_domain' });
-## Schema2Rust::register_format('pve-bridge-id' => { code => 'verify_pve_bridge_id' });
-## Schema2Rust::register_format('pve-configid' => { code => 'verify_pve_configid' });
+Schema2Rust::register_format('pve-bridge-id' => { regex => '^[-_.\w\d]+$' });
+Schema2Rust::register_format('pve-configid' => { regex => $CONFIGID_RE });
 ## Schema2Rust::register_format('pve-groupid' => { code => 'verify_pve_groupid' });
 ## Schema2Rust::register_format('pve-userid' => { code => 'verify_pve_userid' });
 ## # copied from JSONSchema's verify_pve_node sub:
-Schema2Rust::register_format('pve-node' => { regex => '^([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)$' });
+Schema2Rust::register_format('pve-node' => { regex => '^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?)$' });
 ## #Schema2Rust::register_format('pve-node' => { code => 'verify_pve_node' });
 ## Schema2Rust::register_format('pve-priv' => { code => 'verify_pve_privileges' });
 ## Schema2Rust::register_format('pve-realm' => { code => 'verify_pve_realm' });
 ##
-## Schema2Rust::register_format('disk-size' => { code => 'verify_disk_size' });
-## Schema2Rust::register_format('dns-name' => { code => 'verify_dns_name' });
+Schema2Rust::register_format('disk-size' => { regex => '^(\d+(\.\d+)?)([KMGT])?$' });
+Schema2Rust::register_format('dns-name' => { code => 'crate::verifiers::verify_dns_name' });
 ## Schema2Rust::register_format('email' => { code => 'verify_email' });
-## Schema2Rust::register_format('pve-phys-bits' => { code => 'verify_pve_phys_bits' });
-## Schema2Rust::register_format('pve-qm-bootdev' => { code => 'verify_pve_qm_bootdev' });
-## Schema2Rust::register_format('pve-qm-bootdisk' => { code => 'verify_pve_qm_bootdisk' });
-## Schema2Rust::register_format('pve-qm-usb-device' => { code => 'verify_pve_qm_usb_device' });
-## Schema2Rust::register_format('pve-startup-order' => { code => 'verify_pve_startup_order' });
-Schema2Rust::register_format('pve-storage-id' => { regex => '^[a-zA-Z][a-zA-Z0-9\-_.]*[a-zA-Z0-9]$' });
+Schema2Rust::register_format('pve-phys-bits' => { code => 'crate::verifiers::verify_pve_phys_bits' });
+Schema2Rust::register_format('pve-qm-bootdev' => { unchecked => 1 });
+Schema2Rust::register_format('pve-qm-bootdisk' => { regex => '^(ide|sata|scsi|virtio|efidisk|tpmstate)\d+$' });
+Schema2Rust::register_format('pve-qm-usb-device' => { unchecked => 1 });
+Schema2Rust::register_format('pve-startup-order' => { unchecked => 1 });
+Schema2Rust::register_format('pve-storage-id' => { regex => '^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$' });
 Schema2Rust::register_format('pve-storage-content' => { type => 'StorageContent' });
-## Schema2Rust::register_format('pve-tag' => { code => 'verify_pve_tag' });
-## Schema2Rust::register_format('pve-volume-id' => { code => 'verify_pve_qm_volume_id' });
-## Schema2Rust::register_format('pve-volume-id-or-qm-path' => { code => 'verify_pve_volume_id_or_qm_path' });
+Schema2Rust::register_format('pve-tag' => { regex => '^(?i)[a-z0-9_][a-z0-9_\-+.]*$' });
+Schema2Rust::register_format('pve-volume-id' => { code => 'crate::verifiers::verify_volume_id' });
+Schema2Rust::register_format('pve-volume-id-or-qm-path' => { code => 'crate::verifiers::verify_pve_volume_id_or_qm_path' });
 ## Schema2Rust::register_format('pve-volume-id-or-absolute-path' => { code => 'verify_pve_volume_id_or_absolute_path' });
-## Schema2Rust::register_format('urlencoded' => { code => 'verify_urlencoded' });
-## Schema2Rust::register_format('pve-cpuset' => { code => 'verify_pve_cpuset' });
+Schema2Rust::register_format('urlencoded' => { regex => '^[-%a-zA-Z0-9_.!~*\'()]*$' });
+Schema2Rust::register_format('pve-cpuset' => { regex => '^(\s*\d+(-\d+)?\s*)(,\s*\d+(-\d+)?\s*)?$' });
 ##
 ## Schema2Rust::register_format('pve-lxc-mp-string' => { code => 'verify_lxc_mp_string' });
 ## Schema2Rust::register_format('lxc-ip-with-ll-iface' => { regex => ['^(?i:', \'pdm_api_types::IPRE!()', ')$'] });
 ## Schema2Rust::register_format('pve-ct-timezone' => { regex => '^.*/.*$' });
 ##
 ## Schema2Rust::register_format('storage-pair' => { code => 'verify_storage_pair' });
-##
-## Schema2Rust::register_enum_variant('PveVmCpuConfReportedModel::486' => 'I486');
-## Schema2Rust::register_enum_variant('QemuConfigEfidisk0Efitype::2m' => 'Mb2');
-## Schema2Rust::register_enum_variant('QemuConfigEfidisk0Efitype::4m' => 'Mb4');
-## Schema2Rust::register_enum_variant('QemuConfigHugepages::2' => 'Mb2');
-## Schema2Rust::register_enum_variant('QemuConfigHugepages::1024' => 'Mb1024');
-## Schema2Rust::register_enum_variant('QemuConfigRng0Source::/dev/urandom', => 'DevUrandom');
-## Schema2Rust::register_enum_variant('QemuConfigRng0Source::/dev/random', => 'DevRandom');
-## Schema2Rust::register_enum_variant('QemuConfigRng0Source::/dev/hwrng', => 'DevHwrng');
-## Schema2Rust::register_enum_variant('QemuConfigTpmstate0Version::v1.2' => 'V1_2');
-## Schema2Rust::register_enum_variant('QemuConfigTpmstate0Version::v2.0' => 'V2_0');
-##
+
+Schema2Rust::register_enum_variant('PveVmCpuConfReportedModel::486' => 'I486');
+Schema2Rust::register_enum_variant('QemuConfigEfidisk0Efitype::2m' => 'Mb2');
+Schema2Rust::register_enum_variant('QemuConfigEfidisk0Efitype::4m' => 'Mb4');
+Schema2Rust::register_enum_variant('QemuConfigHugepages::2' => 'Mb2');
+Schema2Rust::register_enum_variant('QemuConfigHugepages::1024' => 'Mb1024');
+Schema2Rust::register_enum_variant('QemuConfigRng0Source::/dev/urandom', => 'DevUrandom');
+Schema2Rust::register_enum_variant('QemuConfigRng0Source::/dev/random', => 'DevRandom');
+Schema2Rust::register_enum_variant('QemuConfigRng0Source::/dev/hwrng', => 'DevHwrng');
+Schema2Rust::register_enum_variant('QemuConfigTpmstate0Version::v1.2' => 'V1_2');
+Schema2Rust::register_enum_variant('QemuConfigTpmstate0Version::v2.0' => 'V2_0');
+
 ## # FIXME: Invent an enum list type for this one
-## Schema2Rust::register_format('pve-hotplug-features' => { code => 'verify_pve_hotplug_features' });
+Schema2Rust::register_format('pve-hotplug-features' => { unchecked => 1 });
 ## # FIXME: Figure out something sane for these
-## Schema2Rust::register_format('address' => { code => 'verify_address' });
-## Schema2Rust::register_format('ipv4' => { code => 'verify_ipv4' });
-## Schema2Rust::register_format('ipv6' => { code => 'verify_ipv6' });
-## Schema2Rust::register_format('pve-ipv4-config' => { code => 'verify_ipv4_config' });
-## Schema2Rust::register_format('pve-ipv6-config' => { code => 'verify_ipv6_config' });
+Schema2Rust::register_format('address' => { code => 'crate::verifiers::verify_address' });
+Schema2Rust::register_format('ipv4' => { code => 'crate::verifiers::verify_ipv4' });
+Schema2Rust::register_format('ipv6' => { code => 'crate::verifiers::verify_ipv6' });
+Schema2Rust::register_format('pve-ipv4-config' => { code => 'crate::verifiers::verify_ipv4_config' });
+Schema2Rust::register_format('pve-ipv6-config' => { code => 'crate::verifiers::verify_ipv6_config' });
 
 # This is used as both a task status and guest status.
 Schema2Rust::generate_enum('IsRunning', { type => 'string', enum => ['running', 'stopped'] });
+
+# We have a textual description of the default value in there, just pick the cgroupv2 one:
+Schema2Rust::register_api_override('QemuConfig', '/properties/cpuunits/default', 1024);
 
 # pve-storage-content uses verify_
 my $storage_content_types = [sort keys PVE::Storage::Plugin::valid_content_types('dir')->%*];
@@ -133,7 +139,7 @@ api(GET => '/nodes', 'list_nodes', 'return-name' => 'ClusterNodeIndexResponse');
 # api(GET => '/nodes/{node}/tasks/{upid}/log', 'get_task_log', 'return-name' => 'TaskLogLine', attribs => 1);
 # 
 api(GET => '/nodes/{node}/qemu', 'list_qemu', 'param-name' => 'FixmeListQemu', 'return-name' => 'VmEntry');
-# api(GET => '/nodes/{node}/qemu/{vmid}/config', 'qemu_get_config', 'param-name' => 'FixmeQemuGetConfig', 'return-name' => 'QemuConfig');
+api(GET => '/nodes/{node}/qemu/{vmid}/config', 'qemu_get_config', 'param-name' => 'FixmeQemuGetConfig', 'return-name' => 'QemuConfig');
 # api(POST => '/nodes/{node}/qemu/{vmid}/config', 'qemu_update_config_async', 'param-name' => 'UpdateQemuConfig');
 # api(POST => '/nodes/{node}/qemu/{vmid}/status/start',    'start_qemu_async',    'output-type' => 'PveUpid', 'param-name' => 'StartQemu');
 # api(POST => '/nodes/{node}/qemu/{vmid}/status/stop',     'stop_qemu_async',     'output-type' => 'PveUpid', 'param-name' => 'StopQemu');

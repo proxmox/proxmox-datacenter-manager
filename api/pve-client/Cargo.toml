@@ -23,3 +23,6 @@ proxmox-client = { workspace = true, features = [ "hyper-client" ] }
 proxmox-http.workspace = true
 proxmox-login.workspace = true
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
+
+# FIXME: Get rid of this! IP regexes need to move some place else (proxmox-schema?)
+pdm-api-types.workspace = true

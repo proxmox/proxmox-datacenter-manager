@@ -59,6 +59,13 @@ my sub count_defined_values : prototype($) {
     return scalar(grep { defined($hash->{$_}) } keys $hash->%*);
 }
 
+our %API_TYPE_OVERRIDES = ();
+sub register_api_override : prototype($$$) {
+    my ($rust_type, $path, $value) = @_;;
+    $API_TYPE_OVERRIDES{"$rust_type:$path"} = $value;
+}
+
+our $API_TYPE_POS = '';
 my sub api_to_string : prototype($$$$$);
 # $derive_optional => For structs only, if an api entry contains *only* the 'optional' flag then
 #     we can just leave out the schema completely.
@@ -97,11 +104,21 @@ sub api_to_string : prototype($$$$$) {
         my $value = $api->{$key};
         next if !defined($value);
 
+        local $API_TYPE_POS = "$API_TYPE_POS/$key";
+
+        # We need to quote keys with hyphens:
+        my $safe_key = ($key =~ /-/) ? "\"$key\"" : $key;
+
+        if (exists($API_TYPE_OVERRIDES{$API_TYPE_POS})) {
+            $value = $API_TYPE_OVERRIDES{$API_TYPE_POS};
+            next if !defined($value);
+        }
+
         if (!ref($value)) {
-            print {$out} "${indent}$key: $value,\n";
+            print {$out} "${indent}$safe_key: $value,\n";
         } elsif (my $func = eval { $value->can('TO_API_SCHEMA') }) {
             $value = $value->$func();
-            print {$out} "${indent}$key: $value,\n";
+            print {$out} "${indent}$safe_key: $value,\n";
         } elsif (ref($value) eq 'HASH') {
             my $next_derive_optional = undef;
             if ($derive_optional eq 'struct' && $key eq 'properties') {
@@ -120,7 +137,7 @@ sub api_to_string : prototype($$$$$) {
                 close($inner_fh);
 
                 if (length($inner_str)) {
-                    print {$out} "${indent}$key: {\n";
+                    print {$out} "${indent}$safe_key: {\n";
                     print {$out} $inner_str;
                     print {$out} "$indent},\n";
                 }
@@ -131,9 +148,11 @@ sub api_to_string : prototype($$$$$) {
     }
 }
 
-my sub print_api_string : prototype($$$) {
-    my ($out, $api, $kind) = @_;
+my sub print_api_string : prototype($$$$) {
+    my ($out, $api, $kind, $rust_type_name) = @_;
     return '' if !$API;
+
+    local $API_TYPE_POS = "$rust_type_name:";
 
     my $api_str = '';
     my $regexes_str = '';
@@ -159,7 +178,7 @@ my sub print_struct : prototype($$$) {
 
     my @arrays;
 
-    print_api_string($out, $def->{api}, 'struct');
+    print_api_string($out, $def->{api}, 'struct', $def->{name});
 
     if (length($def->{description})) {
         print {$out} "$def->{description}\n";
@@ -223,7 +242,7 @@ EOF
         if ($kind eq 'struct') {
             print_struct($out, $def, $done_array_modules);
         } elsif ($kind eq 'enum') {
-            print_api_string($out, $def->{api}, 'enum');
+            print_api_string($out, $def->{api}, 'enum', $def->{name});
             print {$out} "$def->{description}\n" if length($def->{description});
             print_derive($out, $def->{derive});
             print {$out} "pub enum $def->{name} {\n";
@@ -650,10 +669,10 @@ sub number_type : prototype($$) {
     return $ty;
 }
 
-my sub check_rust_name : prototype($$) {
-    my ($where, $name) = @_;
+my sub check_rust_name : prototype($$$) {
+    my ($where, $name, $todo) = @_;
     if ($name !~ /^[a-zA-Z_][a-zA-Z_0-9]*$/) {
-        confess "bad name in $where: $name\n";
+        confess "bad name in $where: $name\n$todo\n";
     }
 }
 
@@ -699,7 +718,7 @@ sub generate_enum : prototype($$) {
     for my $variant ((delete $schema->{enum})->@*) {
         my $rust_variant = $rename_enum_variant->{"${name_hint}::$variant"};
         $rust_variant = namify_type($variant) if !defined($rust_variant);
-        check_rust_name($name_hint, $rust_variant);
+        check_rust_name("enum $name_hint", $rust_variant, 'consider using register_enum_variant');
         push $variants->@*, [$variant, $rust_variant];
 
         if (defined($default) && $default eq $variant) {
@@ -727,10 +746,10 @@ my sub string_type : prototype($$$) {
     }
 
     if (defined(my $len = delete $schema->{minLength})) {
-        $api_props->{minLength} = $len;
+        $api_props->{min_length} = $len;
     }
     if (defined(my $len = delete $schema->{maxLength})) {
-        $api_props->{maxLength} = $len;
+        $api_props->{max_length} = $len;
     }
     if (defined(my $text = delete $schema->{typetext})) {
         $api_props->{type_text} = quote_string($text);
@@ -752,16 +771,18 @@ my sub string_type : prototype($$$) {
     if (defined(my $format = delete $schema->{format})) {
         my $fmt = get_format($format, $name_hint);
         if (my $code = $fmt->{code}) {
-            $api_props->{format} = "ApiStringFormat::VerifyFn($code)";
+            $api_props->{format} = "&ApiStringFormat::VerifyFn($code)";
         } elsif (my $regex = $fmt->{regex}) {
             my $re_name = namify_const(${name_hint}, 're');
             $api_props->{-regexes}->{$re_name} = $regex;
             $api_props->{format} = "&ApiStringFormat::Pattern(&$re_name)";
+        } elsif ($fmt->{unchecked}) {
+            # We don't check this, it'll be an arbitrary string.
         } elsif (my $ty = $fmt->{type}) {
             # Return a "raw" type.
             return $ty;
-        } elsif (my $ty = $fmt->{property_string}) {
-            $api_props->{format} = "ApiStringFormat::PropertyString(${ty}::API_SCHEMA)";
+        } elsif (my $ps = $fmt->{property_string}) {
+            $api_props->{format} = "ApiStringFormat::PropertyString(${ps}::API_SCHEMA)";
         } else {
             confess "FIXME (string_type format stuff)\n" .Dumper($fmt);
         }
@@ -842,7 +863,7 @@ sub handle_def : prototype($$$) {
     } elsif ($type eq 'boolean') {
         $def->{type} = 'bool';
         push $def->{attrs}->@*,
-            "#[serde(deserialize_with = \"crate::api_type_helpers::deserialize_bool\")]";
+            "#[serde(deserialize_with = \"proxmox_login::parse::deserialize_bool\")]";
         $def->{api}->{default} = bool(delete $schema->{default});
     } elsif ($type eq 'number') {
         $def->{api}->{default} = delete $schema->{default};
@@ -1045,8 +1066,17 @@ sub generate_struct : prototype($$$) {
             my $field =
                 make_struct_array_field($name_hint, $base, $field_rust_name, $count, \$field_schema);
             die "duplicate field name '$field_name'\n" if exists($def->{fields}->{$field_name});
+            if (exists($properties->{$base})) {
+                warn "schema has flattened array as well as a field named '$base', '$field_name'...\n";
+            } else {
+                $field_name = $base;
+            }
             $def->{fields}->{$field_name} = $field;
-            $def->{api}->{properties}->{$field_name} = $field->{api};
+            $def->{api}->{properties}->{$field_name} = {
+                type => 'array',
+                items => $field->{api},
+                maximum => $count,
+            };;
         } else {
             my $field_rust_name = namify_field($field_name);
             my $field_schema = { $properties->{$field_name}->%* };

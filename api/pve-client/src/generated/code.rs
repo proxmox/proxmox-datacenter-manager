@@ -241,7 +241,6 @@
 //! - /nodes/{node}/qemu/{vmid}/clone
 //! - /nodes/{node}/qemu/{vmid}/cloudinit
 //! - /nodes/{node}/qemu/{vmid}/cloudinit/dump
-//! - /nodes/{node}/qemu/{vmid}/config
 //! - /nodes/{node}/qemu/{vmid}/feature
 //! - /nodes/{node}/qemu/{vmid}/firewall
 //! - /nodes/{node}/qemu/{vmid}/firewall/aliases
@@ -405,6 +404,28 @@ where
         let (mut query, mut sep) = (String::new(), '?');
         add_query_arg(&mut query, &mut sep, "full", &full);
         let url = format!("/api2/extjs/nodes/{node}/qemu{query}");
+        Ok(self
+            .client
+            .get(&url)
+            .await?
+            .data
+            .ok_or_else(|| E::Error::bad_api("api returned no data"))?)
+    }
+
+    /// Get the virtual machine configuration with pending configuration changes
+    /// applied. Set the 'current' parameter to get the current configuration
+    /// instead.
+    pub async fn qemu_get_config(
+        &self,
+        node: &str,
+        vmid: u64,
+        current: Option<bool>,
+        snapshot: Option<String>,
+    ) -> Result<QemuConfig, E::Error> {
+        let (mut query, mut sep) = (String::new(), '?');
+        add_query_arg(&mut query, &mut sep, "current", &current);
+        add_query_arg(&mut query, &mut sep, "snapshot", &snapshot);
+        let url = format!("/api2/extjs/nodes/{node}/qemu/{vmid}/config{query}");
         Ok(self
             .client
             .get(&url)

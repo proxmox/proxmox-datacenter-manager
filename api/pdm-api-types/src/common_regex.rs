@@ -57,6 +57,8 @@ lazy_static! {
     pub static ref IP_REGEX: Regex = Regex::new(concat!(r"^", IPRE!(), r"$")).unwrap();
     pub static ref IP_BRACKET_REGEX: Regex =
         Regex::new(concat!(r"^", IPRE_BRACKET!(), r"$")).unwrap();
+    pub static ref IPV4_REGEX: Regex = Regex::new(concat!(r"^", IPV4RE!(), r"$")).unwrap();
+    pub static ref IPV6_REGEX: Regex = Regex::new(concat!(r"^", IPV6RE!(), r"$")).unwrap();
     pub static ref SHA256_HEX_REGEX: Regex = Regex::new(r"^[a-f0-9]{64}$").unwrap();
     pub static ref SYSTEMD_DATETIME_REGEX: Regex =
         Regex::new(r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$").unwrap();

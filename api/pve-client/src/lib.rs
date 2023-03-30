@@ -7,6 +7,8 @@ use proxmox_client::Environment;
 
 pub mod helpers;
 
+mod verifiers;
+
 #[path = "generated/code.rs"]
 mod code;
 #[path = "generated/types.rs"]
