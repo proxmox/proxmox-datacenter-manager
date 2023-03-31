@@ -34,12 +34,14 @@ my $rename_enum_variant = {};
 
 my $dedup_struct = {};
 my $dedup_enum = {};
-my $dedup_array_module = {};
+my $dedup_array_types = {};
 
 our $__err_path = '';
 
 my sub to_doc_comment : prototype($);
 my sub handle_def : prototype($$$);
+my sub namify_type : prototype($;@);
+my sub indent_lines : prototype($$);
 sub generate_struct : prototype($$$);
 
 sub dump {
@@ -99,7 +101,7 @@ sub api_to_string : prototype($$$$$) {
     }
 
     for my $key (sort keys $api->%*) {
-        next if $key eq '-regexes';
+        next if $key =~ /^-/;
 
         my $value = $api->{$key};
         next if !defined($value);
@@ -174,7 +176,7 @@ my sub print_api_string : prototype($$$$) {
 }
 
 my sub print_struct : prototype($$$) {
-    my ($out, $def, $done_array_modules) = @_;
+    my ($out, $def, $done_array_types) = @_;
 
     my @arrays;
 
@@ -202,17 +204,28 @@ my sub print_struct : prototype($$$) {
         print {$out} "\n";
     }
     print {$out} "}\n";
+
+    my $regexes_str = '';
+
     for my $array (@arrays) {
-        my $module_name = $array->{array_module_name};
-        next if $done_array_modules->{$module_name};
-        $done_array_modules->{$module_name} = 1;
+        my $type_name = $array->{array_type_name};
+        next if $done_array_types->{$type_name};
+        $done_array_types->{$type_name} = 1;
         my $count = $array->{array_count};
         print {$out} "generate_array_field! {\n";
-        print {$out} "    $module_name :\n";
-        print {$out} "    $array->{name} :\n";
-        print {$out} "    $array->{rust_name}\[${count}] =>\n";
+        print {$out} "    $type_name :\n";
+        print {$out} indent_lines('    ', $array->{description})."\n";
+        my $api_str = '';
+        if ($API) {
+            open(my $api_str_fh, '>', \$api_str);
+            open(my $regexes_fh, '>', \$regexes_str);
+            api_to_string(' 'x8, $api_str_fh, $array->{api}, 'array-field', $regexes_fh);
+        }
+        print {$out} "    $array->{'field-type'} => {\n${api_str}";
+        print {$out} "        optional: true,\n";
+        print {$out} "    }\n"; # field type and its api doc
         for my $i (0..($count - 1)) {
-            print {$out} "    \"$array->{name}${i}\",\n";
+            print {$out} "    $array->{name}${i},\n";
         }
         print {$out} "}\n";
     }
@@ -222,7 +235,7 @@ my sub print_struct : prototype($$$) {
 sub print_types : prototype($) {
     my ($out) = @_;
 
-    my $done_array_modules = {};
+    my $done_array_types = {};
 
     print {$out} <<"EOF";
 use std::collections::HashMap;
@@ -231,7 +244,7 @@ EOF
 
     if ($API) {
         print {$out} <<"EOF";
-use proxmox_schema::{api, const_regex, ApiStringFormat};
+use proxmox_schema::{api, const_regex, ApiStringFormat, ApiType};
 
 EOF
     }
@@ -240,7 +253,7 @@ EOF
         my $def = $all_types->{$name};
         my $kind = $def->{kind};
         if ($kind eq 'struct') {
-            print_struct($out, $def, $done_array_modules);
+            print_struct($out, $def, $done_array_types);
         } elsif ($kind eq 'enum') {
             print_api_string($out, $def->{api}, 'enum', $def->{name});
             print {$out} "$def->{description}\n" if length($def->{description});
@@ -459,7 +472,7 @@ sub namify_field : prototype($) {
     return $out;
 }
 
-my sub namify_type : prototype($;@) {
+sub namify_type : prototype($;@) {
     my $out = '';
     for my $arg_ (@_) {
         confess "namify_type: undef\n" if !defined $arg_;
@@ -519,7 +532,7 @@ my sub quote_string : prototype($) {
     return '"' . ($s =~ s/(["\\])/\\$1/gr) . '"';
 }
 
-my sub indent_lines : prototype($$) {
+sub indent_lines : prototype($$) {
     my ($indent, $lines) = @_;
 
     confess "DARN" if !defined($lines);
@@ -782,7 +795,7 @@ my sub string_type : prototype($$$) {
             # Return a "raw" type.
             return $ty;
         } elsif (my $ps = $fmt->{property_string}) {
-            $api_props->{format} = "ApiStringFormat::PropertyString(${ps}::API_SCHEMA)";
+            $api_props->{format} = "&ApiStringFormat::PropertyString(&${ps}::API_SCHEMA)";
         } else {
             confess "FIXME (string_type format stuff)\n" .Dumper($fmt);
         }
@@ -791,11 +804,11 @@ my sub string_type : prototype($$$) {
         # }
 
         # if (my $ps = $fmt->{'property-string'}) {
-        #     $api_props->{format} = "ApiStringFormat::PropertyString(${ps}::API_SCHEMA)";
+        #     $api_props->{format} = "&ApiStringFormat::PropertyString(&${ps}::API_SCHEMA)";
         # }
 
         # if (my $code = $fmt->{code}) {
-        #     $api_props->{format} = "ApiStringFormat::VerifyFn($code)";
+        #     $api_props->{format} = "&ApiStringFormat::VerifyFn($code)";
         # }
     }
 
@@ -920,20 +933,25 @@ my sub make_struct_array_field : prototype($$$$$) {
     my ($struct_name, $base_name, $base_rust_name, $count, $inout_schema) = @_;
     local $__err_path = "$__err_path.${base_name}[]";
 
-    my $array_module_name = namify_field($struct_name) . '_' . namify_field($base_name);
+    my $array_type_name = namify_type(
+        namify_field($struct_name) . '_' . namify_field($base_name) . '_array'
+    );
     my $def = {
         kind => 'array-field',
         struct => $struct_name,
         name => $base_name,
         # FIXME: We cannot just cut off the number because qemu for instance has `numa` and `numaX`
         # but we also don't want to use `numas`...
-        rust_name => "${base_rust_name}_array",
+        rust_name => $base_rust_name,
         type => undef, # rust type
         attrs => [],
-        api => {},
+        api => {
+            '-array-field' => 1,
+            description => quote_string($$inout_schema->{description}),
+        },
         optional => undef,
         description => '',
-        array_module_name => undef,
+        array_type_name => undef,
         array_count => $count,
     };
 
@@ -945,15 +963,18 @@ my sub make_struct_array_field : prototype($$$$$) {
     handle_def($def, $inout_schema, namify_type($struct_name, $base_name));
 
     my $array_dedup_key = "$base_name\0$count\0$def->{type}\0";
-    if (defined(my $module = $dedup_array_module->{$array_dedup_key})) {
-        $array_module_name = $module;
+    if (defined(my $module = $dedup_array_types->{$array_dedup_key})) {
+        $array_type_name = $module;
     }
-    $dedup_array_module->{$array_dedup_key} = $array_module_name;
-    $def->{array_module_name} = $array_module_name;
+    $dedup_array_types->{$array_dedup_key} = $array_type_name;
+    $def->{array_type_name} = $array_type_name;
 
-    $def->{type} = "Box<[Option<$def->{type}>; $count]>";
+    #$def->{type} = "Option<$def->{type}>";
+    $def->{'field-type'} = $def->{type};
+    $def->{api}->{type} = $def->{type};
+    $def->{type} = $array_type_name;
     $def->{optional} = true;
-    push $def->{attrs}->@*, "#[serde(flatten, with = \"$array_module_name\")]";
+    push $def->{attrs}->@*, "#[serde(flatten)]";
 
     return $def;
 }
@@ -1068,15 +1089,17 @@ sub generate_struct : prototype($$$) {
             die "duplicate field name '$field_name'\n" if exists($def->{fields}->{$field_name});
             if (exists($properties->{$base})) {
                 warn "schema has flattened array as well as a field named '$base', '$field_name'...\n";
+                $field->{rust_name}
+                    = $field->{name}
+                    = $field_name
+                    = "${base}_array";
             } else {
                 $field_name = $base;
             }
             $def->{fields}->{$field_name} = $field;
             $def->{api}->{properties}->{$field_name} = {
-                type => 'array',
-                items => $field->{api},
-                maximum => $count,
-            };;
+                type => $field->{array_type_name},
+            };
         } else {
             my $field_rust_name = namify_field($field_name);
             my $field_schema = { $properties->{$field_name}->%* };

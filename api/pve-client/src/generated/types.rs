@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use proxmox_schema::{api, const_regex, ApiStringFormat};
+use proxmox_schema::{api, const_regex, ApiStringFormat, ApiType};
 
 const_regex! {
 
@@ -1288,11 +1288,11 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         agent: {
-            format: ApiStringFormat::PropertyString(QemuConfigAgent::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&QemuConfigAgent::API_SCHEMA),
             optional: true,
         },
         audio0: {
-            format: ApiStringFormat::PropertyString(QemuConfigAudio0::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&QemuConfigAudio0::API_SCHEMA),
             optional: true,
         },
         autostart: {
@@ -1304,7 +1304,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         boot: {
-            format: ApiStringFormat::PropertyString(PveQmBoot::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&PveQmBoot::API_SCHEMA),
             optional: true,
         },
         bootdisk: {
@@ -1312,12 +1312,12 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         cdrom: {
-            format: ApiStringFormat::PropertyString(PveQmIde::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&PveQmIde::API_SCHEMA),
             optional: true,
             type_text: "<volume>",
         },
         cicustom: {
-            format: ApiStringFormat::PropertyString(PveQmCicustom::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&PveQmCicustom::API_SCHEMA),
             optional: true,
         },
         cores: {
@@ -1326,7 +1326,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         cpu: {
-            format: ApiStringFormat::PropertyString(PveVmCpuConf::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&PveVmCpuConf::API_SCHEMA),
             optional: true,
         },
         cpulimit: {
@@ -1346,7 +1346,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         efidisk0: {
-            format: ApiStringFormat::PropertyString(QemuConfigEfidisk0::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&QemuConfigEfidisk0::API_SCHEMA),
             optional: true,
         },
         freeze: {
@@ -1358,32 +1358,20 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         hostpci: {
-            items: {
-                format: ApiStringFormat::PropertyString(PveQmHostpci::API_SCHEMA),
-            },
-            maximum: 16,
-            type: array,
+            type: QemuConfigHostpciArray,
         },
         hotplug: {
             default: "network,disk,usb",
             optional: true,
         },
         ide: {
-            items: {
-                format: ApiStringFormat::PropertyString(PveQmIde::API_SCHEMA),
-            },
-            maximum: 4,
-            type: array,
+            type: QemuConfigIdeArray,
         },
         ipconfig: {
-            items: {
-                format: ApiStringFormat::PropertyString(PveQmIpconfig::API_SCHEMA),
-            },
-            maximum: 32,
-            type: array,
+            type: QemuConfigIpconfigArray,
         },
         ivshmem: {
-            format: ApiStringFormat::PropertyString(QemuConfigIvshmem::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&QemuConfigIvshmem::API_SCHEMA),
             optional: true,
         },
         keephugepages: {
@@ -1426,30 +1414,21 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         net: {
-            items: {
-                format: ApiStringFormat::PropertyString(QemuConfigNet::API_SCHEMA),
-            },
-            maximum: 32,
-            type: array,
+            type: QemuConfigNetArray,
         },
         numa: {
             default: false,
             optional: true,
         },
-        numa0: {
-            items: {
-                format: ApiStringFormat::PropertyString(QemuConfigNuma::API_SCHEMA),
-            },
-            maximum: 8,
-            type: array,
+        numa_array: {
+            type: QemuConfigNumaArray,
         },
         onboot: {
             default: false,
             optional: true,
         },
         parallel: {
-            maximum: 3,
-            type: array,
+            type: QemuConfigParallelArray,
         },
         protection: {
             default: false,
@@ -1460,26 +1439,17 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         rng0: {
-            format: ApiStringFormat::PropertyString(QemuConfigRng0::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&QemuConfigRng0::API_SCHEMA),
             optional: true,
         },
         sata: {
-            items: {
-                format: ApiStringFormat::PropertyString(QemuConfigSata::API_SCHEMA),
-            },
-            maximum: 6,
-            type: array,
+            type: QemuConfigSataArray,
         },
         scsi: {
-            items: {
-                format: ApiStringFormat::PropertyString(QemuConfigScsi::API_SCHEMA),
-            },
-            maximum: 31,
-            type: array,
+            type: QemuConfigScsiArray,
         },
         serial: {
-            maximum: 4,
-            type: array,
+            type: QemuConfigSerialArray,
         },
         shares: {
             default: 1000,
@@ -1488,7 +1458,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         smbios1: {
-            format: ApiStringFormat::PropertyString(PveQmSmbios1::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&PveQmSmbios1::API_SCHEMA),
             max_length: 512,
             optional: true,
         },
@@ -1503,7 +1473,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         spice_enhancements: {
-            format: ApiStringFormat::PropertyString(QemuConfigSpiceEnhancements::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&QemuConfigSpiceEnhancements::API_SCHEMA),
             optional: true,
         },
         sshkeys: {
@@ -1536,22 +1506,14 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         tpmstate0: {
-            format: ApiStringFormat::PropertyString(QemuConfigTpmstate0::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&QemuConfigTpmstate0::API_SCHEMA),
             optional: true,
         },
         unused: {
-            items: {
-                format: ApiStringFormat::PropertyString(QemuConfigUnused::API_SCHEMA),
-            },
-            maximum: 256,
-            type: array,
+            type: QemuConfigUnusedArray,
         },
         usb: {
-            items: {
-                format: ApiStringFormat::PropertyString(QemuConfigUsb::API_SCHEMA),
-            },
-            maximum: 14,
-            type: array,
+            type: QemuConfigUsbArray,
         },
         vcpus: {
             default: 0,
@@ -1559,15 +1521,11 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         vga: {
-            format: ApiStringFormat::PropertyString(QemuConfigVga::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&QemuConfigVga::API_SCHEMA),
             optional: true,
         },
         virtio: {
-            items: {
-                format: ApiStringFormat::PropertyString(QemuConfigVirtio::API_SCHEMA),
-            },
-            maximum: 16,
-            type: array,
+            type: QemuConfigVirtioArray,
         },
         vmgenid: {
             default: "1 (autogenerated)",
@@ -1578,7 +1536,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
         },
         watchdog: {
-            format: ApiStringFormat::PropertyString(PveQmWatchdog::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&PveQmWatchdog::API_SCHEMA),
             optional: true,
         },
     },
@@ -1700,9 +1658,8 @@ pub struct QemuConfig {
     pub hookscript: Option<String>,
 
     /// Map host PCI devices into guest.
-    #[serde(flatten, with = "qemu_config_hostpci")]
-    #[serde(rename = "hostpci")]
-    pub hostpci_array: Box<[Option<String>; 16]>,
+    #[serde(flatten)]
+    pub hostpci: QemuConfigHostpciArray,
 
     /// Selectively enable hotplug features. This is a comma separated list of
     /// hotplug features: 'network', 'disk', 'cpu', 'memory', 'usb' and
@@ -1717,9 +1674,8 @@ pub struct QemuConfig {
     pub hugepages: Option<QemuConfigHugepages>,
 
     /// Use volume as IDE hard disk or CD-ROM (n is 0 to 3).
-    #[serde(flatten, with = "qemu_config_ide")]
-    #[serde(rename = "ide")]
-    pub ide_array: Box<[Option<String>; 4]>,
+    #[serde(flatten)]
+    pub ide: QemuConfigIdeArray,
 
     /// cloud-init: Specify IP addresses and gateways for the corresponding
     /// interface.
@@ -1734,9 +1690,8 @@ pub struct QemuConfig {
     ///
     /// If cloud-init is enabled and neither an IPv4 nor an IPv6 address is
     /// specified, it defaults to using dhcp on IPv4.
-    #[serde(flatten, with = "qemu_config_ipconfig")]
-    #[serde(rename = "ipconfig")]
-    pub ipconfig_array: Box<[Option<String>; 32]>,
+    #[serde(flatten)]
+    pub ipconfig: QemuConfigIpconfigArray,
 
     /// Inter-VM shared memory. Useful for direct communication between VMs, or
     /// to the host.
@@ -1796,9 +1751,8 @@ pub struct QemuConfig {
     pub nameserver: Option<String>,
 
     /// Specify network devices.
-    #[serde(flatten, with = "qemu_config_net")]
-    #[serde(rename = "net")]
-    pub net_array: Box<[Option<String>; 32]>,
+    #[serde(flatten)]
+    pub net: QemuConfigNetArray,
 
     /// Enable/disable NUMA.
     #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
@@ -1806,9 +1760,8 @@ pub struct QemuConfig {
     pub numa: Option<bool>,
 
     /// NUMA topology.
-    #[serde(flatten, with = "qemu_config_numa")]
-    #[serde(rename = "numa")]
-    pub numa_array: Box<[Option<String>; 8]>,
+    #[serde(flatten)]
+    pub numa_array: QemuConfigNumaArray,
 
     /// Specifies whether a VM will be started during system bootup.
     #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
@@ -1819,9 +1772,8 @@ pub struct QemuConfig {
     pub ostype: Option<QemuConfigOstype>,
 
     /// Map host parallel devices (n is 0 to 2).
-    #[serde(flatten, with = "qemu_config_parallel")]
-    #[serde(rename = "parallel")]
-    pub parallel_array: Box<[Option<String>; 3]>,
+    #[serde(flatten)]
+    pub parallel: QemuConfigParallelArray,
 
     /// Sets the protection flag of the VM. This will disable the remove VM and
     /// remove disk operations.
@@ -1839,14 +1791,12 @@ pub struct QemuConfig {
     pub rng0: Option<String>,
 
     /// Use volume as SATA hard disk or CD-ROM (n is 0 to 5).
-    #[serde(flatten, with = "qemu_config_sata")]
-    #[serde(rename = "sata")]
-    pub sata_array: Box<[Option<String>; 6]>,
+    #[serde(flatten)]
+    pub sata: QemuConfigSataArray,
 
     /// Use volume as SCSI hard disk or CD-ROM (n is 0 to 30).
-    #[serde(flatten, with = "qemu_config_scsi")]
-    #[serde(rename = "scsi")]
-    pub scsi_array: Box<[Option<String>; 31]>,
+    #[serde(flatten)]
+    pub scsi: QemuConfigScsiArray,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scsihw: Option<QemuConfigScsihw>,
@@ -1858,9 +1808,8 @@ pub struct QemuConfig {
     pub searchdomain: Option<String>,
 
     /// Create a serial device inside the VM (n is 0 to 3)
-    #[serde(flatten, with = "qemu_config_serial")]
-    #[serde(rename = "serial")]
-    pub serial_array: Box<[Option<String>; 4]>,
+    #[serde(flatten)]
+    pub serial: QemuConfigSerialArray,
 
     /// Amount of memory shares for auto-ballooning. The larger the number is,
     /// the more memory this VM gets. Number is relative to weights of all other
@@ -1929,15 +1878,13 @@ pub struct QemuConfig {
 
     /// Reference to unused volumes. This is used internally, and should not be
     /// modified manually.
-    #[serde(flatten, with = "qemu_config_unused")]
-    #[serde(rename = "unused")]
-    pub unused_array: Box<[Option<String>; 256]>,
+    #[serde(flatten)]
+    pub unused: QemuConfigUnusedArray,
 
     /// Configure an USB device (n is 0 to 4, for machine version >= 7.1 and
     /// ostype l26 or windows > 7, n can be up to 14).
-    #[serde(flatten, with = "qemu_config_usb")]
-    #[serde(rename = "usb")]
-    pub usb_array: Box<[Option<String>; 14]>,
+    #[serde(flatten)]
+    pub usb: QemuConfigUsbArray,
 
     /// Number of hotplugged vcpus.
     #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
@@ -1949,9 +1896,8 @@ pub struct QemuConfig {
     pub vga: Option<String>,
 
     /// Use volume as VIRTIO hard disk (n is 0 to 15).
-    #[serde(flatten, with = "qemu_config_virtio")]
-    #[serde(rename = "virtio")]
-    pub virtio_array: Box<[Option<String>; 16]>,
+    #[serde(flatten)]
+    pub virtio: QemuConfigVirtioArray,
 
     /// Set VM Generation ID. Use '1' to autogenerate on create or update, pass
     /// '0' to disable explicitly.
@@ -1967,486 +1913,565 @@ pub struct QemuConfig {
     pub watchdog: Option<String>,
 }
 generate_array_field! {
-    qemu_config_hostpci :
-    hostpci :
-    hostpci_array[16] =>
-    "hostpci0",
-    "hostpci1",
-    "hostpci2",
-    "hostpci3",
-    "hostpci4",
-    "hostpci5",
-    "hostpci6",
-    "hostpci7",
-    "hostpci8",
-    "hostpci9",
-    "hostpci10",
-    "hostpci11",
-    "hostpci12",
-    "hostpci13",
-    "hostpci14",
-    "hostpci15",
+    QemuConfigHostpciArray :
+    /// Map host PCI devices into guest.
+    String => {
+        description: "Map host PCI devices into guest.",
+        format: &ApiStringFormat::PropertyString(&PveQmHostpci::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    hostpci0,
+    hostpci1,
+    hostpci2,
+    hostpci3,
+    hostpci4,
+    hostpci5,
+    hostpci6,
+    hostpci7,
+    hostpci8,
+    hostpci9,
+    hostpci10,
+    hostpci11,
+    hostpci12,
+    hostpci13,
+    hostpci14,
+    hostpci15,
 }
 generate_array_field! {
-    qemu_config_ide :
-    ide :
-    ide_array[4] =>
-    "ide0",
-    "ide1",
-    "ide2",
-    "ide3",
+    QemuConfigIdeArray :
+    /// Use volume as IDE hard disk or CD-ROM (n is 0 to 3).
+    String => {
+        description: "Use volume as IDE hard disk or CD-ROM (n is 0 to 3).",
+        format: &ApiStringFormat::PropertyString(&PveQmIde::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    ide0,
+    ide1,
+    ide2,
+    ide3,
 }
 generate_array_field! {
-    qemu_config_ipconfig :
-    ipconfig :
-    ipconfig_array[32] =>
-    "ipconfig0",
-    "ipconfig1",
-    "ipconfig2",
-    "ipconfig3",
-    "ipconfig4",
-    "ipconfig5",
-    "ipconfig6",
-    "ipconfig7",
-    "ipconfig8",
-    "ipconfig9",
-    "ipconfig10",
-    "ipconfig11",
-    "ipconfig12",
-    "ipconfig13",
-    "ipconfig14",
-    "ipconfig15",
-    "ipconfig16",
-    "ipconfig17",
-    "ipconfig18",
-    "ipconfig19",
-    "ipconfig20",
-    "ipconfig21",
-    "ipconfig22",
-    "ipconfig23",
-    "ipconfig24",
-    "ipconfig25",
-    "ipconfig26",
-    "ipconfig27",
-    "ipconfig28",
-    "ipconfig29",
-    "ipconfig30",
-    "ipconfig31",
+    QemuConfigIpconfigArray :
+    /// cloud-init: Specify IP addresses and gateways for the corresponding interface.
+    ///
+    /// IP addresses use CIDR notation, gateways are optional but need an IP of the same type specified.
+    ///
+    /// The special string 'dhcp' can be used for IP addresses to use DHCP, in which case no explicit
+    /// gateway should be provided.
+    /// For IPv6 the special string 'auto' can be used to use stateless autoconfiguration. This requires
+    /// cloud-init 19.4 or newer.
+    ///
+    /// If cloud-init is enabled and neither an IPv4 nor an IPv6 address is specified, it defaults to using
+    /// dhcp on IPv4.
+    String => {
+        description: "cloud-init: Specify IP addresses and gateways for the corresponding interface.
+
+IP addresses use CIDR notation, gateways are optional but need an IP of the same type specified.
+
+The special string 'dhcp' can be used for IP addresses to use DHCP, in which case no explicit
+gateway should be provided.
+For IPv6 the special string 'auto' can be used to use stateless autoconfiguration. This requires
+cloud-init 19.4 or newer.
+
+If cloud-init is enabled and neither an IPv4 nor an IPv6 address is specified, it defaults to using
+dhcp on IPv4.
+",
+        format: &ApiStringFormat::PropertyString(&PveQmIpconfig::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    ipconfig0,
+    ipconfig1,
+    ipconfig2,
+    ipconfig3,
+    ipconfig4,
+    ipconfig5,
+    ipconfig6,
+    ipconfig7,
+    ipconfig8,
+    ipconfig9,
+    ipconfig10,
+    ipconfig11,
+    ipconfig12,
+    ipconfig13,
+    ipconfig14,
+    ipconfig15,
+    ipconfig16,
+    ipconfig17,
+    ipconfig18,
+    ipconfig19,
+    ipconfig20,
+    ipconfig21,
+    ipconfig22,
+    ipconfig23,
+    ipconfig24,
+    ipconfig25,
+    ipconfig26,
+    ipconfig27,
+    ipconfig28,
+    ipconfig29,
+    ipconfig30,
+    ipconfig31,
 }
 generate_array_field! {
-    qemu_config_net :
-    net :
-    net_array[32] =>
-    "net0",
-    "net1",
-    "net2",
-    "net3",
-    "net4",
-    "net5",
-    "net6",
-    "net7",
-    "net8",
-    "net9",
-    "net10",
-    "net11",
-    "net12",
-    "net13",
-    "net14",
-    "net15",
-    "net16",
-    "net17",
-    "net18",
-    "net19",
-    "net20",
-    "net21",
-    "net22",
-    "net23",
-    "net24",
-    "net25",
-    "net26",
-    "net27",
-    "net28",
-    "net29",
-    "net30",
-    "net31",
+    QemuConfigNetArray :
+    /// Specify network devices.
+    String => {
+        description: "Specify network devices.",
+        format: &ApiStringFormat::PropertyString(&QemuConfigNet::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    net0,
+    net1,
+    net2,
+    net3,
+    net4,
+    net5,
+    net6,
+    net7,
+    net8,
+    net9,
+    net10,
+    net11,
+    net12,
+    net13,
+    net14,
+    net15,
+    net16,
+    net17,
+    net18,
+    net19,
+    net20,
+    net21,
+    net22,
+    net23,
+    net24,
+    net25,
+    net26,
+    net27,
+    net28,
+    net29,
+    net30,
+    net31,
 }
 generate_array_field! {
-    qemu_config_numa :
-    numa :
-    numa_array[8] =>
-    "numa0",
-    "numa1",
-    "numa2",
-    "numa3",
-    "numa4",
-    "numa5",
-    "numa6",
-    "numa7",
+    QemuConfigNumaArray :
+    /// NUMA topology.
+    String => {
+        description: "NUMA topology.",
+        format: &ApiStringFormat::PropertyString(&QemuConfigNuma::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    numa_array0,
+    numa_array1,
+    numa_array2,
+    numa_array3,
+    numa_array4,
+    numa_array5,
+    numa_array6,
+    numa_array7,
 }
 generate_array_field! {
-    qemu_config_parallel :
-    parallel :
-    parallel_array[3] =>
-    "parallel0",
-    "parallel1",
-    "parallel2",
+    QemuConfigParallelArray :
+    /// Map host parallel devices (n is 0 to 2).
+    String => {
+        description: "Map host parallel devices (n is 0 to 2).",
+        type: String,
+        optional: true,
+    }
+    parallel0,
+    parallel1,
+    parallel2,
 }
 generate_array_field! {
-    qemu_config_sata :
-    sata :
-    sata_array[6] =>
-    "sata0",
-    "sata1",
-    "sata2",
-    "sata3",
-    "sata4",
-    "sata5",
+    QemuConfigSataArray :
+    /// Use volume as SATA hard disk or CD-ROM (n is 0 to 5).
+    String => {
+        description: "Use volume as SATA hard disk or CD-ROM (n is 0 to 5).",
+        format: &ApiStringFormat::PropertyString(&QemuConfigSata::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    sata0,
+    sata1,
+    sata2,
+    sata3,
+    sata4,
+    sata5,
 }
 generate_array_field! {
-    qemu_config_scsi :
-    scsi :
-    scsi_array[31] =>
-    "scsi0",
-    "scsi1",
-    "scsi2",
-    "scsi3",
-    "scsi4",
-    "scsi5",
-    "scsi6",
-    "scsi7",
-    "scsi8",
-    "scsi9",
-    "scsi10",
-    "scsi11",
-    "scsi12",
-    "scsi13",
-    "scsi14",
-    "scsi15",
-    "scsi16",
-    "scsi17",
-    "scsi18",
-    "scsi19",
-    "scsi20",
-    "scsi21",
-    "scsi22",
-    "scsi23",
-    "scsi24",
-    "scsi25",
-    "scsi26",
-    "scsi27",
-    "scsi28",
-    "scsi29",
-    "scsi30",
+    QemuConfigScsiArray :
+    /// Use volume as SCSI hard disk or CD-ROM (n is 0 to 30).
+    String => {
+        description: "Use volume as SCSI hard disk or CD-ROM (n is 0 to 30).",
+        format: &ApiStringFormat::PropertyString(&QemuConfigScsi::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    scsi0,
+    scsi1,
+    scsi2,
+    scsi3,
+    scsi4,
+    scsi5,
+    scsi6,
+    scsi7,
+    scsi8,
+    scsi9,
+    scsi10,
+    scsi11,
+    scsi12,
+    scsi13,
+    scsi14,
+    scsi15,
+    scsi16,
+    scsi17,
+    scsi18,
+    scsi19,
+    scsi20,
+    scsi21,
+    scsi22,
+    scsi23,
+    scsi24,
+    scsi25,
+    scsi26,
+    scsi27,
+    scsi28,
+    scsi29,
+    scsi30,
 }
 generate_array_field! {
-    qemu_config_serial :
-    serial :
-    serial_array[4] =>
-    "serial0",
-    "serial1",
-    "serial2",
-    "serial3",
+    QemuConfigSerialArray :
+    /// Create a serial device inside the VM (n is 0 to 3)
+    String => {
+        description: "Create a serial device inside the VM (n is 0 to 3)",
+        type: String,
+        optional: true,
+    }
+    serial0,
+    serial1,
+    serial2,
+    serial3,
 }
 generate_array_field! {
-    qemu_config_unused :
-    unused :
-    unused_array[256] =>
-    "unused0",
-    "unused1",
-    "unused2",
-    "unused3",
-    "unused4",
-    "unused5",
-    "unused6",
-    "unused7",
-    "unused8",
-    "unused9",
-    "unused10",
-    "unused11",
-    "unused12",
-    "unused13",
-    "unused14",
-    "unused15",
-    "unused16",
-    "unused17",
-    "unused18",
-    "unused19",
-    "unused20",
-    "unused21",
-    "unused22",
-    "unused23",
-    "unused24",
-    "unused25",
-    "unused26",
-    "unused27",
-    "unused28",
-    "unused29",
-    "unused30",
-    "unused31",
-    "unused32",
-    "unused33",
-    "unused34",
-    "unused35",
-    "unused36",
-    "unused37",
-    "unused38",
-    "unused39",
-    "unused40",
-    "unused41",
-    "unused42",
-    "unused43",
-    "unused44",
-    "unused45",
-    "unused46",
-    "unused47",
-    "unused48",
-    "unused49",
-    "unused50",
-    "unused51",
-    "unused52",
-    "unused53",
-    "unused54",
-    "unused55",
-    "unused56",
-    "unused57",
-    "unused58",
-    "unused59",
-    "unused60",
-    "unused61",
-    "unused62",
-    "unused63",
-    "unused64",
-    "unused65",
-    "unused66",
-    "unused67",
-    "unused68",
-    "unused69",
-    "unused70",
-    "unused71",
-    "unused72",
-    "unused73",
-    "unused74",
-    "unused75",
-    "unused76",
-    "unused77",
-    "unused78",
-    "unused79",
-    "unused80",
-    "unused81",
-    "unused82",
-    "unused83",
-    "unused84",
-    "unused85",
-    "unused86",
-    "unused87",
-    "unused88",
-    "unused89",
-    "unused90",
-    "unused91",
-    "unused92",
-    "unused93",
-    "unused94",
-    "unused95",
-    "unused96",
-    "unused97",
-    "unused98",
-    "unused99",
-    "unused100",
-    "unused101",
-    "unused102",
-    "unused103",
-    "unused104",
-    "unused105",
-    "unused106",
-    "unused107",
-    "unused108",
-    "unused109",
-    "unused110",
-    "unused111",
-    "unused112",
-    "unused113",
-    "unused114",
-    "unused115",
-    "unused116",
-    "unused117",
-    "unused118",
-    "unused119",
-    "unused120",
-    "unused121",
-    "unused122",
-    "unused123",
-    "unused124",
-    "unused125",
-    "unused126",
-    "unused127",
-    "unused128",
-    "unused129",
-    "unused130",
-    "unused131",
-    "unused132",
-    "unused133",
-    "unused134",
-    "unused135",
-    "unused136",
-    "unused137",
-    "unused138",
-    "unused139",
-    "unused140",
-    "unused141",
-    "unused142",
-    "unused143",
-    "unused144",
-    "unused145",
-    "unused146",
-    "unused147",
-    "unused148",
-    "unused149",
-    "unused150",
-    "unused151",
-    "unused152",
-    "unused153",
-    "unused154",
-    "unused155",
-    "unused156",
-    "unused157",
-    "unused158",
-    "unused159",
-    "unused160",
-    "unused161",
-    "unused162",
-    "unused163",
-    "unused164",
-    "unused165",
-    "unused166",
-    "unused167",
-    "unused168",
-    "unused169",
-    "unused170",
-    "unused171",
-    "unused172",
-    "unused173",
-    "unused174",
-    "unused175",
-    "unused176",
-    "unused177",
-    "unused178",
-    "unused179",
-    "unused180",
-    "unused181",
-    "unused182",
-    "unused183",
-    "unused184",
-    "unused185",
-    "unused186",
-    "unused187",
-    "unused188",
-    "unused189",
-    "unused190",
-    "unused191",
-    "unused192",
-    "unused193",
-    "unused194",
-    "unused195",
-    "unused196",
-    "unused197",
-    "unused198",
-    "unused199",
-    "unused200",
-    "unused201",
-    "unused202",
-    "unused203",
-    "unused204",
-    "unused205",
-    "unused206",
-    "unused207",
-    "unused208",
-    "unused209",
-    "unused210",
-    "unused211",
-    "unused212",
-    "unused213",
-    "unused214",
-    "unused215",
-    "unused216",
-    "unused217",
-    "unused218",
-    "unused219",
-    "unused220",
-    "unused221",
-    "unused222",
-    "unused223",
-    "unused224",
-    "unused225",
-    "unused226",
-    "unused227",
-    "unused228",
-    "unused229",
-    "unused230",
-    "unused231",
-    "unused232",
-    "unused233",
-    "unused234",
-    "unused235",
-    "unused236",
-    "unused237",
-    "unused238",
-    "unused239",
-    "unused240",
-    "unused241",
-    "unused242",
-    "unused243",
-    "unused244",
-    "unused245",
-    "unused246",
-    "unused247",
-    "unused248",
-    "unused249",
-    "unused250",
-    "unused251",
-    "unused252",
-    "unused253",
-    "unused254",
-    "unused255",
+    QemuConfigUnusedArray :
+    /// Reference to unused volumes. This is used internally, and should not be modified manually.
+    String => {
+        description: "Reference to unused volumes. This is used internally, and should not be modified manually.",
+        format: &ApiStringFormat::PropertyString(&QemuConfigUnused::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    unused0,
+    unused1,
+    unused2,
+    unused3,
+    unused4,
+    unused5,
+    unused6,
+    unused7,
+    unused8,
+    unused9,
+    unused10,
+    unused11,
+    unused12,
+    unused13,
+    unused14,
+    unused15,
+    unused16,
+    unused17,
+    unused18,
+    unused19,
+    unused20,
+    unused21,
+    unused22,
+    unused23,
+    unused24,
+    unused25,
+    unused26,
+    unused27,
+    unused28,
+    unused29,
+    unused30,
+    unused31,
+    unused32,
+    unused33,
+    unused34,
+    unused35,
+    unused36,
+    unused37,
+    unused38,
+    unused39,
+    unused40,
+    unused41,
+    unused42,
+    unused43,
+    unused44,
+    unused45,
+    unused46,
+    unused47,
+    unused48,
+    unused49,
+    unused50,
+    unused51,
+    unused52,
+    unused53,
+    unused54,
+    unused55,
+    unused56,
+    unused57,
+    unused58,
+    unused59,
+    unused60,
+    unused61,
+    unused62,
+    unused63,
+    unused64,
+    unused65,
+    unused66,
+    unused67,
+    unused68,
+    unused69,
+    unused70,
+    unused71,
+    unused72,
+    unused73,
+    unused74,
+    unused75,
+    unused76,
+    unused77,
+    unused78,
+    unused79,
+    unused80,
+    unused81,
+    unused82,
+    unused83,
+    unused84,
+    unused85,
+    unused86,
+    unused87,
+    unused88,
+    unused89,
+    unused90,
+    unused91,
+    unused92,
+    unused93,
+    unused94,
+    unused95,
+    unused96,
+    unused97,
+    unused98,
+    unused99,
+    unused100,
+    unused101,
+    unused102,
+    unused103,
+    unused104,
+    unused105,
+    unused106,
+    unused107,
+    unused108,
+    unused109,
+    unused110,
+    unused111,
+    unused112,
+    unused113,
+    unused114,
+    unused115,
+    unused116,
+    unused117,
+    unused118,
+    unused119,
+    unused120,
+    unused121,
+    unused122,
+    unused123,
+    unused124,
+    unused125,
+    unused126,
+    unused127,
+    unused128,
+    unused129,
+    unused130,
+    unused131,
+    unused132,
+    unused133,
+    unused134,
+    unused135,
+    unused136,
+    unused137,
+    unused138,
+    unused139,
+    unused140,
+    unused141,
+    unused142,
+    unused143,
+    unused144,
+    unused145,
+    unused146,
+    unused147,
+    unused148,
+    unused149,
+    unused150,
+    unused151,
+    unused152,
+    unused153,
+    unused154,
+    unused155,
+    unused156,
+    unused157,
+    unused158,
+    unused159,
+    unused160,
+    unused161,
+    unused162,
+    unused163,
+    unused164,
+    unused165,
+    unused166,
+    unused167,
+    unused168,
+    unused169,
+    unused170,
+    unused171,
+    unused172,
+    unused173,
+    unused174,
+    unused175,
+    unused176,
+    unused177,
+    unused178,
+    unused179,
+    unused180,
+    unused181,
+    unused182,
+    unused183,
+    unused184,
+    unused185,
+    unused186,
+    unused187,
+    unused188,
+    unused189,
+    unused190,
+    unused191,
+    unused192,
+    unused193,
+    unused194,
+    unused195,
+    unused196,
+    unused197,
+    unused198,
+    unused199,
+    unused200,
+    unused201,
+    unused202,
+    unused203,
+    unused204,
+    unused205,
+    unused206,
+    unused207,
+    unused208,
+    unused209,
+    unused210,
+    unused211,
+    unused212,
+    unused213,
+    unused214,
+    unused215,
+    unused216,
+    unused217,
+    unused218,
+    unused219,
+    unused220,
+    unused221,
+    unused222,
+    unused223,
+    unused224,
+    unused225,
+    unused226,
+    unused227,
+    unused228,
+    unused229,
+    unused230,
+    unused231,
+    unused232,
+    unused233,
+    unused234,
+    unused235,
+    unused236,
+    unused237,
+    unused238,
+    unused239,
+    unused240,
+    unused241,
+    unused242,
+    unused243,
+    unused244,
+    unused245,
+    unused246,
+    unused247,
+    unused248,
+    unused249,
+    unused250,
+    unused251,
+    unused252,
+    unused253,
+    unused254,
+    unused255,
 }
 generate_array_field! {
-    qemu_config_usb :
-    usb :
-    usb_array[14] =>
-    "usb0",
-    "usb1",
-    "usb2",
-    "usb3",
-    "usb4",
-    "usb5",
-    "usb6",
-    "usb7",
-    "usb8",
-    "usb9",
-    "usb10",
-    "usb11",
-    "usb12",
-    "usb13",
+    QemuConfigUsbArray :
+    /// Configure an USB device (n is 0 to 4, for machine version >= 7.1 and ostype l26 or windows > 7, n can be up to 14).
+    String => {
+        description: "Configure an USB device (n is 0 to 4, for machine version >= 7.1 and ostype l26 or windows > 7, n can be up to 14).",
+        format: &ApiStringFormat::PropertyString(&QemuConfigUsb::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    usb0,
+    usb1,
+    usb2,
+    usb3,
+    usb4,
+    usb5,
+    usb6,
+    usb7,
+    usb8,
+    usb9,
+    usb10,
+    usb11,
+    usb12,
+    usb13,
 }
 generate_array_field! {
-    qemu_config_virtio :
-    virtio :
-    virtio_array[16] =>
-    "virtio0",
-    "virtio1",
-    "virtio2",
-    "virtio3",
-    "virtio4",
-    "virtio5",
-    "virtio6",
-    "virtio7",
-    "virtio8",
-    "virtio9",
-    "virtio10",
-    "virtio11",
-    "virtio12",
-    "virtio13",
-    "virtio14",
-    "virtio15",
+    QemuConfigVirtioArray :
+    /// Use volume as VIRTIO hard disk (n is 0 to 15).
+    String => {
+        description: "Use volume as VIRTIO hard disk (n is 0 to 15).",
+        format: &ApiStringFormat::PropertyString(&QemuConfigVirtio::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    virtio0,
+    virtio1,
+    virtio2,
+    virtio3,
+    virtio4,
+    virtio5,
+    virtio6,
+    virtio7,
+    virtio8,
+    virtio9,
+    virtio10,
+    virtio11,
+    virtio12,
+    virtio13,
+    virtio14,
+    virtio15,
 }
 
 #[api(

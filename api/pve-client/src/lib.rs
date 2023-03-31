@@ -5,6 +5,7 @@ use openssl::x509;
 
 use proxmox_client::Environment;
 
+#[macro_use]
 pub mod helpers;
 
 mod verifiers;
