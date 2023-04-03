@@ -496,12 +496,14 @@ impl Remote {
 
 #[api]
 /// Guest configuration access.
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, Updater)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, Updater)]
 pub enum ConfigurationState {
+    /// The configuration with pending values.
+    #[default]
+    Pending,
+
     /// the configuration with active values.
     Active,
-    /// The configuration with pending values.
-    Pending,
 }
 
 impl ConfigurationState {

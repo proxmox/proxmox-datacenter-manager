@@ -42,7 +42,7 @@ const QEMU_VM_ROUTER: Router = Router::new()
     .subdirs(QEMU_VM_SUBDIRS);
 #[sortable]
 const QEMU_VM_SUBDIRS: SubdirMap =
-    &sorted!([("config", &Router::new().get(&API_METHOD_GET_QEMU_CONFIG)),]);
+    &sorted!([("config", &Router::new().get(&API_METHOD_QEMU_GET_CONFIG)),]);
 
 pub type PveClient = pve_client::Client<PveEnv>;
 
@@ -236,14 +236,10 @@ pub async fn list_lxc(
             },
         },
     },
-    returns: {
-        type: Array,
-        description: "Get a list of VMs",
-        items: { type: pve_client::types::VmEntry },
-    },
+    returns: { type: pve_client::types::QemuConfig },
 )]
 /// Query the remote's list of qemu VMs. If no node is provided, the all nodes are queried.
-pub async fn get_qemu_config(
+pub async fn qemu_get_config(
     remote: String,
     node: Option<String>,
     vmid: u64,

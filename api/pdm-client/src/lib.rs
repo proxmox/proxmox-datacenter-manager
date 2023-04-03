@@ -200,9 +200,8 @@ where
         state: ConfigurationState,
         snapshot: Option<&str>,
     ) -> Result<pve_client::types::QemuConfig, Error> {
-        let path = format!("/api2/extjs/pve/{remote}/qemu");
+        let path = format!("/api2/extjs/pve/{remote}/qemu/{vmid}/config");
         let mut request = json!({
-            "vmid": vmid,
             "state": state,
         });
         if let Some(node) = node {
