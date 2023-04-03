@@ -6,7 +6,7 @@ use serde_json::json;
 
 use proxmox_client::Environment;
 
-use pdm_api_types::Remote;
+use pdm_api_types::{ConfigurationState, Remote};
 
 pub struct Client<E: Environment> {
     client: proxmox_client::HyperClient<E>,
@@ -185,6 +185,32 @@ where
             None => json!({}),
             Some(node) => json!({ "node": node }),
         };
+        Ok(self
+            .client
+            .get_with_body(&path, &request)
+            .await?
+            .into_data_or_err()?)
+    }
+
+    pub async fn pve_qemu_config(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u64,
+        state: ConfigurationState,
+        snapshot: Option<&str>,
+    ) -> Result<pve_client::types::QemuConfig, Error> {
+        let path = format!("/api2/extjs/pve/{remote}/qemu");
+        let mut request = json!({
+            "vmid": vmid,
+            "state": state,
+        });
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        if let Some(snapshot) = snapshot {
+            request["snapshot"] = snapshot.into();
+        }
         Ok(self
             .client
             .get_with_body(&path, &request)

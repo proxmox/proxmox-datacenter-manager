@@ -3,11 +3,15 @@
 use anyhow::{format_err, Error};
 
 use proxmox_client::Environment;
-use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
+use proxmox_router::{http_err, list_subdirs_api_method, Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::{PveRemote, Remote, NODE_SCHEMA, REMOTE_ID_SCHEMA};
+use pdm_api_types::{
+    ConfigurationState, PveRemote, Remote, NODE_SCHEMA, REMOTE_ID_SCHEMA, SNAPSHOT_NAME_SCHEMA,
+    VMID_SCHEMA,
+};
+use pve_client::types::ClusterResourceKind;
 
 use super::remotes::get_remote;
 
@@ -27,8 +31,18 @@ const SUBDIRS: SubdirMap = &sorted!([
 
 const LXC_ROUTER: Router = Router::new().get(&API_METHOD_LIST_LXC);
 const NODES_ROUTER: Router = Router::new().get(&API_METHOD_LIST_NODES);
-const QEMU_ROUTER: Router = Router::new().get(&API_METHOD_LIST_QEMU);
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
+
+const QEMU_ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_QEMU)
+    .match_all("vmid", &QEMU_VM_ROUTER);
+
+const QEMU_VM_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(QEMU_VM_SUBDIRS))
+    .subdirs(QEMU_VM_SUBDIRS);
+#[sortable]
+const QEMU_VM_SUBDIRS: SubdirMap =
+    &sorted!([("config", &Router::new().get(&API_METHOD_GET_QEMU_CONFIG)),]);
 
 pub type PveClient = pve_client::Client<PveEnv>;
 
@@ -107,7 +121,7 @@ pub async fn list_nodes(
         properties: {
             remote: { schema: REMOTE_ID_SCHEMA },
             kind: {
-                type: pve_client::types::ClusterResourceKind,
+                type: ClusterResourceKind,
                 optional: true,
             },
         },
@@ -121,7 +135,7 @@ pub async fn list_nodes(
 /// Query the cluster's resources.
 pub async fn cluster_resources(
     remote: String,
-    kind: Option<pve_client::types::ClusterResourceKind>,
+    kind: Option<ClusterResourceKind>,
 ) -> Result<Vec<pve_client::types::ClusterResource>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
@@ -204,4 +218,56 @@ pub async fn list_lxc(
         }
         Ok(entry)
     }
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            state: { type: ConfigurationState },
+            snapshot: {
+                schema: SNAPSHOT_NAME_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "Get a list of VMs",
+        items: { type: pve_client::types::VmEntry },
+    },
+)]
+/// Query the remote's list of qemu VMs. If no node is provided, the all nodes are queried.
+pub async fn get_qemu_config(
+    remote: String,
+    node: Option<String>,
+    vmid: u64,
+    state: ConfigurationState,
+    snapshot: Option<String>,
+) -> Result<pve_client::types::QemuConfig, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    // FIXME: The pve client should cache the resources and provide
+    let node = match node {
+        Some(node) => node,
+        None => pve
+            .cluster_resources(Some(ClusterResourceKind::Vm))
+            .await?
+            .into_iter()
+            .find(|entry| entry.vmid == Some(vmid))
+            .and_then(|entry| entry.node)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
+    };
+
+    pve.qemu_get_config(&node, vmid, state.current(), snapshot)
+        .await
 }

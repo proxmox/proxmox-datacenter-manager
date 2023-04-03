@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::property_string::PropertyString;
 use proxmox_schema::{
-    api, const_regex, ApiStringFormat, ApiType, ArraySchema, EnumEntry, OneOfSchema, ReturnType,
-    Schema, StringSchema, Updater,
+    api, const_regex, ApiStringFormat, ApiType, ArraySchema, EnumEntry, IntegerSchema, OneOfSchema,
+    ReturnType, Schema, StringSchema, Updater,
 };
 use proxmox_time::parse_daily_duration;
 
@@ -236,6 +236,12 @@ pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(
 )
 .format(&PVE_CONFIG_DIGEST_FORMAT)
 .schema();
+
+pub const VMID_SCHEMA: Schema = IntegerSchema::new("A guest ID").minimum(1).schema();
+pub const SNAPSHOT_NAME_SCHEMA: Schema = StringSchema::new("The name of the snapshot")
+    .format(&PROXMOX_SAFE_ID_FORMAT)
+    .max_length(40)
+    .schema();
 
 // Complex type definitions
 
@@ -485,5 +491,25 @@ impl Remote {
         match self {
             Self::Pve(r) => &r.id,
         }
+    }
+}
+
+#[api]
+/// Guest configuration access.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, Updater)]
+pub enum ConfigurationState {
+    /// the configuration with active values.
+    Active,
+    /// The configuration with pending values.
+    Pending,
+}
+
+impl ConfigurationState {
+    /// This is how the PVE client uses it.
+    pub fn current(self) -> Option<bool> {
+        Some(match self {
+            ConfigurationState::Active => true,
+            ConfigurationState::Pending => false,
+        })
     }
 }
