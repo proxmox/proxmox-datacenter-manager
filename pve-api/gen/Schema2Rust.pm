@@ -321,7 +321,11 @@ my sub print_get_method : prototype($$$) {
             for my $arg (@$input) {
                 my $name = $arg->{name};
                 my $rust_name = $arg->{rust_name};
-                print {$out} "    add_query_arg(&mut query, &mut sep, \"$name\", &$rust_name);\n";
+                if ($arg->{type} eq 'Option<bool>') {
+                    print {$out} "    add_query_bool(&mut query, &mut sep, \"$name\", $rust_name);\n";
+                } else {
+                    print {$out} "    add_query_arg(&mut query, &mut sep, \"$name\", &$rust_name);\n";
+                }
             }
             print {$out} "    let url = format!(\"/api2/extjs$def->{url}\{query}\");\n";
         } else {

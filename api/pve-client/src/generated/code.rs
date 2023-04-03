@@ -402,7 +402,7 @@ where
         full: Option<bool>,
     ) -> Result<Vec<VmEntry>, E::Error> {
         let (mut query, mut sep) = (String::new(), '?');
-        add_query_arg(&mut query, &mut sep, "full", &full);
+        add_query_bool(&mut query, &mut sep, "full", full);
         let url = format!("/api2/extjs/nodes/{node}/qemu{query}");
         Ok(self
             .client
@@ -423,7 +423,7 @@ where
         snapshot: Option<String>,
     ) -> Result<QemuConfig, E::Error> {
         let (mut query, mut sep) = (String::new(), '?');
-        add_query_arg(&mut query, &mut sep, "current", &current);
+        add_query_bool(&mut query, &mut sep, "current", current);
         add_query_arg(&mut query, &mut sep, "snapshot", &snapshot);
         let url = format!("/api2/extjs/nodes/{node}/qemu/{vmid}/config{query}");
         Ok(self
