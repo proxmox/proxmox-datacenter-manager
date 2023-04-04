@@ -10,9 +10,7 @@ pub mod helpers;
 
 mod verifiers;
 
-#[path = "generated/code.rs"]
 mod code;
-#[path = "generated/types.rs"]
 pub mod types;
 
 pub struct Client<E: Environment> {

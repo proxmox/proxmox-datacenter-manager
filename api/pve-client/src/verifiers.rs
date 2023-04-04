@@ -66,6 +66,30 @@ pub fn verify_ip(s: &str) -> Result<(), Error> {
     }
 }
 
+pub fn verify_cidr(s: &str) -> Result<(), Error> {
+    match s.find('/') {
+        None => bail!("not a CIDR notation"),
+        Some(pos) => {
+            let ip = &s[..pos];
+            let prefix = &s[(pos + 1)..];
+
+            let maxbits = if verify_ipv4(ip).is_ok() {
+                32
+            } else if verify_ipv6(ip).is_ok() {
+                128
+            } else {
+                bail!("not a valid IP address in CIDR");
+            };
+
+            match s[(pos + 1)..].parse::<u8>() {
+                Err(_) => bail!("not a valid CIDR notation"),
+                Ok(n) if n > maxbits => bail!("invalid prefix length in CIDR"),
+                Ok(_) => Ok(()),
+            }
+        }
+    }
+}
+
 pub fn verify_cidrv4(s: &str) -> Result<(), Error> {
     match s.find('/') {
         None => bail!("not a CIDR notation"),
@@ -139,4 +163,9 @@ pub fn verify_ip_with_ll_iface(s: &str) -> Result<(), Error> {
         }
     }
     verify_ip(s)
+}
+
+pub fn verify_storage_pair(s: &str) -> Result<(), Error> {
+    // FIXME: Implement this!
+    Ok(())
 }

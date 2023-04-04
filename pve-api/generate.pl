@@ -37,7 +37,7 @@ my $CONFIGID_RE = '^(?i:[a-z][a-z0-9_-]+)$';
 # Disable `#[api]` generation for now, it's incomplete/untested.
 #$Schema2Rust::API = 0;
 
-## Schema2Rust::register_format('CIDR' => { code => 'verify_cidr' });
+Schema2Rust::register_format('CIDR' => { code => 'crate::verifiers::verify_cidr' });
 Schema2Rust::register_format('mac-addr' => { regex => '^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$' });
 ## Schema2Rust::register_format('pve-acme-alias' => { code => 'verify_pve_acme_alias' });
 ## Schema2Rust::register_format('pve-acme-domain' => { code => 'verify_pve_acme_domain' });
@@ -73,7 +73,7 @@ Schema2Rust::register_format('pve-lxc-mp-string' => { code => 'crate::verifiers:
 Schema2Rust::register_format('lxc-ip-with-ll-iface' => { code => 'crate::verifiers::verify_ip_with_ll_iface' });
 Schema2Rust::register_format('pve-ct-timezone' => { regex => '^.*/.*$' });
 ##
-## Schema2Rust::register_format('storage-pair' => { code => 'verify_storage_pair' });
+Schema2Rust::register_format('storage-pair' => { code => 'crate::verifiers::verify_storage_pair' });
 
 Schema2Rust::register_enum_variant('PveVmCpuConfReportedModel::486' => 'I486');
 Schema2Rust::register_enum_variant('QemuConfigEfidisk0Efitype::2m' => 'Mb2');
@@ -107,6 +107,7 @@ Schema2Rust::register_api_extension('LxcConfig', '/properties/lxc/items', {
 Schema2Rust::register_api_extension('LxcConfig', '/properties/lxc/items/items', {
     description => Schema2Rust::quote_string('A config key value pair'),
 });
+Schema2Rust::register_api_override('StartQemu', '/properties/timeout/default', 30);
 
 # pve-storage-content uses verify_
 my $storage_content_types = [sort keys PVE::Storage::Plugin::valid_content_types('dir')->%*];
@@ -149,9 +150,9 @@ api(GET => '/nodes', 'list_nodes', 'return-name' => 'ClusterNodeIndexResponse');
 api(GET => '/nodes/{node}/qemu', 'list_qemu', 'param-name' => 'FixmeListQemu', 'return-name' => 'VmEntry');
 api(GET => '/nodes/{node}/qemu/{vmid}/config', 'qemu_get_config', 'param-name' => 'FixmeQemuGetConfig', 'return-name' => 'QemuConfig');
 # api(POST => '/nodes/{node}/qemu/{vmid}/config', 'qemu_update_config_async', 'param-name' => 'UpdateQemuConfig');
-# api(POST => '/nodes/{node}/qemu/{vmid}/status/start',    'start_qemu_async',    'output-type' => 'PveUpid', 'param-name' => 'StartQemu');
-# api(POST => '/nodes/{node}/qemu/{vmid}/status/stop',     'stop_qemu_async',     'output-type' => 'PveUpid', 'param-name' => 'StopQemu');
-# api(POST => '/nodes/{node}/qemu/{vmid}/status/shutdown', 'shutdown_qemu_async', 'output-type' => 'PveUpid', 'param-name' => 'ShutdownQemu');
+api(POST => '/nodes/{node}/qemu/{vmid}/status/start',    'start_qemu_async',    'output-type' => 'PveUpid', 'param-name' => 'StartQemu');
+api(POST => '/nodes/{node}/qemu/{vmid}/status/stop',     'stop_qemu_async',     'output-type' => 'PveUpid', 'param-name' => 'StopQemu');
+api(POST => '/nodes/{node}/qemu/{vmid}/status/shutdown', 'shutdown_qemu_async', 'output-type' => 'PveUpid', 'param-name' => 'ShutdownQemu');
 # Schema2Rust::derive('StartQemu' => 'Default');
 # Schema2Rust::derive('StopQemu' => 'Default');
 # Schema2Rust::derive('ShutdownQemu' => 'Default');
@@ -200,15 +201,15 @@ close($type_fh);
 close($code_fh);
 
 # Create .rs files:
-print {$code_pipe} "//! PVE API client\n";
-print {$code_pipe} "//! Note that the following API URLs are not handled currently:\n";
-print {$code_pipe} "//!\n";
-print {$code_pipe} "//! ```text\n";
+print {$code_pipe} "/// PVE API client\n";
+print {$code_pipe} "/// Note that the following API URLs are not handled currently:\n";
+print {$code_pipe} "///\n";
+print {$code_pipe} "/// ```text\n";
 my $unused = Schema2Rust::get_unused_paths();
 for my $path (sort keys $unused->%*) {
-    print {$code_pipe} "//! - $path\n";
+    print {$code_pipe} "/// - $path\n";
 }
-print {$code_pipe} "//! ```\n";
+print {$code_pipe} "/// ```\n";
 
 # Schema2Rust::dump();
 Schema2Rust::print_types($type_pipe);

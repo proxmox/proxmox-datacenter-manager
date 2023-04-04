@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-
-use proxmox_schema::{api, const_regex, ApiStringFormat, ApiType};
-
 const_regex! {
 
 CLUSTER_NODE_INDEX_RESPONSE_NODE_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?)$"##;
@@ -5528,6 +5524,210 @@ pub struct QemuConfigVirtio {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub werror: Option<PveQmIdeWerror>,
+}
+
+#[api(
+    properties: {
+        forceStop: {
+            default: false,
+            optional: true,
+        },
+        keepActive: {
+            default: false,
+            optional: true,
+        },
+        skiplock: {
+            default: false,
+            optional: true,
+        },
+        timeout: {
+            minimum: 0,
+            optional: true,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ShutdownQemu {
+    /// Make sure the VM stops.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "forceStop")]
+    pub force_stop: Option<bool>,
+
+    /// Do not deactivate storage volumes.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "keepActive")]
+    pub keep_active: Option<bool>,
+
+    /// Ignore locks - only root is allowed to use this option.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skiplock: Option<bool>,
+
+    /// Wait maximal timeout seconds.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<u64>,
+}
+
+const_regex! {
+
+START_QEMU_MIGRATEDFROM_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?)$"##;
+
+}
+
+#[api(
+    properties: {
+        "force-cpu": {
+            optional: true,
+            type: String,
+        },
+        machine: {
+            max_length: 40,
+            optional: true,
+            type: String,
+        },
+        migratedfrom: {
+            format: &ApiStringFormat::Pattern(&START_QEMU_MIGRATEDFROM_RE),
+            optional: true,
+            type: String,
+        },
+        migration_network: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_cidr),
+            optional: true,
+            type: String,
+        },
+        skiplock: {
+            default: false,
+            optional: true,
+        },
+        stateuri: {
+            max_length: 128,
+            optional: true,
+            type: String,
+        },
+        targetstorage: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_storage_pair),
+            optional: true,
+            type: String,
+        },
+        timeout: {
+            default: 30,
+            minimum: 0,
+            optional: true,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct StartQemu {
+    /// Override QEMU's -cpu argument with the given string.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "force-cpu")]
+    pub force_cpu: Option<String>,
+
+    /// Specifies the QEMU machine type.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub machine: Option<String>,
+
+    /// The cluster node name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub migratedfrom: Option<String>,
+
+    /// CIDR of the (sub) network that is used for migration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub migration_network: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub migration_type: Option<StartQemuMigrationType>,
+
+    /// Ignore locks - only root is allowed to use this option.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skiplock: Option<bool>,
+
+    /// Some command save/restore state from this location.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stateuri: Option<String>,
+
+    /// Mapping from source to target storages. Providing only a single storage
+    /// ID maps all source storages to that storage. Providing the special value
+    /// '1' will map each source storage to itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub targetstorage: Option<String>,
+
+    /// Wait maximal timeout seconds.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<u64>,
+}
+
+#[api]
+/// Migration traffic is encrypted using an SSH tunnel by default. On secure,
+/// completely private networks this can be disabled to increase performance.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum StartQemuMigrationType {
+    #[serde(rename = "secure")]
+    /// secure.
+    Secure,
+    #[serde(rename = "insecure")]
+    /// insecure.
+    Insecure,
+}
+serde_plain::derive_display_from_serialize!(StartQemuMigrationType);
+serde_plain::derive_fromstr_from_deserialize!(StartQemuMigrationType);
+
+const_regex! {
+
+STOP_QEMU_MIGRATEDFROM_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?)$"##;
+
+}
+
+#[api(
+    properties: {
+        keepActive: {
+            default: false,
+            optional: true,
+        },
+        migratedfrom: {
+            format: &ApiStringFormat::Pattern(&STOP_QEMU_MIGRATEDFROM_RE),
+            optional: true,
+            type: String,
+        },
+        skiplock: {
+            default: false,
+            optional: true,
+        },
+        timeout: {
+            minimum: 0,
+            optional: true,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct StopQemu {
+    /// Do not deactivate storage volumes.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "keepActive")]
+    pub keep_active: Option<bool>,
+
+    /// The cluster node name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub migratedfrom: Option<String>,
+
+    /// Ignore locks - only root is allowed to use this option.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skiplock: Option<bool>,
+
+    /// Wait maximal timeout seconds.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<u64>,
 }
 
 #[api]

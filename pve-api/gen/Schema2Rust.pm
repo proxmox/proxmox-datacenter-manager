@@ -254,18 +254,6 @@ sub print_types : prototype($) {
 
     my $done_array_types = {};
 
-    print {$out} <<"EOF";
-use std::collections::HashMap;
-
-EOF
-
-    if ($API) {
-        print {$out} <<"EOF";
-use proxmox_schema::{api, const_regex, ApiStringFormat, ApiType};
-
-EOF
-    }
-
     for my $name (sort keys $all_types->%*) {
         my $def = $all_types->{$name};
         my $kind = $def->{kind};
@@ -294,12 +282,6 @@ EOF
 }
 
 my $code_header = <<"CODE";
-use proxmox_client::{Error, Environment};
-
-use crate::Client;
-use crate::helpers::*;
-use crate::types::*;
-
 impl<E> Client<E>
 where
     E: Environment,
@@ -386,9 +368,16 @@ my sub print_method_with_body : prototype($$$$) {
     # print {$out} "    // self.login().await?;\n";
     print {$out} "    let url = format!(\"/api2/extjs$def->{url}\");\n";
         if ($def->{'returns-attribs'}) {
-            print {$out} "    self.${method}_request(&url, &params).await\n";
+            print {$out} "    self.client.${method}(&url, &params).await\n";
         } else {
-            print {$out} "    Ok(self.${method}_request(&url, &params).await?.data)\n";
+            print {$out} <<"EOF";
+    self
+        .client
+        .${method}(&url, &params)
+        .await?
+        .into_data_or_err()
+        .map_err(Error::bad_api)
+EOF
         }
     print {$out} "}\n\n";
 }
