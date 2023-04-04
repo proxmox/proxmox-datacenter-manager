@@ -269,6 +269,1369 @@ pub enum IsRunning {
 serde_plain::derive_display_from_serialize!(IsRunning);
 serde_plain::derive_fromstr_from_deserialize!(IsRunning);
 
+const_regex! {
+
+LXC_CONFIG_TAGS_RE = r##"^(?i)[a-z0-9_][a-z0-9_\-+.]*$"##;
+LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
+
+}
+
+#[api(
+    properties: {
+        console: {
+            default: true,
+            optional: true,
+        },
+        cores: {
+            maximum: 8192,
+            minimum: 1,
+            optional: true,
+        },
+        cpulimit: {
+            default: 0.0,
+            maximum: 8192.0,
+            minimum: 0.0,
+            optional: true,
+        },
+        cpuunits: {
+            default: 1024,
+            maximum: 500000,
+            minimum: 0,
+            optional: true,
+        },
+        debug: {
+            default: false,
+            optional: true,
+        },
+        description: {
+            max_length: 8192,
+            optional: true,
+        },
+        features: {
+            format: &ApiStringFormat::PropertyString(&LxcConfigFeatures::API_SCHEMA),
+            optional: true,
+        },
+        hookscript: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_volume_id),
+            optional: true,
+        },
+        hostname: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_dns_name),
+            max_length: 255,
+            optional: true,
+        },
+        memory: {
+            default: 512,
+            minimum: 16,
+            optional: true,
+        },
+        mp: {
+            type: LxcConfigMpArray,
+        },
+        nameserver: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ip_with_ll_iface),
+            optional: true,
+        },
+        net: {
+            type: QemuConfigNetArray,
+        },
+        onboot: {
+            default: false,
+            optional: true,
+        },
+        protection: {
+            default: false,
+            optional: true,
+        },
+        rootfs: {
+            format: &ApiStringFormat::PropertyString(&LxcConfigRootfs::API_SCHEMA),
+            optional: true,
+        },
+        searchdomain: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_dns_name),
+            optional: true,
+        },
+        startup: {
+            optional: true,
+            type_text: "[[order=]\\d+] [,up=\\d+] [,down=\\d+] ",
+        },
+        swap: {
+            default: 512,
+            minimum: 0,
+            optional: true,
+        },
+        tags: {
+            format: &ApiStringFormat::Pattern(&LXC_CONFIG_TAGS_RE),
+            optional: true,
+        },
+        template: {
+            default: false,
+            optional: true,
+        },
+        timezone: {
+            format: &ApiStringFormat::Pattern(&LXC_CONFIG_TIMEZONE_RE),
+            optional: true,
+        },
+        tty: {
+            default: 2,
+            maximum: 6,
+            minimum: 0,
+            optional: true,
+        },
+        unprivileged: {
+            default: false,
+            optional: true,
+        },
+        unused: {
+            type: QemuConfigUnusedArray,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct LxcConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arch: Option<LxcConfigArch>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cmode: Option<LxcConfigCmode>,
+
+    /// Attach a console device (/dev/console) to the container.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub console: Option<bool>,
+
+    /// The number of cores assigned to the container. A container can use all
+    /// available cores by default.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u16")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cores: Option<u16>,
+
+    /// Limit of CPU usage.
+    ///
+    /// NOTE: If the computer has 2 CPUs, it has a total of '2' CPU time. Value
+    /// '0' indicates no CPU limit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpulimit: Option<f64>,
+
+    /// CPU weight for a container, will be clamped to [1, 10000] in cgroup v2.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u32")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpuunits: Option<u32>,
+
+    /// Try to be more verbose. For now this only enables debug log-level on
+    /// start.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub debug: Option<bool>,
+
+    /// Description for the Container. Shown in the web-interface CT's summary.
+    /// This is saved as comment inside the configuration file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// SHA1 digest of configuration file. This can be used to prevent
+    /// concurrent modifications.
+    pub digest: String,
+
+    /// Allow containers access to advanced features.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub features: Option<String>,
+
+    /// Script that will be exectued during various steps in the containers
+    /// lifetime.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hookscript: Option<String>,
+
+    /// Set a host name for the container.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hostname: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lock: Option<LxcConfigLock>,
+
+    /// Array of lxc low-level configurations ([[key1, value1], [key2, value2]
+    /// ...]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lxc: Option<Vec<Vec<String>>>,
+
+    /// Amount of RAM for the container in MB.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory: Option<u64>,
+
+    /// Use volume as container mount point. Use the special syntax
+    /// STORAGE_ID:SIZE_IN_GiB to allocate a new volume.
+    #[serde(flatten)]
+    pub mp: LxcConfigMpArray,
+
+    /// Sets DNS server IP address for a container. Create will automatically
+    /// use the setting from the host if you neither set searchdomain nor
+    /// nameserver.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nameserver: Option<String>,
+
+    /// Specifies network interfaces for the container.
+    #[serde(flatten)]
+    pub net: QemuConfigNetArray,
+
+    /// Specifies whether a container will be started during system bootup.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub onboot: Option<bool>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ostype: Option<LxcConfigOstype>,
+
+    /// Sets the protection flag of the container. This will prevent the CT or
+    /// CT's disk remove/update operation.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protection: Option<bool>,
+
+    /// Use volume as container root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rootfs: Option<String>,
+
+    /// Sets DNS search domains for a container. Create will automatically use
+    /// the setting from the host if you neither set searchdomain nor
+    /// nameserver.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub searchdomain: Option<String>,
+
+    /// Startup and shutdown behavior. Order is a non-negative number defining
+    /// the general startup order. Shutdown in done with reverse ordering.
+    /// Additionally you can set the 'up' or 'down' delay in seconds, which
+    /// specifies a delay to wait before the next VM is started or stopped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub startup: Option<String>,
+
+    /// Amount of SWAP for the container in MB.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub swap: Option<u64>,
+
+    /// Tags of the Container. This is only meta information.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tags: Option<String>,
+
+    /// Enable/disable Template.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template: Option<bool>,
+
+    /// Time zone to use in the container. If option isn't set, then nothing
+    /// will be done. Can be set to 'host' to match the host time zone, or an
+    /// arbitrary time zone option from /usr/share/zoneinfo/zone.tab
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+
+    /// Specify the number of tty available to the container
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u8")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tty: Option<u8>,
+
+    /// Makes the container run as unprivileged user. (Should not be modified
+    /// manually.)
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unprivileged: Option<bool>,
+
+    /// Reference to unused volumes. This is used internally, and should not be
+    /// modified manually.
+    #[serde(flatten)]
+    pub unused: QemuConfigUnusedArray,
+}
+generate_array_field! {
+    LxcConfigMpArray :
+    /// Use volume as container mount point. Use the special syntax STORAGE_ID:SIZE_IN_GiB to allocate a new volume.
+    String => {
+        description: "Use volume as container mount point. Use the special syntax STORAGE_ID:SIZE_IN_GiB to allocate a new volume.",
+        format: &ApiStringFormat::PropertyString(&LxcConfigMp::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    mp0,
+    mp1,
+    mp2,
+    mp3,
+    mp4,
+    mp5,
+    mp6,
+    mp7,
+    mp8,
+    mp9,
+    mp10,
+    mp11,
+    mp12,
+    mp13,
+    mp14,
+    mp15,
+    mp16,
+    mp17,
+    mp18,
+    mp19,
+    mp20,
+    mp21,
+    mp22,
+    mp23,
+    mp24,
+    mp25,
+    mp26,
+    mp27,
+    mp28,
+    mp29,
+    mp30,
+    mp31,
+    mp32,
+    mp33,
+    mp34,
+    mp35,
+    mp36,
+    mp37,
+    mp38,
+    mp39,
+    mp40,
+    mp41,
+    mp42,
+    mp43,
+    mp44,
+    mp45,
+    mp46,
+    mp47,
+    mp48,
+    mp49,
+    mp50,
+    mp51,
+    mp52,
+    mp53,
+    mp54,
+    mp55,
+    mp56,
+    mp57,
+    mp58,
+    mp59,
+    mp60,
+    mp61,
+    mp62,
+    mp63,
+    mp64,
+    mp65,
+    mp66,
+    mp67,
+    mp68,
+    mp69,
+    mp70,
+    mp71,
+    mp72,
+    mp73,
+    mp74,
+    mp75,
+    mp76,
+    mp77,
+    mp78,
+    mp79,
+    mp80,
+    mp81,
+    mp82,
+    mp83,
+    mp84,
+    mp85,
+    mp86,
+    mp87,
+    mp88,
+    mp89,
+    mp90,
+    mp91,
+    mp92,
+    mp93,
+    mp94,
+    mp95,
+    mp96,
+    mp97,
+    mp98,
+    mp99,
+    mp100,
+    mp101,
+    mp102,
+    mp103,
+    mp104,
+    mp105,
+    mp106,
+    mp107,
+    mp108,
+    mp109,
+    mp110,
+    mp111,
+    mp112,
+    mp113,
+    mp114,
+    mp115,
+    mp116,
+    mp117,
+    mp118,
+    mp119,
+    mp120,
+    mp121,
+    mp122,
+    mp123,
+    mp124,
+    mp125,
+    mp126,
+    mp127,
+    mp128,
+    mp129,
+    mp130,
+    mp131,
+    mp132,
+    mp133,
+    mp134,
+    mp135,
+    mp136,
+    mp137,
+    mp138,
+    mp139,
+    mp140,
+    mp141,
+    mp142,
+    mp143,
+    mp144,
+    mp145,
+    mp146,
+    mp147,
+    mp148,
+    mp149,
+    mp150,
+    mp151,
+    mp152,
+    mp153,
+    mp154,
+    mp155,
+    mp156,
+    mp157,
+    mp158,
+    mp159,
+    mp160,
+    mp161,
+    mp162,
+    mp163,
+    mp164,
+    mp165,
+    mp166,
+    mp167,
+    mp168,
+    mp169,
+    mp170,
+    mp171,
+    mp172,
+    mp173,
+    mp174,
+    mp175,
+    mp176,
+    mp177,
+    mp178,
+    mp179,
+    mp180,
+    mp181,
+    mp182,
+    mp183,
+    mp184,
+    mp185,
+    mp186,
+    mp187,
+    mp188,
+    mp189,
+    mp190,
+    mp191,
+    mp192,
+    mp193,
+    mp194,
+    mp195,
+    mp196,
+    mp197,
+    mp198,
+    mp199,
+    mp200,
+    mp201,
+    mp202,
+    mp203,
+    mp204,
+    mp205,
+    mp206,
+    mp207,
+    mp208,
+    mp209,
+    mp210,
+    mp211,
+    mp212,
+    mp213,
+    mp214,
+    mp215,
+    mp216,
+    mp217,
+    mp218,
+    mp219,
+    mp220,
+    mp221,
+    mp222,
+    mp223,
+    mp224,
+    mp225,
+    mp226,
+    mp227,
+    mp228,
+    mp229,
+    mp230,
+    mp231,
+    mp232,
+    mp233,
+    mp234,
+    mp235,
+    mp236,
+    mp237,
+    mp238,
+    mp239,
+    mp240,
+    mp241,
+    mp242,
+    mp243,
+    mp244,
+    mp245,
+    mp246,
+    mp247,
+    mp248,
+    mp249,
+    mp250,
+    mp251,
+    mp252,
+    mp253,
+    mp254,
+    mp255,
+}
+generate_array_field! {
+    QemuConfigNetArray :
+    /// Specifies network interfaces for the container.
+    String => {
+        description: "Specifies network interfaces for the container.",
+        format: &ApiStringFormat::PropertyString(&LxcConfigNet::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    net0,
+    net1,
+    net2,
+    net3,
+    net4,
+    net5,
+    net6,
+    net7,
+    net8,
+    net9,
+    net10,
+    net11,
+    net12,
+    net13,
+    net14,
+    net15,
+    net16,
+    net17,
+    net18,
+    net19,
+    net20,
+    net21,
+    net22,
+    net23,
+    net24,
+    net25,
+    net26,
+    net27,
+    net28,
+    net29,
+    net30,
+    net31,
+}
+generate_array_field! {
+    QemuConfigUnusedArray :
+    /// Reference to unused volumes. This is used internally, and should not be modified manually.
+    String => {
+        description: "Reference to unused volumes. This is used internally, and should not be modified manually.",
+        format: &ApiStringFormat::PropertyString(&LxcConfigUnused::API_SCHEMA),
+        type: String,
+        optional: true,
+    }
+    unused0,
+    unused1,
+    unused2,
+    unused3,
+    unused4,
+    unused5,
+    unused6,
+    unused7,
+    unused8,
+    unused9,
+    unused10,
+    unused11,
+    unused12,
+    unused13,
+    unused14,
+    unused15,
+    unused16,
+    unused17,
+    unused18,
+    unused19,
+    unused20,
+    unused21,
+    unused22,
+    unused23,
+    unused24,
+    unused25,
+    unused26,
+    unused27,
+    unused28,
+    unused29,
+    unused30,
+    unused31,
+    unused32,
+    unused33,
+    unused34,
+    unused35,
+    unused36,
+    unused37,
+    unused38,
+    unused39,
+    unused40,
+    unused41,
+    unused42,
+    unused43,
+    unused44,
+    unused45,
+    unused46,
+    unused47,
+    unused48,
+    unused49,
+    unused50,
+    unused51,
+    unused52,
+    unused53,
+    unused54,
+    unused55,
+    unused56,
+    unused57,
+    unused58,
+    unused59,
+    unused60,
+    unused61,
+    unused62,
+    unused63,
+    unused64,
+    unused65,
+    unused66,
+    unused67,
+    unused68,
+    unused69,
+    unused70,
+    unused71,
+    unused72,
+    unused73,
+    unused74,
+    unused75,
+    unused76,
+    unused77,
+    unused78,
+    unused79,
+    unused80,
+    unused81,
+    unused82,
+    unused83,
+    unused84,
+    unused85,
+    unused86,
+    unused87,
+    unused88,
+    unused89,
+    unused90,
+    unused91,
+    unused92,
+    unused93,
+    unused94,
+    unused95,
+    unused96,
+    unused97,
+    unused98,
+    unused99,
+    unused100,
+    unused101,
+    unused102,
+    unused103,
+    unused104,
+    unused105,
+    unused106,
+    unused107,
+    unused108,
+    unused109,
+    unused110,
+    unused111,
+    unused112,
+    unused113,
+    unused114,
+    unused115,
+    unused116,
+    unused117,
+    unused118,
+    unused119,
+    unused120,
+    unused121,
+    unused122,
+    unused123,
+    unused124,
+    unused125,
+    unused126,
+    unused127,
+    unused128,
+    unused129,
+    unused130,
+    unused131,
+    unused132,
+    unused133,
+    unused134,
+    unused135,
+    unused136,
+    unused137,
+    unused138,
+    unused139,
+    unused140,
+    unused141,
+    unused142,
+    unused143,
+    unused144,
+    unused145,
+    unused146,
+    unused147,
+    unused148,
+    unused149,
+    unused150,
+    unused151,
+    unused152,
+    unused153,
+    unused154,
+    unused155,
+    unused156,
+    unused157,
+    unused158,
+    unused159,
+    unused160,
+    unused161,
+    unused162,
+    unused163,
+    unused164,
+    unused165,
+    unused166,
+    unused167,
+    unused168,
+    unused169,
+    unused170,
+    unused171,
+    unused172,
+    unused173,
+    unused174,
+    unused175,
+    unused176,
+    unused177,
+    unused178,
+    unused179,
+    unused180,
+    unused181,
+    unused182,
+    unused183,
+    unused184,
+    unused185,
+    unused186,
+    unused187,
+    unused188,
+    unused189,
+    unused190,
+    unused191,
+    unused192,
+    unused193,
+    unused194,
+    unused195,
+    unused196,
+    unused197,
+    unused198,
+    unused199,
+    unused200,
+    unused201,
+    unused202,
+    unused203,
+    unused204,
+    unused205,
+    unused206,
+    unused207,
+    unused208,
+    unused209,
+    unused210,
+    unused211,
+    unused212,
+    unused213,
+    unused214,
+    unused215,
+    unused216,
+    unused217,
+    unused218,
+    unused219,
+    unused220,
+    unused221,
+    unused222,
+    unused223,
+    unused224,
+    unused225,
+    unused226,
+    unused227,
+    unused228,
+    unused229,
+    unused230,
+    unused231,
+    unused232,
+    unused233,
+    unused234,
+    unused235,
+    unused236,
+    unused237,
+    unused238,
+    unused239,
+    unused240,
+    unused241,
+    unused242,
+    unused243,
+    unused244,
+    unused245,
+    unused246,
+    unused247,
+    unused248,
+    unused249,
+    unused250,
+    unused251,
+    unused252,
+    unused253,
+    unused254,
+    unused255,
+}
+
+#[api]
+/// OS architecture type.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum LxcConfigArch {
+    #[serde(rename = "amd64")]
+    /// amd64.
+    Amd64,
+    #[serde(rename = "i386")]
+    /// i386.
+    I386,
+    #[serde(rename = "arm64")]
+    /// arm64.
+    Arm64,
+    #[serde(rename = "armhf")]
+    /// armhf.
+    Armhf,
+    #[serde(rename = "riscv32")]
+    /// riscv32.
+    Riscv32,
+    #[serde(rename = "riscv64")]
+    /// riscv64.
+    Riscv64,
+}
+serde_plain::derive_display_from_serialize!(LxcConfigArch);
+serde_plain::derive_fromstr_from_deserialize!(LxcConfigArch);
+
+#[api]
+/// Console mode. By default, the console command tries to open a connection to
+/// one of the available tty devices. By setting cmode to 'console' it tries to
+/// attach to /dev/console instead. If you set cmode to 'shell', it simply
+/// invokes a shell inside the container (no login).
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum LxcConfigCmode {
+    #[serde(rename = "shell")]
+    /// shell.
+    Shell,
+    #[serde(rename = "console")]
+    /// console.
+    Console,
+    #[serde(rename = "tty")]
+    /// tty.
+    Tty,
+}
+serde_plain::derive_display_from_serialize!(LxcConfigCmode);
+serde_plain::derive_fromstr_from_deserialize!(LxcConfigCmode);
+
+#[api(
+    properties: {
+        force_rw_sys: {
+            default: false,
+            optional: true,
+        },
+        fuse: {
+            default: false,
+            optional: true,
+        },
+        keyctl: {
+            default: false,
+            optional: true,
+        },
+        mknod: {
+            default: false,
+            optional: true,
+        },
+        nesting: {
+            default: false,
+            optional: true,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct LxcConfigFeatures {
+    /// Mount /sys in unprivileged containers as `rw` instead of `mixed`. This
+    /// can break networking under newer (>= v245) systemd-network use.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub force_rw_sys: Option<bool>,
+
+    /// Allow using 'fuse' file systems in a container. Note that interactions
+    /// between fuse and the freezer cgroup can potentially cause I/O deadlocks.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fuse: Option<bool>,
+
+    /// For unprivileged containers only: Allow the use of the keyctl() system
+    /// call. This is required to use docker inside a container. By default
+    /// unprivileged containers will see this system call as non-existent. This
+    /// is mostly a workaround for systemd-networkd, as it will treat it as a
+    /// fatal error when some keyctl() operations are denied by the kernel due
+    /// to lacking permissions. Essentially, you can choose between running
+    /// systemd-networkd or docker.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub keyctl: Option<bool>,
+
+    /// Allow unprivileged containers to use mknod() to add certain device
+    /// nodes. This requires a kernel with seccomp trap to user space support
+    /// (5.3 or newer). This is experimental.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mknod: Option<bool>,
+
+    /// Allow mounting file systems of specific types. This should be a list of
+    /// file system types as used with the mount command. Note that this can
+    /// have negative effects on the container's security. With access to a loop
+    /// device, mounting a file can circumvent the mknod permission of the
+    /// devices cgroup, mounting an NFS file system can block the host's I/O
+    /// completely and prevent it from rebooting, etc.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mount: Option<String>,
+
+    /// Allow nesting. Best used with unprivileged containers with additional id
+    /// mapping. Note that this will expose procfs and sysfs contents of the
+    /// host to the guest.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nesting: Option<bool>,
+}
+
+#[api]
+/// Lock/unlock the container.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum LxcConfigLock {
+    #[serde(rename = "backup")]
+    /// backup.
+    Backup,
+    #[serde(rename = "create")]
+    /// create.
+    Create,
+    #[serde(rename = "destroyed")]
+    /// destroyed.
+    Destroyed,
+    #[serde(rename = "disk")]
+    /// disk.
+    Disk,
+    #[serde(rename = "fstrim")]
+    /// fstrim.
+    Fstrim,
+    #[serde(rename = "migrate")]
+    /// migrate.
+    Migrate,
+    #[serde(rename = "mounted")]
+    /// mounted.
+    Mounted,
+    #[serde(rename = "rollback")]
+    /// rollback.
+    Rollback,
+    #[serde(rename = "snapshot")]
+    /// snapshot.
+    Snapshot,
+    #[serde(rename = "snapshot-delete")]
+    /// snapshot-delete.
+    SnapshotDelete,
+}
+serde_plain::derive_display_from_serialize!(LxcConfigLock);
+serde_plain::derive_fromstr_from_deserialize!(LxcConfigLock);
+
+const_regex! {
+
+LXC_CONFIG_MP_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
+
+}
+
+#[api(
+    properties: {
+        acl: {
+            default: false,
+            optional: true,
+        },
+        backup: {
+            default: false,
+            optional: true,
+        },
+        mp: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_lxc_mp_string),
+        },
+        quota: {
+            default: false,
+            optional: true,
+        },
+        replicate: {
+            default: true,
+            optional: true,
+        },
+        ro: {
+            default: false,
+            optional: true,
+        },
+        shared: {
+            default: false,
+            optional: true,
+        },
+        size: {
+            format: &ApiStringFormat::Pattern(&LXC_CONFIG_MP_SIZE_RE),
+            optional: true,
+        },
+        volume: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_lxc_mp_string),
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct LxcConfigMp {
+    /// Explicitly enable or disable ACL support.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acl: Option<bool>,
+
+    /// Whether to include the mount point in backups.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backup: Option<bool>,
+
+    /// Extra mount options for rootfs/mps.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mountoptions: Option<String>,
+
+    /// Path to the mount point as seen from inside the container (must not
+    /// contain symlinks).
+    pub mp: String,
+
+    /// Enable user quotas inside the container (not supported with zfs
+    /// subvolumes)
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quota: Option<bool>,
+
+    /// Will include this volume to a storage replica job.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replicate: Option<bool>,
+
+    /// Read-only mount point
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ro: Option<bool>,
+
+    /// Mark this non-volume mount point as available on multiple nodes (see
+    /// 'nodes')
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared: Option<bool>,
+
+    /// Volume size (read only value).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<String>,
+
+    /// Volume, device or directory to mount into the container.
+    pub volume: String,
+}
+
+const_regex! {
+
+LXC_CONFIG_NET_HWADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
+
+}
+
+#[api(
+    properties: {
+        firewall: {
+            default: false,
+            optional: true,
+        },
+        gw: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv4),
+            optional: true,
+        },
+        gw6: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv6),
+            optional: true,
+        },
+        hwaddr: {
+            format: &ApiStringFormat::Pattern(&LXC_CONFIG_NET_HWADDR_RE),
+            optional: true,
+        },
+        ip: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv4_config),
+            optional: true,
+        },
+        ip6: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv6_config),
+            optional: true,
+        },
+        link_down: {
+            default: false,
+            optional: true,
+        },
+        mtu: {
+            maximum: 65535,
+            minimum: 64,
+            optional: true,
+        },
+        tag: {
+            maximum: 4094,
+            minimum: 1,
+            optional: true,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct LxcConfigNet {
+    /// Bridge to attach the network device to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bridge: Option<String>,
+
+    /// Controls whether this interface's firewall rules should be used.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub firewall: Option<bool>,
+
+    /// Default gateway for IPv4 traffic.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gw: Option<String>,
+
+    /// Default gateway for IPv6 traffic.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gw6: Option<String>,
+
+    /// The interface MAC address. This is dynamically allocated by default, but
+    /// you can set that statically if needed, for example to always have the
+    /// same link-local IPv6 address. (lxc.network.hwaddr)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hwaddr: Option<String>,
+
+    /// IPv4 address in CIDR format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ip: Option<String>,
+
+    /// IPv6 address in CIDR format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ip6: Option<String>,
+
+    /// Whether this interface should be disconnected (like pulling the plug).
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link_down: Option<bool>,
+
+    /// Maximum transfer unit of the interface. (lxc.network.mtu)
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u16")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mtu: Option<u16>,
+
+    /// Name of the network device as seen from inside the container.
+    /// (lxc.network.name)
+    pub name: String,
+
+    /// Apply rate limiting to the interface
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rate: Option<f64>,
+
+    /// VLAN tag for this interface.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u16")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<u16>,
+
+    /// VLAN ids to pass through the interface
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trunks: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "type")]
+    pub ty: Option<LxcConfigNetType>,
+}
+
+#[api]
+/// Network interface type.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum LxcConfigNetType {
+    #[serde(rename = "veth")]
+    /// veth.
+    Veth,
+}
+serde_plain::derive_display_from_serialize!(LxcConfigNetType);
+serde_plain::derive_fromstr_from_deserialize!(LxcConfigNetType);
+
+#[api]
+/// OS type. This is used to setup configuration inside the container, and
+/// corresponds to lxc setup scripts in
+/// /usr/share/lxc/config/<ostype>.common.conf. Value 'unmanaged' can be used to
+/// skip and OS specific setup.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum LxcConfigOstype {
+    #[serde(rename = "debian")]
+    /// debian.
+    Debian,
+    #[serde(rename = "devuan")]
+    /// devuan.
+    Devuan,
+    #[serde(rename = "ubuntu")]
+    /// ubuntu.
+    Ubuntu,
+    #[serde(rename = "centos")]
+    /// centos.
+    Centos,
+    #[serde(rename = "fedora")]
+    /// fedora.
+    Fedora,
+    #[serde(rename = "opensuse")]
+    /// opensuse.
+    Opensuse,
+    #[serde(rename = "archlinux")]
+    /// archlinux.
+    Archlinux,
+    #[serde(rename = "alpine")]
+    /// alpine.
+    Alpine,
+    #[serde(rename = "gentoo")]
+    /// gentoo.
+    Gentoo,
+    #[serde(rename = "nixos")]
+    /// nixos.
+    Nixos,
+    #[serde(rename = "unmanaged")]
+    /// unmanaged.
+    Unmanaged,
+}
+serde_plain::derive_display_from_serialize!(LxcConfigOstype);
+serde_plain::derive_fromstr_from_deserialize!(LxcConfigOstype);
+
+const_regex! {
+
+LXC_CONFIG_ROOTFS_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
+
+}
+
+#[api(
+    properties: {
+        acl: {
+            default: false,
+            optional: true,
+        },
+        quota: {
+            default: false,
+            optional: true,
+        },
+        replicate: {
+            default: true,
+            optional: true,
+        },
+        ro: {
+            default: false,
+            optional: true,
+        },
+        shared: {
+            default: false,
+            optional: true,
+        },
+        size: {
+            format: &ApiStringFormat::Pattern(&LXC_CONFIG_ROOTFS_SIZE_RE),
+            optional: true,
+        },
+        volume: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_lxc_mp_string),
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct LxcConfigRootfs {
+    /// Explicitly enable or disable ACL support.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acl: Option<bool>,
+
+    /// Extra mount options for rootfs/mps.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mountoptions: Option<String>,
+
+    /// Enable user quotas inside the container (not supported with zfs
+    /// subvolumes)
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quota: Option<bool>,
+
+    /// Will include this volume to a storage replica job.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replicate: Option<bool>,
+
+    /// Read-only mount point
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ro: Option<bool>,
+
+    /// Mark this non-volume mount point as available on multiple nodes (see
+    /// 'nodes')
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared: Option<bool>,
+
+    /// Volume size (read only value).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<String>,
+
+    /// Volume, device or directory to mount into the container.
+    pub volume: String,
+}
+
+#[api(
+    properties: {
+        volume: {
+            format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_volume_id),
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct LxcConfigUnused {
+    /// The volume that is not used currently.
+    pub volume: String,
+}
+
 #[api(
     properties: {
         vmid: {
@@ -2016,48 +3379,6 @@ dhcp on IPv4.
     ipconfig31,
 }
 generate_array_field! {
-    QemuConfigNetArray :
-    /// Specify network devices.
-    String => {
-        description: "Specify network devices.",
-        format: &ApiStringFormat::PropertyString(&QemuConfigNet::API_SCHEMA),
-        type: String,
-        optional: true,
-    }
-    net0,
-    net1,
-    net2,
-    net3,
-    net4,
-    net5,
-    net6,
-    net7,
-    net8,
-    net9,
-    net10,
-    net11,
-    net12,
-    net13,
-    net14,
-    net15,
-    net16,
-    net17,
-    net18,
-    net19,
-    net20,
-    net21,
-    net22,
-    net23,
-    net24,
-    net25,
-    net26,
-    net27,
-    net28,
-    net29,
-    net30,
-    net31,
-}
-generate_array_field! {
     QemuConfigNumaArray :
     /// NUMA topology.
     String => {
@@ -2156,272 +3477,6 @@ generate_array_field! {
     serial1,
     serial2,
     serial3,
-}
-generate_array_field! {
-    QemuConfigUnusedArray :
-    /// Reference to unused volumes. This is used internally, and should not be modified manually.
-    String => {
-        description: "Reference to unused volumes. This is used internally, and should not be modified manually.",
-        format: &ApiStringFormat::PropertyString(&QemuConfigUnused::API_SCHEMA),
-        type: String,
-        optional: true,
-    }
-    unused0,
-    unused1,
-    unused2,
-    unused3,
-    unused4,
-    unused5,
-    unused6,
-    unused7,
-    unused8,
-    unused9,
-    unused10,
-    unused11,
-    unused12,
-    unused13,
-    unused14,
-    unused15,
-    unused16,
-    unused17,
-    unused18,
-    unused19,
-    unused20,
-    unused21,
-    unused22,
-    unused23,
-    unused24,
-    unused25,
-    unused26,
-    unused27,
-    unused28,
-    unused29,
-    unused30,
-    unused31,
-    unused32,
-    unused33,
-    unused34,
-    unused35,
-    unused36,
-    unused37,
-    unused38,
-    unused39,
-    unused40,
-    unused41,
-    unused42,
-    unused43,
-    unused44,
-    unused45,
-    unused46,
-    unused47,
-    unused48,
-    unused49,
-    unused50,
-    unused51,
-    unused52,
-    unused53,
-    unused54,
-    unused55,
-    unused56,
-    unused57,
-    unused58,
-    unused59,
-    unused60,
-    unused61,
-    unused62,
-    unused63,
-    unused64,
-    unused65,
-    unused66,
-    unused67,
-    unused68,
-    unused69,
-    unused70,
-    unused71,
-    unused72,
-    unused73,
-    unused74,
-    unused75,
-    unused76,
-    unused77,
-    unused78,
-    unused79,
-    unused80,
-    unused81,
-    unused82,
-    unused83,
-    unused84,
-    unused85,
-    unused86,
-    unused87,
-    unused88,
-    unused89,
-    unused90,
-    unused91,
-    unused92,
-    unused93,
-    unused94,
-    unused95,
-    unused96,
-    unused97,
-    unused98,
-    unused99,
-    unused100,
-    unused101,
-    unused102,
-    unused103,
-    unused104,
-    unused105,
-    unused106,
-    unused107,
-    unused108,
-    unused109,
-    unused110,
-    unused111,
-    unused112,
-    unused113,
-    unused114,
-    unused115,
-    unused116,
-    unused117,
-    unused118,
-    unused119,
-    unused120,
-    unused121,
-    unused122,
-    unused123,
-    unused124,
-    unused125,
-    unused126,
-    unused127,
-    unused128,
-    unused129,
-    unused130,
-    unused131,
-    unused132,
-    unused133,
-    unused134,
-    unused135,
-    unused136,
-    unused137,
-    unused138,
-    unused139,
-    unused140,
-    unused141,
-    unused142,
-    unused143,
-    unused144,
-    unused145,
-    unused146,
-    unused147,
-    unused148,
-    unused149,
-    unused150,
-    unused151,
-    unused152,
-    unused153,
-    unused154,
-    unused155,
-    unused156,
-    unused157,
-    unused158,
-    unused159,
-    unused160,
-    unused161,
-    unused162,
-    unused163,
-    unused164,
-    unused165,
-    unused166,
-    unused167,
-    unused168,
-    unused169,
-    unused170,
-    unused171,
-    unused172,
-    unused173,
-    unused174,
-    unused175,
-    unused176,
-    unused177,
-    unused178,
-    unused179,
-    unused180,
-    unused181,
-    unused182,
-    unused183,
-    unused184,
-    unused185,
-    unused186,
-    unused187,
-    unused188,
-    unused189,
-    unused190,
-    unused191,
-    unused192,
-    unused193,
-    unused194,
-    unused195,
-    unused196,
-    unused197,
-    unused198,
-    unused199,
-    unused200,
-    unused201,
-    unused202,
-    unused203,
-    unused204,
-    unused205,
-    unused206,
-    unused207,
-    unused208,
-    unused209,
-    unused210,
-    unused211,
-    unused212,
-    unused213,
-    unused214,
-    unused215,
-    unused216,
-    unused217,
-    unused218,
-    unused219,
-    unused220,
-    unused221,
-    unused222,
-    unused223,
-    unused224,
-    unused225,
-    unused226,
-    unused227,
-    unused228,
-    unused229,
-    unused230,
-    unused231,
-    unused232,
-    unused233,
-    unused234,
-    unused235,
-    unused236,
-    unused237,
-    unused238,
-    unused239,
-    unused240,
-    unused241,
-    unused242,
-    unused243,
-    unused244,
-    unused245,
-    unused246,
-    unused247,
-    unused248,
-    unused249,
-    unused250,
-    unused251,
-    unused252,
-    unused253,
-    unused254,
-    unused255,
 }
 generate_array_field! {
     QemuConfigUsbArray :

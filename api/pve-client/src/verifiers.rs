@@ -21,6 +21,10 @@ pub VOLUME_ID = r##"^(?i)([a-z][a-z0-9\-\_\.]*[a-z0-9]):(.+)$"##;
 //pub DNS_NAMERE = concat!("^", DNS_NAMERE!(), "$");
 pub DNS_RE = concat!("^", DNS_RE!(), "$");
 
+pub FE80_RE = r##"^(?i)fe80:"##;
+
+pub IFACE_RE = r##"^(?i)[a-z][a-z0-9_]{1,20}([:\.]\d+)?$"##;
+
 }
 
 pub fn verify_volume_id(s: &str) -> Result<(), Error> {
@@ -117,4 +121,22 @@ pub fn verify_address(s: &str) -> Result<(), Error> {
         return Ok(());
     }
     verify_ip(s).map_err(|_| format_err!("not a valid address"))
+}
+
+pub fn verify_lxc_mp_string(s: &str) -> Result<(), Error> {
+    if s.contains("/./") || s.contains("/../") || s.ends_with("/..") || s.starts_with("../") {
+        bail!("illegal character sequence for mount point");
+    }
+    Ok(())
+}
+
+pub fn verify_ip_with_ll_iface(s: &str) -> Result<(), Error> {
+    if let Some(percent) = s.find('%') {
+        if FE80_RE.is_match(s) {
+            if IFACE_RE.is_match(&s[(percent + 1)..]) {
+                return verify_ipv6(&s[..percent]);
+            }
+        }
+    }
+    verify_ip(s)
 }

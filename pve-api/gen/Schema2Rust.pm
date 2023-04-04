@@ -828,7 +828,7 @@ my sub array_type : prototype($$) {
         rust_name => namify_type($name_hint),
         type => undef, # rust type
         attrs => [],
-        api => {},
+        api => { type => 'array' },
         optional => undef,
         description => '',
     };

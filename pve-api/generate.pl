@@ -68,9 +68,10 @@ Schema2Rust::register_format('pve-volume-id-or-qm-path' => { code => 'crate::ver
 Schema2Rust::register_format('urlencoded' => { regex => '^[-%a-zA-Z0-9_.!~*\'()]*$' });
 Schema2Rust::register_format('pve-cpuset' => { regex => '^(\s*\d+(-\d+)?\s*)(,\s*\d+(-\d+)?\s*)?$' });
 ##
-## Schema2Rust::register_format('pve-lxc-mp-string' => { code => 'verify_lxc_mp_string' });
+Schema2Rust::register_format('pve-lxc-mp-string' => { code => 'crate::verifiers::verify_lxc_mp_string' });
 ## Schema2Rust::register_format('lxc-ip-with-ll-iface' => { regex => ['^(?i:', \'pdm_api_types::IPRE!()', ')$'] });
-## Schema2Rust::register_format('pve-ct-timezone' => { regex => '^.*/.*$' });
+Schema2Rust::register_format('lxc-ip-with-ll-iface' => { code => 'crate::verifiers::verify_ip_with_ll_iface' });
+Schema2Rust::register_format('pve-ct-timezone' => { regex => '^.*/.*$' });
 ##
 ## Schema2Rust::register_format('storage-pair' => { code => 'verify_storage_pair' });
 
@@ -99,6 +100,7 @@ Schema2Rust::generate_enum('IsRunning', { type => 'string', enum => ['running', 
 
 # We have a textual description of the default value in there, just pick the cgroupv2 one:
 Schema2Rust::register_api_override('QemuConfig', '/properties/cpuunits/default', 1024);
+Schema2Rust::register_api_override('LxcConfig', '/properties/cpuunits/default', 1024);
 
 # pve-storage-content uses verify_
 my $storage_content_types = [sort keys PVE::Storage::Plugin::valid_content_types('dir')->%*];
@@ -149,7 +151,7 @@ api(GET => '/nodes/{node}/qemu/{vmid}/config', 'qemu_get_config', 'param-name' =
 # Schema2Rust::derive('ShutdownQemu' => 'Default');
 # 
 api(GET => '/nodes/{node}/lxc',                         'list_lxc',            'param-name' => 'FixmeListLxc',      'return-name' => 'LxcEntry');
-# api(GET => '/nodes/{node}/lxc/{vmid}/config',           'lxc_get_config',      'param-name' => 'FixmeLxcGetConfig', 'return-name' => 'LxcConfig');
+api(GET => '/nodes/{node}/lxc/{vmid}/config',           'lxc_get_config',      'param-name' => 'FixmeLxcGetConfig', 'return-name' => 'LxcConfig');
 # api(POST => '/nodes/{node}/lxc/{vmid}/status/start',    'start_lxc_async',     'output-type' => 'PveUpid', 'param-name' => 'StartLxc');
 # api(POST => '/nodes/{node}/lxc/{vmid}/status/stop',     'stop_lxc_async',      'output-type' => 'PveUpid', 'param-name' => 'StopLxc');
 # api(POST => '/nodes/{node}/lxc/{vmid}/status/shutdown', 'shutdown_lxc_async',  'output-type' => 'PveUpid', 'param-name' => 'ShutdownLxc');

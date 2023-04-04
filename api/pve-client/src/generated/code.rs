@@ -168,7 +168,6 @@
 //! - /nodes/{node}/journal
 //! - /nodes/{node}/lxc/{vmid}
 //! - /nodes/{node}/lxc/{vmid}/clone
-//! - /nodes/{node}/lxc/{vmid}/config
 //! - /nodes/{node}/lxc/{vmid}/feature
 //! - /nodes/{node}/lxc/{vmid}/firewall
 //! - /nodes/{node}/lxc/{vmid}/firewall/aliases
@@ -404,6 +403,26 @@ where
         let (mut query, mut sep) = (String::new(), '?');
         add_query_bool(&mut query, &mut sep, "full", full);
         let url = format!("/api2/extjs/nodes/{node}/qemu{query}");
+        Ok(self
+            .client
+            .get(&url)
+            .await?
+            .data
+            .ok_or_else(|| E::Error::bad_api("api returned no data"))?)
+    }
+
+    /// Get container configuration.
+    pub async fn lxc_get_config(
+        &self,
+        node: &str,
+        vmid: u64,
+        current: Option<bool>,
+        snapshot: Option<String>,
+    ) -> Result<LxcConfig, E::Error> {
+        let (mut query, mut sep) = (String::new(), '?');
+        add_query_bool(&mut query, &mut sep, "current", current);
+        add_query_arg(&mut query, &mut sep, "snapshot", &snapshot);
+        let url = format!("/api2/extjs/nodes/{node}/lxc/{vmid}/config{query}");
         Ok(self
             .client
             .get(&url)
