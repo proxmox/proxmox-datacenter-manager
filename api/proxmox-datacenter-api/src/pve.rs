@@ -29,7 +29,6 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("resources", &RESOURCES_ROUTER),
 ]);
 
-const LXC_ROUTER: Router = Router::new().get(&API_METHOD_LIST_LXC);
 const NODES_ROUTER: Router = Router::new().get(&API_METHOD_LIST_NODES);
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
 
@@ -43,6 +42,17 @@ const QEMU_VM_ROUTER: Router = Router::new()
 #[sortable]
 const QEMU_VM_SUBDIRS: SubdirMap =
     &sorted!([("config", &Router::new().get(&API_METHOD_QEMU_GET_CONFIG)),]);
+
+const LXC_ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_LXC)
+    .match_all("vmid", &LXC_VM_ROUTER);
+
+const LXC_VM_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(LXC_VM_SUBDIRS))
+    .subdirs(LXC_VM_SUBDIRS);
+#[sortable]
+const LXC_VM_SUBDIRS: SubdirMap =
+    &sorted!([("config", &Router::new().get(&API_METHOD_LXC_GET_CONFIG)),]);
 
 pub type PveClient = pve_client::Client<PveEnv>;
 
@@ -238,7 +248,8 @@ pub async fn list_lxc(
     },
     returns: { type: pve_client::types::QemuConfig },
 )]
-/// Query the remote's list of qemu VMs. If no node is provided, the all nodes are queried.
+/// Get the configuration of a qemu VM from a remote. If a node is provided, the VM must be on that
+/// node, otherwise the node is determined automatically.
 pub async fn qemu_get_config(
     remote: String,
     node: Option<String>,
@@ -265,5 +276,54 @@ pub async fn qemu_get_config(
     };
 
     pve.qemu_get_config(&node, vmid, state.current(), snapshot)
+        .await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            state: { type: ConfigurationState },
+            snapshot: {
+                schema: SNAPSHOT_NAME_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+    returns: { type: pve_client::types::LxcConfig },
+)]
+/// Get the configuration of an lxc container from a remote. If a node is provided, the container
+/// must be on that node, otherwise the node is determined automatically.
+pub async fn lxc_get_config(
+    remote: String,
+    node: Option<String>,
+    vmid: u64,
+    state: ConfigurationState,
+    snapshot: Option<String>,
+) -> Result<pve_client::types::LxcConfig, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    // FIXME: The pve client should cache the resources and provide
+    let node = match node {
+        Some(node) => node,
+        None => pve
+            .cluster_resources(Some(ClusterResourceKind::Vm))
+            .await?
+            .into_iter()
+            .find(|entry| entry.vmid == Some(vmid))
+            .and_then(|entry| entry.node)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
+    };
+
+    pve.lxc_get_config(&node, vmid, state.current(), snapshot)
         .await
 }

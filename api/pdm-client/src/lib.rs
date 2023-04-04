@@ -216,6 +216,31 @@ where
             .await?
             .into_data_or_err()?)
     }
+
+    pub async fn pve_lxc_config(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u64,
+        state: ConfigurationState,
+        snapshot: Option<&str>,
+    ) -> Result<pve_client::types::LxcConfig, Error> {
+        let path = format!("/api2/extjs/pve/{remote}/lxc/{vmid}/config");
+        let mut request = json!({
+            "state": state,
+        });
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        if let Some(snapshot) = snapshot {
+            request["snapshot"] = snapshot.into();
+        }
+        Ok(self
+            .client
+            .get_with_body(&path, &request)
+            .await?
+            .into_data_or_err()?)
+    }
 }
 
 #[derive(Default)]

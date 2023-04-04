@@ -53,6 +53,10 @@ fn lxc_cli() -> CommandLineInterface {
             "list",
             CliCommand::new(&API_METHOD_LIST_LXC).arg_param(&["remote"]),
         )
+        .insert(
+            "config",
+            CliCommand::new(&API_METHOD_GET_LXC_CONFIG).arg_param(&["remote", "vmid"]),
+        )
         .into()
 }
 
@@ -252,6 +256,59 @@ async fn list_lxc(remote: String, node: Option<String>, param: Value) -> Result<
         }
     } else {
         format_and_print_result(&entries, &output_format);
+    }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            state: {
+                type: pdm_api_types::ConfigurationState,
+                optional: true,
+            },
+            snapshot: {
+                schema: SNAPSHOT_NAME_SCHEMA,
+                optional: true,
+            },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn get_lxc_config(
+    remote: String,
+    node: Option<String>,
+    vmid: u64,
+    state: Option<pdm_api_types::ConfigurationState>,
+    snapshot: Option<String>,
+    param: Value,
+) -> Result<(), Error> {
+    let output_format = get_output_format(&param);
+
+    let config = client()?
+        .pve_lxc_config(
+            &remote,
+            node.as_deref(),
+            vmid,
+            state.unwrap_or_default(),
+            snapshot.as_deref(),
+        )
+        .await?;
+
+    if output_format == "text" {
+        println!("{}", serde_json::to_string_pretty(&config)?);
+    } else {
+        format_and_print_result(&config, &output_format);
     }
     Ok(())
 }
