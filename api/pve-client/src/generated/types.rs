@@ -10,8 +10,17 @@ CLUSTER_NODE_INDEX_RESPONSE_NODE_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?
 
 #[api(
     properties: {
+        level: {
+            optional: true,
+            type: String,
+        },
         node: {
             format: &ApiStringFormat::Pattern(&CLUSTER_NODE_INDEX_RESPONSE_NODE_RE),
+            type: String,
+        },
+        ssl_fingerprint: {
+            optional: true,
+            type: String,
         },
     },
 )]
@@ -82,6 +91,10 @@ CLUSTER_RESOURCE_STORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
 
 #[api(
     properties: {
+        content: {
+            optional: true,
+            type: String,
+        },
         cpu: {
             minimum: 0.0,
             optional: true,
@@ -89,6 +102,17 @@ CLUSTER_RESOURCE_STORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         disk: {
             minimum: 0,
             optional: true,
+        },
+        hastate: {
+            optional: true,
+            type: String,
+        },
+        id: {
+            type: String,
+        },
+        level: {
+            optional: true,
+            type: String,
         },
         maxcpu: {
             minimum: 0.0,
@@ -102,13 +126,31 @@ CLUSTER_RESOURCE_STORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             minimum: 0,
             optional: true,
         },
+        name: {
+            optional: true,
+            type: String,
+        },
         node: {
             format: &ApiStringFormat::Pattern(&CLUSTER_RESOURCE_NODE_RE),
             optional: true,
+            type: String,
+        },
+        plugintype: {
+            optional: true,
+            type: String,
+        },
+        pool: {
+            optional: true,
+            type: String,
+        },
+        status: {
+            optional: true,
+            type: String,
         },
         storage: {
             format: &ApiStringFormat::Pattern(&CLUSTER_RESOURCE_STORAGE_RE),
             optional: true,
+            type: String,
         },
         vmid: {
             minimum: 1,
@@ -306,19 +348,38 @@ LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
         description: {
             max_length: 8192,
             optional: true,
+            type: String,
+        },
+        digest: {
+            type: String,
         },
         features: {
             format: &ApiStringFormat::PropertyString(&LxcConfigFeatures::API_SCHEMA),
             optional: true,
+            type: String,
         },
         hookscript: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_volume_id),
             optional: true,
+            type: String,
         },
         hostname: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_dns_name),
             max_length: 255,
             optional: true,
+            type: String,
+        },
+        lxc: {
+            items: {
+                items: {
+                    type: String,
+                    description: "A config key value pair",
+                },
+                type: Array,
+                description: "A raw lxc config entry",
+            },
+            optional: true,
+            type: Array,
         },
         memory: {
             default: 512,
@@ -331,6 +392,7 @@ LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
         nameserver: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ip_with_ll_iface),
             optional: true,
+            type: String,
         },
         net: {
             type: QemuConfigNetArray,
@@ -346,13 +408,16 @@ LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
         rootfs: {
             format: &ApiStringFormat::PropertyString(&LxcConfigRootfs::API_SCHEMA),
             optional: true,
+            type: String,
         },
         searchdomain: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_dns_name),
             optional: true,
+            type: String,
         },
         startup: {
             optional: true,
+            type: String,
             type_text: "[[order=]\\d+] [,up=\\d+] [,down=\\d+] ",
         },
         swap: {
@@ -363,6 +428,7 @@ LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
         tags: {
             format: &ApiStringFormat::Pattern(&LXC_CONFIG_TAGS_RE),
             optional: true,
+            type: String,
         },
         template: {
             default: false,
@@ -371,6 +437,7 @@ LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
         timezone: {
             format: &ApiStringFormat::Pattern(&LXC_CONFIG_TIMEZONE_RE),
             optional: true,
+            type: String,
         },
         tty: {
             default: 2,
@@ -1181,6 +1248,10 @@ serde_plain::derive_fromstr_from_deserialize!(LxcConfigCmode);
             default: false,
             optional: true,
         },
+        mount: {
+            optional: true,
+            type: String,
+        },
         nesting: {
             default: false,
             optional: true,
@@ -1291,8 +1362,13 @@ LXC_CONFIG_MP_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             default: false,
             optional: true,
         },
+        mountoptions: {
+            optional: true,
+            type: String,
+        },
         mp: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_lxc_mp_string),
+            type: String,
         },
         quota: {
             default: false,
@@ -1313,9 +1389,11 @@ LXC_CONFIG_MP_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         size: {
             format: &ApiStringFormat::Pattern(&LXC_CONFIG_MP_SIZE_RE),
             optional: true,
+            type: String,
         },
         volume: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_lxc_mp_string),
+            type: String,
         },
     },
 )]
@@ -1378,6 +1456,10 @@ LXC_CONFIG_NET_HWADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
 
 #[api(
     properties: {
+        bridge: {
+            optional: true,
+            type: String,
+        },
         firewall: {
             default: false,
             optional: true,
@@ -1385,22 +1467,27 @@ LXC_CONFIG_NET_HWADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
         gw: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv4),
             optional: true,
+            type: String,
         },
         gw6: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv6),
             optional: true,
+            type: String,
         },
         hwaddr: {
             format: &ApiStringFormat::Pattern(&LXC_CONFIG_NET_HWADDR_RE),
             optional: true,
+            type: String,
         },
         ip: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv4_config),
             optional: true,
+            type: String,
         },
         ip6: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv6_config),
             optional: true,
+            type: String,
         },
         link_down: {
             default: false,
@@ -1411,10 +1498,17 @@ LXC_CONFIG_NET_HWADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
             minimum: 64,
             optional: true,
         },
+        name: {
+            type: String,
+        },
         tag: {
             maximum: 4094,
             minimum: 1,
             optional: true,
+        },
+        trunks: {
+            optional: true,
+            type: String,
         },
     },
 )]
@@ -1551,6 +1645,10 @@ LXC_CONFIG_ROOTFS_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             default: false,
             optional: true,
         },
+        mountoptions: {
+            optional: true,
+            type: String,
+        },
         quota: {
             default: false,
             optional: true,
@@ -1570,9 +1668,11 @@ LXC_CONFIG_ROOTFS_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         size: {
             format: &ApiStringFormat::Pattern(&LXC_CONFIG_ROOTFS_SIZE_RE),
             optional: true,
+            type: String,
         },
         volume: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_lxc_mp_string),
+            type: String,
         },
     },
 )]
@@ -1622,6 +1722,7 @@ pub struct LxcConfigRootfs {
     properties: {
         volume: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_volume_id),
+            type: String,
         },
     },
 )]
@@ -1634,6 +1735,18 @@ pub struct LxcConfigUnused {
 
 #[api(
     properties: {
+        lock: {
+            optional: true,
+            type: String,
+        },
+        name: {
+            optional: true,
+            type: String,
+        },
+        tags: {
+            optional: true,
+            type: String,
+        },
         vmid: {
             minimum: 1,
         },
@@ -1690,6 +1803,11 @@ pub struct LxcEntry {
         legacy: {
             default: "cdn",
             optional: true,
+            type: String,
+        },
+        order: {
+            optional: true,
+            type: String,
         },
     },
 )]
@@ -1724,18 +1842,22 @@ pub struct PveQmBoot {
         meta: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_volume_id),
             optional: true,
+            type: String,
         },
         network: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_volume_id),
             optional: true,
+            type: String,
         },
         user: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_volume_id),
             optional: true,
+            type: String,
         },
         vendor: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_volume_id),
             optional: true,
+            type: String,
         },
     },
 )]
@@ -1765,9 +1887,20 @@ pub struct PveQmCicustom {
 
 #[api(
     properties: {
+        "device-id": {
+            optional: true,
+            type: String,
+        },
+        host: {
+            type: String,
+        },
         "legacy-igd": {
             default: false,
             optional: true,
+        },
+        mdev: {
+            optional: true,
+            type: String,
         },
         pcie: {
             default: false,
@@ -1776,6 +1909,22 @@ pub struct PveQmCicustom {
         rombar: {
             default: true,
             optional: true,
+        },
+        romfile: {
+            optional: true,
+            type: String,
+        },
+        "sub-device-id": {
+            optional: true,
+            type: String,
+        },
+        "sub-vendor-id": {
+            optional: true,
+            type: String,
+        },
+        "vendor-id": {
+            optional: true,
+            type: String,
         },
         "x-vga": {
             default: false,
@@ -1882,6 +2031,7 @@ PVE_QM_IDE_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         },
         file: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_volume_id_or_qm_path),
+            type: String,
         },
         iops_max_length: {
             minimum: 1,
@@ -1899,6 +2049,7 @@ PVE_QM_IDE_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             format: &ApiStringFormat::Pattern(&PVE_QM_IDE_MODEL_RE),
             max_length: 120,
             optional: true,
+            type: String,
         },
         replicate: {
             default: true,
@@ -1908,6 +2059,7 @@ PVE_QM_IDE_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             format: &ApiStringFormat::Pattern(&PVE_QM_IDE_SERIAL_RE),
             max_length: 60,
             optional: true,
+            type: String,
         },
         shared: {
             default: false,
@@ -1916,6 +2068,7 @@ PVE_QM_IDE_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         size: {
             format: &ApiStringFormat::Pattern(&PVE_QM_IDE_SIZE_RE),
             optional: true,
+            type: String,
         },
         snapshot: {
             default: false,
@@ -1924,6 +2077,10 @@ PVE_QM_IDE_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         ssd: {
             default: false,
             optional: true,
+        },
+        wwn: {
+            optional: true,
+            type: String,
         },
     },
 )]
@@ -2277,20 +2434,24 @@ serde_plain::derive_fromstr_from_deserialize!(PveQmIdeWerror);
         gw: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv4),
             optional: true,
+            type: String,
         },
         gw6: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv6),
             optional: true,
+            type: String,
         },
         ip: {
             default: "dhcp",
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv4_config),
             optional: true,
+            type: String,
         },
         ip6: {
             default: "dhcp",
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_ipv6_config),
             optional: true,
+            type: String,
         },
     },
 )]
@@ -2319,6 +2480,34 @@ pub struct PveQmIpconfig {
         base64: {
             default: false,
             optional: true,
+        },
+        family: {
+            optional: true,
+            type: String,
+        },
+        manufacturer: {
+            optional: true,
+            type: String,
+        },
+        product: {
+            optional: true,
+            type: String,
+        },
+        serial: {
+            optional: true,
+            type: String,
+        },
+        sku: {
+            optional: true,
+            type: String,
+        },
+        uuid: {
+            optional: true,
+            type: String,
+        },
+        version: {
+            optional: true,
+            type: String,
         },
     },
 )]
@@ -2416,14 +2605,24 @@ serde_plain::derive_fromstr_from_deserialize!(PveQmWatchdogModel);
         cputype: {
             default: "kvm64",
             optional: true,
+            type: String,
+        },
+        flags: {
+            optional: true,
+            type: String,
         },
         hidden: {
             default: false,
             optional: true,
         },
+        "hv-vendor-id": {
+            optional: true,
+            type: String,
+        },
         "phys-bits": {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_phys_bits),
             optional: true,
+            type: String,
         },
     },
 )]
@@ -2649,14 +2848,21 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         affinity: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_AFFINITY_RE),
             optional: true,
+            type: String,
         },
         agent: {
             format: &ApiStringFormat::PropertyString(&QemuConfigAgent::API_SCHEMA),
             optional: true,
+            type: String,
+        },
+        args: {
+            optional: true,
+            type: String,
         },
         audio0: {
             format: &ApiStringFormat::PropertyString(&QemuConfigAudio0::API_SCHEMA),
             optional: true,
+            type: String,
         },
         autostart: {
             default: false,
@@ -2669,19 +2875,31 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         boot: {
             format: &ApiStringFormat::PropertyString(&PveQmBoot::API_SCHEMA),
             optional: true,
+            type: String,
         },
         bootdisk: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_BOOTDISK_RE),
             optional: true,
+            type: String,
         },
         cdrom: {
             format: &ApiStringFormat::PropertyString(&PveQmIde::API_SCHEMA),
             optional: true,
+            type: String,
             type_text: "<volume>",
         },
         cicustom: {
             format: &ApiStringFormat::PropertyString(&PveQmCicustom::API_SCHEMA),
             optional: true,
+            type: String,
+        },
+        cipassword: {
+            optional: true,
+            type: String,
+        },
+        ciuser: {
+            optional: true,
+            type: String,
         },
         cores: {
             default: 1,
@@ -2691,6 +2909,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         cpu: {
             format: &ApiStringFormat::PropertyString(&PveVmCpuConf::API_SCHEMA),
             optional: true,
+            type: String,
         },
         cpulimit: {
             default: 0.0,
@@ -2707,10 +2926,15 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         description: {
             max_length: 8192,
             optional: true,
+            type: String,
+        },
+        digest: {
+            type: String,
         },
         efidisk0: {
             format: &ApiStringFormat::PropertyString(&QemuConfigEfidisk0::API_SCHEMA),
             optional: true,
+            type: String,
         },
         freeze: {
             default: false,
@@ -2719,6 +2943,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         hookscript: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_volume_id),
             optional: true,
+            type: String,
         },
         hostpci: {
             type: QemuConfigHostpciArray,
@@ -2726,6 +2951,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         hotplug: {
             default: "network,disk,usb",
             optional: true,
+            type: String,
         },
         ide: {
             type: QemuConfigIdeArray,
@@ -2736,6 +2962,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         ivshmem: {
             format: &ApiStringFormat::PropertyString(&QemuConfigIvshmem::API_SCHEMA),
             optional: true,
+            type: String,
         },
         keephugepages: {
             default: false,
@@ -2752,6 +2979,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         machine: {
             max_length: 40,
             optional: true,
+            type: String,
         },
         memory: {
             default: 512,
@@ -2771,10 +2999,12 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         name: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_dns_name),
             optional: true,
+            type: String,
         },
         nameserver: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_address),
             optional: true,
+            type: String,
         },
         net: {
             type: QemuConfigNetArray,
@@ -2804,12 +3034,17 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         rng0: {
             format: &ApiStringFormat::PropertyString(&QemuConfigRng0::API_SCHEMA),
             optional: true,
+            type: String,
         },
         sata: {
             type: QemuConfigSataArray,
         },
         scsi: {
             type: QemuConfigScsiArray,
+        },
+        searchdomain: {
+            optional: true,
+            type: String,
         },
         serial: {
             type: QemuConfigSerialArray,
@@ -2824,6 +3059,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             format: &ApiStringFormat::PropertyString(&PveQmSmbios1::API_SCHEMA),
             max_length: 512,
             optional: true,
+            type: String,
         },
         smp: {
             default: 1,
@@ -2838,18 +3074,22 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         spice_enhancements: {
             format: &ApiStringFormat::PropertyString(&QemuConfigSpiceEnhancements::API_SCHEMA),
             optional: true,
+            type: String,
         },
         sshkeys: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_SSHKEYS_RE),
             optional: true,
+            type: String,
         },
         startdate: {
             default: "now",
             optional: true,
+            type: String,
             type_text: "(now | YYYY-MM-DD | YYYY-MM-DDTHH:MM:SS)",
         },
         startup: {
             optional: true,
+            type: String,
             type_text: "[[order=]\\d+] [,up=\\d+] [,down=\\d+] ",
         },
         tablet: {
@@ -2859,6 +3099,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         tags: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_TAGS_RE),
             optional: true,
+            type: String,
         },
         tdf: {
             default: false,
@@ -2871,6 +3112,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         tpmstate0: {
             format: &ApiStringFormat::PropertyString(&QemuConfigTpmstate0::API_SCHEMA),
             optional: true,
+            type: String,
         },
         unused: {
             type: QemuConfigUnusedArray,
@@ -2886,6 +3128,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         vga: {
             format: &ApiStringFormat::PropertyString(&QemuConfigVga::API_SCHEMA),
             optional: true,
+            type: String,
         },
         virtio: {
             type: QemuConfigVirtioArray,
@@ -2893,14 +3136,17 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         vmgenid: {
             default: "1 (autogenerated)",
             optional: true,
+            type: String,
         },
         vmstatestorage: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_VMSTATESTORAGE_RE),
             optional: true,
+            type: String,
         },
         watchdog: {
             format: &ApiStringFormat::PropertyString(&PveQmWatchdog::API_SCHEMA),
             optional: true,
+            type: String,
         },
     },
 )]
@@ -3680,6 +3926,7 @@ QEMU_CONFIG_EFIDISK0_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
     properties: {
         file: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_volume_id_or_qm_path),
+            type: String,
         },
         "pre-enrolled-keys": {
             default: false,
@@ -3688,6 +3935,7 @@ QEMU_CONFIG_EFIDISK0_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         size: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_EFIDISK0_SIZE_RE),
             optional: true,
+            type: String,
         },
     },
 )]
@@ -3752,6 +4000,10 @@ serde_plain::derive_fromstr_from_deserialize!(QemuConfigHugepages);
 
 #[api(
     properties: {
+        name: {
+            optional: true,
+            type: String,
+        },
         size: {
             minimum: 1,
         },
@@ -3901,6 +4153,7 @@ QEMU_CONFIG_NET_MACADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
         bridge: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_NET_BRIDGE_RE),
             optional: true,
+            type: String,
         },
         firewall: {
             default: false,
@@ -3913,6 +4166,7 @@ QEMU_CONFIG_NET_MACADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
         macaddr: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_NET_MACADDR_RE),
             optional: true,
+            type: String,
         },
         mtu: {
             maximum: 65520,
@@ -3932,6 +4186,10 @@ QEMU_CONFIG_NET_MACADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
             maximum: 4094,
             minimum: 1,
             optional: true,
+        },
+        trunks: {
+            optional: true,
+            type: String,
         },
     },
 )]
@@ -4046,7 +4304,17 @@ pub enum QemuConfigNetModel {
 serde_plain::derive_display_from_serialize!(QemuConfigNetModel);
 serde_plain::derive_fromstr_from_deserialize!(QemuConfigNetModel);
 
-#[api]
+#[api(
+    properties: {
+        cpus: {
+            type: String,
+        },
+        hostnodes: {
+            optional: true,
+            type: String,
+        },
+    },
+)]
 /// Object.
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct QemuConfigNuma {
@@ -4213,6 +4481,7 @@ QEMU_CONFIG_SATA_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         },
         file: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_volume_id_or_qm_path),
+            type: String,
         },
         iops_max_length: {
             minimum: 1,
@@ -4234,6 +4503,7 @@ QEMU_CONFIG_SATA_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_SATA_SERIAL_RE),
             max_length: 60,
             optional: true,
+            type: String,
         },
         shared: {
             default: false,
@@ -4242,6 +4512,7 @@ QEMU_CONFIG_SATA_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         size: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_SATA_SIZE_RE),
             optional: true,
+            type: String,
         },
         snapshot: {
             default: false,
@@ -4250,6 +4521,10 @@ QEMU_CONFIG_SATA_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         ssd: {
             default: false,
             optional: true,
+        },
+        wwn: {
+            optional: true,
+            type: String,
         },
     },
 )]
@@ -4474,6 +4749,7 @@ QEMU_CONFIG_SCSI_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         },
         file: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_volume_id_or_qm_path),
+            type: String,
         },
         iops_max_length: {
             minimum: 1,
@@ -4511,6 +4787,7 @@ QEMU_CONFIG_SCSI_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_SCSI_SERIAL_RE),
             max_length: 60,
             optional: true,
+            type: String,
         },
         shared: {
             default: false,
@@ -4519,6 +4796,7 @@ QEMU_CONFIG_SCSI_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         size: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_SCSI_SIZE_RE),
             optional: true,
+            type: String,
         },
         snapshot: {
             default: false,
@@ -4527,6 +4805,10 @@ QEMU_CONFIG_SCSI_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         ssd: {
             default: false,
             optional: true,
+        },
+        wwn: {
+            optional: true,
+            type: String,
         },
     },
 )]
@@ -4817,10 +5099,12 @@ QEMU_CONFIG_TPMSTATE0_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
     properties: {
         file: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_volume_id_or_qm_path),
+            type: String,
         },
         size: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_TPMSTATE0_SIZE_RE),
             optional: true,
+            type: String,
         },
     },
 )]
@@ -4857,6 +5141,7 @@ serde_plain::derive_fromstr_from_deserialize!(QemuConfigTpmstate0Version);
     properties: {
         file: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_volume_id),
+            type: String,
         },
     },
 )]
@@ -4869,6 +5154,9 @@ pub struct QemuConfigUnused {
 
 #[api(
     properties: {
+        host: {
+            type: String,
+        },
         usb3: {
             default: false,
             optional: true,
@@ -5006,6 +5294,7 @@ QEMU_CONFIG_VIRTIO_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         },
         file: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_volume_id_or_qm_path),
+            type: String,
         },
         iops_max_length: {
             minimum: 1,
@@ -5035,6 +5324,7 @@ QEMU_CONFIG_VIRTIO_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_VIRTIO_SERIAL_RE),
             max_length: 60,
             optional: true,
+            type: String,
         },
         shared: {
             default: false,
@@ -5043,6 +5333,7 @@ QEMU_CONFIG_VIRTIO_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         size: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_VIRTIO_SIZE_RE),
             optional: true,
+            type: String,
         },
         snapshot: {
             default: false,
@@ -5267,7 +5558,19 @@ pub enum StorageContent {
 serde_plain::derive_display_from_serialize!(StorageContent);
 serde_plain::derive_fromstr_from_deserialize!(StorageContent);
 
-#[api]
+#[api(
+    properties: {
+        release: {
+            type: String,
+        },
+        repoid: {
+            type: String,
+        },
+        version: {
+            type: String,
+        },
+    },
+)]
 /// Object.
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VersionResponse {
@@ -5306,6 +5609,30 @@ serde_plain::derive_fromstr_from_deserialize!(VersionResponseConsole);
 
 #[api(
     properties: {
+        lock: {
+            optional: true,
+            type: String,
+        },
+        name: {
+            optional: true,
+            type: String,
+        },
+        qmpstatus: {
+            optional: true,
+            type: String,
+        },
+        "running-machine": {
+            optional: true,
+            type: String,
+        },
+        "running-qemu": {
+            optional: true,
+            type: String,
+        },
+        tags: {
+            optional: true,
+            type: String,
+        },
         vmid: {
             minimum: 1,
         },

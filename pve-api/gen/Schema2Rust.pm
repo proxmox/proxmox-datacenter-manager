@@ -67,6 +67,12 @@ sub register_api_override : prototype($$$) {
     $API_TYPE_OVERRIDES{"$rust_type:$path"} = $value;
 }
 
+our %API_TYPE_EXTENSIONS = ();
+sub register_api_extension : prototype($$$) {
+    my ($rust_type, $path, $value) = @_;;
+    $API_TYPE_EXTENSIONS{"$rust_type:$path"} = $value;
+}
+
 our $API_TYPE_POS = '';
 my sub api_to_string : prototype($$$$$);
 # $derive_optional => For structs only, if an api entry contains *only* the 'optional' flag then
@@ -146,6 +152,17 @@ sub api_to_string : prototype($$$$$) {
             }
         } else {
             die "unhandled api value type for '$key': ".ref($value)."\n";
+        }
+    }
+    if (defined(my $extra = $API_TYPE_EXTENSIONS{$API_TYPE_POS})) {
+        for my $key (sort keys %$extra) {
+            if (exists $api->{$key}) {
+                warn "api type extension for $API_TYPE_POS.$key already in schema, skipping\n";
+                next;
+            }
+            my $safe_key = ($key =~ /-/) ? "\"$key\"" : $key;
+            my $value = $extra->{$key};
+            print {$out} "${indent}$safe_key: $value,\n";
         }
     }
 }
@@ -531,7 +548,7 @@ my sub namify_const : prototype($;@) {
     return $out;
 }
 
-my sub quote_string : prototype($) {
+sub quote_string : prototype($) {
     my ($s) = @_;
     return '"' . ($s =~ s/(["\\])/\\$1/gr) . '"';
 }
@@ -758,6 +775,8 @@ sub generate_enum : prototype($$) {
 my sub string_type : prototype($$$) {
     my ($schema, $api_props, $name_hint) = @_;
 
+    $api_props->{type} = 'String';
+
     if (defined(my $enum = delete $schema->{enum})) {
         confess "enum string type\n";
     }
@@ -819,8 +838,8 @@ my sub string_type : prototype($$$) {
     return 'String';
 }
 
-my sub array_type : prototype($$) {
-    my ($schema, $name_hint) = @_;
+my sub array_type : prototype($$$) {
+    my ($schema, $api_props, $name_hint) = @_;
 
     my $def = {
         kind => 'array',
@@ -828,13 +847,16 @@ my sub array_type : prototype($$) {
         rust_name => namify_type($name_hint),
         type => undef, # rust type
         attrs => [],
-        api => { type => 'array' },
+        api => {},
         optional => undef,
         description => '',
     };
 
     my $items = delete $schema->{items} or die "missing 'items' in array schema\n";
     handle_def($def, \$items, $name_hint);
+
+    $api_props->{type} = 'Array';
+    $api_props->{items} = $def->{api};
 
     return "Vec<$def->{type}>";
 }
@@ -892,7 +914,7 @@ sub handle_def : prototype($$$) {
         # generate_struct uses the original schema and warns by itself
         return;
     } elsif ($type eq 'array') {
-        $def->{type} = array_type($schema, $name_hint);
+        $def->{type} = array_type($schema, $def->{api}, $name_hint);
     } else {
         die "unhandled field type: $type\n";
     }

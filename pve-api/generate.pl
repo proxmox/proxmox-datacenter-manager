@@ -101,6 +101,12 @@ Schema2Rust::generate_enum('IsRunning', { type => 'string', enum => ['running', 
 # We have a textual description of the default value in there, just pick the cgroupv2 one:
 Schema2Rust::register_api_override('QemuConfig', '/properties/cpuunits/default', 1024);
 Schema2Rust::register_api_override('LxcConfig', '/properties/cpuunits/default', 1024);
+Schema2Rust::register_api_extension('LxcConfig', '/properties/lxc/items', {
+    description => Schema2Rust::quote_string('A raw lxc config entry'),
+});
+Schema2Rust::register_api_extension('LxcConfig', '/properties/lxc/items/items', {
+    description => Schema2Rust::quote_string('A config key value pair'),
+});
 
 # pve-storage-content uses verify_
 my $storage_content_types = [sort keys PVE::Storage::Plugin::valid_content_types('dir')->%*];
