@@ -159,9 +159,9 @@ api(POST => '/nodes/{node}/qemu/{vmid}/status/shutdown', 'shutdown_qemu_async', 
 # 
 api(GET => '/nodes/{node}/lxc',                         'list_lxc',            'param-name' => 'FixmeListLxc',      'return-name' => 'LxcEntry');
 api(GET => '/nodes/{node}/lxc/{vmid}/config',           'lxc_get_config',      'param-name' => 'FixmeLxcGetConfig', 'return-name' => 'LxcConfig');
-# api(POST => '/nodes/{node}/lxc/{vmid}/status/start',    'start_lxc_async',     'output-type' => 'PveUpid', 'param-name' => 'StartLxc');
-# api(POST => '/nodes/{node}/lxc/{vmid}/status/stop',     'stop_lxc_async',      'output-type' => 'PveUpid', 'param-name' => 'StopLxc');
-# api(POST => '/nodes/{node}/lxc/{vmid}/status/shutdown', 'shutdown_lxc_async',  'output-type' => 'PveUpid', 'param-name' => 'ShutdownLxc');
+api(POST => '/nodes/{node}/lxc/{vmid}/status/start',    'start_lxc_async',     'output-type' => 'PveUpid', 'param-name' => 'StartLxc');
+api(POST => '/nodes/{node}/lxc/{vmid}/status/stop',     'stop_lxc_async',      'output-type' => 'PveUpid', 'param-name' => 'StopLxc');
+api(POST => '/nodes/{node}/lxc/{vmid}/status/shutdown', 'shutdown_lxc_async',  'output-type' => 'PveUpid', 'param-name' => 'ShutdownLxc');
 # Schema2Rust::derive('StartLxc' => 'Default');
 # Schema2Rust::derive('StopLxc' => 'Default');
 # Schema2Rust::derive('ShutdownLxc' => 'Default');

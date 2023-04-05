@@ -5532,6 +5532,34 @@ pub struct QemuConfigVirtio {
             default: false,
             optional: true,
         },
+        timeout: {
+            default: 60,
+            minimum: 0,
+            optional: true,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ShutdownLxc {
+    /// Make sure the Container stops.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "forceStop")]
+    pub force_stop: Option<bool>,
+
+    /// Wait maximal timeout seconds.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<u64>,
+}
+
+#[api(
+    properties: {
+        forceStop: {
+            default: false,
+            optional: true,
+        },
         keepActive: {
             default: false,
             optional: true,
@@ -5570,6 +5598,32 @@ pub struct ShutdownQemu {
     #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout: Option<u64>,
+}
+
+#[api(
+    properties: {
+        debug: {
+            default: false,
+            optional: true,
+        },
+        skiplock: {
+            default: false,
+            optional: true,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct StartLxc {
+    /// If set, enables very verbose debug log-level on start.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub debug: Option<bool>,
+
+    /// Ignore locks - only root is allowed to use this option.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skiplock: Option<bool>,
 }
 
 const_regex! {
@@ -5678,6 +5732,23 @@ pub enum StartQemuMigrationType {
 }
 serde_plain::derive_display_from_serialize!(StartQemuMigrationType);
 serde_plain::derive_fromstr_from_deserialize!(StartQemuMigrationType);
+
+#[api(
+    properties: {
+        skiplock: {
+            default: false,
+            optional: true,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct StopLxc {
+    /// Ignore locks - only root is allowed to use this option.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skiplock: Option<bool>,
+}
 
 const_regex! {
 

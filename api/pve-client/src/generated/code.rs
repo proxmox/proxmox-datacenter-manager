@@ -198,9 +198,6 @@
 /// - /nodes/{node}/lxc/{vmid}/status/current
 /// - /nodes/{node}/lxc/{vmid}/status/reboot
 /// - /nodes/{node}/lxc/{vmid}/status/resume
-/// - /nodes/{node}/lxc/{vmid}/status/shutdown
-/// - /nodes/{node}/lxc/{vmid}/status/start
-/// - /nodes/{node}/lxc/{vmid}/status/stop
 /// - /nodes/{node}/lxc/{vmid}/status/suspend
 /// - /nodes/{node}/lxc/{vmid}/template
 /// - /nodes/{node}/lxc/{vmid}/termproxy
@@ -444,6 +441,22 @@ where
             .ok_or_else(|| E::Error::bad_api("api returned no data"))?)
     }
 
+    /// Shutdown the container. This will trigger a clean shutdown of the
+    /// container, see lxc-stop(1) for details.
+    pub async fn shutdown_lxc_async(
+        &self,
+        node: &str,
+        vmid: u64,
+        params: ShutdownLxc,
+    ) -> Result<PveUpid, E::Error> {
+        let url = format!("/api2/extjs/nodes/{node}/lxc/{vmid}/status/shutdown");
+        self.client
+            .post(&url, &params)
+            .await?
+            .into_data_or_err()
+            .map_err(Error::bad_api)
+    }
+
     /// Shutdown virtual machine. This is similar to pressing the power button
     /// on a physical machine.This will send an ACPI event for the guest OS,
     /// which should then proceed to a clean shutdown.
@@ -461,6 +474,21 @@ where
             .map_err(Error::bad_api)
     }
 
+    /// Start the container.
+    pub async fn start_lxc_async(
+        &self,
+        node: &str,
+        vmid: u64,
+        params: StartLxc,
+    ) -> Result<PveUpid, E::Error> {
+        let url = format!("/api2/extjs/nodes/{node}/lxc/{vmid}/status/start");
+        self.client
+            .post(&url, &params)
+            .await?
+            .into_data_or_err()
+            .map_err(Error::bad_api)
+    }
+
     /// Start virtual machine.
     pub async fn start_qemu_async(
         &self,
@@ -469,6 +497,22 @@ where
         params: StartQemu,
     ) -> Result<PveUpid, E::Error> {
         let url = format!("/api2/extjs/nodes/{node}/qemu/{vmid}/status/start");
+        self.client
+            .post(&url, &params)
+            .await?
+            .into_data_or_err()
+            .map_err(Error::bad_api)
+    }
+
+    /// Stop the container. This will abruptly stop all processes running in the
+    /// container.
+    pub async fn stop_lxc_async(
+        &self,
+        node: &str,
+        vmid: u64,
+        params: StopLxc,
+    ) -> Result<PveUpid, E::Error> {
+        let url = format!("/api2/extjs/nodes/{node}/lxc/{vmid}/status/stop");
         self.client
             .post(&url, &params)
             .await?
