@@ -38,4 +38,70 @@ where
             Err(msg)
         })
     }
+
+    /// Start a qemu VM.
+    pub async fn start_qemu_on_node(
+        &self,
+        node: &str,
+        vmid: u64,
+        start_qemu: StartQemu,
+    ) -> Result<(), E::Error> {
+        let upid = self.start_qemu_async(node, vmid, start_qemu).await?;
+        self.poll_upid(upid).await?.map_err(E::Error::task_failed)
+    }
+
+    /// Stop a qemu VM.
+    pub async fn stop_qemu_on_node(
+        &self,
+        node: &str,
+        vmid: u64,
+        stop_qemu: StopQemu,
+    ) -> Result<(), E::Error> {
+        let upid = self.stop_qemu_async(node, vmid, stop_qemu).await?;
+        self.poll_upid(upid).await?.map_err(E::Error::task_failed)
+    }
+
+    /// Perform a controlled shutdown of a qemu VM.
+    pub async fn shutdown_qemu_on_node(
+        &self,
+        node: &str,
+        vmid: u64,
+        shutdown_qemu: ShutdownQemu,
+    ) -> Result<(), E::Error> {
+        let upid = self.shutdown_qemu_async(node, vmid, shutdown_qemu).await?;
+        self.poll_upid(upid).await?.map_err(E::Error::task_failed)
+    }
+
+    /// Start a lxc container.
+    pub async fn start_lxc_on_node(
+        &self,
+        node: &str,
+        vmid: u64,
+        start_lxc: StartLxc,
+    ) -> Result<(), E::Error> {
+        let upid = self.start_lxc_async(node, vmid, start_lxc).await?;
+        self.poll_upid(upid).await?.map_err(E::Error::task_failed)
+    }
+
+    /// Stop a lxc container.
+    pub async fn stop_lxc_on_node(
+        &self,
+        node: &str,
+        vmid: u64,
+        stop_lxc: StopLxc,
+    ) -> Result<(), E::Error> {
+        let upid = self.stop_lxc_async(node, vmid, stop_lxc).await?;
+        self.poll_upid(upid).await?.map_err(E::Error::task_failed)
+    }
+
+    /// Perform a controlled shutdown of a lxc container.
+    pub async fn shutdown_lxc_on_node(
+        &self,
+        node: &str,
+        vmid: u64,
+        shutdown_lxc: ShutdownLxc,
+    ) -> Result<(), E::Error> {
+        let upid = self.shutdown_lxc_async(node, vmid, shutdown_lxc).await?;
+        self.poll_upid(upid).await?.map_err(E::Error::task_failed)
+    }
 }
