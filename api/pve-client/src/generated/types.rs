@@ -5540,7 +5540,7 @@ pub struct QemuConfigVirtio {
     },
 )]
 /// Object.
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct ShutdownLxc {
     /// Make sure the Container stops.
     #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
@@ -5575,7 +5575,7 @@ pub struct ShutdownLxc {
     },
 )]
 /// Object.
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct ShutdownQemu {
     /// Make sure the VM stops.
     #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
@@ -5613,7 +5613,7 @@ pub struct ShutdownQemu {
     },
 )]
 /// Object.
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct StartLxc {
     /// If set, enables very verbose debug log-level on start.
     #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
@@ -5675,7 +5675,7 @@ START_QEMU_MIGRATEDFROM_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?)$"##;
     },
 )]
 /// Object.
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct StartQemu {
     /// Override QEMU's -cpu argument with the given string.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -5742,7 +5742,7 @@ serde_plain::derive_fromstr_from_deserialize!(StartQemuMigrationType);
     },
 )]
 /// Object.
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct StopLxc {
     /// Ignore locks - only root is allowed to use this option.
     #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
@@ -5778,7 +5778,7 @@ STOP_QEMU_MIGRATEDFROM_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?)$"##;
     },
 )]
 /// Object.
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct StopQemu {
     /// Do not deactivate storage volumes.
     #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]

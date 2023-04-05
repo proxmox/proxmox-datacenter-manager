@@ -153,19 +153,19 @@ api(GET => '/nodes/{node}/qemu/{vmid}/config', 'qemu_get_config', 'param-name' =
 api(POST => '/nodes/{node}/qemu/{vmid}/status/start',    'start_qemu_async',    'output-type' => 'PveUpid', 'param-name' => 'StartQemu');
 api(POST => '/nodes/{node}/qemu/{vmid}/status/stop',     'stop_qemu_async',     'output-type' => 'PveUpid', 'param-name' => 'StopQemu');
 api(POST => '/nodes/{node}/qemu/{vmid}/status/shutdown', 'shutdown_qemu_async', 'output-type' => 'PveUpid', 'param-name' => 'ShutdownQemu');
-# Schema2Rust::derive('StartQemu' => 'Default');
-# Schema2Rust::derive('StopQemu' => 'Default');
-# Schema2Rust::derive('ShutdownQemu' => 'Default');
-# 
+Schema2Rust::derive('StartQemu' => 'Default');
+Schema2Rust::derive('StopQemu' => 'Default');
+Schema2Rust::derive('ShutdownQemu' => 'Default');
+
 api(GET => '/nodes/{node}/lxc',                         'list_lxc',            'param-name' => 'FixmeListLxc',      'return-name' => 'LxcEntry');
 api(GET => '/nodes/{node}/lxc/{vmid}/config',           'lxc_get_config',      'param-name' => 'FixmeLxcGetConfig', 'return-name' => 'LxcConfig');
 api(POST => '/nodes/{node}/lxc/{vmid}/status/start',    'start_lxc_async',     'output-type' => 'PveUpid', 'param-name' => 'StartLxc');
 api(POST => '/nodes/{node}/lxc/{vmid}/status/stop',     'stop_lxc_async',      'output-type' => 'PveUpid', 'param-name' => 'StopLxc');
 api(POST => '/nodes/{node}/lxc/{vmid}/status/shutdown', 'shutdown_lxc_async',  'output-type' => 'PveUpid', 'param-name' => 'ShutdownLxc');
-# Schema2Rust::derive('StartLxc' => 'Default');
-# Schema2Rust::derive('StopLxc' => 'Default');
-# Schema2Rust::derive('ShutdownLxc' => 'Default');
-# 
+Schema2Rust::derive('StartLxc' => 'Default');
+Schema2Rust::derive('StopLxc' => 'Default');
+Schema2Rust::derive('ShutdownLxc' => 'Default');
+
 # api(GET => '/storage', 'list_storages', 'return-name' => 'StorageList');
 # api(GET => '/access/domains', 'list_domains', 'return-name' => 'ListRealm');
 # api(GET => '/access/groups', 'list_groups', 'return-name' => 'ListGroups');
