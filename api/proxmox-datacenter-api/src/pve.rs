@@ -1,17 +1,23 @@
 //! Manage PVE instances.
 
-use anyhow::{format_err, Error};
+use std::future::Future;
+
+use anyhow::{bail, format_err, Error};
 
 use proxmox_client::Environment;
-use proxmox_router::{http_err, list_subdirs_api_method, Router, SubdirMap};
+use proxmox_rest_server::WorkerTask;
+use proxmox_router::{
+    http_err, list_subdirs_api_method, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
+};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
+use proxmox_sys::task_log;
 
 use pdm_api_types::{
-    ConfigurationState, PveRemote, Remote, NODE_SCHEMA, REMOTE_ID_SCHEMA, SNAPSHOT_NAME_SCHEMA,
-    VMID_SCHEMA,
+    Authid, ConfigurationState, PveRemote, Remote, RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA,
+    SNAPSHOT_NAME_SCHEMA, UPID_SCHEMA, VMID_SCHEMA,
 };
-use pve_client::types::ClusterResourceKind;
+use pve_client::types::{ClusterResourceKind, PveUpid};
 
 use super::remotes::get_remote;
 
@@ -27,21 +33,8 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("nodes", &NODES_ROUTER),
     ("qemu", &QEMU_ROUTER),
     ("resources", &RESOURCES_ROUTER),
+    ("tasks", &TASKS_ROUTER),
 ]);
-
-const NODES_ROUTER: Router = Router::new().get(&API_METHOD_LIST_NODES);
-const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
-
-const QEMU_ROUTER: Router = Router::new()
-    .get(&API_METHOD_LIST_QEMU)
-    .match_all("vmid", &QEMU_VM_ROUTER);
-
-const QEMU_VM_ROUTER: Router = Router::new()
-    .get(&list_subdirs_api_method!(QEMU_VM_SUBDIRS))
-    .subdirs(QEMU_VM_SUBDIRS);
-#[sortable]
-const QEMU_VM_SUBDIRS: SubdirMap =
-    &sorted!([("config", &Router::new().get(&API_METHOD_QEMU_GET_CONFIG)),]);
 
 const LXC_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_LXC)
@@ -51,8 +44,59 @@ const LXC_VM_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(LXC_VM_SUBDIRS))
     .subdirs(LXC_VM_SUBDIRS);
 #[sortable]
-const LXC_VM_SUBDIRS: SubdirMap =
-    &sorted!([("config", &Router::new().get(&API_METHOD_LXC_GET_CONFIG)),]);
+const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
+    ("config", &Router::new().get(&API_METHOD_LXC_GET_CONFIG)),
+    ("start", &Router::new().post(&API_METHOD_LXC_START)),
+    ("stop", &Router::new().post(&API_METHOD_LXC_STOP)),
+    ("shutdown", &Router::new().post(&API_METHOD_LXC_SHUTDOWN)),
+]);
+
+const NODES_ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_NODES)
+    .match_all("node", &NODE_ITEM_ROUTER);
+
+const NODE_ITEM_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(QEMU_VM_SUBDIRS))
+    .subdirs(NODE_ITEM_SUBDIRS);
+#[sortable]
+const NODE_ITEM_SUBDIRS: SubdirMap = &sorted!([
+    ("config", &Router::new().get(&API_METHOD_QEMU_GET_CONFIG)),
+    ("start", &Router::new().post(&API_METHOD_QEMU_START)),
+    ("stop", &Router::new().post(&API_METHOD_QEMU_STOP)),
+    ("shutdown", &Router::new().post(&API_METHOD_QEMU_SHUTDOWN)),
+]);
+
+const QEMU_ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_QEMU)
+    .match_all("vmid", &QEMU_VM_ROUTER);
+
+const QEMU_VM_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(QEMU_VM_SUBDIRS))
+    .subdirs(QEMU_VM_SUBDIRS);
+#[sortable]
+const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
+    ("config", &Router::new().get(&API_METHOD_QEMU_GET_CONFIG)),
+    ("start", &Router::new().post(&API_METHOD_QEMU_START)),
+    ("stop", &Router::new().post(&API_METHOD_QEMU_STOP)),
+    ("shutdown", &Router::new().post(&API_METHOD_QEMU_SHUTDOWN)),
+]);
+
+const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
+
+const TASKS_ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_TASKS)
+    .match_all("upid", &UPID_API_ROUTER);
+
+pub const UPID_API_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(UPID_API_SUBDIRS))
+    //.delete(&API_METHOD_STOP_TASK)
+    .subdirs(UPID_API_SUBDIRS);
+
+#[sortable]
+const UPID_API_SUBDIRS: SubdirMap = &sorted!([
+    //("log", &Router::new().get(&API_METHOD_READ_TASK_LOG)),
+    //("status", &Router::new().get(&API_METHOD_GET_TASK_STATUS))
+]);
 
 pub type PveClient = pve_client::Client<PveEnv>;
 
@@ -288,6 +332,136 @@ pub async fn qemu_get_config(
                 optional: true,
             },
             vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: { type: RemoteUpid },
+)]
+/// Start a remote qemu vm.
+pub async fn qemu_start(
+    remote: String,
+    node: Option<String>,
+    vmid: u64,
+) -> Result<RemoteUpid, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    // FIXME: The pve client should cache the resources and provide
+    let node = match node {
+        Some(node) => node,
+        None => pve
+            .cluster_resources(Some(ClusterResourceKind::Vm))
+            .await?
+            .into_iter()
+            .find(|entry| entry.vmid == Some(vmid))
+            .and_then(|entry| entry.node)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
+    };
+
+    let upid = pve
+        .start_qemu_async(&node, vmid, Default::default())
+        .await?;
+
+    (remote, upid.to_string()).try_into()
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: { type: RemoteUpid },
+)]
+/// Stop a remote qemu vm.
+pub async fn qemu_stop(
+    remote: String,
+    node: Option<String>,
+    vmid: u64,
+) -> Result<RemoteUpid, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    // FIXME: The pve client should cache the resources and provide
+    let node = match node {
+        Some(node) => node,
+        None => pve
+            .cluster_resources(Some(ClusterResourceKind::Vm))
+            .await?
+            .into_iter()
+            .find(|entry| entry.vmid == Some(vmid))
+            .and_then(|entry| entry.node)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
+    };
+
+    let upid = pve.stop_qemu_async(&node, vmid, Default::default()).await?;
+
+    (remote, upid.to_string()).try_into()
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: { type: RemoteUpid },
+)]
+/// Perform a shutdown of a remote qemu vm.
+pub async fn qemu_shutdown(
+    remote: String,
+    node: Option<String>,
+    vmid: u64,
+) -> Result<RemoteUpid, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    // FIXME: The pve client should cache the resources and provide
+    let node = match node {
+        Some(node) => node,
+        None => pve
+            .cluster_resources(Some(ClusterResourceKind::Vm))
+            .await?
+            .into_iter()
+            .find(|entry| entry.vmid == Some(vmid))
+            .and_then(|entry| entry.node)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
+    };
+
+    let upid = pve
+        .shutdown_qemu_async(&node, vmid, Default::default())
+        .await?;
+
+    (remote, upid.to_string()).try_into()
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
             state: { type: ConfigurationState },
             snapshot: {
                 schema: SNAPSHOT_NAME_SCHEMA,
@@ -326,4 +500,132 @@ pub async fn lxc_get_config(
 
     pve.lxc_get_config(&node, vmid, state.current(), snapshot)
         .await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: { type: RemoteUpid },
+)]
+/// Start a remote lxc container.
+pub async fn lxc_start(
+    remote: String,
+    node: Option<String>,
+    vmid: u64,
+) -> Result<RemoteUpid, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    // FIXME: The pve client should cache the resources and provide
+    let node = match node {
+        Some(node) => node,
+        None => pve
+            .cluster_resources(Some(ClusterResourceKind::Vm))
+            .await?
+            .into_iter()
+            .find(|entry| entry.vmid == Some(vmid))
+            .and_then(|entry| entry.node)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
+    };
+
+    let upid = pve.start_lxc_async(&node, vmid, Default::default()).await?;
+
+    (remote, upid.to_string()).try_into()
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: { type: RemoteUpid },
+)]
+/// Stop a remote lxc container.
+pub async fn lxc_stop(
+    remote: String,
+    node: Option<String>,
+    vmid: u64,
+) -> Result<RemoteUpid, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    // FIXME: The pve client should cache the resources and provide
+    let node = match node {
+        Some(node) => node,
+        None => pve
+            .cluster_resources(Some(ClusterResourceKind::Vm))
+            .await?
+            .into_iter()
+            .find(|entry| entry.vmid == Some(vmid))
+            .and_then(|entry| entry.node)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
+    };
+
+    let upid = pve.stop_lxc_async(&node, vmid, Default::default()).await?;
+
+    (remote, upid.to_string()).try_into()
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: { type: RemoteUpid },
+)]
+/// Perform a shutdown of a remote lxc container.
+pub async fn lxc_shutdown(
+    remote: String,
+    node: Option<String>,
+    vmid: u64,
+) -> Result<RemoteUpid, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    // FIXME: The pve client should cache the resources and provide
+    let node = match node {
+        Some(node) => node,
+        None => pve
+            .cluster_resources(Some(ClusterResourceKind::Vm))
+            .await?
+            .into_iter()
+            .find(|entry| entry.vmid == Some(vmid))
+            .and_then(|entry| entry.node)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
+    };
+
+    let upid = pve
+        .shutdown_lxc_async(&node, vmid, Default::default())
+        .await?;
+
+    (remote, upid.to_string()).try_into()
 }
