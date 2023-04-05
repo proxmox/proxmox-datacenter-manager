@@ -131,8 +131,10 @@ pub trait Environment: Send + Sync {
     /// # Panics
     ///
     /// The default implementation simply panics.
-    fn sleep(time: Duration) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+    fn sleep(
+        time: Duration,
+    ) -> Result<Pin<Box<dyn Future<Output = ()> + Send + 'static>>, Self::Error> {
         let _ = time;
-        panic!("environment does not support sleeping");
+        Err(Self::Error::sleep_not_supported())
     }
 }

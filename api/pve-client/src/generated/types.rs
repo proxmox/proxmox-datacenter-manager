@@ -5831,6 +5831,84 @@ serde_plain::derive_fromstr_from_deserialize!(StorageContent);
 
 #[api(
     properties: {
+        t: {
+            type: String,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TaskLogLine {
+    /// Line number
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    pub n: i64,
+
+    /// Line text
+    pub t: String,
+}
+
+#[api(
+    properties: {
+        exitstatus: {
+            optional: true,
+            type: String,
+            description: "The task's exit status.",
+        },
+        id: {
+            type: String,
+            description: "The task's ID status.",
+        },
+        node: {
+            type: String,
+            description: "The task's node.",
+        },
+        pid: {
+            description: "The task process id.",
+        },
+        starttime: {
+            description: "The task's start time.",
+        },
+        type: {
+            type: String,
+            description: "The task type.",
+        },
+        upid: {
+            type: String,
+            description: "The task's UPID.",
+        },
+        user: {
+            type: String,
+            description: "The task owner's user id.",
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TaskStatus {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exitstatus: Option<String>,
+
+    pub id: String,
+
+    pub node: String,
+
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    pub pid: i64,
+
+    pub starttime: f64,
+
+    pub status: IsRunning,
+
+    #[serde(rename = "type")]
+    pub ty: String,
+
+    pub upid: String,
+
+    pub user: String,
+}
+
+#[api(
+    properties: {
         release: {
             type: String,
         },

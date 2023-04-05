@@ -186,3 +186,15 @@ fn hex_digit(d: u8) -> Result<u8, Error> {
         _ => bail!("got invalid hex digit"),
     }
 }
+
+impl IsRunning {
+    pub fn is_running(self) -> bool {
+        self == IsRunning::Running
+    }
+}
+
+impl TaskStatus {
+    pub fn is_running(&self) -> bool {
+        self.status.is_running()
+    }
+}

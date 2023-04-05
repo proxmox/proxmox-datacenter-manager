@@ -63,14 +63,21 @@ my sub count_defined_values : prototype($) {
 
 our %API_TYPE_OVERRIDES = ();
 sub register_api_override : prototype($$$) {
-    my ($rust_type, $path, $value) = @_;;
+    my ($rust_type, $path, $value) = @_;
     $API_TYPE_OVERRIDES{"$rust_type:$path"} = $value;
 }
 
 our %API_TYPE_EXTENSIONS = ();
 sub register_api_extension : prototype($$$) {
-    my ($rust_type, $path, $value) = @_;;
+    my ($rust_type, $path, $value) = @_;
     $API_TYPE_EXTENSIONS{"$rust_type:$path"} = $value;
+}
+
+sub register_api_extensions : prototype($$) {
+    my ($rust_type, $extensions) = @_;
+    for my $path (keys %$extensions) {
+        register_api_extension($rust_type, $path => $extensions->{$path});
+    }
 }
 
 our $API_TYPE_POS = '';

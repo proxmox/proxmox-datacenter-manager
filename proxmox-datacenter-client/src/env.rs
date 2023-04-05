@@ -310,7 +310,9 @@ impl proxmox_client::Environment for &Env {
         )
     }
 
-    fn sleep(time: std::time::Duration) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
-        Box::pin(tokio::time::sleep(time))
+    fn sleep(
+        time: std::time::Duration,
+    ) -> Result<Pin<Box<dyn Future<Output = ()> + Send + 'static>>, Self::Error> {
+        Ok(Box::pin(tokio::time::sleep(time)))
     }
 }

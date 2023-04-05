@@ -322,8 +322,6 @@
 /// - /nodes/{node}/syslog
 /// - /nodes/{node}/tasks
 /// - /nodes/{node}/tasks/{upid}
-/// - /nodes/{node}/tasks/{upid}/log
-/// - /nodes/{node}/tasks/{upid}/status
 /// - /nodes/{node}/termproxy
 /// - /nodes/{node}/time
 /// - /nodes/{node}/version
@@ -352,6 +350,34 @@ where
         let (mut query, mut sep) = (String::new(), '?');
         add_query_arg(&mut query, &mut sep, "type", &ty);
         let url = format!("/api2/extjs/cluster/resources{query}");
+        Ok(self
+            .client
+            .get(&url)
+            .await?
+            .data
+            .ok_or_else(|| E::Error::bad_api("api returned no data"))?)
+    }
+
+    /// Read task log.
+    pub async fn get_task_log(
+        &self,
+        node: &str,
+        upid: &str,
+        download: Option<bool>,
+        limit: Option<u64>,
+        start: Option<u64>,
+    ) -> Result<ApiResponse<Vec<TaskLogLine>>, E::Error> {
+        let (mut query, mut sep) = (String::new(), '?');
+        add_query_bool(&mut query, &mut sep, "download", download);
+        add_query_arg(&mut query, &mut sep, "limit", &limit);
+        add_query_arg(&mut query, &mut sep, "start", &start);
+        let url = format!("/api2/extjs/nodes/{node}/tasks/{upid}/log{query}");
+        self.client.get(&url).await
+    }
+
+    /// Read task status.
+    pub async fn get_task_status(&self, node: &str, upid: &str) -> Result<TaskStatus, E::Error> {
+        let url = format!("/api2/extjs/nodes/{node}/tasks/{upid}/status");
         Ok(self
             .client
             .get(&url)

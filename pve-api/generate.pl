@@ -21,6 +21,10 @@ use PVE::Storage::Plugin;
 use lib './gen';
 use Schema2Rust;
 
+sub sq : prototype($) {
+    return Schema2Rust::quote_string($_[0]);
+}
+
 # Dump api:
 my $__API_ROOT = PVE::API2->api_dump(undef, 1);
 
@@ -102,12 +106,24 @@ Schema2Rust::generate_enum('IsRunning', { type => 'string', enum => ['running', 
 Schema2Rust::register_api_override('QemuConfig', '/properties/cpuunits/default', 1024);
 Schema2Rust::register_api_override('LxcConfig', '/properties/cpuunits/default', 1024);
 Schema2Rust::register_api_extension('LxcConfig', '/properties/lxc/items', {
-    description => Schema2Rust::quote_string('A raw lxc config entry'),
+    description => sq('A raw lxc config entry'),
 });
 Schema2Rust::register_api_extension('LxcConfig', '/properties/lxc/items/items', {
-    description => Schema2Rust::quote_string('A config key value pair'),
+    description => sq('A config key value pair'),
 });
 Schema2Rust::register_api_override('StartQemu', '/properties/timeout/default', 30);
+
+# Task Status is not documented at ALL in the PVE api!
+Schema2Rust::register_api_extensions('TaskStatus', {
+    '/properties/exitstatus' => { description => sq("The task's exit status.") },
+    '/properties/id' => { description => sq("The task's ID status.") },
+    '/properties/node' => { description => sq("The task's node.") },
+    '/properties/type' => { description => sq("The task type.") },
+    '/properties/upid' => { description => sq("The task's UPID.") },
+    '/properties/user' => { description => sq("The task owner's user id.") },
+    '/properties/pid' => { description => sq("The task process id.") },
+    '/properties/starttime' => { description => sq("The task's start time.") },
+});
 
 # pve-storage-content uses verify_
 my $storage_content_types = [sort keys PVE::Storage::Plugin::valid_content_types('dir')->%*];
@@ -144,9 +160,9 @@ api(GET => '/nodes', 'list_nodes', 'return-name' => 'ClusterNodeIndexResponse');
 # # low level task api:
 # # ?? api(GET    => '/nodes/{node}/tasks/{upid}', 'get_task');
 # # TODO: api(DELETE => '/nodes/{node}/tasks/{upid}', 'stop_task', 'param-name' => 'StopTask');
-# api(GET => '/nodes/{node}/tasks/{upid}/status', 'get_task_status', 'return-name' => 'TaskStatus');
-# api(GET => '/nodes/{node}/tasks/{upid}/log', 'get_task_log', 'return-name' => 'TaskLogLine', attribs => 1);
-# 
+api(GET => '/nodes/{node}/tasks/{upid}/status', 'get_task_status', 'return-name' => 'TaskStatus');
+api(GET => '/nodes/{node}/tasks/{upid}/log', 'get_task_log', 'return-name' => 'TaskLogLine', attribs => 1);
+
 api(GET => '/nodes/{node}/qemu', 'list_qemu', 'param-name' => 'FixmeListQemu', 'return-name' => 'VmEntry');
 api(GET => '/nodes/{node}/qemu/{vmid}/config', 'qemu_get_config', 'param-name' => 'FixmeQemuGetConfig', 'return-name' => 'QemuConfig');
 # api(POST => '/nodes/{node}/qemu/{vmid}/config', 'qemu_update_config_async', 'param-name' => 'UpdateQemuConfig');
