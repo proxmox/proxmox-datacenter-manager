@@ -81,7 +81,7 @@ pub fn verify_cidr(s: &str) -> Result<(), Error> {
                 bail!("not a valid IP address in CIDR");
             };
 
-            match s[(pos + 1)..].parse::<u8>() {
+            match prefix.parse::<u8>() {
                 Err(_) => bail!("not a valid CIDR notation"),
                 Ok(n) if n > maxbits => bail!("invalid prefix length in CIDR"),
                 Ok(_) => Ok(()),
@@ -165,7 +165,7 @@ pub fn verify_ip_with_ll_iface(s: &str) -> Result<(), Error> {
     verify_ip(s)
 }
 
-pub fn verify_storage_pair(s: &str) -> Result<(), Error> {
+pub fn verify_storage_pair(_s: &str) -> Result<(), Error> {
     // FIXME: Implement this!
     Ok(())
 }
