@@ -160,8 +160,9 @@ api(GET => '/nodes', 'list_nodes', 'return-name' => 'ClusterNodeIndexResponse');
 # # low level task api:
 # # ?? api(GET    => '/nodes/{node}/tasks/{upid}', 'get_task');
 # # TODO: api(DELETE => '/nodes/{node}/tasks/{upid}', 'stop_task', 'param-name' => 'StopTask');
+# api(GET => '/nodes/{node}/tasks',               'get_task_list');
 api(GET => '/nodes/{node}/tasks/{upid}/status', 'get_task_status', 'return-name' => 'TaskStatus');
-api(GET => '/nodes/{node}/tasks/{upid}/log', 'get_task_log', 'return-name' => 'TaskLogLine', attribs => 1);
+api(GET => '/nodes/{node}/tasks/{upid}/log',    'get_task_log',    'return-name' => 'TaskLogLine', attribs => 1);
 
 api(GET => '/nodes/{node}/qemu', 'list_qemu', 'param-name' => 'FixmeListQemu', 'return-name' => 'VmEntry');
 api(GET => '/nodes/{node}/qemu/{vmid}/config', 'qemu_get_config', 'param-name' => 'FixmeQemuGetConfig', 'return-name' => 'QemuConfig');

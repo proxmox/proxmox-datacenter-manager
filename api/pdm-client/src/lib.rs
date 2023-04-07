@@ -241,6 +241,24 @@ where
             .await?
             .into_data_or_err()?)
     }
+
+    pub async fn pve_task_status(
+        &self,
+        remote: &str,
+        upid: &str,
+    ) -> Result<pve_client::types::TaskStatus, Error> {
+        let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status");
+        Ok(self.client.get(&path).await?.into_data_or_err()?)
+    }
+
+    pub async fn pve_wait_for_task(
+        &self,
+        remote: &str,
+        upid: &str,
+    ) -> Result<pve_client::types::TaskStatus, Error> {
+        let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status?wait=1");
+        Ok(self.client.get(&path).await?.into_data_or_err()?)
+    }
 }
 
 #[derive(Default)]

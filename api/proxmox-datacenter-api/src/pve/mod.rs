@@ -1,25 +1,21 @@
 //! Manage PVE instances.
 
-use std::future::Future;
-
-use anyhow::{bail, format_err, Error};
+use anyhow::{format_err, Error};
 
 use proxmox_client::Environment;
-use proxmox_rest_server::WorkerTask;
-use proxmox_router::{
-    http_err, list_subdirs_api_method, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
-};
+use proxmox_router::{http_err, list_subdirs_api_method, Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
-use proxmox_sys::task_log;
 
 use pdm_api_types::{
-    Authid, ConfigurationState, PveRemote, Remote, RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA,
-    SNAPSHOT_NAME_SCHEMA, UPID_SCHEMA, VMID_SCHEMA,
+    ConfigurationState, PveRemote, Remote, RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA,
+    SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
-use pve_client::types::{ClusterResourceKind, PveUpid};
+use pve_client::types::ClusterResourceKind;
 
-use super::remotes::get_remote;
+use crate::remotes::get_remote;
+
+pub mod tasks;
 
 pub const ROUTER: Router = Router::new().match_all("remote", &MAIN_ROUTER);
 
@@ -33,7 +29,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("nodes", &NODES_ROUTER),
     ("qemu", &QEMU_ROUTER),
     ("resources", &RESOURCES_ROUTER),
-    ("tasks", &TASKS_ROUTER),
+    ("tasks", &tasks::ROUTER),
 ]);
 
 const LXC_ROUTER: Router = Router::new()
@@ -82,21 +78,6 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
 ]);
 
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
-
-const TASKS_ROUTER: Router = Router::new()
-    .get(&API_METHOD_LIST_TASKS)
-    .match_all("upid", &UPID_API_ROUTER);
-
-pub const UPID_API_ROUTER: Router = Router::new()
-    .get(&list_subdirs_api_method!(UPID_API_SUBDIRS))
-    //.delete(&API_METHOD_STOP_TASK)
-    .subdirs(UPID_API_SUBDIRS);
-
-#[sortable]
-const UPID_API_SUBDIRS: SubdirMap = &sorted!([
-    //("log", &Router::new().get(&API_METHOD_READ_TASK_LOG)),
-    //("status", &Router::new().get(&API_METHOD_GET_TASK_STATUS))
-]);
 
 pub type PveClient = pve_client::Client<PveEnv>;
 

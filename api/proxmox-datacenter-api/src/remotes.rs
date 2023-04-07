@@ -1,6 +1,6 @@
 //! Manage remote configuration.
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 
 use proxmox_router::{
     http_bail, http_err, list_subdirs_api_method, Router, RpcEnvironment, SubdirMap,
@@ -8,10 +8,10 @@ use proxmox_router::{
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::{PveRemote, Remote, PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA};
+use pdm_api_types::{Remote, PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA};
 use pdm_config::section_config::SectionConfigData;
 
-use super::pve::{self, PveClient, PveEnv};
+use super::pve;
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_REMOTES)
