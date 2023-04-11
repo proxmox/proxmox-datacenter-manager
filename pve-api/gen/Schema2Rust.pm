@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Carp qw(confess carp croak cluck);
+use Data::Dumper;
 
 use PVE::JSONSchema;
 
@@ -45,7 +46,6 @@ my sub indent_lines : prototype($$);
 sub generate_struct : prototype($$$);
 
 sub dump {
-    use Data::Dumper;
     print(Dumper($all_types));
 }
 
@@ -300,8 +300,8 @@ my $code_footer = <<"CODE";
 }
 CODE
 
-my sub print_get_method : prototype($$$) {
-    my ($out, $name, $def) = @_;
+my sub print_method_without_body : prototype($$$$) {
+    my ($out, $name, $def, $method) = @_;
 
     my $doc = $def->{description};
 
@@ -338,17 +338,17 @@ my sub print_get_method : prototype($$$) {
             print {$out} "    let url = format!(\"/api2/extjs$def->{url}\");\n";
         }
         if ($def->{'returns-attribs'}) {
-            print {$out} "    self.client.get(&url).await\n";
+            print {$out} "    self.client.$method(&url).await\n";
         } else {
             print {$out} <<"EOF";
-    Ok(self.client.get(&url).await?
+    Ok(self.client.$method(&url).await?
         .data
         .ok_or_else(|| E::Error::bad_api(\"api returned no data\"))?
     )
 EOF
         }
     } else {
-        die "TODO: GET methods with parameter object (needs to be serialized into query string)\n";
+        die "TODO: $method methods with parameter object (needs to be serialized into query string)\n";
     }
 
     print {$out} "}\n\n";
@@ -397,11 +397,13 @@ sub print_methods : prototype($) {
         my $def = $all_methods->{$name};
         my $http_method = $def->{http_method};
         if ($http_method eq 'GET') {
-            print_get_method($out, $name, $def);
+            print_method_without_body($out, $name, $def, 'get');
         } elsif ($http_method eq 'PUT') {
             print_method_with_body($out, $name, $def, 'put');
         } elsif ($http_method eq 'POST') {
             print_method_with_body($out, $name, $def, 'post');
+        } elsif ($http_method eq 'DELETE') {
+            print_method_without_body($out, $name, $def, 'delete');
         } else {
             print "Method $name: ".Dumper($def);
             warn "TODO: $http_method methods\n";
@@ -1301,6 +1303,14 @@ my sub method_parameters : prototype($$$$$) {
 
     return if !keys($parameters->%*);
 
+    if (!$parameters->{additionalProperties}
+        && (!$parameters->{properties} || !$parameters->{properties}->%*)
+        && !scalar(grep { $_ ne 'additionalProperties' && $_ ne 'properties' } keys $parameters->%*))
+    {
+        # Sometimes we have empty objects as explicit parameters, avoid making types for them:
+        return;
+    }
+
     $def->{input_type} = generate_struct(
         $param_name,
         $parameters,
@@ -1322,7 +1332,7 @@ my sub method_return_type : prototype($$$$) {
 
     my $type = type_of($returns);
     if ($type eq 'null') {
-        return;
+        $def->{output_type} = '()';
     } elsif ($type eq 'object') {
         $def->{output_type} = generate_struct(
             $return_name,

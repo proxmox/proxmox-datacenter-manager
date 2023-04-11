@@ -320,7 +320,6 @@
 /// - /nodes/{node}/storage/{storage}/upload
 /// - /nodes/{node}/subscription
 /// - /nodes/{node}/syslog
-/// - /nodes/{node}/tasks/{upid}
 /// - /nodes/{node}/termproxy
 /// - /nodes/{node}/time
 /// - /nodes/{node}/version
@@ -571,6 +570,17 @@ where
             .await?
             .into_data_or_err()
             .map_err(Error::bad_api)
+    }
+
+    /// Stop a task.
+    pub async fn stop_task(&self, node: &str, upid: &str) -> Result<(), E::Error> {
+        let url = format!("/api2/extjs/nodes/{node}/tasks/{upid}");
+        Ok(self
+            .client
+            .delete(&url)
+            .await?
+            .data
+            .ok_or_else(|| E::Error::bad_api("api returned no data"))?)
     }
 
     /// API version details, including some parts of the global datacenter
