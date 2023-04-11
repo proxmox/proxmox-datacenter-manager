@@ -392,7 +392,7 @@ LIST_TASKS_STATUSFILTER_RE = r##"^(?i:ok|error|warning|unknown)$"##;
     },
 )]
 /// Object.
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct ListTasks {
     /// Only list tasks with a status of ERROR.
     #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]

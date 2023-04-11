@@ -310,13 +310,41 @@ my sub print_method_without_body : prototype($$$$) {
     }
     print {$out} "pub async fn $name(\n";
     print {$out} "    &self,\n";
-    my $input = $def->{input};
-    my $url_params = $def->{url_params};
-    if (defined($input) || $url_params->@*) {
-        for my $url_arg ($url_params->@*) {
-            my ($arg, $def) = @$url_arg;
-            print {$out} "    $arg: $def->{type},\n";
+    for my $url_arg ($def->{url_params}->@*) {
+        my ($arg, $def) = @$url_arg;
+        print {$out} "    $arg: $def->{type},\n";
+    }
+
+    my $input;
+    if (defined($input = $def->{input_type})) {
+        print {$out} "    params: $input,\n";
+        print {$out} ") -> Result<$def->{output_type}, E::Error> {\n";
+        print {$out} "    let (mut query, mut sep) = (String::new(), '?');\n";
+        my $ty = $all_types->{$input};
+        die "bad parameter type: $ty->{kind}\n" if $ty->{kind} ne 'struct';
+        my $fields = $ty->{fields};
+        # To ensure we're not missing anything, let'first destruct the parameter struct, this way
+        # rustc will complain about missing or unknown parameters:
+        print {$out} "    let $input {\n";
+        for my $name (sort keys $fields->%*) {
+            my $arg = $fields->{$name};
+            my $rust_name = $arg->{rust_name};
+            print {$out} "    $rust_name: p_$rust_name,\n";
         }
+        print {$out} "    } = params;\n";
+        for my $name (sort keys $fields->%*) {
+            my $arg = $fields->{$name};
+            my $rust_name = $arg->{rust_name};
+
+
+            if ($arg->{type} eq 'Option<bool>') {
+                print {$out} "    add_query_bool(&mut query, &mut sep, \"$name\", p_$rust_name);\n";
+            } else {
+                print {$out} "    add_query_arg(&mut query, &mut sep, \"$name\", &p_$rust_name);\n";
+            }
+        }
+        print {$out} "    let url = format!(\"/api2/extjs$def->{url}\{query}\");\n";
+    } elsif (defined($input = $def->{input})) {
         for my $arg ($input->@*) {
             print {$out} "    $arg->{rust_name}: $arg->{type},\n";
         }
@@ -337,18 +365,20 @@ my sub print_method_without_body : prototype($$$$) {
         } else {
             print {$out} "    let url = format!(\"/api2/extjs$def->{url}\");\n";
         }
-        if ($def->{'returns-attribs'}) {
-            print {$out} "    self.client.$method(&url).await\n";
-        } else {
-            print {$out} <<"EOF";
+    } else {
+        print {$out} ") -> Result<$def->{output_type}, E::Error> {\n";
+        print {$out} "    let url = format!(\"/api2/extjs$def->{url}\");\n";
+    }
+
+    if ($def->{'returns-attribs'}) {
+        print {$out} "    self.client.$method(&url).await\n";
+    } else {
+        print {$out} <<"EOF";
     Ok(self.client.$method(&url).await?
         .data
         .ok_or_else(|| E::Error::bad_api(\"api returned no data\"))?
     )
 EOF
-        }
-    } else {
-        die "TODO: $method methods with parameter object (needs to be serialized into query string)\n";
     }
 
     print {$out} "}\n\n";

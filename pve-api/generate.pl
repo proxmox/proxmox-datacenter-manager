@@ -174,6 +174,7 @@ api(GET => '/nodes', 'list_nodes', 'return-name' => 'ClusterNodeIndexResponse');
 # # low level task api:
 # # ?? api(GET    => '/nodes/{node}/tasks/{upid}', 'get_task');
 api(GET => '/nodes/{node}/tasks',               'get_task_list',   'param-name' => 'ListTasks');
+Schema2Rust::derive('ListTasks' => 'Default');
 api(GET => '/nodes/{node}/tasks/{upid}/status', 'get_task_status', 'return-name' => 'TaskStatus');
 api(GET => '/nodes/{node}/tasks/{upid}/log',    'get_task_log',    'return-name' => 'TaskLogLine', attribs => 1);
 api(DELETE => '/nodes/{node}/tasks/{upid}',     'stop_task');

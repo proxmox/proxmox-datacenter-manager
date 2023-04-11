@@ -357,8 +357,35 @@ where
     }
 
     /// Read task list for one node (finished tasks).
-    pub async fn get_task_list(&self, node: &str) -> Result<Vec<ListTasksResponse>, E::Error> {
-        let url = format!("/api2/extjs/nodes/{node}/tasks");
+    pub async fn get_task_list(
+        &self,
+        node: &str,
+        params: ListTasks,
+    ) -> Result<Vec<ListTasksResponse>, E::Error> {
+        let (mut query, mut sep) = (String::new(), '?');
+        let ListTasks {
+            errors: p_errors,
+            limit: p_limit,
+            since: p_since,
+            source: p_source,
+            start: p_start,
+            statusfilter: p_statusfilter,
+            typefilter: p_typefilter,
+            until: p_until,
+            userfilter: p_userfilter,
+            vmid: p_vmid,
+        } = params;
+        add_query_bool(&mut query, &mut sep, "errors", p_errors);
+        add_query_arg(&mut query, &mut sep, "limit", &p_limit);
+        add_query_arg(&mut query, &mut sep, "since", &p_since);
+        add_query_arg(&mut query, &mut sep, "source", &p_source);
+        add_query_arg(&mut query, &mut sep, "start", &p_start);
+        add_query_arg(&mut query, &mut sep, "statusfilter", &p_statusfilter);
+        add_query_arg(&mut query, &mut sep, "typefilter", &p_typefilter);
+        add_query_arg(&mut query, &mut sep, "until", &p_until);
+        add_query_arg(&mut query, &mut sep, "userfilter", &p_userfilter);
+        add_query_arg(&mut query, &mut sep, "vmid", &p_vmid);
+        let url = format!("/api2/extjs/nodes/{node}/tasks{query}");
         Ok(self
             .client
             .get(&url)

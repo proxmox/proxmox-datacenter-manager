@@ -51,11 +51,11 @@ async fn list_tasks(
     };
 
     if let Some(node) = node {
-        pve.get_task_list(&node).await
+        pve.get_task_list(&node, Default::default()).await
     } else {
         let mut entry = Vec::new();
         for node in pve.list_nodes().await? {
-            entry.extend(pve.get_task_list(&node.node).await?);
+            entry.extend(pve.get_task_list(&node.node, Default::default()).await?);
         }
         Ok(entry)
     }
