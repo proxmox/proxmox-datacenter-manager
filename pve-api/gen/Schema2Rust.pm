@@ -668,6 +668,7 @@ sub integer_type : prototype($$) {
 
     $api_props->{minimum} = $min if defined $min;
     $api_props->{maximum} = $max if defined $max;
+    $api_props->{type} = 'Integer';
 
     return $ty;
 }

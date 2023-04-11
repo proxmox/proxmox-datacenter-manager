@@ -320,7 +320,6 @@
 /// - /nodes/{node}/storage/{storage}/upload
 /// - /nodes/{node}/subscription
 /// - /nodes/{node}/syslog
-/// - /nodes/{node}/tasks
 /// - /nodes/{node}/tasks/{upid}
 /// - /nodes/{node}/termproxy
 /// - /nodes/{node}/time
@@ -350,6 +349,17 @@ where
         let (mut query, mut sep) = (String::new(), '?');
         add_query_arg(&mut query, &mut sep, "type", &ty);
         let url = format!("/api2/extjs/cluster/resources{query}");
+        Ok(self
+            .client
+            .get(&url)
+            .await?
+            .data
+            .ok_or_else(|| E::Error::bad_api("api returned no data"))?)
+    }
+
+    /// Read task list for one node (finished tasks).
+    pub async fn get_task_list(&self, node: &str) -> Result<Vec<ListTasksResponse>, E::Error> {
+        let url = format!("/api2/extjs/nodes/{node}/tasks");
         Ok(self
             .client
             .get(&url)

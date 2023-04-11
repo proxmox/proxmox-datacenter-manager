@@ -10,6 +10,18 @@ CLUSTER_NODE_INDEX_RESPONSE_NODE_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?
             optional: true,
             type: String,
         },
+        maxcpu: {
+            optional: true,
+            type: Integer,
+        },
+        maxmem: {
+            optional: true,
+            type: Integer,
+        },
+        mem: {
+            optional: true,
+            type: Integer,
+        },
         node: {
             format: &ApiStringFormat::Pattern(&CLUSTER_NODE_INDEX_RESPONSE_NODE_RE),
             type: String,
@@ -17,6 +29,10 @@ CLUSTER_NODE_INDEX_RESPONSE_NODE_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?
         ssl_fingerprint: {
             optional: true,
             type: String,
+        },
+        uptime: {
+            optional: true,
+            type: Integer,
         },
     },
 )]
@@ -87,6 +103,10 @@ CLUSTER_RESOURCE_STORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
 
 #[api(
     properties: {
+        "cgroup-mode": {
+            optional: true,
+            type: Integer,
+        },
         content: {
             optional: true,
             type: String,
@@ -98,6 +118,7 @@ CLUSTER_RESOURCE_STORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         disk: {
             minimum: 0,
             optional: true,
+            type: Integer,
         },
         hastate: {
             optional: true,
@@ -117,10 +138,16 @@ CLUSTER_RESOURCE_STORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         maxdisk: {
             minimum: 0,
             optional: true,
+            type: Integer,
+        },
+        maxmem: {
+            optional: true,
+            type: Integer,
         },
         mem: {
             minimum: 0,
             optional: true,
+            type: Integer,
         },
         name: {
             optional: true,
@@ -148,9 +175,14 @@ CLUSTER_RESOURCE_STORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             optional: true,
             type: String,
         },
+        uptime: {
+            optional: true,
+            type: Integer,
+        },
         vmid: {
             minimum: 1,
             optional: true,
+            type: Integer,
         },
     },
 )]
@@ -309,6 +341,201 @@ serde_plain::derive_fromstr_from_deserialize!(IsRunning);
 
 const_regex! {
 
+LIST_TASKS_STATUSFILTER_RE = r##"^(?i:ok|error|warning|unknown)$"##;
+
+}
+
+#[api(
+    properties: {
+        errors: {
+            default: false,
+            optional: true,
+        },
+        limit: {
+            default: 50,
+            minimum: 0,
+            optional: true,
+            type: Integer,
+        },
+        since: {
+            optional: true,
+            type: Integer,
+        },
+        start: {
+            default: 0,
+            minimum: 0,
+            optional: true,
+            type: Integer,
+        },
+        statusfilter: {
+            format: &ApiStringFormat::Pattern(&LIST_TASKS_STATUSFILTER_RE),
+            optional: true,
+            type: String,
+        },
+        typefilter: {
+            optional: true,
+            type: String,
+        },
+        until: {
+            optional: true,
+            type: Integer,
+        },
+        userfilter: {
+            optional: true,
+            type: String,
+        },
+        vmid: {
+            minimum: 1,
+            optional: true,
+            type: Integer,
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListTasks {
+    /// Only list tasks with a status of ERROR.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub errors: Option<bool>,
+
+    /// Only list this amount of tasks.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u64>,
+
+    /// Only list tasks since this UNIX epoch.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub since: Option<i64>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<ListTasksSource>,
+
+    /// List tasks beginning from this offset.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<u64>,
+
+    /// List of Task States that should be returned.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub statusfilter: Option<String>,
+
+    /// Only list tasks of this type (e.g., vzstart, vzdump).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub typefilter: Option<String>,
+
+    /// Only list tasks until this UNIX epoch.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub until: Option<i64>,
+
+    /// Only list tasks from this user.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub userfilter: Option<String>,
+
+    /// Only list tasks for this VM.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vmid: Option<u64>,
+}
+
+#[api(
+    properties: {
+        endtime: {
+            optional: true,
+            type: Integer,
+            description: "The task's end time.",
+        },
+        id: {
+            type: String,
+            description: "The task's ID.",
+        },
+        node: {
+            type: String,
+            description: "The task's node.",
+        },
+        pid: {
+            type: Integer,
+            description: "The task process id.",
+        },
+        pstart: {
+            type: Integer,
+            description: "The task's proc start time.",
+        },
+        starttime: {
+            type: Integer,
+            description: "The task's start time.",
+        },
+        status: {
+            optional: true,
+            type: String,
+            description: "The task's status.",
+        },
+        type: {
+            type: String,
+            description: "The task type.",
+        },
+        upid: {
+            type: String,
+            description: "The task's UPID.",
+        },
+        user: {
+            type: String,
+            description: "The task owner's user id.",
+        },
+    },
+)]
+/// Object.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListTasksResponse {
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endtime: Option<i64>,
+
+    pub id: String,
+
+    pub node: String,
+
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    pub pid: i64,
+
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    pub pstart: i64,
+
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_i64")]
+    pub starttime: i64,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+
+    #[serde(rename = "type")]
+    pub ty: String,
+
+    pub upid: String,
+
+    pub user: String,
+}
+
+#[api]
+/// List archived, active or all tasks.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum ListTasksSource {
+    #[serde(rename = "archive")]
+    /// archive.
+    Archive,
+    #[serde(rename = "active")]
+    /// active.
+    Active,
+    #[serde(rename = "all")]
+    /// all.
+    All,
+}
+serde_plain::derive_display_from_serialize!(ListTasksSource);
+serde_plain::derive_fromstr_from_deserialize!(ListTasksSource);
+
+const_regex! {
+
 LXC_CONFIG_TAGS_RE = r##"^(?i)[a-z0-9_][a-z0-9_\-+.]*$"##;
 LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
 
@@ -324,6 +551,7 @@ LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
             maximum: 8192,
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         cpulimit: {
             default: 0.0,
@@ -336,6 +564,7 @@ LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
             maximum: 500000,
             minimum: 0,
             optional: true,
+            type: Integer,
         },
         debug: {
             default: false,
@@ -381,6 +610,7 @@ LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
             default: 512,
             minimum: 16,
             optional: true,
+            type: Integer,
         },
         mp: {
             type: LxcConfigMpArray,
@@ -420,6 +650,7 @@ LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
             default: 512,
             minimum: 0,
             optional: true,
+            type: Integer,
         },
         tags: {
             format: &ApiStringFormat::Pattern(&LXC_CONFIG_TAGS_RE),
@@ -440,6 +671,7 @@ LXC_CONFIG_TIMEZONE_RE = r##"^.*/.*$"##;
             maximum: 6,
             minimum: 0,
             optional: true,
+            type: Integer,
         },
         unprivileged: {
             default: false,
@@ -1493,6 +1725,7 @@ LXC_CONFIG_NET_HWADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
             maximum: 65535,
             minimum: 64,
             optional: true,
+            type: Integer,
         },
         name: {
             type: String,
@@ -1501,6 +1734,7 @@ LXC_CONFIG_NET_HWADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
             maximum: 4094,
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         trunks: {
             optional: true,
@@ -1735,6 +1969,18 @@ pub struct LxcConfigUnused {
             optional: true,
             type: String,
         },
+        maxdisk: {
+            optional: true,
+            type: Integer,
+        },
+        maxmem: {
+            optional: true,
+            type: Integer,
+        },
+        maxswap: {
+            optional: true,
+            type: Integer,
+        },
         name: {
             optional: true,
             type: String,
@@ -1743,8 +1989,13 @@ pub struct LxcConfigUnused {
             optional: true,
             type: String,
         },
+        uptime: {
+            optional: true,
+            type: Integer,
+        },
         vmid: {
             minimum: 1,
+            type: Integer,
         },
     },
 )]
@@ -2009,17 +2260,36 @@ PVE_QM_IDE_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             default: false,
             optional: true,
         },
+        bps: {
+            optional: true,
+            type: Integer,
+        },
         bps_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        bps_rd: {
+            optional: true,
+            type: Integer,
         },
         bps_rd_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        bps_wr: {
+            optional: true,
+            type: Integer,
         },
         bps_wr_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        cyls: {
+            optional: true,
+            type: Integer,
         },
         detect_zeroes: {
             default: false,
@@ -2029,17 +2299,48 @@ PVE_QM_IDE_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_volume_id_or_qm_path),
             type: String,
         },
+        heads: {
+            optional: true,
+            type: Integer,
+        },
+        iops: {
+            optional: true,
+            type: Integer,
+        },
+        iops_max: {
+            optional: true,
+            type: Integer,
+        },
         iops_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        iops_rd: {
+            optional: true,
+            type: Integer,
+        },
+        iops_rd_max: {
+            optional: true,
+            type: Integer,
         },
         iops_rd_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        iops_wr: {
+            optional: true,
+            type: Integer,
+        },
+        iops_wr_max: {
+            optional: true,
+            type: Integer,
         },
         iops_wr_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         model: {
             format: &ApiStringFormat::Pattern(&PVE_QM_IDE_MODEL_RE),
@@ -2050,6 +2351,10 @@ PVE_QM_IDE_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         replicate: {
             default: true,
             optional: true,
+        },
+        secs: {
+            optional: true,
+            type: Integer,
         },
         serial: {
             format: &ApiStringFormat::Pattern(&PVE_QM_IDE_SERIAL_RE),
@@ -2867,6 +3172,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         balloon: {
             minimum: 0,
             optional: true,
+            type: Integer,
         },
         boot: {
             format: &ApiStringFormat::PropertyString(&PveQmBoot::API_SCHEMA),
@@ -2901,6 +3207,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             default: 1,
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         cpu: {
             format: &ApiStringFormat::PropertyString(&PveVmCpuConf::API_SCHEMA),
@@ -2918,6 +3225,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             maximum: 262144,
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         description: {
             max_length: 8192,
@@ -2981,6 +3289,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             default: 512,
             minimum: 16,
             optional: true,
+            type: Integer,
         },
         migrate_downtime: {
             default: 0.1,
@@ -2991,6 +3300,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             default: 0,
             minimum: 0,
             optional: true,
+            type: Integer,
         },
         name: {
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_dns_name),
@@ -3050,6 +3360,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             maximum: 50000,
             minimum: 0,
             optional: true,
+            type: Integer,
         },
         smbios1: {
             format: &ApiStringFormat::PropertyString(&PveQmSmbios1::API_SCHEMA),
@@ -3061,11 +3372,13 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             default: 1,
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         sockets: {
             default: 1,
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         spice_enhancements: {
             format: &ApiStringFormat::PropertyString(&QemuConfigSpiceEnhancements::API_SCHEMA),
@@ -3120,6 +3433,7 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             default: 0,
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         vga: {
             format: &ApiStringFormat::PropertyString(&QemuConfigVga::API_SCHEMA),
@@ -4002,6 +4316,7 @@ serde_plain::derive_fromstr_from_deserialize!(QemuConfigHugepages);
         },
         size: {
             minimum: 1,
+            type: Integer,
         },
     },
 )]
@@ -4168,11 +4483,13 @@ QEMU_CONFIG_NET_MACADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
             maximum: 65520,
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         queues: {
             maximum: 64,
             minimum: 0,
             optional: true,
+            type: Integer,
         },
         rate: {
             minimum: 0.0,
@@ -4182,6 +4499,7 @@ QEMU_CONFIG_NET_MACADDR_RE = r##"^(?i)[a-f0-9][02468ace](?::[a-f0-9]{2}){5}$"##;
             maximum: 4094,
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         trunks: {
             optional: true,
@@ -4398,10 +4716,12 @@ serde_plain::derive_fromstr_from_deserialize!(QemuConfigOstype);
         max_bytes: {
             default: 1024,
             optional: true,
+            type: Integer,
         },
         period: {
             default: 1000,
             optional: true,
+            type: Integer,
         },
     },
 )]
@@ -4459,17 +4779,36 @@ QEMU_CONFIG_SATA_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             default: false,
             optional: true,
         },
+        bps: {
+            optional: true,
+            type: Integer,
+        },
         bps_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        bps_rd: {
+            optional: true,
+            type: Integer,
         },
         bps_rd_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        bps_wr: {
+            optional: true,
+            type: Integer,
         },
         bps_wr_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        cyls: {
+            optional: true,
+            type: Integer,
         },
         detect_zeroes: {
             default: false,
@@ -4479,21 +4818,56 @@ QEMU_CONFIG_SATA_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_volume_id_or_qm_path),
             type: String,
         },
+        heads: {
+            optional: true,
+            type: Integer,
+        },
+        iops: {
+            optional: true,
+            type: Integer,
+        },
+        iops_max: {
+            optional: true,
+            type: Integer,
+        },
         iops_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        iops_rd: {
+            optional: true,
+            type: Integer,
+        },
+        iops_rd_max: {
+            optional: true,
+            type: Integer,
         },
         iops_rd_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        iops_wr: {
+            optional: true,
+            type: Integer,
+        },
+        iops_wr_max: {
+            optional: true,
+            type: Integer,
         },
         iops_wr_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         replicate: {
             default: true,
             optional: true,
+        },
+        secs: {
+            optional: true,
+            type: Integer,
         },
         serial: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_SATA_SERIAL_RE),
@@ -4727,17 +5101,36 @@ QEMU_CONFIG_SCSI_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             default: false,
             optional: true,
         },
+        bps: {
+            optional: true,
+            type: Integer,
+        },
         bps_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        bps_rd: {
+            optional: true,
+            type: Integer,
         },
         bps_rd_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        bps_wr: {
+            optional: true,
+            type: Integer,
         },
         bps_wr_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        cyls: {
+            optional: true,
+            type: Integer,
         },
         detect_zeroes: {
             default: false,
@@ -4747,17 +5140,48 @@ QEMU_CONFIG_SCSI_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_volume_id_or_qm_path),
             type: String,
         },
+        heads: {
+            optional: true,
+            type: Integer,
+        },
+        iops: {
+            optional: true,
+            type: Integer,
+        },
+        iops_max: {
+            optional: true,
+            type: Integer,
+        },
         iops_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        iops_rd: {
+            optional: true,
+            type: Integer,
+        },
+        iops_rd_max: {
+            optional: true,
+            type: Integer,
         },
         iops_rd_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        iops_wr: {
+            optional: true,
+            type: Integer,
+        },
+        iops_wr_max: {
+            optional: true,
+            type: Integer,
         },
         iops_wr_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         iothread: {
             default: false,
@@ -4766,6 +5190,7 @@ QEMU_CONFIG_SCSI_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         queues: {
             minimum: 2,
             optional: true,
+            type: Integer,
         },
         replicate: {
             default: true,
@@ -4778,6 +5203,10 @@ QEMU_CONFIG_SCSI_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         scsiblock: {
             default: false,
             optional: true,
+        },
+        secs: {
+            optional: true,
+            type: Integer,
         },
         serial: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_SCSI_SERIAL_RE),
@@ -5193,6 +5622,7 @@ pub struct QemuConfigUsb {
             maximum: 512,
             minimum: 4,
             optional: true,
+            type: Integer,
         },
     },
 )]
@@ -5272,17 +5702,36 @@ QEMU_CONFIG_VIRTIO_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             default: false,
             optional: true,
         },
+        bps: {
+            optional: true,
+            type: Integer,
+        },
         bps_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        bps_rd: {
+            optional: true,
+            type: Integer,
         },
         bps_rd_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        bps_wr: {
+            optional: true,
+            type: Integer,
         },
         bps_wr_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        cyls: {
+            optional: true,
+            type: Integer,
         },
         detect_zeroes: {
             default: false,
@@ -5292,17 +5741,48 @@ QEMU_CONFIG_VIRTIO_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
             format: &ApiStringFormat::VerifyFn(crate::verifiers::verify_pve_volume_id_or_qm_path),
             type: String,
         },
+        heads: {
+            optional: true,
+            type: Integer,
+        },
+        iops: {
+            optional: true,
+            type: Integer,
+        },
+        iops_max: {
+            optional: true,
+            type: Integer,
+        },
         iops_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        iops_rd: {
+            optional: true,
+            type: Integer,
+        },
+        iops_rd_max: {
+            optional: true,
+            type: Integer,
         },
         iops_rd_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
+        },
+        iops_wr: {
+            optional: true,
+            type: Integer,
+        },
+        iops_wr_max: {
+            optional: true,
+            type: Integer,
         },
         iops_wr_max_length: {
             minimum: 1,
             optional: true,
+            type: Integer,
         },
         iothread: {
             default: false,
@@ -5315,6 +5795,10 @@ QEMU_CONFIG_VIRTIO_SIZE_RE = r##"^(\d+(\.\d+)?)([KMGT])?$"##;
         ro: {
             default: false,
             optional: true,
+        },
+        secs: {
+            optional: true,
+            type: Integer,
         },
         serial: {
             format: &ApiStringFormat::Pattern(&QEMU_CONFIG_VIRTIO_SERIAL_RE),
@@ -5536,6 +6020,7 @@ pub struct QemuConfigVirtio {
             default: 60,
             minimum: 0,
             optional: true,
+            type: Integer,
         },
     },
 )]
@@ -5571,6 +6056,7 @@ pub struct ShutdownLxc {
         timeout: {
             minimum: 0,
             optional: true,
+            type: Integer,
         },
     },
 )]
@@ -5671,6 +6157,7 @@ START_QEMU_MIGRATEDFROM_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?)$"##;
             default: 30,
             minimum: 0,
             optional: true,
+            type: Integer,
         },
     },
 )]
@@ -5774,6 +6261,7 @@ STOP_QEMU_MIGRATEDFROM_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?)$"##;
         timeout: {
             minimum: 0,
             optional: true,
+            type: Integer,
         },
     },
 )]
@@ -5831,6 +6319,9 @@ serde_plain::derive_fromstr_from_deserialize!(StorageContent);
 
 #[api(
     properties: {
+        n: {
+            type: Integer,
+        },
         t: {
             type: String,
         },
@@ -5856,13 +6347,14 @@ pub struct TaskLogLine {
         },
         id: {
             type: String,
-            description: "The task's ID status.",
+            description: "The task's ID.",
         },
         node: {
             type: String,
             description: "The task's node.",
         },
         pid: {
+            type: Integer,
             description: "The task process id.",
         },
         starttime: {
@@ -5962,9 +6454,21 @@ serde_plain::derive_fromstr_from_deserialize!(VersionResponseConsole);
             optional: true,
             type: String,
         },
+        maxdisk: {
+            optional: true,
+            type: Integer,
+        },
+        maxmem: {
+            optional: true,
+            type: Integer,
+        },
         name: {
             optional: true,
             type: String,
+        },
+        pid: {
+            optional: true,
+            type: Integer,
         },
         qmpstatus: {
             optional: true,
@@ -5982,8 +6486,13 @@ serde_plain::derive_fromstr_from_deserialize!(VersionResponseConsole);
             optional: true,
             type: String,
         },
+        uptime: {
+            optional: true,
+            type: Integer,
+        },
         vmid: {
             minimum: 1,
+            type: Integer,
         },
     },
 )]

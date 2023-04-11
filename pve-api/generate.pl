@@ -79,6 +79,8 @@ Schema2Rust::register_format('pve-ct-timezone' => { regex => '^.*/.*$' });
 ##
 Schema2Rust::register_format('storage-pair' => { code => 'crate::verifiers::verify_storage_pair' });
 
+Schema2Rust::register_format('pve-task-status-type' => { regex => '^(?i:ok|error|warning|unknown)$' });
+
 Schema2Rust::register_enum_variant('PveVmCpuConfReportedModel::486' => 'I486');
 Schema2Rust::register_enum_variant('QemuConfigEfidisk0Efitype::2m' => 'Mb2');
 Schema2Rust::register_enum_variant('QemuConfigEfidisk0Efitype::4m' => 'Mb4');
@@ -113,16 +115,28 @@ Schema2Rust::register_api_extension('LxcConfig', '/properties/lxc/items/items', 
 });
 Schema2Rust::register_api_override('StartQemu', '/properties/timeout/default', 30);
 
-# Task Status is not documented at ALL in the PVE api!
+# The task API is missing most documentation...
 Schema2Rust::register_api_extensions('TaskStatus', {
     '/properties/exitstatus' => { description => sq("The task's exit status.") },
-    '/properties/id' => { description => sq("The task's ID status.") },
+    '/properties/id' => { description => sq("The task's ID.") },
     '/properties/node' => { description => sq("The task's node.") },
     '/properties/type' => { description => sq("The task type.") },
     '/properties/upid' => { description => sq("The task's UPID.") },
     '/properties/user' => { description => sq("The task owner's user id.") },
     '/properties/pid' => { description => sq("The task process id.") },
     '/properties/starttime' => { description => sq("The task's start time.") },
+});
+Schema2Rust::register_api_extensions('ListTasksResponse', {
+    '/properties/endtime' => { description => sq("The task's end time.") },
+    '/properties/id' => { description => sq("The task's ID.") },
+    '/properties/node' => { description => sq("The task's node.") },
+    '/properties/pid' => { description => sq("The task process id.") },
+    '/properties/pstart' => { description => sq("The task's proc start time.") },
+    '/properties/starttime' => { description => sq("The task's start time.") },
+    '/properties/status' => { description => sq("The task's status.") },
+    '/properties/type' => { description => sq("The task type.") },
+    '/properties/upid' => { description => sq("The task's UPID.") },
+    '/properties/user' => { description => sq("The task owner's user id.") },
 });
 
 # pve-storage-content uses verify_
@@ -160,7 +174,7 @@ api(GET => '/nodes', 'list_nodes', 'return-name' => 'ClusterNodeIndexResponse');
 # # low level task api:
 # # ?? api(GET    => '/nodes/{node}/tasks/{upid}', 'get_task');
 # # TODO: api(DELETE => '/nodes/{node}/tasks/{upid}', 'stop_task', 'param-name' => 'StopTask');
-# api(GET => '/nodes/{node}/tasks',               'get_task_list');
+api(GET => '/nodes/{node}/tasks',               'get_task_list',   'param-name' => 'ListTasks');
 api(GET => '/nodes/{node}/tasks/{upid}/status', 'get_task_status', 'return-name' => 'TaskStatus');
 api(GET => '/nodes/{node}/tasks/{upid}/log',    'get_task_log',    'return-name' => 'TaskLogLine', attribs => 1);
 
