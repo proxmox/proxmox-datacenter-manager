@@ -118,7 +118,7 @@ Schema2Rust::register_api_override('StartQemu', '/properties/timeout/default', 3
 # The task API is missing most documentation...
 Schema2Rust::register_api_extensions('TaskStatus', {
     '/properties/exitstatus' => { description => sq("The task's exit status.") },
-    '/properties/id' => { description => sq("The task's ID.") },
+    '/properties/id' => { description => sq("The vmid the task is for.") },
     '/properties/node' => { description => sq("The task's node.") },
     '/properties/type' => { description => sq("The task type.") },
     '/properties/upid' => { description => sq("The task's UPID.") },
@@ -128,7 +128,7 @@ Schema2Rust::register_api_extensions('TaskStatus', {
 });
 Schema2Rust::register_api_extensions('ListTasksResponse', {
     '/properties/endtime' => { description => sq("The task's end time.") },
-    '/properties/id' => { description => sq("The task's ID.") },
+    '/properties/id' => { description => sq("The vmid the task is for.") },
     '/properties/node' => { description => sq("The task's node.") },
     '/properties/pid' => { description => sq("The task process id.") },
     '/properties/pstart' => { description => sq("The task's proc start time.") },

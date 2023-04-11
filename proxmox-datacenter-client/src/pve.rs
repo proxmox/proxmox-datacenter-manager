@@ -9,7 +9,7 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 
-use pdm_api_types::{NODE_SCHEMA, REMOTE_ID_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA};
+use pdm_api_types::{RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA};
 
 use crate::client;
 
@@ -22,6 +22,7 @@ pub fn cli() -> CommandLineInterface {
             "resources",
             CliCommand::new(&API_METHOD_CLUSTER_RESOURCES).arg_param(&["remote", "kind"]),
         )
+        .insert("task", task_cli())
         .into()
 }
 
@@ -56,6 +57,19 @@ fn lxc_cli() -> CommandLineInterface {
         .insert(
             "config",
             CliCommand::new(&API_METHOD_GET_LXC_CONFIG).arg_param(&["remote", "vmid"]),
+        )
+        .into()
+}
+
+fn task_cli() -> CommandLineInterface {
+    CliCommandMap::new()
+        .insert(
+            "list",
+            CliCommand::new(&API_METHOD_LIST_TASKS).arg_param(&["remote"]),
+        )
+        .insert(
+            "status",
+            CliCommand::new(&API_METHOD_TASK_STATUS).arg_param(&["remote"]),
         )
         .into()
 }
@@ -310,5 +324,76 @@ async fn get_lxc_config(
     } else {
         format_and_print_result(&config, &output_format);
     }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn list_tasks(remote: String, node: Option<String>, param: Value) -> Result<(), Error> {
+    const TASK_LIST_SCHEMA: Schema = ArraySchema::new(
+        "task list",
+        &pve_client::types::ListTasksResponse::API_SCHEMA,
+    )
+    .schema();
+
+    let output_format = get_output_format(&param);
+
+    let data = client()?.pve_list_tasks(&remote, node.as_deref()).await?;
+
+    format_and_print_result_full(
+        &mut serde_json::to_value(data)?,
+        &ReturnType {
+            optional: false,
+            schema: &TASK_LIST_SCHEMA,
+        },
+        &output_format,
+        &proxmox_router::cli::default_table_format_options(),
+    );
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            remote: { schema: REMOTE_ID_SCHEMA },
+            upid: { type: RemoteUpid },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn task_status(remote: String, upid: RemoteUpid, param: Value) -> Result<(), Error> {
+    let output_format = get_output_format(&param);
+
+    let data = client()?
+        .pve_task_status(&remote, &upid.to_string())
+        .await?;
+
+    format_and_print_result_full(
+        &mut serde_json::to_value(data)?,
+        &ReturnType {
+            optional: false,
+            schema: &pve_client::types::TaskStatus::API_SCHEMA,
+        },
+        &output_format,
+        &Default::default(),
+    );
     Ok(())
 }
