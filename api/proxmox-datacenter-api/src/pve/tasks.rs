@@ -6,14 +6,14 @@ use proxmox_router::{list_subdirs_api_method, Router, RpcEnvironment, SubdirMap}
 use proxmox_schema::{api, Schema};
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::{Remote, RemoteUpid, REMOTE_ID_SCHEMA};
+use pdm_api_types::{Remote, RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA};
 use pve_client::types::PveUpid;
 
 use super::connect;
 use crate::remotes::get_remote;
 
 pub const ROUTER: Router = Router::new()
-    //.get(&API_METHOD_LIST_TASKS)
+    .get(&API_METHOD_LIST_TASKS)
     .match_all("upid", &UPID_API_ROUTER);
 
 pub const UPID_API_ROUTER: Router = Router::new()
@@ -26,6 +26,40 @@ const UPID_API_SUBDIRS: SubdirMap = &sorted!([
     ("log", &Router::new().get(&API_METHOD_READ_TASK_LOG)),
     ("status", &Router::new().get(&API_METHOD_GET_TASK_STATUS)),
 ]);
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+    returns: { type: pve_client::types::TaskStatus },
+)]
+/// Get the list of tasks either for a specific node, or query all at once.
+async fn list_tasks(
+    remote: String,
+    node: Option<String>,
+) -> Result<Vec<pve_client::types::ListTasksResponse>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = match get_remote(&remotes, &remote)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    if let Some(node) = node {
+        pve.get_task_list(&node).await
+    } else {
+        let mut entry = Vec::new();
+        for node in pve.list_nodes().await? {
+            entry.extend(pve.get_task_list(&node.node).await?);
+        }
+        Ok(entry)
+    }
+}
 
 #[api(
     input: {
