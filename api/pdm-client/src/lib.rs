@@ -242,6 +242,22 @@ where
             .into_data_or_err()?)
     }
 
+    pub async fn pve_list_tasks(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+    ) -> Result<Vec<pve_client::types::ListTasksResponse>, Error> {
+        let mut query = format!("/api2/extjs/pve/{remote}/tasks");
+        let mut sep = '?';
+        pve_client::helpers::add_query_arg(&mut query, &mut sep, "node", &node);
+        Ok(self.client.get(&query).await?.into_data_or_err()?)
+    }
+
+    pub async fn pve_stop_task(&self, remote: &str, upid: &str) -> Result<(), Error> {
+        let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}");
+        Ok(self.client.delete(&path).await?.into_data_or_err()?)
+    }
+
     pub async fn pve_task_status(
         &self,
         remote: &str,

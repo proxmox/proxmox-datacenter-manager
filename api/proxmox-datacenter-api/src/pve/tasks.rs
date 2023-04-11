@@ -18,7 +18,7 @@ pub const ROUTER: Router = Router::new()
 
 pub const UPID_API_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(UPID_API_SUBDIRS))
-    //.delete(&API_METHOD_STOP_TASK)
+    .delete(&API_METHOD_STOP_TASK)
     .subdirs(UPID_API_SUBDIRS);
 
 #[sortable]
@@ -59,6 +59,39 @@ async fn list_tasks(
         }
         Ok(entry)
     }
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            upid: { type: RemoteUpid },
+        },
+    },
+)]
+/// Get the status of a task from a Proxmox VE instance.
+async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    if upid.remote() != remote {
+        bail!(
+            "remote '{remote}' does not match remote in upid ('{}')",
+            upid.remote()
+        );
+    }
+
+    let pve = match get_remote(&remotes, upid.remote())? {
+        Remote::Pve(pve) => pve,
+    };
+
+    let pve_upid: PveUpid = upid
+        .upid
+        .parse()
+        .map_err(|err| format_err!("invalid upid for PVE: {} - {err}", upid.upid))?;
+
+    let pve = connect(pve)?;
+
+    pve.stop_task(&pve_upid.node, &upid.upid).await
 }
 
 #[api(
