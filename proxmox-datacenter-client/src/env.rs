@@ -21,6 +21,7 @@ const WEBAUTHN: u8 = 8;
 /// We store the last used user id in here.
 const USERID_PATH: &str = xdg_path!("userid");
 const FINGERPRINT_CACHE_PATH: &str = xdg_path!("fingerprints");
+const CURRENT_SERVER_CACHE_PATH: &str = xdg_path!("current-server");
 
 pub struct Env {
     pub server: Option<String>,
@@ -50,6 +51,13 @@ impl Env {
             this.fingerprint_cache.load(&cache)?;
         }
 
+        if let Some(file) = XDG.find_cache_file(CURRENT_SERVER_CACHE_PATH) {
+            let server = std::fs::read_to_string(&file)?;
+            if let Err(err) = this.set_server(server.trim()) {
+                eprintln!("bad server in cache file ({file:?}): {err}");
+            }
+        }
+
         let args = this.parse_arguments(args)?;
         Ok((this, args))
     }
@@ -67,9 +75,9 @@ impl Env {
 
         while let Some(arg) = args.next() {
             if let Some(server) = arg.strip_prefix("--server=") {
-                self.set_server(server)?;
+                self.update_server(server)?;
             } else if arg == "--server" {
-                self.set_server(
+                self.update_server(
                     &args
                         .next()
                         .ok_or_else(|| format_err!("missing value for `--server` parameter"))?,
@@ -86,6 +94,24 @@ impl Env {
         out.extend(args);
 
         Ok(out)
+    }
+
+    fn update_server(&mut self, server: &str) -> Result<(), Error> {
+        self.set_server(server)?;
+
+        match XDG
+            .place_cache_file(CURRENT_SERVER_CACHE_PATH)
+            .and_then(|path| {
+                let mut file = std::fs::File::create(path)?;
+                file.write_all(server.as_bytes())?;
+                file.write_all(b"\n")?;
+                Ok(())
+            }) {
+            Ok(()) => (),
+            Err(err) => eprintln!("failed to store current server in cache: {}", err),
+        }
+
+        Ok(())
     }
 
     fn set_server(&mut self, server: &str) -> Result<(), Error> {
