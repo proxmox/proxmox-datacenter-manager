@@ -1,6 +1,6 @@
 //! PVE node commands.
 
-use anyhow::Error;
+use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox_router::cli::{
@@ -38,12 +38,24 @@ fn node_cli() -> CommandLineInterface {
 fn qemu_cli() -> CommandLineInterface {
     CliCommandMap::new()
         .insert(
+            "config",
+            CliCommand::new(&API_METHOD_GET_QEMU_CONFIG).arg_param(&["remote", "vmid"]),
+        )
+        .insert(
             "list",
             CliCommand::new(&API_METHOD_LIST_QEMU).arg_param(&["remote"]),
         )
         .insert(
-            "config",
-            CliCommand::new(&API_METHOD_GET_QEMU_CONFIG).arg_param(&["remote", "vmid"]),
+            "start",
+            CliCommand::new(&API_METHOD_START_QEMU).arg_param(&["remote", "vmid"]),
+        )
+        .insert(
+            "shutdown",
+            CliCommand::new(&API_METHOD_SHUTDOWN_QEMU).arg_param(&["remote", "vmid"]),
+        )
+        .insert(
+            "stop",
+            CliCommand::new(&API_METHOD_STOP_QEMU).arg_param(&["remote", "vmid"]),
         )
         .into()
 }
@@ -51,12 +63,24 @@ fn qemu_cli() -> CommandLineInterface {
 fn lxc_cli() -> CommandLineInterface {
     CliCommandMap::new()
         .insert(
+            "config",
+            CliCommand::new(&API_METHOD_GET_LXC_CONFIG).arg_param(&["remote", "vmid"]),
+        )
+        .insert(
             "list",
             CliCommand::new(&API_METHOD_LIST_LXC).arg_param(&["remote"]),
         )
         .insert(
-            "config",
-            CliCommand::new(&API_METHOD_GET_LXC_CONFIG).arg_param(&["remote", "vmid"]),
+            "start",
+            CliCommand::new(&API_METHOD_START_LXC).arg_param(&["remote", "vmid"]),
+        )
+        .insert(
+            "shutdown",
+            CliCommand::new(&API_METHOD_SHUTDOWN_LXC).arg_param(&["remote", "vmid"]),
+        )
+        .insert(
+            "stop",
+            CliCommand::new(&API_METHOD_STOP_LXC).arg_param(&["remote", "vmid"]),
         )
         .into()
 }
@@ -69,7 +93,7 @@ fn task_cli() -> CommandLineInterface {
         )
         .insert(
             "status",
-            CliCommand::new(&API_METHOD_TASK_STATUS).arg_param(&["remote"]),
+            CliCommand::new(&API_METHOD_TASK_STATUS).arg_param(&["remote", "upid"]),
         )
         .into()
 }
@@ -241,6 +265,79 @@ async fn get_qemu_config(
 #[api(
     input: {
         properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn start_qemu(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client
+        .pve_qemu_start(&remote, node.as_deref(), vmid)
+        .await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn shutdown_qemu(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client
+        .pve_qemu_shutdown(&remote, node.as_deref(), vmid)
+        .await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn stop_qemu(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client.pve_qemu_stop(&remote, node.as_deref(), vmid).await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
             "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
@@ -330,6 +427,77 @@ async fn get_lxc_config(
 #[api(
     input: {
         properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn start_lxc(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client.pve_lxc_start(&remote, node.as_deref(), vmid).await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn shutdown_lxc(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client
+        .pve_lxc_shutdown(&remote, node.as_deref(), vmid)
+        .await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        }
+    }
+)]
+/// List all the remotes this instance is managing.
+async fn stop_lxc(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client.pve_lxc_stop(&remote, node.as_deref(), vmid).await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
             "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
@@ -382,9 +550,10 @@ async fn list_tasks(remote: String, node: Option<String>, param: Value) -> Resul
 async fn task_status(remote: String, upid: RemoteUpid, param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
-    let data = client()?
-        .pve_task_status(&remote, &upid.to_string())
-        .await?;
+    if remote != upid.remote() {
+        bail!("mismatching remote in upid");
+    }
+    let data = client()?.pve_task_status(&upid).await?;
 
     format_and_print_result_full(
         &mut serde_json::to_value(data)?,

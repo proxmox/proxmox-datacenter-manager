@@ -47,20 +47,7 @@ const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     ("shutdown", &Router::new().post(&API_METHOD_LXC_SHUTDOWN)),
 ]);
 
-const NODES_ROUTER: Router = Router::new()
-    .get(&API_METHOD_LIST_NODES)
-    .match_all("node", &NODE_ITEM_ROUTER);
-
-const NODE_ITEM_ROUTER: Router = Router::new()
-    .get(&list_subdirs_api_method!(QEMU_VM_SUBDIRS))
-    .subdirs(NODE_ITEM_SUBDIRS);
-#[sortable]
-const NODE_ITEM_SUBDIRS: SubdirMap = &sorted!([
-    ("config", &Router::new().get(&API_METHOD_QEMU_GET_CONFIG)),
-    ("start", &Router::new().post(&API_METHOD_QEMU_START)),
-    ("stop", &Router::new().post(&API_METHOD_QEMU_STOP)),
-    ("shutdown", &Router::new().post(&API_METHOD_QEMU_SHUTDOWN)),
-]);
+const NODES_ROUTER: Router = Router::new().get(&API_METHOD_LIST_NODES);
 
 const QEMU_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_QEMU)

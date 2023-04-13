@@ -6,7 +6,7 @@ use serde_json::json;
 
 use proxmox_client::Environment;
 
-use pdm_api_types::{ConfigurationState, Remote};
+use pdm_api_types::{ConfigurationState, Remote, RemoteUpid};
 
 pub struct Client<E: Environment> {
     client: proxmox_client::HyperClient<E>,
@@ -217,6 +217,56 @@ where
             .into_data_or_err()?)
     }
 
+    async fn pve_change_guest_status(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u64,
+        vmtype: &str,
+        action: &str,
+    ) -> Result<RemoteUpid, Error> {
+        let path = format!("/api2/extjs/pve/{remote}/{vmtype}/{vmid}/{action}");
+        let mut request = json!({});
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        Ok(self
+            .client
+            .post(&path, &request)
+            .await?
+            .into_data_or_err()?)
+    }
+
+    pub async fn pve_qemu_start(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u64,
+    ) -> Result<RemoteUpid, Error> {
+        self.pve_change_guest_status(remote, node, vmid, "qemu", "start")
+            .await
+    }
+
+    pub async fn pve_qemu_shutdown(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u64,
+    ) -> Result<RemoteUpid, Error> {
+        self.pve_change_guest_status(remote, node, vmid, "qemu", "shutdown")
+            .await
+    }
+
+    pub async fn pve_qemu_stop(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u64,
+    ) -> Result<RemoteUpid, Error> {
+        self.pve_change_guest_status(remote, node, vmid, "qemu", "stop")
+            .await
+    }
+
     pub async fn pve_lxc_config(
         &self,
         remote: &str,
@@ -242,6 +292,36 @@ where
             .into_data_or_err()?)
     }
 
+    pub async fn pve_lxc_start(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u64,
+    ) -> Result<RemoteUpid, Error> {
+        self.pve_change_guest_status(remote, node, vmid, "lxc", "start")
+            .await
+    }
+
+    pub async fn pve_lxc_shutdown(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u64,
+    ) -> Result<RemoteUpid, Error> {
+        self.pve_change_guest_status(remote, node, vmid, "lxc", "shutdown")
+            .await
+    }
+
+    pub async fn pve_lxc_stop(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u64,
+    ) -> Result<RemoteUpid, Error> {
+        self.pve_change_guest_status(remote, node, vmid, "lxc", "stop")
+            .await
+    }
+
     pub async fn pve_list_tasks(
         &self,
         remote: &str,
@@ -260,18 +340,20 @@ where
 
     pub async fn pve_task_status(
         &self,
-        remote: &str,
-        upid: &str,
+        upid: &RemoteUpid,
     ) -> Result<pve_client::types::TaskStatus, Error> {
+        let remote = upid.remote();
+        let upid = upid.to_string();
         let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status");
         Ok(self.client.get(&path).await?.into_data_or_err()?)
     }
 
     pub async fn pve_wait_for_task(
         &self,
-        remote: &str,
-        upid: &str,
+        upid: &RemoteUpid,
     ) -> Result<pve_client::types::TaskStatus, Error> {
+        let remote = upid.remote();
+        let upid = upid.to_string();
         let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status?wait=1");
         Ok(self.client.get(&path).await?.into_data_or_err()?)
     }

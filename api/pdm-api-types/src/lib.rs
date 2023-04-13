@@ -520,7 +520,7 @@ impl ConfigurationState {
 }
 
 pub const REMOTE_UPID_SCHEMA: Schema = StringSchema::new("A remote UPID")
-    .min_length("C/UPID:N:12345678:12345678:12345678:::".len())
+    .min_length("C!UPID:N:12345678:12345678:12345678:::".len())
     .schema();
 
 #[derive(Clone, Debug)]
@@ -587,8 +587,8 @@ impl std::str::FromStr for RemoteUpid {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        match s.find('/') {
-            None => bail!("missing '/' separator in remote upid"),
+        match s.find('!') {
+            None => bail!("missing '!' separator in remote upid"),
             Some(pos) => (&s[..pos], &s[(pos + 1)..]).try_into(),
         }
     }
@@ -596,7 +596,7 @@ impl std::str::FromStr for RemoteUpid {
 
 impl fmt::Display for RemoteUpid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}/{}", self.remote, self.upid)
+        write!(f, "{}!{}", self.remote, self.upid)
     }
 }
 
