@@ -126,6 +126,7 @@ CLUSTER_RESOURCE_STORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         },
         id: {
             type: String,
+            description: "Resource id.",
         },
         level: {
             optional: true,
@@ -213,7 +214,6 @@ pub struct ClusterResource {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hastate: Option<String>,
 
-    /// Resource id.
     pub id: String,
 
     /// Support level (when type == node).
@@ -449,7 +449,7 @@ pub struct ListTasks {
         },
         id: {
             type: String,
-            description: "The task's ID.",
+            description: "The task id.",
         },
         node: {
             type: String,
@@ -6347,7 +6347,7 @@ pub struct TaskLogLine {
         },
         id: {
             type: String,
-            description: "The task's ID.",
+            description: "The task id.",
         },
         node: {
             type: String,

@@ -654,7 +654,10 @@ my sub get_format : prototype($$) {
         my $info = $registered_formats->{$format_name}
             or die "info for format '$format_name' required\n";
 
-        return { %$info };
+        return {
+            kind => $format_kind,
+            %$info,
+        };
     }
 
     die "WEIRD FORMAT TYPE: ".ref($format)."\n";
@@ -835,6 +838,11 @@ my sub string_type : prototype($$$) {
     # }
     if (defined(my $format = delete $schema->{format})) {
         my $fmt = get_format($format, $name_hint);
+
+        if (defined(my $kind = $fmt->{kind})) {
+            warn "FIXME: FORMAT KIND '$kind'\n";
+        }
+
         if (my $code = $fmt->{code}) {
             $api_props->{format} = "&ApiStringFormat::VerifyFn($code)";
         } elsif (my $regex = $fmt->{regex}) {
@@ -853,14 +861,6 @@ my sub string_type : prototype($$$) {
         }
         # if (my $kind = $fmt->{kind}) {
         #     $api_props->{format_fixme} = '"LIST TYPE"';
-        # }
-
-        # if (my $ps = $fmt->{'property-string'}) {
-        #     $api_props->{format} = "&ApiStringFormat::PropertyString(&${ps}::API_SCHEMA)";
-        # }
-
-        # if (my $code = $fmt->{code}) {
-        #     $api_props->{format} = "&ApiStringFormat::VerifyFn($code)";
         # }
     }
 
