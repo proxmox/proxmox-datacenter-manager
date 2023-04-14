@@ -28,6 +28,7 @@ my $all_types = {};
 my $all_structs = {};
 my $all_enums = {};
 my $all_methods = {};
+my $all_schemas = {};
 
 my $registered_formats = {};
 my $registered_derives = {};
@@ -280,6 +281,111 @@ sub print_types : prototype($) {
             print {$out} "}\n";
             print {$out} "serde_plain::derive_display_from_serialize!($def->{name});\n";
             print {$out} "serde_plain::derive_fromstr_from_deserialize!($def->{name});\n";
+            print {$out} "\n";
+        } elsif ($kind eq 'schema') {
+            my $mod_name = namify_field($name);
+            print {$out} "const $name: Schema =\n";
+            print {$out} "    proxmox_schema::ArraySchema::new(\n";
+            print {$out} "        \"list\",\n";
+            print {$out} "        &$def->{items}::API_SCHEMA,\n";
+            print {$out} "    ).schema();\n";
+            print {$out} "\n";
+            print {$out} <<"EOF";
+mod $mod_name {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[doc(hidden)]
+    pub trait Ser: Sized {
+        fn ser<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>;
+        fn de<'de, D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>;
+    }
+
+    impl<T: Serialize + for<'a> Deserialize<'a>> Ser for Vec<T> {
+        fn ser<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            crate::stringlist::list::serialize(&self[..], serializer, &super::$name)
+        }
+
+        fn de<'de, D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            Ok(crate::stringlist::list::deserialize(
+                deserializer,
+                &super::$name,
+            )?)
+        }
+    }
+
+    impl<T: Ser> Ser for Option<T> {
+        fn ser<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            match self {
+                None => serializer.serialize_none(),
+                Some(inner) => inner.ser(serializer),
+            }
+        }
+
+        fn de<'de, D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            use std::fmt;
+            use std::marker::PhantomData;
+
+            struct V<T: Ser>(PhantomData<T>);
+
+            impl<'de, T: Ser> serde::de::Visitor<'de> for V<T> {
+                type Value = Option<T>;
+
+                fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                    f.write_str("an optional string")
+                }
+
+                fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+                    Ok(None)
+                }
+
+                fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                where
+                    D: Deserializer<'de>,
+                {
+                    T::de(deserializer).map(Some)
+                }
+
+                fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+                    use serde::de::IntoDeserializer;
+                    T::de(value.into_deserializer()).map(Some)
+                }
+            }
+
+            deserializer.deserialize_option(V::<T>(PhantomData))
+        }
+    }
+
+    pub fn serialize<T, S>(this: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+        T: Ser,
+    {
+        this.ser(serializer)
+    }
+
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+        T: Ser
+    {
+        T::de(deserializer)
+    }
+}
+EOF
             print {$out} "\n";
         } else {
             die "unhandled kind: $kind\n"
@@ -804,8 +910,26 @@ sub generate_enum : prototype($$) {
     return $name_hint;
 }
 
-my sub string_type : prototype($$$) {
-    my ($schema, $api_props, $name_hint) = @_;
+my sub generate_array_schema : prototype($$$) {
+    my ($name, $description, $items) = @_;
+
+    my $schema;
+
+    die "duplicate schema: $name\n" if exists $all_types->{$name};
+    $schema = {
+        kind => 'schema',
+        type => 'Array',
+        description => $description,
+        items => $items,
+    };
+
+    $all_types->{$name} = $all_schemas->{$name} = $schema;
+
+    return $name;
+}
+
+my sub string_type : prototype($$$$) {
+    my ($schema, $api_props, $name_hint, $def) = @_;
 
     $api_props->{type} = 'String';
 
@@ -838,10 +962,17 @@ my sub string_type : prototype($$$) {
     # }
     if (defined(my $format = delete $schema->{format})) {
         my $fmt = get_format($format, $name_hint);
+        my $kind = $fmt->{kind} // '';
 
-        if (defined(my $kind = $fmt->{kind})) {
-            warn "FIXME: FORMAT KIND '$kind'\n";
-        }
+        #if (defined(my $kind = $fmt->{kind})) {
+        #    if ($kind eq 'array') {
+        #        my $name = $fmt->{format_name};
+        #        $api_props->{format} = "&ApiStringFormat::PropertyString(&$name_hint)";
+        #        warn "FIXME: FORMAT KIND '$kind'\n";
+        #        warn Dumper($fmt);
+        #        return 'String';
+        #    }
+        #}
 
         if (my $code = $fmt->{code}) {
             $api_props->{format} = "&ApiStringFormat::VerifyFn($code)";
@@ -852,6 +983,17 @@ my sub string_type : prototype($$$) {
         } elsif ($fmt->{unchecked}) {
             # We don't check this, it'll be an arbitrary string.
         } elsif (my $ty = $fmt->{type}) {
+            # raw type, undo
+            if ($kind eq 'array') {
+                my $array = generate_array_schema(namify_const($name_hint), 'list', $ty);
+                $api_props->{format} = "&ApiStringFormat::PropertyString(&$array)";
+                my $module_name = namify_field($array);
+                push $def->{attrs}->@*, "#[serde(with = \"$module_name\")]";
+                return "Vec<$ty>";
+            }
+
+            $api_props->{type} = $ty;
+            #$api_props->{format} = "&ApiStringFormat::PropertyString(&${ps}::API_SCHEMA)";
             # Return a "raw" type.
             return $ty;
         } elsif (my $ps = $fmt->{property_string}) {
@@ -937,7 +1079,7 @@ sub handle_def : prototype($$$) {
         $def->{api}->{default} = delete $schema->{default};
         $def->{type} = number_type($schema, $def->{api});
     } elsif ($type eq 'string') {
-        $def->{type} = string_type($schema, $def->{api}, $name_hint);
+        $def->{type} = string_type($schema, $def->{api}, $name_hint, $def);
     } elsif ($type eq 'object') {
         $def->{type} = generate_struct($name_hint, $orig_schema, {});
         # generate_struct uses the original schema and warns by itself
@@ -1378,7 +1520,7 @@ my sub method_return_type : prototype($$$$) {
     } elsif ($type eq 'string') {
         my $schema = { $returns->%* };
         my $api = {};
-        $def->{output_type} = string_type($schema, $api, $return_name);
+        $def->{output_type} = string_type($schema, $api, $return_name, undef);
         die "unhandled return type api options: ".join(', ', sort keys $api->%*)."\n"
             if $api->%*;
     } else {

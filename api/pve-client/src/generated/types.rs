@@ -1,3 +1,105 @@
+const CLUSTER_RESOURCE_CONTENT: Schema =
+    proxmox_schema::ArraySchema::new("list", &StorageContent::API_SCHEMA).schema();
+
+mod cluster_resource_content {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[doc(hidden)]
+    pub trait Ser: Sized {
+        fn ser<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>;
+        fn de<'de, D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>;
+    }
+
+    impl<T: Serialize + for<'a> Deserialize<'a>> Ser for Vec<T> {
+        fn ser<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            crate::stringlist::list::serialize(
+                &self[..],
+                serializer,
+                &super::CLUSTER_RESOURCE_CONTENT,
+            )
+        }
+
+        fn de<'de, D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            Ok(crate::stringlist::list::deserialize(
+                deserializer,
+                &super::CLUSTER_RESOURCE_CONTENT,
+            )?)
+        }
+    }
+
+    impl<T: Ser> Ser for Option<T> {
+        fn ser<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            match self {
+                None => serializer.serialize_none(),
+                Some(inner) => inner.ser(serializer),
+            }
+        }
+
+        fn de<'de, D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            use std::fmt;
+            use std::marker::PhantomData;
+
+            struct V<T: Ser>(PhantomData<T>);
+
+            impl<'de, T: Ser> serde::de::Visitor<'de> for V<T> {
+                type Value = Option<T>;
+
+                fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                    f.write_str("an optional string")
+                }
+
+                fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+                    Ok(None)
+                }
+
+                fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                where
+                    D: Deserializer<'de>,
+                {
+                    T::de(deserializer).map(Some)
+                }
+
+                fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+                    use serde::de::IntoDeserializer;
+                    T::de(value.into_deserializer()).map(Some)
+                }
+            }
+
+            deserializer.deserialize_option(V::<T>(PhantomData))
+        }
+    }
+
+    pub fn serialize<T, S>(this: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+        T: Ser,
+    {
+        this.ser(serializer)
+    }
+
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+        T: Ser,
+    {
+        T::de(deserializer)
+    }
+}
+
 const_regex! {
 
 CLUSTER_NODE_INDEX_RESPONSE_NODE_RE = r##"^(?i:[a-z0-9](?i:[a-z0-9\-]*[a-z0-9])?)$"##;
@@ -108,6 +210,7 @@ CLUSTER_RESOURCE_STORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
             type: Integer,
         },
         content: {
+            format: &ApiStringFormat::PropertyString(&CLUSTER_RESOURCE_CONTENT),
             optional: true,
             type: String,
         },
@@ -197,8 +300,9 @@ pub struct ClusterResource {
     pub cgroup_mode: Option<i64>,
 
     /// Allowed storage content types (when type == storage).
+    #[serde(with = "cluster_resource_content")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub content: Option<StorageContentList>,
+    pub content: Option<Vec<StorageContent>>,
 
     /// CPU utilization (when type in node,qemu,lxc).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -277,10 +381,6 @@ pub struct ClusterResource {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vmid: Option<u64>,
 }
-
-generate_string_list_type!(
-    StorageContentList for StorageContent => STORAGE_CONTENT_ARRAY, "list of storage contents"
-);
 
 #[api]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
