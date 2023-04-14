@@ -8,6 +8,7 @@ use proxmox_client::Environment;
 #[macro_use]
 pub mod helpers;
 
+pub mod stringlist;
 mod verifiers;
 
 mod code;

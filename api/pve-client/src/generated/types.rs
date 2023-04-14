@@ -198,7 +198,7 @@ pub struct ClusterResource {
 
     /// Allowed storage content types (when type == storage).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub content: Option<StorageContent>,
+    pub content: Option<StorageContentList>,
 
     /// CPU utilization (when type in node,qemu,lxc).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -277,6 +277,10 @@ pub struct ClusterResource {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vmid: Option<u64>,
 }
+
+generate_string_list_type!(
+    StorageContentList for StorageContent => STORAGE_CONTENT_ARRAY, "list of storage contents"
+);
 
 #[api]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
