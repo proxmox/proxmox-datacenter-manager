@@ -153,7 +153,8 @@ pub fn create_user(
         if realm == "pam" && !user_info.is_superuser(&current_auth_id) {
             bail!("only superuser can edit pam credentials!");
         }
-        authenticator.store_password(config.userid.name(), &password)?;
+        let client_ip = rpcenv.get_client_ip().map(|sa| sa.ip());
+        authenticator.store_password(config.userid.name(), &password, client_ip.as_ref())?;
     }
 
     Ok(())
@@ -287,7 +288,8 @@ pub fn update_user(
             bail!("only superuser can edit pam credentials!");
         }
         let authenticator = crate::auth::lookup_authenticator(userid.realm())?;
-        authenticator.store_password(userid.name(), &password)?;
+        let client_ip = rpcenv.get_client_ip().map(|sa| sa.ip());
+        authenticator.store_password(userid.name(), &password, client_ip.as_ref())?;
     }
 
     if let Some(firstname) = update.firstname {

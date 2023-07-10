@@ -1,6 +1,7 @@
 //! Provides authentication primitives for the HTTP server
 
 use std::future::Future;
+use std::net::IpAddr;
 use std::pin::Pin;
 
 use anyhow::{bail, Error};
@@ -140,10 +141,11 @@ pub(crate) fn lookup_authenticator(
 pub(crate) fn authenticate_user<'a>(
     userid: &'a Userid,
     password: &'a str,
+    client_ip: Option<&'a IpAddr>,
 ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
     Box::pin(async move {
         lookup_authenticator(userid.realm())?
-            .authenticate_user(userid.name(), password)
+            .authenticate_user(userid.name(), password, client_ip)
             .await?;
         Ok(())
     })

@@ -196,23 +196,6 @@ pub fn finish_webauthn_registration(
     Ok(id)
 }
 
-/// Verify a TFA challenge.
-pub fn verify_challenge(
-    userid: &Userid,
-    challenge: &TfaChallenge,
-    response: TfaResponse,
-) -> Result<(), Error> {
-    let _lock = crate::auth::tfa::write_lock();
-    let mut data = read()?;
-    if data
-        .verify(&UserAccess, userid.as_str(), challenge, response, None)?
-        .needs_saving()
-    {
-        write(&data)?;
-    }
-    Ok(())
-}
-
 #[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct UserAccess;
