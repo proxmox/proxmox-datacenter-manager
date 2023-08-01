@@ -19,13 +19,10 @@ members = [
     "api/pdm-client",
     "api/pdm-config",
 
-    "api/proxmox-client",
-
     "api/pve-client",
 
     "api/proxmox-datacenter-privileged-api",
     "api/proxmox-datacenter-api",
-
 
     "proxmox-datacenter-client",
     "proxmox-datacenter-manager",
@@ -54,6 +51,7 @@ proxmox-tfa = { version = "4.0", features = [ "api-types" ] }
 proxmox-time = "1.1.2"
 proxmox-uuid = "1"
 proxmox-login = { version = "0.1", features = [ "webauthn" ] }
+proxmox-client = { version = "0.1", features = [ "hyper-client" ] }
 
 # other proxmox crates
 proxmox-acme-rs = "0.4"
@@ -69,8 +67,6 @@ proxmox-datacenter-api = { path = "api/proxmox-datacenter-api" }
 pdm-client = { path = "api/pdm-client" }
 
 pve-client = { path = "api/pve-client" }
-
-proxmox-client = { path = "api/proxmox-client", features = [ "hyper-client" ] }
 
 # regular crates
 anyhow = "1.0"
