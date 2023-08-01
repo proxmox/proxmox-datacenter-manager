@@ -20,7 +20,6 @@ members = [
     "api/pdm-config",
 
     "api/proxmox-client",
-    "api/proxmox-login",
 
     "api/pve-client",
 
@@ -54,6 +53,7 @@ proxmox-sys = "0.5.0"
 proxmox-tfa = { version = "4.0", features = [ "api-types" ] }
 proxmox-time = "1.1.2"
 proxmox-uuid = "1"
+proxmox-login = { version = "0.1", features = [ "webauthn" ] }
 
 # other proxmox crates
 proxmox-acme-rs = "0.4"
@@ -70,7 +70,6 @@ pdm-client = { path = "api/pdm-client" }
 
 pve-client = { path = "api/pve-client" }
 
-proxmox-login = { path = "api/proxmox-login" }
 proxmox-client = { path = "api/proxmox-client", features = [ "hyper-client" ] }
 
 # regular crates

@@ -85,14 +85,14 @@ where
 
 fn to_request<E: Error>(request: proxmox_login::Request) -> Result<http::Request<Vec<u8>>, E> {
     http::Request::builder()
-        .method(request.method)
+        .method(http::Method::POST)
         .uri(request.url)
         .header(http::header::CONTENT_TYPE, request.content_type)
         .header(
             http::header::CONTENT_LENGTH,
             request.content_length.to_string(),
         )
-        .body(request.body)
+        .body(request.body.into_bytes())
         .map_err(E::internal)
 }
 
@@ -216,11 +216,7 @@ where
 
         loop {
             let current_url = &self.api_urls.urls[url_index];
-            let response = match self
-                .client
-                .request(to_request(login.request().map_err(E::Error::internal)?)?)
-                .await
-            {
+            let response = match self.client.request(to_request(login.request())?).await {
                 Ok(r) => {
                     retry_success(&mut retry, url_index);
                     r
@@ -255,11 +251,7 @@ where
 
             let response = match self
                 .client
-                .request(to_request(
-                    challenge
-                        .respond_raw(&response)
-                        .map_err(E::Error::internal)?,
-                )?)
+                .request(to_request(challenge.respond_raw(&response))?)
                 .await
             {
                 Ok(r) => {
