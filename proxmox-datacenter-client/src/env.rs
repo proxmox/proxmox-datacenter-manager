@@ -12,6 +12,14 @@ use proxmox_client::{FingerprintCache, TfaChallenge};
 
 use crate::XDG;
 
+macro_rules! xdg_path {
+    ($text:literal) => {
+        concat!("proxmox-datacenter-client/", $text)
+    };
+}
+
+pub(crate) use xdg_path;
+
 /// Supported types.
 const TOTP: u8 = 1;
 const RECOVERY: u8 = 2;

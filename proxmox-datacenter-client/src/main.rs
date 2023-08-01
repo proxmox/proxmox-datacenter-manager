@@ -4,9 +4,6 @@ use once_cell::sync::{Lazy, OnceCell};
 use proxmox_router::cli::{run_cli_command_with_args, CliCommand, CliCommandMap, CliEnvironment};
 use proxmox_schema::api;
 
-#[macro_use]
-mod macros; // must go first
-
 pub mod env;
 pub mod fido;
 pub mod pve;
