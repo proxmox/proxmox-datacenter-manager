@@ -11,6 +11,7 @@ repository.workspace = true
 [dependencies]
 anyhow.workspace = true
 base64.workspace = true
+hex.workspace = true
 http.workspace = true
 libc.workspace = true
 log.workspace = true

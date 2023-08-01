@@ -8,9 +8,12 @@ use anyhow::{bail, format_err, Error};
 use http::Uri;
 use openssl::x509;
 
-use proxmox_client::{FingerprintCache, TfaChallenge};
+use proxmox_client::TfaChallenge;
 
 use crate::XDG;
+
+mod fingerprint_cache;
+use fingerprint_cache::FingerprintCache;
 
 macro_rules! xdg_path {
     ($text:literal) => {

@@ -15,6 +15,3 @@ pub use client::{ApiResponse, Client, HttpClient};
 
 #[cfg(feature = "hyper-client")]
 pub use client::{HyperClient, TlsOptions};
-
-mod fingerprint_cache;
-pub use fingerprint_cache::{FingerprintCache, VerifyResult};
