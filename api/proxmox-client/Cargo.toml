@@ -11,14 +11,16 @@ repository.workspace = true
 anyhow.workspace = true
 base64.workspace = true
 http.workspace = true
-log = { workspace = true, optional = true }
 once_cell.workspace = true
-openssl.workspace = true
 percent-encoding.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_plain.workspace = true
+
+# wasm-incompatible dependencies must stay optional
+log = { workspace = true, optional = true }
+openssl = { workspace = true, optional = true }
 
 proxmox-login = { workspace = true, features = [ "http" ] }
 webauthn-rs = { workspace = true, optional = true }
@@ -31,5 +33,5 @@ proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 
 [features]
 default = []
-hyper-client = [ "dep:hyper", "dep:proxmox-http", "dep:log" ]
+hyper-client = [ "dep:openssl", "dep:hyper", "dep:proxmox-http", "dep:log" ]
 webauthn = [ "dep:webauthn-rs", "proxmox-login/webauthn" ]
