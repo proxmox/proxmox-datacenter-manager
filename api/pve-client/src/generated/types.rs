@@ -318,6 +318,7 @@ pub struct ClusterResource {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hastate: Option<String>,
 
+    /// Resource id.
     pub id: String,
 
     /// Support level (when type == node).
@@ -489,7 +490,8 @@ LIST_TASKS_STATUSFILTER_RE = r##"^(?i:ok|error|warning|unknown)$"##;
             type: String,
         },
         vmid: {
-            minimum: 1,
+            maximum: 999999999,
+            minimum: 100,
             optional: true,
             type: Integer,
         },
@@ -539,9 +541,9 @@ pub struct ListTasks {
     pub userfilter: Option<String>,
 
     /// Only list tasks for this VM.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u32")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub vmid: Option<u64>,
+    pub vmid: Option<u32>,
 }
 
 #[api(
@@ -2098,7 +2100,8 @@ pub struct LxcConfigUnused {
             type: Integer,
         },
         vmid: {
-            minimum: 1,
+            maximum: 999999999,
+            minimum: 100,
             type: Integer,
         },
     },
@@ -2145,8 +2148,8 @@ pub struct LxcEntry {
     pub uptime: Option<i64>,
 
     /// The (unique) ID of the VM.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
-    pub vmid: u64,
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u32")]
+    pub vmid: u32,
 }
 
 #[api(
@@ -2236,6 +2239,12 @@ pub struct PveQmCicustom {
     pub vendor: Option<String>,
 }
 
+const_regex! {
+
+PVE_QM_HOSTPCI_MAPPING_RE = r##"^(?i:[a-z][a-z0-9_-]+)$"##;
+
+}
+
 #[api(
     properties: {
         "device-id": {
@@ -2243,11 +2252,17 @@ pub struct PveQmCicustom {
             type: String,
         },
         host: {
+            optional: true,
             type: String,
         },
         "legacy-igd": {
             default: false,
             optional: true,
+        },
+        mapping: {
+            format: &ApiStringFormat::Pattern(&PVE_QM_HOSTPCI_MAPPING_RE),
+            optional: true,
+            type: String,
         },
         mdev: {
             optional: true,
@@ -2297,7 +2312,10 @@ pub struct PveQmHostpci {
     /// 'bus:dev.func' (hexadecimal numbers)
     ///
     /// You can us the 'lspci' command to list existing PCI devices.
-    pub host: String,
+    ///
+    /// Either this or the 'mapping' key must be set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
 
     /// Pass this device in legacy IGD mode, making it the primary and exclusive
     /// graphics device in the VM. Requires 'pc-i440fx' machine type and VGA set
@@ -2306,6 +2324,11 @@ pub struct PveQmHostpci {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[serde(rename = "legacy-igd")]
     pub legacy_igd: Option<bool>,
+
+    /// The ID of a cluster wide mapping. Either this or the default-key 'host'
+    /// must be set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mapping: Option<String>,
 
     /// The type of mediated device to use.
     /// An instance of this type will be created on startup of the VM and
@@ -3042,8 +3065,8 @@ pub struct PveVmCpuConf {
     /// List of additional CPU flags separated by ';'. Use '+FLAG' to enable,
     /// '-FLAG' to disable a flag. Custom CPU models can specify any flag
     /// supported by QEMU/KVM, VM-specific flags must be from the following set
-    /// for security reasons: pcid, spec-ctrl, ibpb, ssbd, virt-ssbd, amd-ssbd,
-    /// amd-no-ssb, pdpe1gb, md-clear, hv-tlbflush, hv-evmcs, aes
+    /// for security reasons: pcid, invpcid, spec-ctrl, ibpb, ssbd, virt-ssbd,
+    /// amd-ssbd, amd-no-ssb, pdpe1gb, md-clear, hv-tlbflush, hv-evmcs, aes
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub flags: Option<String>,
 
@@ -3100,8 +3123,22 @@ pub enum PveVmCpuConfReportedModel {
     #[serde(rename = "Cascadelake-Server-noTSX")]
     /// Cascadelake-Server-noTSX.
     CascadelakeServerNoTsx,
+    #[serde(rename = "Cascadelake-Server-v2")]
+    /// Cascadelake-Server-v2.
+    CascadelakeServerV2,
+    #[serde(rename = "Cascadelake-Server-v4")]
+    /// Cascadelake-Server-v4.
+    CascadelakeServerV4,
+    #[serde(rename = "Cascadelake-Server-v5")]
+    /// Cascadelake-Server-v5.
+    CascadelakeServerV5,
     /// Conroe.
     Conroe,
+    /// Cooperlake.
+    Cooperlake,
+    #[serde(rename = "Cooperlake-v2")]
+    /// Cooperlake-v2.
+    CooperlakeV2,
     #[serde(rename = "core2duo")]
     /// core2duo.
     Core2duo,
@@ -3120,6 +3157,12 @@ pub enum PveVmCpuConfReportedModel {
     #[serde(rename = "EPYC-Rome")]
     /// EPYC-Rome.
     EpycRome,
+    #[serde(rename = "EPYC-Rome-v2")]
+    /// EPYC-Rome-v2.
+    EpycRomeV2,
+    #[serde(rename = "EPYC-v3")]
+    /// EPYC-v3.
+    EpycV3,
     /// Haswell.
     Haswell,
     #[serde(rename = "Haswell-IBRS")]
@@ -3146,6 +3189,18 @@ pub enum PveVmCpuConfReportedModel {
     #[serde(rename = "Icelake-Server-noTSX")]
     /// Icelake-Server-noTSX.
     IcelakeServerNoTsx,
+    #[serde(rename = "Icelake-Server-v3")]
+    /// Icelake-Server-v3.
+    IcelakeServerV3,
+    #[serde(rename = "Icelake-Server-v4")]
+    /// Icelake-Server-v4.
+    IcelakeServerV4,
+    #[serde(rename = "Icelake-Server-v5")]
+    /// Icelake-Server-v5.
+    IcelakeServerV5,
+    #[serde(rename = "Icelake-Server-v6")]
+    /// Icelake-Server-v6.
+    IcelakeServerV6,
     /// IvyBridge.
     IvyBridge,
     #[serde(rename = "IvyBridge-IBRS")]
@@ -3207,6 +3262,8 @@ pub enum PveVmCpuConfReportedModel {
     #[serde(rename = "SandyBridge-IBRS")]
     /// SandyBridge-IBRS.
     SandyBridgeIbrs,
+    /// SapphireRapids.
+    SapphireRapids,
     #[serde(rename = "Skylake-Client")]
     /// Skylake-Client.
     SkylakeClient,
@@ -3216,6 +3273,9 @@ pub enum PveVmCpuConfReportedModel {
     #[serde(rename = "Skylake-Client-noTSX-IBRS")]
     /// Skylake-Client-noTSX-IBRS.
     SkylakeClientNoTsxIbrs,
+    #[serde(rename = "Skylake-Client-v4")]
+    /// Skylake-Client-v4.
+    SkylakeClientV4,
     #[serde(rename = "Skylake-Server")]
     /// Skylake-Server.
     SkylakeServer,
@@ -3225,6 +3285,12 @@ pub enum PveVmCpuConfReportedModel {
     #[serde(rename = "Skylake-Server-noTSX-IBRS")]
     /// Skylake-Server-noTSX-IBRS.
     SkylakeServerNoTsxIbrs,
+    #[serde(rename = "Skylake-Server-v4")]
+    /// Skylake-Server-v4.
+    SkylakeServerV4,
+    #[serde(rename = "Skylake-Server-v5")]
+    /// Skylake-Server-v5.
+    SkylakeServerV5,
     /// Westmere.
     Westmere,
     #[serde(rename = "Westmere-IBRS")]
@@ -3302,6 +3368,10 @@ QEMU_CONFIG_VMSTATESTORAGE_RE = r##"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$"##;
         cipassword: {
             optional: true,
             type: String,
+        },
+        ciupgrade: {
+            default: true,
+            optional: true,
         },
         ciuser: {
             optional: true,
@@ -3634,6 +3704,11 @@ pub struct QemuConfig {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub citype: Option<QemuConfigCitype>,
+
+    /// cloud-init: do an automatic package upgrade after the first boot.
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_bool")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ciupgrade: Option<bool>,
 
     /// cloud-init: User name to change ssh keys and password for instead of the
     /// image's configured default user.
@@ -5681,9 +5756,21 @@ pub struct QemuConfigUnused {
     pub file: String,
 }
 
+const_regex! {
+
+QEMU_CONFIG_USB_MAPPING_RE = r##"^(?i:[a-z][a-z0-9_-]+)$"##;
+
+}
+
 #[api(
     properties: {
         host: {
+            optional: true,
+            type: String,
+        },
+        mapping: {
+            format: &ApiStringFormat::Pattern(&QEMU_CONFIG_USB_MAPPING_RE),
+            optional: true,
             type: String,
         },
         usb3: {
@@ -5709,7 +5796,15 @@ pub struct QemuConfigUsb {
     ///
     /// The value 'spice' can be used to add a usb redirection devices for
     /// spice.
-    pub host: String,
+    ///
+    /// Either this or the 'mapping' key must be set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+
+    /// The ID of a cluster wide mapping. Either this or the default-key 'host'
+    /// must be set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mapping: Option<String>,
 
     /// Specifies whether if given host option is a USB3 device or port. For
     /// modern guests (machine version >= 7.1 and ostype l26 and windows > 7),
@@ -6595,7 +6690,8 @@ serde_plain::derive_fromstr_from_deserialize!(VersionResponseConsole);
             type: Integer,
         },
         vmid: {
-            minimum: 1,
+            maximum: 999999999,
+            minimum: 100,
             type: Integer,
         },
     },
@@ -6630,7 +6726,7 @@ pub struct VmEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pid: Option<i64>,
 
-    /// QEMU QMP agent status.
+    /// VM run state from the 'query-status' QMP monitor command.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub qmpstatus: Option<String>,
 
@@ -6656,6 +6752,6 @@ pub struct VmEntry {
     pub uptime: Option<i64>,
 
     /// The (unique) ID of the VM.
-    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u64")]
-    pub vmid: u64,
+    #[serde(deserialize_with = "proxmox_login::parse::deserialize_u32")]
+    pub vmid: u32,
 }

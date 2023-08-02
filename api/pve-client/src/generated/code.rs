@@ -25,6 +25,7 @@
 /// - /access/users/{userid}/tfa
 /// - /access/users/{userid}/token
 /// - /access/users/{userid}/token/{tokenid}
+/// - /access/users/{userid}/unlock-tfa
 /// - /cluster
 /// - /cluster/acme
 /// - /cluster/acme/account
@@ -76,8 +77,15 @@
 /// - /cluster/ha/status/current
 /// - /cluster/ha/status/manager_status
 /// - /cluster/jobs
+/// - /cluster/jobs/realm-sync
+/// - /cluster/jobs/realm-sync/{id}
 /// - /cluster/jobs/schedule-analyze
 /// - /cluster/log
+/// - /cluster/mapping
+/// - /cluster/mapping/pci
+/// - /cluster/mapping/pci/{id}
+/// - /cluster/mapping/usb
+/// - /cluster/mapping/usb/{id}
 /// - /cluster/metrics
 /// - /cluster/metrics/server
 /// - /cluster/metrics/server/{id}
@@ -103,8 +111,6 @@
 /// - /nodes/{node}/ceph/cfg/db
 /// - /nodes/{node}/ceph/cfg/raw
 /// - /nodes/{node}/ceph/cmd-safety
-/// - /nodes/{node}/ceph/config
-/// - /nodes/{node}/ceph/configdb
 /// - /nodes/{node}/ceph/crush
 /// - /nodes/{node}/ceph/fs
 /// - /nodes/{node}/ceph/fs/{name}
@@ -126,8 +132,6 @@
 /// - /nodes/{node}/ceph/pool
 /// - /nodes/{node}/ceph/pool/{name}
 /// - /nodes/{node}/ceph/pool/{name}/status
-/// - /nodes/{node}/ceph/pools
-/// - /nodes/{node}/ceph/pools/{name}
 /// - /nodes/{node}/ceph/restart
 /// - /nodes/{node}/ceph/rules
 /// - /nodes/{node}/ceph/start
@@ -465,7 +469,7 @@ where
     pub async fn lxc_get_config(
         &self,
         node: &str,
-        vmid: u64,
+        vmid: u32,
         current: Option<bool>,
         snapshot: Option<String>,
     ) -> Result<LxcConfig, E::Error> {
@@ -487,7 +491,7 @@ where
     pub async fn qemu_get_config(
         &self,
         node: &str,
-        vmid: u64,
+        vmid: u32,
         current: Option<bool>,
         snapshot: Option<String>,
     ) -> Result<QemuConfig, E::Error> {
@@ -508,7 +512,7 @@ where
     pub async fn shutdown_lxc_async(
         &self,
         node: &str,
-        vmid: u64,
+        vmid: u32,
         params: ShutdownLxc,
     ) -> Result<PveUpid, E::Error> {
         let url = format!("/api2/extjs/nodes/{node}/lxc/{vmid}/status/shutdown");
@@ -525,7 +529,7 @@ where
     pub async fn shutdown_qemu_async(
         &self,
         node: &str,
-        vmid: u64,
+        vmid: u32,
         params: ShutdownQemu,
     ) -> Result<PveUpid, E::Error> {
         let url = format!("/api2/extjs/nodes/{node}/qemu/{vmid}/status/shutdown");
@@ -540,7 +544,7 @@ where
     pub async fn start_lxc_async(
         &self,
         node: &str,
-        vmid: u64,
+        vmid: u32,
         params: StartLxc,
     ) -> Result<PveUpid, E::Error> {
         let url = format!("/api2/extjs/nodes/{node}/lxc/{vmid}/status/start");
@@ -555,7 +559,7 @@ where
     pub async fn start_qemu_async(
         &self,
         node: &str,
-        vmid: u64,
+        vmid: u32,
         params: StartQemu,
     ) -> Result<PveUpid, E::Error> {
         let url = format!("/api2/extjs/nodes/{node}/qemu/{vmid}/status/start");
@@ -571,7 +575,7 @@ where
     pub async fn stop_lxc_async(
         &self,
         node: &str,
-        vmid: u64,
+        vmid: u32,
         params: StopLxc,
     ) -> Result<PveUpid, E::Error> {
         let url = format!("/api2/extjs/nodes/{node}/lxc/{vmid}/status/stop");
@@ -588,7 +592,7 @@ where
     pub async fn stop_qemu_async(
         &self,
         node: &str,
-        vmid: u64,
+        vmid: u32,
         params: StopQemu,
     ) -> Result<PveUpid, E::Error> {
         let url = format!("/api2/extjs/nodes/{node}/qemu/{vmid}/status/stop");
