@@ -156,13 +156,13 @@ pub fn remove_remote(id: String) -> Result<(), Error> {
             id: { schema: REMOTE_ID_SCHEMA },
         },
     },
-    returns: { type: pve_client::types::VersionResponse },
+    returns: { type: pve_api_types::VersionResponse },
 )]
 /// Query the remote's version.
 ///
 /// FIXME: Should we add an option to explicitly query the entire cluster to get a full version
 /// overview?
-pub async fn version(id: String) -> Result<pve_client::types::VersionResponse, Error> {
+pub async fn version(id: String) -> Result<pve_api_types::VersionResponse, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     match get_remote(&remotes, &id)? {

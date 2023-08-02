@@ -196,7 +196,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-        vmid: u64,
+        vmid: u32,
         state: ConfigurationState,
         snapshot: Option<&str>,
     ) -> Result<pve_api_types::QemuConfig, Error> {
@@ -221,7 +221,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-        vmid: u64,
+        vmid: u32,
         vmtype: &str,
         action: &str,
     ) -> Result<RemoteUpid, Error> {
@@ -241,7 +241,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-        vmid: u64,
+        vmid: u32,
     ) -> Result<RemoteUpid, Error> {
         self.pve_change_guest_status(remote, node, vmid, "qemu", "start")
             .await
@@ -251,7 +251,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-        vmid: u64,
+        vmid: u32,
     ) -> Result<RemoteUpid, Error> {
         self.pve_change_guest_status(remote, node, vmid, "qemu", "shutdown")
             .await
@@ -261,7 +261,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-        vmid: u64,
+        vmid: u32,
     ) -> Result<RemoteUpid, Error> {
         self.pve_change_guest_status(remote, node, vmid, "qemu", "stop")
             .await
@@ -271,7 +271,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-        vmid: u64,
+        vmid: u32,
         state: ConfigurationState,
         snapshot: Option<&str>,
     ) -> Result<pve_api_types::LxcConfig, Error> {
@@ -296,7 +296,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-        vmid: u64,
+        vmid: u32,
     ) -> Result<RemoteUpid, Error> {
         self.pve_change_guest_status(remote, node, vmid, "lxc", "start")
             .await
@@ -306,7 +306,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-        vmid: u64,
+        vmid: u32,
     ) -> Result<RemoteUpid, Error> {
         self.pve_change_guest_status(remote, node, vmid, "lxc", "shutdown")
             .await
@@ -316,7 +316,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-        vmid: u64,
+        vmid: u32,
     ) -> Result<RemoteUpid, Error> {
         self.pve_change_guest_status(remote, node, vmid, "lxc", "stop")
             .await

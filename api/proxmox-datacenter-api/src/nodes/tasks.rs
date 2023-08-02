@@ -129,7 +129,6 @@ pub fn list_tasks(
     until: Option<i64>,
     typefilter: Option<String>,
     statusfilter: Option<Vec<TaskStateType>>,
-    param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;

@@ -11,7 +11,7 @@ use pdm_api_types::{
     ConfigurationState, PveRemote, Remote, RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA,
     SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
-use pve_client::types::ClusterResourceKind;
+use pve_api_types::ClusterResourceKind;
 
 use crate::remotes::get_remote;
 
@@ -66,7 +66,7 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
 
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
 
-pub type PveClient = pve_client::Client<PveEnv>;
+pub type PveClient = pve_api_types::client::HyperClient<PveEnv>;
 
 pub struct PveEnv {
     remote: PveRemote,
@@ -96,14 +96,14 @@ pub fn connect(remote: &PveRemote) -> Result<PveClient, Error> {
         .first()
         .ok_or_else(|| format_err!("no nodes configured for remote"))?;
 
-    let mut options = pve_client::Options::new();
+    let mut options = pve_api_types::client::Options::new();
     if let Some(fp) = &node.fingerprint {
         options = options.tls_fingerprint_str(fp)?;
     }
 
     let client = PveClient::new(PveEnv::new(remote.clone()), &node.hostname, options)?;
 
-    client.client.use_api_token(proxmox_client::Token {
+    client.inner().use_api_token(proxmox_client::Token {
         userid: remote.userid.clone(),
         prefix: "PVEAPIToken".to_string(),
         value: remote.token.to_string(),
@@ -121,7 +121,7 @@ pub fn connect(remote: &PveRemote) -> Result<PveClient, Error> {
     returns: {
         type: Array,
         description: "List of basic PVE node information",
-        items: { type: pve_client::types::ClusterNodeIndexResponse },
+        items: { type: pve_api_types::ClusterNodeIndexResponse },
     },
 )]
 /// Query the remote's version.
@@ -130,7 +130,7 @@ pub fn connect(remote: &PveRemote) -> Result<PveClient, Error> {
 /// overview?
 pub async fn list_nodes(
     remote: String,
-) -> Result<Vec<pve_client::types::ClusterNodeIndexResponse>, Error> {
+) -> Result<Vec<pve_api_types::ClusterNodeIndexResponse>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     match get_remote(&remotes, &remote)? {
@@ -151,14 +151,14 @@ pub async fn list_nodes(
     returns: {
         type: Array,
         description: "List all the resources in a PVE cluster.",
-        items: { type: pve_client::types::ClusterResource },
+        items: { type: pve_api_types::ClusterResource },
     },
 )]
 /// Query the cluster's resources.
 pub async fn cluster_resources(
     remote: String,
     kind: Option<ClusterResourceKind>,
-) -> Result<Vec<pve_client::types::ClusterResource>, Error> {
+) -> Result<Vec<pve_api_types::ClusterResource>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     match get_remote(&remotes, &remote)? {
@@ -179,14 +179,14 @@ pub async fn cluster_resources(
     returns: {
         type: Array,
         description: "Get a list of VMs",
-        items: { type: pve_client::types::VmEntry },
+        items: { type: pve_api_types::VmEntry },
     },
 )]
 /// Query the remote's list of qemu VMs. If no node is provided, the all nodes are queried.
 pub async fn list_qemu(
     remote: String,
     node: Option<String>,
-) -> Result<Vec<pve_client::types::VmEntry>, Error> {
+) -> Result<Vec<pve_api_types::VmEntry>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     let pve = match get_remote(&remotes, &remote)? {
@@ -217,14 +217,14 @@ pub async fn list_qemu(
     returns: {
         type: Array,
         description: "Get a list of containers.",
-        items: { type: pve_client::types::VmEntry },
+        items: { type: pve_api_types::VmEntry },
     },
 )]
 /// Query the remote's list of lxc containers. If no node is provided, the all nodes are queried.
 pub async fn list_lxc(
     remote: String,
     node: Option<String>,
-) -> Result<Vec<pve_client::types::LxcEntry>, Error> {
+) -> Result<Vec<pve_api_types::LxcEntry>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     let pve = match get_remote(&remotes, &remote)? {
@@ -258,17 +258,17 @@ pub async fn list_lxc(
             },
         },
     },
-    returns: { type: pve_client::types::QemuConfig },
+    returns: { type: pve_api_types::QemuConfig },
 )]
 /// Get the configuration of a qemu VM from a remote. If a node is provided, the VM must be on that
 /// node, otherwise the node is determined automatically.
 pub async fn qemu_get_config(
     remote: String,
     node: Option<String>,
-    vmid: u64,
+    vmid: u32,
     state: ConfigurationState,
     snapshot: Option<String>,
-) -> Result<pve_client::types::QemuConfig, Error> {
+) -> Result<pve_api_types::QemuConfig, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     let pve = match get_remote(&remotes, &remote)? {
@@ -308,7 +308,7 @@ pub async fn qemu_get_config(
 pub async fn qemu_start(
     remote: String,
     node: Option<String>,
-    vmid: u64,
+    vmid: u32,
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
@@ -352,7 +352,7 @@ pub async fn qemu_start(
 pub async fn qemu_stop(
     remote: String,
     node: Option<String>,
-    vmid: u64,
+    vmid: u32,
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
@@ -394,7 +394,7 @@ pub async fn qemu_stop(
 pub async fn qemu_shutdown(
     remote: String,
     node: Option<String>,
-    vmid: u64,
+    vmid: u32,
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
@@ -437,17 +437,17 @@ pub async fn qemu_shutdown(
             },
         },
     },
-    returns: { type: pve_client::types::LxcConfig },
+    returns: { type: pve_api_types::LxcConfig },
 )]
 /// Get the configuration of an lxc container from a remote. If a node is provided, the container
 /// must be on that node, otherwise the node is determined automatically.
 pub async fn lxc_get_config(
     remote: String,
     node: Option<String>,
-    vmid: u64,
+    vmid: u32,
     state: ConfigurationState,
     snapshot: Option<String>,
-) -> Result<pve_client::types::LxcConfig, Error> {
+) -> Result<pve_api_types::LxcConfig, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     let pve = match get_remote(&remotes, &remote)? {
@@ -487,7 +487,7 @@ pub async fn lxc_get_config(
 pub async fn lxc_start(
     remote: String,
     node: Option<String>,
-    vmid: u64,
+    vmid: u32,
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
@@ -529,7 +529,7 @@ pub async fn lxc_start(
 pub async fn lxc_stop(
     remote: String,
     node: Option<String>,
-    vmid: u64,
+    vmid: u32,
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
@@ -571,7 +571,7 @@ pub async fn lxc_stop(
 pub async fn lxc_shutdown(
     remote: String,
     node: Option<String>,
-    vmid: u64,
+    vmid: u32,
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 

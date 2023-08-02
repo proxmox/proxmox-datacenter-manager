@@ -138,7 +138,7 @@ async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             kind: {
-                type: pve_client::types::ClusterResourceKind,
+                type: pve_api_types::ClusterResourceKind,
                 optional: true,
             },
             remote: { schema: REMOTE_ID_SCHEMA },
@@ -148,12 +148,12 @@ async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
 /// List all the remotes this instance is managing.
 async fn cluster_resources(
     remote: String,
-    kind: Option<pve_client::types::ClusterResourceKind>,
+    kind: Option<pve_api_types::ClusterResourceKind>,
     param: Value,
 ) -> Result<(), Error> {
     const CLUSTER_LIST_SCHEMA: Schema = ArraySchema::new(
         "cluster resources",
-        &pve_client::types::ClusterResource::API_SCHEMA,
+        &pve_api_types::ClusterResource::API_SCHEMA,
     )
     .schema();
 
@@ -237,7 +237,7 @@ async fn list_qemu(remote: String, node: Option<String>, param: Value) -> Result
 async fn get_qemu_config(
     remote: String,
     node: Option<String>,
-    vmid: u64,
+    vmid: u32,
     state: Option<pdm_api_types::ConfigurationState>,
     snapshot: Option<String>,
     param: Value,
@@ -275,7 +275,7 @@ async fn get_qemu_config(
     }
 )]
 /// List all the remotes this instance is managing.
-async fn start_qemu(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+async fn start_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client
         .pve_qemu_start(&remote, node.as_deref(), vmid)
@@ -300,7 +300,7 @@ async fn start_qemu(remote: String, node: Option<String>, vmid: u64) -> Result<(
     }
 )]
 /// List all the remotes this instance is managing.
-async fn shutdown_qemu(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+async fn shutdown_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client
         .pve_qemu_shutdown(&remote, node.as_deref(), vmid)
@@ -325,7 +325,7 @@ async fn shutdown_qemu(remote: String, node: Option<String>, vmid: u64) -> Resul
     }
 )]
 /// List all the remotes this instance is managing.
-async fn stop_qemu(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+async fn stop_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client.pve_qemu_stop(&remote, node.as_deref(), vmid).await?;
     println!("upid: {upid}");
@@ -399,7 +399,7 @@ async fn list_lxc(remote: String, node: Option<String>, param: Value) -> Result<
 async fn get_lxc_config(
     remote: String,
     node: Option<String>,
-    vmid: u64,
+    vmid: u32,
     state: Option<pdm_api_types::ConfigurationState>,
     snapshot: Option<String>,
     param: Value,
@@ -437,7 +437,7 @@ async fn get_lxc_config(
     }
 )]
 /// List all the remotes this instance is managing.
-async fn start_lxc(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+async fn start_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client.pve_lxc_start(&remote, node.as_deref(), vmid).await?;
     println!("upid: {upid}");
@@ -460,7 +460,7 @@ async fn start_lxc(remote: String, node: Option<String>, vmid: u64) -> Result<()
     }
 )]
 /// List all the remotes this instance is managing.
-async fn shutdown_lxc(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+async fn shutdown_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client
         .pve_lxc_shutdown(&remote, node.as_deref(), vmid)
@@ -485,7 +485,7 @@ async fn shutdown_lxc(remote: String, node: Option<String>, vmid: u64) -> Result
     }
 )]
 /// List all the remotes this instance is managing.
-async fn stop_lxc(remote: String, node: Option<String>, vmid: u64) -> Result<(), Error> {
+async fn stop_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client.pve_lxc_stop(&remote, node.as_deref(), vmid).await?;
     println!("upid: {upid}");
@@ -512,11 +512,8 @@ async fn stop_lxc(remote: String, node: Option<String>, vmid: u64) -> Result<(),
 )]
 /// List all the remotes this instance is managing.
 async fn list_tasks(remote: String, node: Option<String>, param: Value) -> Result<(), Error> {
-    const TASK_LIST_SCHEMA: Schema = ArraySchema::new(
-        "task list",
-        &pve_client::types::ListTasksResponse::API_SCHEMA,
-    )
-    .schema();
+    const TASK_LIST_SCHEMA: Schema =
+        ArraySchema::new("task list", &pve_api_types::ListTasksResponse::API_SCHEMA).schema();
 
     let output_format = get_output_format(&param);
 
@@ -559,7 +556,7 @@ async fn task_status(remote: String, upid: RemoteUpid, param: Value) -> Result<(
         &mut serde_json::to_value(data)?,
         &ReturnType {
             optional: false,
-            schema: &pve_client::types::TaskStatus::API_SCHEMA,
+            schema: &pve_api_types::TaskStatus::API_SCHEMA,
         },
         &output_format,
         &Default::default(),

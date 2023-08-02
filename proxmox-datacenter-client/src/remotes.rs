@@ -143,7 +143,7 @@ async fn remote_version(id: String, param: Value) -> Result<(), Error> {
         &mut serde_json::to_value(data)?,
         &ReturnType {
             optional: false,
-            schema: &pve_client::types::VersionResponse::API_SCHEMA,
+            schema: &pve_api_types::VersionResponse::API_SCHEMA,
         },
         &output_format,
         &Default::default(),

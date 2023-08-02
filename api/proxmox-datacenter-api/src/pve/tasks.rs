@@ -7,7 +7,7 @@ use proxmox_schema::{api, Schema};
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::{Remote, RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA};
-use pve_client::types::PveUpid;
+use pve_api_types::PveUpid;
 
 use super::connect;
 use crate::remotes::get_remote;
@@ -37,13 +37,13 @@ const UPID_API_SUBDIRS: SubdirMap = &sorted!([
             },
         },
     },
-    returns: { type: pve_client::types::TaskStatus },
+    returns: { type: pve_api_types::TaskStatus },
 )]
 /// Get the list of tasks either for a specific node, or query all at once.
 async fn list_tasks(
     remote: String,
     node: Option<String>,
-) -> Result<Vec<pve_client::types::ListTasksResponse>, Error> {
+) -> Result<Vec<pve_api_types::ListTasksResponse>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     let pve = match get_remote(&remotes, &remote)? {
@@ -107,14 +107,14 @@ async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
             },
         },
     },
-    returns: { type: pve_client::types::TaskStatus },
+    returns: { type: pve_api_types::TaskStatus },
 )]
 /// Get the status of a task from a Proxmox VE instance.
 async fn get_task_status(
     remote: String,
     upid: RemoteUpid,
     wait: bool,
-) -> Result<pve_client::types::TaskStatus, Error> {
+) -> Result<pve_api_types::TaskStatus, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     if upid.remote() != remote {
@@ -185,7 +185,7 @@ const DOWNLOAD_PARAM_SCHEMA: Schema = proxmox_schema::BooleanSchema::new(
             }
         },
     },
-    returns: { type: pve_client::types::TaskStatus },
+    returns: { type: pve_api_types::TaskStatus },
 )]
 /// Read a task log.
 async fn read_task_log(
@@ -195,7 +195,7 @@ async fn read_task_log(
     start: Option<u64>,
     limit: Option<u64>,
     rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<pve_client::types::TaskLogLine>, Error> {
+) -> Result<Vec<pve_api_types::TaskLogLine>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     if upid.remote() != remote {
