@@ -1,0 +1,3 @@
+[submodule "proxmox-api-types"]
+	path = proxmox-api-types
+	url = proxdev:rust/proxmox-api-types

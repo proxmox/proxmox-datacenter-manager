@@ -77,7 +77,7 @@ where
     pub async fn remote_version(
         &self,
         remote: &str,
-    ) -> Result<pve_client::types::VersionResponse, Error> {
+    ) -> Result<pve_api_types::VersionResponse, Error> {
         let path = format!("/api2/extjs/remotes/{remote}/version");
         Ok(self.client.get(&path).await?.into_data_or_err()?)
     }
@@ -142,7 +142,7 @@ where
     pub async fn pve_list_nodes(
         &self,
         remote: &str,
-    ) -> Result<Vec<pve_client::types::ClusterNodeIndexResponse>, Error> {
+    ) -> Result<Vec<pve_api_types::ClusterNodeIndexResponse>, Error> {
         let path = format!("/api2/extjs/pve/{remote}/nodes");
         Ok(self.client.get(&path).await?.into_data_or_err()?)
     }
@@ -150,11 +150,11 @@ where
     pub async fn pve_cluster_resources(
         &self,
         remote: &str,
-        kind: Option<pve_client::types::ClusterResourceKind>,
-    ) -> Result<Vec<pve_client::types::ClusterResource>, Error> {
+        kind: Option<pve_api_types::ClusterResourceKind>,
+    ) -> Result<Vec<pve_api_types::ClusterResource>, Error> {
         let mut query = format!("/api2/extjs/pve/{remote}/resources");
         let mut sep = '?';
-        pve_client::helpers::add_query_arg(&mut query, &mut sep, "kind", &kind);
+        pve_api_types::client::add_query_arg(&mut query, &mut sep, "kind", &kind);
         Ok(self.client.get(&query).await?.into_data_or_err()?)
     }
 
@@ -162,7 +162,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-    ) -> Result<Vec<pve_client::types::VmEntry>, Error> {
+    ) -> Result<Vec<pve_api_types::VmEntry>, Error> {
         let path = format!("/api2/extjs/pve/{remote}/qemu");
         let request = match node {
             None => json!({}),
@@ -179,7 +179,7 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-    ) -> Result<Vec<pve_client::types::VmEntry>, Error> {
+    ) -> Result<Vec<pve_api_types::VmEntry>, Error> {
         let path = format!("/api2/extjs/pve/{remote}/lxc");
         let request = match node {
             None => json!({}),
@@ -199,7 +199,7 @@ where
         vmid: u64,
         state: ConfigurationState,
         snapshot: Option<&str>,
-    ) -> Result<pve_client::types::QemuConfig, Error> {
+    ) -> Result<pve_api_types::QemuConfig, Error> {
         let path = format!("/api2/extjs/pve/{remote}/qemu/{vmid}/config");
         let mut request = json!({
             "state": state,
@@ -274,7 +274,7 @@ where
         vmid: u64,
         state: ConfigurationState,
         snapshot: Option<&str>,
-    ) -> Result<pve_client::types::LxcConfig, Error> {
+    ) -> Result<pve_api_types::LxcConfig, Error> {
         let path = format!("/api2/extjs/pve/{remote}/lxc/{vmid}/config");
         let mut request = json!({
             "state": state,
@@ -326,10 +326,10 @@ where
         &self,
         remote: &str,
         node: Option<&str>,
-    ) -> Result<Vec<pve_client::types::ListTasksResponse>, Error> {
+    ) -> Result<Vec<pve_api_types::ListTasksResponse>, Error> {
         let mut query = format!("/api2/extjs/pve/{remote}/tasks");
         let mut sep = '?';
-        pve_client::helpers::add_query_arg(&mut query, &mut sep, "node", &node);
+        pve_api_types::client::add_query_arg(&mut query, &mut sep, "node", &node);
         Ok(self.client.get(&query).await?.into_data_or_err()?)
     }
 
@@ -341,7 +341,7 @@ where
     pub async fn pve_task_status(
         &self,
         upid: &RemoteUpid,
-    ) -> Result<pve_client::types::TaskStatus, Error> {
+    ) -> Result<pve_api_types::TaskStatus, Error> {
         let remote = upid.remote();
         let upid = upid.to_string();
         let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status");
@@ -351,7 +351,7 @@ where
     pub async fn pve_wait_for_task(
         &self,
         upid: &RemoteUpid,
-    ) -> Result<pve_client::types::TaskStatus, Error> {
+    ) -> Result<pve_api_types::TaskStatus, Error> {
         let remote = upid.remote();
         let upid = upid.to_string();
         let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status?wait=1");

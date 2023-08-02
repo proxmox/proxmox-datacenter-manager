@@ -19,8 +19,6 @@ members = [
     "api/pdm-client",
     "api/pdm-config",
 
-    "api/pve-client",
-
     "api/proxmox-datacenter-privileged-api",
     "api/proxmox-datacenter-api",
 
@@ -58,6 +56,9 @@ proxmox-acme-rs = "0.4"
 proxmox-apt = "0.10"
 proxmox-openid = "0.10"
 
+# API types for PVE (and later PMG?)
+pve-api-types = { path = "proxmox-api-types/pve-api-types" }
+
 # PDM workspace
 pdm-api-common = { path = "api/pdm-api-common" }
 pdm-api-types = { path = "api/pdm-api-types" }
@@ -65,8 +66,6 @@ pdm-buildcfg = { path = "api/pdm-buildcfg" }
 pdm-config = { path = "api/pdm-config" }
 proxmox-datacenter-api = { path = "api/proxmox-datacenter-api" }
 pdm-client = { path = "api/pdm-client" }
-
-pve-client = { path = "api/pve-client" }
 
 # regular crates
 anyhow = "1.0"

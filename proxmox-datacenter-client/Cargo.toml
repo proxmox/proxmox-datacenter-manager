@@ -35,4 +35,4 @@ proxmox-sys.workspace = true
 proxmox-tfa = { workspace = true, features = [ "types" ] }
 
 # for the pve API types:
-pve-client.workspace = true
+pve-api-types.workspace = true

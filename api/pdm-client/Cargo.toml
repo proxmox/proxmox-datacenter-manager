@@ -27,5 +27,4 @@ proxmox-client = { workspace = true, features = [ "hyper-client" ] }
 proxmox-http.workspace = true
 proxmox-tfa = { workspace = true, features = [ "types" ] }
 
-# for the pve api types
-pve-client.workspace = true
+pve-api-types = { workspace = true, features = [ "client-util" ] }

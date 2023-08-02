@@ -71,4 +71,4 @@ pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-config.workspace = true
 
-pve-client.workspace = true
+pve-api-types = { workspace = true, features = [ "client" ] }
