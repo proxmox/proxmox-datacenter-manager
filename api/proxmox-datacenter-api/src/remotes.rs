@@ -166,6 +166,6 @@ pub async fn version(id: String) -> Result<pve_api_types::VersionResponse, Error
     let (remotes, _) = pdm_config::remotes::config()?;
 
     match get_remote(&remotes, &id)? {
-        Remote::Pve(pve) => pve::connect(pve)?.version().await,
+        Remote::Pve(pve) => Ok(pve::connect(pve)?.version().await?),
     }
 }

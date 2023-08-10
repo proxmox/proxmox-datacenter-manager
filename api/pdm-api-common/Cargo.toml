@@ -24,8 +24,6 @@ log.workspace = true
 nix.workspace = true
 once_cell.workspace = true
 openssl.workspace = true
-pam-sys.workspace = true
-pam.workspace = true
 percent-encoding.workspace = true
 regex.workspace = true
 serde.workspace = true
@@ -44,7 +42,7 @@ xdg.workspace = true
 zstd.workspace = true
 
 proxmox-async.workspace = true
-proxmox-auth-api = { workspace = true, features = [ "ticket" ] }
+proxmox-auth-api = { workspace = true, features = [ "api", "ticket", "pam-authenticator" ] }
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
 proxmox-io.workspace = true
 proxmox-lang.workspace = true
@@ -57,7 +55,7 @@ proxmox-shared-memory.workspace = true
 proxmox-sortable-macro.workspace = true
 proxmox-subscription.workspace = true
 proxmox-sys = { workspace = true, features = [ "timer" ] }
-proxmox-tfa.workspace = true
+proxmox-tfa = { workspace = true, features = [ "api" ] }
 proxmox-time.workspace = true
 proxmox-uuid.workspace = true
 

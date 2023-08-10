@@ -49,7 +49,7 @@ proxmox-tfa = { version = "4.0", features = [ "api-types" ] }
 proxmox-time = "1.1.2"
 proxmox-uuid = "1"
 proxmox-login = { version = "0.1", features = [ "webauthn" ] }
-proxmox-client = { version = "0.1", features = [ "hyper-client" ] }
+proxmox-client = { version = "0.2", features = [ "hyper-client" ] }
 
 # other proxmox crates
 proxmox-acme-rs = "0.4"
@@ -83,8 +83,6 @@ log = "0.4.17"
 nix = "0.26.1"
 once_cell = "1.3.1"
 openssl = "0.10.40"
-pam = "0.7"
-pam-sys = "0.5"
 percent-encoding = "2.1"
 pin-project-lite = "0.2"
 regex = "1.5.5"

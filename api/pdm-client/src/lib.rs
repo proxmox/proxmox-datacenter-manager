@@ -1,61 +1,34 @@
 //! Proxmox Datacenter Manager API client.
 
-use anyhow::{bail, format_err, Error};
-use openssl::x509;
 use serde_json::json;
 
-use proxmox_client::Environment;
+use proxmox_client::{Error, HttpApiClient};
 
 use pdm_api_types::{ConfigurationState, Remote, RemoteUpid};
 
-pub struct Client<E: Environment> {
-    client: proxmox_client::HyperClient<E>,
+pub struct PdmClient<T: HttpApiClient>(pub T);
+
+impl<T: HttpApiClient> std::ops::Deref for PdmClient<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
 }
 
-impl<E> Client<E>
-where
-    E: Environment,
-    E::Error: From<anyhow::Error>,
-    anyhow::Error: From<E::Error>,
-{
-    pub fn new(env: E, server: &str, options: Options) -> Result<Self, E::Error> {
-        use proxmox_client::TlsOptions;
-
-        let tls_options = match options.callback {
-            Some(cb) => TlsOptions::Callback(cb),
-            None => TlsOptions::default(),
-        };
-
-        let client = proxmox_client::HyperClient::with_options(
-            server
-                .parse()
-                .map_err(|err| format_err!("bad address: {server:?} - {err}"))?,
-            env,
-            tls_options,
-            options.http_options,
-        )?;
-
-        Ok(Self { client })
+impl<T: HttpApiClient> std::ops::DerefMut for PdmClient<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.0
     }
+}
 
-    pub async fn login(&self) -> Result<(), Error> {
-        self.client.login().await?;
-        Ok(())
-    }
-
+impl<T: HttpApiClient> PdmClient<T> {
     pub async fn list_remotes(&self) -> Result<Vec<Remote>, Error> {
-        Ok(self
-            .client
-            .get("/api2/extjs/remotes")
-            .await?
-            .into_data_or_err()?)
+        Ok(self.0.get("/api2/extjs/remotes").await?.expect_json()?.data)
     }
 
-    pub async fn add_remote(&self, remote: &Remote) -> Result<(), Error> {
-        self.client
-            .post::<_, ()>("/api2/extjs/remotes", remote)
-            .await?;
-        Ok(())
+    pub async fn add_remote(&self, remote: &Remote) -> Result<(), proxmox_client::Error> {
+        self.0.post("/api2/extjs/remotes", remote).await?.nodata()
     }
 
     pub async fn update_remote(
@@ -64,22 +37,22 @@ where
         updater: &pdm_api_types::PveRemoteUpdater,
     ) -> Result<(), Error> {
         let path = format!("/api2/extjs/remotes/{remote}");
-        self.client.put(&path, updater).await?.nodata()?;
+        self.0.put(&path, updater).await?.nodata()?;
         Ok(())
     }
 
     pub async fn remove_remote(&self, remote: &str) -> Result<(), Error> {
         let path = format!("/api2/extjs/remotes/{remote}");
-        self.client.delete(&path).await?.nodata()?;
+        self.0.delete(&path).await?.nodata()?;
         Ok(())
     }
 
     pub async fn remote_version(
         &self,
         remote: &str,
-    ) -> Result<pve_api_types::VersionResponse, Error> {
+    ) -> Result<pve_api_types::VersionResponse, proxmox_client::Error> {
         let path = format!("/api2/extjs/remotes/{remote}/version");
-        Ok(self.client.get(&path).await?.into_data_or_err()?)
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn list_user_tfa(
@@ -87,7 +60,7 @@ where
         userid: &str,
     ) -> Result<Vec<proxmox_tfa::TypedTfaInfo>, Error> {
         let path = format!("/api2/extjs/access/tfa/{userid}");
-        Ok(self.client.get(&path).await?.into_data_or_err()?)
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn remove_tfa_entry(
@@ -95,19 +68,10 @@ where
         userid: &str,
         password: Option<&str>,
         id: &str,
-    ) -> Result<(), Error> {
-        let path = format!("/api2/extjs/access/tfa/{userid}/{id}");
-
-        let mut request = json!({});
-        if let Some(pw) = password {
-            request["password"] = pw.into();
-        }
-
-        self.client
-            .delete_with_body(&path, &request)
-            .await?
-            .nodata()?;
-        Ok(())
+    ) -> Result<(), proxmox_client::Error> {
+        let mut path = format!("/api2/extjs/access/tfa/{userid}/{id}");
+        add_query_arg(&mut path, &mut '?', "password", &password);
+        self.0.delete(&path).await?.nodata()
     }
 
     pub async fn add_recovery_keys(
@@ -119,7 +83,7 @@ where
         let path = format!("/api2/extjs/access/tfa/{userid}");
 
         let result: proxmox_tfa::TfaUpdateInfo = self
-            .client
+            .0
             .post(
                 &path,
                 &AddTfaEntry {
@@ -130,10 +94,14 @@ where
                 },
             )
             .await?
-            .into_data_or_err()?;
+            .expect_json()?
+            .data;
 
         if result.recovery.is_empty() {
-            bail!("api returned empty list of recovery keys");
+            return Err(Error::BadApi(
+                "api returned empty list of recovery keys".to_string(),
+                None,
+            ));
         }
 
         Ok(result.recovery)
@@ -144,7 +112,7 @@ where
         remote: &str,
     ) -> Result<Vec<pve_api_types::ClusterNodeIndexResponse>, Error> {
         let path = format!("/api2/extjs/pve/{remote}/nodes");
-        Ok(self.client.get(&path).await?.into_data_or_err()?)
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn pve_cluster_resources(
@@ -153,9 +121,8 @@ where
         kind: Option<pve_api_types::ClusterResourceKind>,
     ) -> Result<Vec<pve_api_types::ClusterResource>, Error> {
         let mut query = format!("/api2/extjs/pve/{remote}/resources");
-        let mut sep = '?';
-        pve_api_types::client::add_query_arg(&mut query, &mut sep, "kind", &kind);
-        Ok(self.client.get(&query).await?.into_data_or_err()?)
+        add_query_arg(&mut query, &mut '?', "kind", &kind);
+        Ok(self.0.get(&query).await?.expect_json()?.data)
     }
 
     pub async fn pve_list_qemu(
@@ -163,16 +130,9 @@ where
         remote: &str,
         node: Option<&str>,
     ) -> Result<Vec<pve_api_types::VmEntry>, Error> {
-        let path = format!("/api2/extjs/pve/{remote}/qemu");
-        let request = match node {
-            None => json!({}),
-            Some(node) => json!({ "node": node }),
-        };
-        Ok(self
-            .client
-            .get_with_body(&path, &request)
-            .await?
-            .into_data_or_err()?)
+        let mut path = format!("/api2/extjs/pve/{remote}/qemu");
+        add_query_arg(&mut path, &mut '?', "node", &node);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn pve_list_lxc(
@@ -180,16 +140,9 @@ where
         remote: &str,
         node: Option<&str>,
     ) -> Result<Vec<pve_api_types::VmEntry>, Error> {
-        let path = format!("/api2/extjs/pve/{remote}/lxc");
-        let request = match node {
-            None => json!({}),
-            Some(node) => json!({ "node": node }),
-        };
-        Ok(self
-            .client
-            .get_with_body(&path, &request)
-            .await?
-            .into_data_or_err()?)
+        let mut path = format!("/api2/extjs/pve/{remote}/lxc");
+        add_query_arg(&mut path, &mut '?', "node", &node);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn pve_qemu_config(
@@ -200,21 +153,12 @@ where
         state: ConfigurationState,
         snapshot: Option<&str>,
     ) -> Result<pve_api_types::QemuConfig, Error> {
-        let path = format!("/api2/extjs/pve/{remote}/qemu/{vmid}/config");
-        let mut request = json!({
-            "state": state,
-        });
-        if let Some(node) = node {
-            request["node"] = node.into();
-        }
-        if let Some(snapshot) = snapshot {
-            request["snapshot"] = snapshot.into();
-        }
-        Ok(self
-            .client
-            .get_with_body(&path, &request)
-            .await?
-            .into_data_or_err()?)
+        let mut path = format!("/api2/extjs/pve/{remote}/qemu/{vmid}/config");
+        let mut sep = '?';
+        add_query_arg(&mut path, &mut sep, "state", &Some(&state));
+        add_query_arg(&mut path, &mut sep, "node", &node);
+        add_query_arg(&mut path, &mut sep, "snapshot", &snapshot);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     async fn pve_change_guest_status(
@@ -230,11 +174,7 @@ where
         if let Some(node) = node {
             request["node"] = node.into();
         }
-        Ok(self
-            .client
-            .post(&path, &request)
-            .await?
-            .into_data_or_err()?)
+        Ok(self.0.post(&path, &request).await?.expect_json()?.data)
     }
 
     pub async fn pve_qemu_start(
@@ -275,21 +215,12 @@ where
         state: ConfigurationState,
         snapshot: Option<&str>,
     ) -> Result<pve_api_types::LxcConfig, Error> {
-        let path = format!("/api2/extjs/pve/{remote}/lxc/{vmid}/config");
-        let mut request = json!({
-            "state": state,
-        });
-        if let Some(node) = node {
-            request["node"] = node.into();
-        }
-        if let Some(snapshot) = snapshot {
-            request["snapshot"] = snapshot.into();
-        }
-        Ok(self
-            .client
-            .get_with_body(&path, &request)
-            .await?
-            .into_data_or_err()?)
+        let mut path = format!("/api2/extjs/pve/{remote}/lxc/{vmid}/config");
+        let mut sep = '?';
+        add_query_arg(&mut path, &mut sep, "node", &node);
+        add_query_arg(&mut path, &mut sep, "state", &Some(&state));
+        add_query_arg(&mut path, &mut sep, "snapshot", &snapshot);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn pve_lxc_start(
@@ -330,12 +261,12 @@ where
         let mut query = format!("/api2/extjs/pve/{remote}/tasks");
         let mut sep = '?';
         pve_api_types::client::add_query_arg(&mut query, &mut sep, "node", &node);
-        Ok(self.client.get(&query).await?.into_data_or_err()?)
+        Ok(self.0.get(&query).await?.expect_json()?.data)
     }
 
     pub async fn pve_stop_task(&self, remote: &str, upid: &str) -> Result<(), Error> {
         let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}");
-        Ok(self.client.delete(&path).await?.into_data_or_err()?)
+        Ok(self.0.delete(&path).await?.expect_json()?.data)
     }
 
     pub async fn pve_task_status(
@@ -345,7 +276,7 @@ where
         let remote = upid.remote();
         let upid = upid.to_string();
         let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status");
-        Ok(self.client.get(&path).await?.into_data_or_err()?)
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn pve_wait_for_task(
@@ -355,40 +286,7 @@ where
         let remote = upid.remote();
         let upid = upid.to_string();
         let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status?wait=1");
-        Ok(self.client.get(&path).await?.into_data_or_err()?)
-    }
-}
-
-#[derive(Default)]
-// TODO: Merge this with pbs-client's stuff
-pub struct Options {
-    /// Set a TLS verification callback.
-    callback:
-        Option<Box<dyn Fn(bool, &mut x509::X509StoreContextRef) -> bool + Send + Sync + 'static>>,
-
-    /// `proxmox_http` based options.
-    http_options: proxmox_http::HttpOptions,
-}
-
-impl Options {
-    /// New default instance.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Set a TLS verification callback.
-    pub fn tls_callback<F>(mut self, cb: F) -> Self
-    where
-        F: Fn(bool, &mut x509::X509StoreContextRef) -> bool + Send + Sync + 'static,
-    {
-        self.callback = Some(Box::new(cb));
-        self
-    }
-
-    /// Set the HTTP related options.
-    pub fn http_options(mut self, http_options: proxmox_http::HttpOptions) -> Self {
-        self.http_options = http_options;
-        self
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 }
 
@@ -418,5 +316,22 @@ impl AddTfaEntry {
             challenge: None,
             password: None,
         }
+    }
+}
+///
+/// Add an optional string parameter to the query, and if it was added, change `separator` to `&`.
+pub fn add_query_arg<T>(query: &mut String, separator: &mut char, name: &str, value: &Option<T>)
+where
+    T: std::fmt::Display,
+{
+    if let Some(value) = value {
+        query.push(*separator);
+        *separator = '&';
+        query.push_str(name);
+        query.push('=');
+        query.extend(percent_encoding::percent_encode(
+            value.to_string().as_bytes(),
+            percent_encoding::NON_ALPHANUMERIC,
+        ));
     }
 }

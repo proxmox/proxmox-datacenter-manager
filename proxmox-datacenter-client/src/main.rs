@@ -1,16 +1,18 @@
 use anyhow::{bail, format_err, Error};
 use once_cell::sync::{Lazy, OnceCell};
 
+use proxmox_client::{Client, TlsOptions};
+use proxmox_login::Login;
 use proxmox_router::cli::{run_cli_command_with_args, CliCommand, CliCommandMap, CliEnvironment};
 use proxmox_schema::api;
+
+use pdm_client::PdmClient;
 
 pub mod env;
 pub mod fido;
 pub mod pve;
 pub mod remotes;
 pub mod user;
-
-pub type Client = pdm_client::Client<&'static env::Env>;
 
 pub static XDG: Lazy<xdg::BaseDirectories> = Lazy::new(|| {
     xdg::BaseDirectories::new().expect("failed to initialize XDG base directory info")
@@ -23,16 +25,17 @@ pub fn env() -> &'static env::Env {
     ENV.get().unwrap()
 }
 
-pub fn client() -> Result<Client, Error> {
+pub fn client() -> Result<PdmClient<Client>, Error> {
     let address = format!(
         "https://{}:8443/",
         env()
             .server
             .as_ref()
             .ok_or_else(|| format_err!("no server address specified"))?
-    );
+    )
+    .parse()?;
 
-    let options = pdm_client::Options::default().tls_callback(|valid, store| {
+    let options = TlsOptions::Callback(Box::new(|valid, store| {
         if valid {
             return true;
         }
@@ -44,9 +47,17 @@ pub fn client() -> Result<Client, Error> {
                 false
             }
         }
-    });
+    }));
 
-    Client::new(env(), &address, options)
+    let userid = env().query_userid(&address)?;
+    let client = Client::with_options(address.clone(), options, Default::default())?;
+
+    if let Some(ticket) = env().load_ticket(&address, &userid)? {
+        let auth: proxmox_client::Authentication = serde_json::from_slice(&ticket)?;
+        client.set_authentication(auth);
+    }
+
+    Ok(PdmClient(client))
 }
 
 fn main() {
@@ -93,7 +104,20 @@ async fn login() -> Result<(), Error> {
     }
 
     let client = client()?;
-    client.login().await?;
+    let userid = env().query_userid(client.api_url())?;
+    let password = env().query_password(client.api_url(), &userid)?;
+    if let Some(tfa) = client
+        .login(Login::new(client.api_url().to_string(), &userid, &password))
+        .await?
+    {
+        let response = env().query_second_factor(client.api_url(), &userid, &tfa.challenge)?;
+        let response = tfa.respond_raw(&response);
+        client.login_tfa(tfa, response).await?;
+    }
+
+    if let Some(ticket) = client.serialize_ticket()? {
+        env().store_ticket(client.api_url(), &userid, &ticket)?;
+    }
 
     Ok(())
 }

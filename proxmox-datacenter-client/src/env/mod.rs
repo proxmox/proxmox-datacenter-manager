@@ -1,8 +1,6 @@
 //! Client environment to query login data.
 
-use std::future::Future;
 use std::io::{self, Write};
-use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 use http::Uri;
@@ -205,10 +203,8 @@ impl Env {
     }
 }
 
-impl proxmox_client::Environment for &Env {
-    type Error = Error;
-
-    fn query_userid(&self, _api_url: &http::Uri) -> Result<String, Error> {
+impl Env {
+    pub fn query_userid(&self, _api_url: &http::Uri) -> Result<String, Error> {
         if let Some(userid) = &self.userid {
             return Ok(userid.clone());
         }
@@ -235,12 +231,12 @@ impl proxmox_client::Environment for &Env {
         Ok(userid)
     }
 
-    fn query_password(&self, _api_url: &http::Uri, _userid: &str) -> Result<String, Error> {
+    pub fn query_password(&self, _api_url: &http::Uri, _userid: &str) -> Result<String, Error> {
         let password = proxmox_sys::linux::tty::read_password("Password: ")?;
         Ok(String::from_utf8(password)?)
     }
 
-    fn query_second_factor(
+    pub fn query_second_factor(
         &self,
         api_url: &Uri,
         userid: &str,
@@ -333,12 +329,12 @@ impl proxmox_client::Environment for &Env {
         ))
     }
 
-    fn store_ticket(&self, api_url: &Uri, userid: &str, ticket: &[u8]) -> Result<(), Self::Error> {
+    pub fn store_ticket(&self, api_url: &Uri, userid: &str, ticket: &[u8]) -> Result<(), Error> {
         let path = XDG.place_cache_file(Env::ticket_path(api_url, userid))?;
         std::fs::write(path, ticket).map_err(Error::from)
     }
 
-    fn load_ticket(&self, api_url: &Uri, userid: &str) -> Result<Option<Vec<u8>>, Self::Error> {
+    pub fn load_ticket(&self, api_url: &Uri, userid: &str) -> Result<Option<Vec<u8>>, Error> {
         Ok(
             match XDG.find_cache_file(Env::ticket_path(api_url, userid)) {
                 Some(path) => Some(std::fs::read(path)?),
@@ -347,9 +343,11 @@ impl proxmox_client::Environment for &Env {
         )
     }
 
+    /*
     fn sleep(
         time: std::time::Duration,
-    ) -> Result<Pin<Box<dyn Future<Output = ()> + Send + 'static>>, Self::Error> {
+    ) -> Result<Pin<Box<dyn Future<Output = ()> + Send + 'static>>, Error> {
         Ok(Box::pin(tokio::time::sleep(time)))
     }
+    */
 }

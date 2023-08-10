@@ -51,7 +51,7 @@ async fn list_tasks(
     };
 
     if let Some(node) = node {
-        pve.get_task_list(&node, Default::default()).await
+        Ok(pve.get_task_list(&node, Default::default()).await?)
     } else {
         let mut entry = Vec::new();
         for node in pve.list_nodes().await? {
@@ -91,7 +91,7 @@ async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
 
     let pve = connect(pve)?;
 
-    pve.stop_task(&pve_upid.node, &upid.upid).await
+    Ok(pve.stop_task(&pve_upid.node, &upid.upid).await?)
 }
 
 #[api(
@@ -224,5 +224,5 @@ async fn read_task_log(
         rpcenv[&key] = value;
     }
 
-    Ok(response.data.unwrap_or_default())
+    Ok(response.data)
 }

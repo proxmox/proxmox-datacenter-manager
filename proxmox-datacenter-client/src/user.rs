@@ -155,7 +155,7 @@ async fn remove_tfa(userid: Option<String>, id: String) -> Result<(), Error> {
         None
     };
 
-    client()?
+    Ok(client()?
         .remove_tfa_entry(&userid, password.as_deref(), &id)
-        .await
+        .await?)
 }

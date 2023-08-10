@@ -2,7 +2,7 @@
 
 use anyhow::{format_err, Error};
 
-use proxmox_client::Environment;
+use proxmox_client::{Client, TlsOptions};
 use proxmox_router::{http_err, list_subdirs_api_method, Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
@@ -11,6 +11,7 @@ use pdm_api_types::{
     ConfigurationState, PveRemote, Remote, RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA,
     SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
+use pve_api_types::client::PveClient;
 use pve_api_types::ClusterResourceKind;
 
 use crate::remotes::get_remote;
@@ -66,50 +67,27 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
 
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
 
-pub type PveClient = pve_api_types::client::HyperClient<PveEnv>;
-
-pub struct PveEnv {
-    remote: PveRemote,
-}
-
-impl PveEnv {
-    pub fn new(remote: PveRemote) -> Self {
-        Self { remote }
-    }
-}
-
-impl Environment for PveEnv {
-    type Error = Error;
-
-    fn query_userid(&self, _: &http::Uri) -> Result<String, Error> {
-        Ok(self.remote.userid.clone())
-    }
-
-    fn load_ticket(&self, _: &http::Uri, _userid: &str) -> Result<Option<Vec<u8>>, Error> {
-        Ok(Some(self.remote.token.as_bytes().to_vec()))
-    }
-}
-
-pub fn connect(remote: &PveRemote) -> Result<PveClient, Error> {
+pub fn connect(remote: &PveRemote) -> Result<PveClient<Client>, Error> {
     let node = remote
         .nodes
         .first()
         .ok_or_else(|| format_err!("no nodes configured for remote"))?;
 
-    let mut options = pve_api_types::client::Options::new();
+    let mut options = TlsOptions::default();
     if let Some(fp) = &node.fingerprint {
-        options = options.tls_fingerprint_str(fp)?;
+        options = TlsOptions::parse_fingerprint(fp)?;
     }
 
-    let client = PveClient::new(PveEnv::new(remote.clone()), &node.hostname, options)?;
+    let uri = format!("https://{}:8006", node.hostname).parse()?;
+    let client = Client::with_options(uri, options, Default::default())?;
 
-    client.inner().use_api_token(proxmox_client::Token {
+    client.set_authentication(proxmox_client::Token {
         userid: remote.userid.clone(),
         prefix: "PVEAPIToken".to_string(),
         value: remote.token.to_string(),
     });
 
-    Ok(client)
+    Ok(PveClient(client))
 }
 
 #[api(
@@ -134,7 +112,7 @@ pub async fn list_nodes(
     let (remotes, _) = pdm_config::remotes::config()?;
 
     match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?.list_nodes().await,
+        Remote::Pve(pve) => Ok(connect(pve)?.list_nodes().await?),
     }
 }
 
@@ -162,7 +140,7 @@ pub async fn cluster_resources(
     let (remotes, _) = pdm_config::remotes::config()?;
 
     match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?.cluster_resources(kind).await,
+        Remote::Pve(pve) => Ok(connect(pve)?.cluster_resources(kind).await?),
     }
 }
 
@@ -194,7 +172,7 @@ pub async fn list_qemu(
     };
 
     if let Some(node) = node {
-        pve.list_qemu(&node, None).await
+        Ok(pve.list_qemu(&node, None).await?)
     } else {
         let mut entry = Vec::new();
         for node in pve.list_nodes().await? {
@@ -232,7 +210,7 @@ pub async fn list_lxc(
     };
 
     if let Some(node) = node {
-        pve.list_lxc(&node).await
+        Ok(pve.list_lxc(&node).await?)
     } else {
         let mut entry = Vec::new();
         for node in pve.list_nodes().await? {
@@ -287,8 +265,9 @@ pub async fn qemu_get_config(
             .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
     };
 
-    pve.qemu_get_config(&node, vmid, state.current(), snapshot)
-        .await
+    Ok(pve
+        .qemu_get_config(&node, vmid, state.current(), snapshot)
+        .await?)
 }
 
 #[api(
@@ -466,8 +445,9 @@ pub async fn lxc_get_config(
             .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
     };
 
-    pve.lxc_get_config(&node, vmid, state.current(), snapshot)
-        .await
+    Ok(pve
+        .lxc_get_config(&node, vmid, state.current(), snapshot)
+        .await?)
 }
 
 #[api(

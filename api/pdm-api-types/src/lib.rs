@@ -1,5 +1,6 @@
 //! Basic API types used by most of the PDM code.
 
+use std::error::Error as StdError;
 use std::fmt;
 
 use anyhow::{bail, Error};
@@ -500,6 +501,7 @@ impl Remote {
 #[api]
 /// Guest configuration access.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, Updater)]
+#[serde(rename_all = "kebab-case")]
 pub enum ConfigurationState {
     /// The configuration with pending values.
     #[default]
@@ -516,6 +518,23 @@ impl ConfigurationState {
             ConfigurationState::Active => true,
             ConfigurationState::Pending => false,
         })
+    }
+}
+
+serde_plain::derive_display_from_serialize!(ConfigurationState);
+serde_plain::derive_fromstr_from_deserialize!(
+    ConfigurationState,
+    |_err| -> BadConfigurationState { BadConfigurationState }
+);
+
+#[derive(Debug)]
+pub struct BadConfigurationState;
+
+impl StdError for BadConfigurationState {}
+
+impl fmt::Display for BadConfigurationState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("not a valid configuration state")
     }
 }
 
