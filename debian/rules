@@ -1,0 +1,39 @@
+#!/usr/bin/make -f
+# See debhelper(7) (uncomment to enable)
+# output every command that modifies files on the build system.
+DH_VERBOSE = 1
+
+include /usr/share/dpkg/pkg-info.mk
+include /usr/share/rustc/architecture.mk
+
+export BUILD_MODE=release
+
+CARGO=/usr/share/cargo/bin/cargo
+
+export CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
+export DEB_HOST_RUST_TYPE DEB_HOST_GNU_TYPE
+export CARGO_HOME = $(CURDIR)/debian/cargo_home
+
+export DEB_CARGO_CRATE=proxmox-datacenter-manager_$(DEB_VERSION_UPSTREAM)
+export DEB_CARGO_PACKAGE=proxmox-datacenter-manager
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	@perl -ne 'if (/^version\s*=\s*"(\d+(?:\.\d+)+)"/) { my $$v_cargo = $$1; my $$v_deb = "$(DEB_VERSION_UPSTREAM)"; \
+	    die "ERROR: d/changelog <-> Cargo.toml version mismatch: $$v_cargo != $$v_deb\n" if $$v_cargo ne $$v_deb; exit(0); }' Cargo.toml
+	$(CARGO) prepare-debian $(CURDIR)/debian/cargo_registry --link-from-system
+	dh_auto_configure
+
+override_dh_strip:
+	dh_strip
+	for exe in $$(find \
+	    debian/proxmox-datacenter-manager/usr \
+	    debian/proxmox-datacenter-manager-client/usr \
+	    -executable -type f); do \
+	  debian/scripts/elf-strip-unused-dependencies.sh "$$exe" || true; \
+	done
+
+override_dh_missing:
+	dh_missing --fail-missing

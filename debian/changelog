@@ -1,0 +1,5 @@
+proxmox-datacenter-manager (0.1.0) bookworm; urgency=medium
+
+  * initial release
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 26 Oct 2023 18:44:35 +0200
