@@ -59,7 +59,7 @@ proxmox-tfa.workspace = true
 proxmox-time.workspace = true
 proxmox-uuid.workspace = true
 
-proxmox-acme-rs.workspace = true
+proxmox-acme.workspace = true
 proxmox-apt.workspace = true
 proxmox-client.workspace = true
 proxmox-openid.workspace = true
