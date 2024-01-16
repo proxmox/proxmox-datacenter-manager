@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, Error};
+use anyhow::{bail, Context as _, Error};
 use futures::*;
 use http::request::Parts;
 use http::Response;
@@ -184,6 +184,7 @@ async fn run() -> Result<(), Error> {
         )?;
 
     let rest_server = RestServer::new(config);
+    let redirector = proxmox_rest_server::Redirector::new();
     proxmox_rest_server::init_worker_tasks(
         pdm_buildcfg::PDM_LOG_DIR_M!().into(),
         file_opts.clone(),
@@ -211,21 +212,48 @@ async fn run() -> Result<(), Error> {
         }
     })?;
 
-    let connections =
-        proxmox_rest_server::connection::AcceptBuilder::with_acceptor(acceptor).debug(debug);
+    let connections = proxmox_rest_server::connection::AcceptBuilder::new().debug(debug);
     let server = daemon::create_daemon(
         ([0, 0, 0, 0, 0, 0, 0, 0], pdm_buildcfg::PDM_PORT).into(),
         move |listener| {
-            let connections = connections.accept(listener);
+            let (secure_connections, insecure_connections) =
+                connections.accept_tls_optional(listener, acceptor);
 
             Ok(async {
                 daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
-                hyper::Server::builder(connections)
+                let secure_server = hyper::Server::builder(secure_connections)
                     .serve(rest_server)
                     .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
-                    .map_err(Error::from)
-                    .await
+                    .map_err(Error::from);
+
+                let insecure_server = hyper::Server::builder(insecure_connections)
+                    .serve(redirector)
+                    .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
+                    .map_err(Error::from);
+
+                let (secure_res, insecure_res) =
+                    try_join!(tokio::spawn(secure_server), tokio::spawn(insecure_server))
+                        .context("failed to complete REST server task")?;
+
+                let mut err_msg = String::new();
+                let mut is_err = false;
+                for res in [secure_res, insecure_res] {
+                    if let Err(err) = res {
+                        use std::fmt::Write as _;
+
+                        is_err = true;
+
+                        if !err_msg.is_empty() {
+                            err_msg.push('\n');
+                        }
+                        let _ = write!(err_msg, "{err}");
+                    }
+                }
+                if is_err {
+                    bail!(err_msg);
+                }
+                Ok(())
             })
         },
         Some(pdm_buildcfg::PDM_API_PID_FN),
