@@ -28,7 +28,7 @@ const YUBICO: u8 = 4;
 const WEBAUTHN: u8 = 8;
 
 /// We store the last used user id in here.
-const USERID_PATH: &str = xdg_path!("userid");
+const USERID_CACHE_PATH: &str = xdg_path!("userid");
 const FINGERPRINT_CACHE_PATH: &str = xdg_path!("fingerprints");
 const CURRENT_SERVER_CACHE_PATH: &str = xdg_path!("current-server");
 
@@ -194,7 +194,7 @@ impl Env {
 
     pub fn remember_userid(userid: &str) {
         match XDG
-            .place_cache_file(USERID_PATH)
+            .place_cache_file(USERID_CACHE_PATH)
             .and_then(|path| std::fs::write(path, userid.as_bytes()))
         {
             Ok(()) => (),
@@ -209,7 +209,7 @@ impl Env {
             return Ok(userid.clone());
         }
 
-        if let Some(path) = XDG.find_cache_file(USERID_PATH) {
+        if let Some(path) = XDG.find_cache_file(USERID_CACHE_PATH) {
             let userid = std::fs::read_to_string(path)?;
             let userid = userid.trim_start().trim_end();
             if !userid.is_empty() {
