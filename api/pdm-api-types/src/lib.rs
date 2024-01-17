@@ -6,15 +6,12 @@ use std::fmt;
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
+use proxmox_schema::api_types::SAFE_ID_REGEX;
 use proxmox_schema::{
     api, const_regex, ApiStringFormat, ApiType, ArraySchema, IntegerSchema, ReturnType, Schema,
     StringSchema, Updater,
 };
 use proxmox_time::parse_daily_duration;
-
-#[rustfmt::skip]
-#[macro_export]
-macro_rules! PROXMOX_SAFE_ID_REGEX_STR { () => { r"(?:[A-Za-z0-9_][A-Za-z0-9._\-]*)" }; }
 
 pub mod common_regex;
 
@@ -81,15 +78,6 @@ const_regex! {
 
     // just a rough check - dummy acceptor is used before persisting
     pub OPENSSL_CIPHERS_REGEX = r"^[0-9A-Za-z_:, +!\-@=.]+$";
-
-    /// Regex for safe identifiers.
-    ///
-    /// This
-    /// [article](https://dwheeler.com/essays/fixing-unix-linux-filenames.html)
-    /// contains further information why it is reasonable to restict
-    /// names this way. This is not only useful for filenames, but for
-    /// any identifier command line tools work with.
-    pub PROXMOX_SAFE_ID_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r"$");
 
     pub SINGLE_LINE_COMMENT_REGEX = r"^[[:^cntrl:]]*$";
 
@@ -209,8 +197,7 @@ pub const CERT_FINGERPRINT_SHA256_SCHEMA: Schema =
         .format(&FINGERPRINT_SHA256_FORMAT)
         .schema();
 
-pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
+pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SAFE_ID_REGEX);
 
 pub const SINGLE_LINE_COMMENT_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SINGLE_LINE_COMMENT_REGEX);
@@ -463,7 +450,7 @@ impl TryFrom<(String, String)> for RemoteUpid {
     type Error = Error;
 
     fn try_from((remote, upid): (String, String)) -> Result<Self, Error> {
-        if !PROXMOX_SAFE_ID_REGEX.is_match(&remote) {
+        if !SAFE_ID_REGEX.is_match(&remote) {
             bail!("bad remote id in remote upid");
         }
         Ok(Self { remote, upid })
@@ -474,7 +461,7 @@ impl TryFrom<(String, &str)> for RemoteUpid {
     type Error = Error;
 
     fn try_from((remote, upid): (String, &str)) -> Result<Self, Error> {
-        if !PROXMOX_SAFE_ID_REGEX.is_match(&remote) {
+        if !SAFE_ID_REGEX.is_match(&remote) {
             bail!("bad remote id in remote upid");
         }
         Ok(Self {
@@ -488,7 +475,7 @@ impl TryFrom<(&str, &str)> for RemoteUpid {
     type Error = Error;
 
     fn try_from((remote, upid): (&str, &str)) -> Result<Self, Error> {
-        if !PROXMOX_SAFE_ID_REGEX.is_match(remote) {
+        if !SAFE_ID_REGEX.is_match(remote) {
             bail!("bad remote id in remote upid");
         }
         Ok(Self {

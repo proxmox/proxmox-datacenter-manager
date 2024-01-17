@@ -4,12 +4,13 @@ use serde::de::{value, IntoDeserializer};
 use serde::{Deserialize, Serialize};
 
 use proxmox_lang::constnamedbitmap;
+use proxmox_schema::SAFE_ID_REGEX_STR;
 use proxmox_schema::{
     api, const_regex, ApiStringFormat, BooleanSchema, EnumEntry, Schema, StringSchema,
 };
 
 const_regex! {
-    pub ACL_PATH_REGEX = concat!(r"^(?:/|", r"(?:/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
+    pub ACL_PATH_REGEX = concat!(r"^(?:/|", r"(?:/", SAFE_ID_REGEX_STR!(), ")+", r")$");
 }
 
 // define Privilege bitfield
