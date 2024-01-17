@@ -3,7 +3,7 @@
 //use std::os::fd::OwnedFd;
 use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context as _, Error};
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::unistd::{Gid, Uid};
@@ -53,17 +53,17 @@ fn check_permissions(dir: &str, uid: Uid, gid: Gid, mode: u32) -> Result<(), Err
         st_gid,
         st_mode,
         ..
-    } = nix::sys::stat::stat(dir)?;
+    } = nix::sys::stat::stat(dir).with_context(|| format!("failed to stat {dir:?}"))?;
 
     if st_uid != uid {
-        log::error!("bad owner ({st_uid} != {uid})");
+        log::error!("bad owner on {dir:?} ({st_uid} != {uid})");
     }
     if st_gid != gid {
-        log::error!("bad group ({st_gid} != {gid})");
+        log::error!("bad group on {dir:?} ({st_gid} != {gid})");
     }
     let perms = st_mode & !nix::sys::stat::SFlag::S_IFMT.bits();
     if perms != mode {
-        log::error!("bad permissions (0o{perms:o} != 0o{mode:o})");
+        log::error!("bad permissions on {dir:?} (0o{perms:o} != 0o{mode:o})");
     }
 
     Ok(())
