@@ -8,7 +8,7 @@ use proxmox_router::cli::{
 use proxmox_router::{ApiHandler, RpcEnvironment};
 use proxmox_schema::{api, property_string};
 
-use pdm_api_types::{PveRemote, Remote, RemoteType, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{PveRemote, PveRemoteUpdater, Remote, RemoteType, REMOTE_ID_SCHEMA};
 use proxmox_datacenter_api as dc_api;
 
 pub fn cli() -> CommandLineInterface {
@@ -104,7 +104,7 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Err
 /// Add a new remote.
 fn add_remote(
     r#type: RemoteType,
-    remote: pdm_api_types::PveRemote,
+    remote: pdm_api_types::remotes::PveRemote,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let mut param = serde_json::to_value(remote)?;
@@ -124,7 +124,7 @@ fn add_remote(
             id: { schema: REMOTE_ID_SCHEMA },
             updater: {
                 flatten: true,
-                type: pdm_api_types::PveRemoteUpdater,
+                type: PveRemoteUpdater,
             },
         }
     }
@@ -132,7 +132,7 @@ fn add_remote(
 /// Update a remote.
 fn update_remote(
     id: String,
-    updater: pdm_api_types::PveRemoteUpdater,
+    updater: PveRemoteUpdater,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let mut param = serde_json::to_value(updater)?;

@@ -7,7 +7,7 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::{api, property_string, ApiType, ReturnType};
 
-use pdm_api_types::{Remote, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{PveRemoteUpdater, Remote, REMOTE_ID_SCHEMA};
 
 use crate::client;
 
@@ -99,13 +99,13 @@ async fn add_remote(entry: Remote) -> Result<(), Error> {
             id: { schema: REMOTE_ID_SCHEMA },
             updater: {
                 flatten: true,
-                type: pdm_api_types::PveRemoteUpdater,
+                type: PveRemoteUpdater,
             },
         }
     }
 )]
 /// Update a remote.
-async fn update_remote(id: String, updater: pdm_api_types::PveRemoteUpdater) -> Result<(), Error> {
+async fn update_remote(id: String, updater: PveRemoteUpdater) -> Result<(), Error> {
     client()?.update_remote(&id, &updater).await?;
     Ok(())
 }

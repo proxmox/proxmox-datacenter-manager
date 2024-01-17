@@ -4,7 +4,8 @@ use serde_json::json;
 
 use proxmox_client::{Error, HttpApiClient};
 
-use pdm_api_types::{ConfigurationState, Remote, RemoteUpid};
+use pdm_api_types::remotes::Remote;
+use pdm_api_types::{ConfigurationState, RemoteUpid};
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
 
@@ -34,7 +35,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     pub async fn update_remote(
         &self,
         remote: &str,
-        updater: &pdm_api_types::PveRemoteUpdater,
+        updater: &pdm_api_types::remotes::PveRemoteUpdater,
     ) -> Result<(), Error> {
         let path = format!("/api2/extjs/remotes/{remote}");
         self.0.put(&path, updater).await?.nodata()?;

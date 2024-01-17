@@ -8,7 +8,8 @@ use proxmox_router::{
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::{Remote, PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{PveRemoteUpdater, Remote, REMOTE_ID_SCHEMA};
+use pdm_api_types::PROXMOX_CONFIG_DIGEST_SCHEMA;
 use pdm_config::section_config::SectionConfigData;
 
 use super::pve;
@@ -89,7 +90,7 @@ pub fn add_remote(entry: Remote) -> Result<(), Error> {
             id: { schema: REMOTE_ID_SCHEMA },
             updater: {
                 flatten: true,
-                type: pdm_api_types::PveRemoteUpdater,
+                type: PveRemoteUpdater,
             },
             digest: {
                 optional: true,
@@ -101,7 +102,7 @@ pub fn add_remote(entry: Remote) -> Result<(), Error> {
 /// List all the remotes this instance is managing.
 pub fn update_remote(
     id: String,
-    updater: pdm_api_types::PveRemoteUpdater,
+    updater: PveRemoteUpdater,
     digest: Option<String>,
 ) -> Result<(), Error> {
     let (mut remotes, config_digest) = pdm_config::remotes::config()?;

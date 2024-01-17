@@ -9,7 +9,8 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 
-use pdm_api_types::{RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA};
+use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
+use pdm_api_types::{RemoteUpid, NODE_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA};
 
 use crate::client;
 

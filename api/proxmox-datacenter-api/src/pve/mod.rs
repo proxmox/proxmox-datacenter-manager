@@ -7,9 +7,9 @@ use proxmox_router::{http_err, list_subdirs_api_method, Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
+use pdm_api_types::remotes::{PveRemote, Remote, REMOTE_ID_SCHEMA};
 use pdm_api_types::{
-    ConfigurationState, PveRemote, Remote, RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA,
-    SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
+    ConfigurationState, RemoteUpid, NODE_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
 use pve_api_types::client::PveClient;
 use pve_api_types::ClusterResourceKind;

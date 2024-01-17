@@ -6,7 +6,8 @@ use proxmox_router::{list_subdirs_api_method, Router, RpcEnvironment, SubdirMap}
 use proxmox_schema::{api, Schema};
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::{Remote, RemoteUpid, NODE_SCHEMA, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{Remote, REMOTE_ID_SCHEMA};
+use pdm_api_types::{RemoteUpid, NODE_SCHEMA};
 use pve_api_types::PveUpid;
 
 use super::connect;
