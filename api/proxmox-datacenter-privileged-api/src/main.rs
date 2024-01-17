@@ -19,6 +19,20 @@ fn main() -> Result<(), Error> {
 
     pdm_api_common::env::sanitize_environment_vars();
 
+    let debug = std::env::var("PROXMOX_DEBUG").is_ok();
+
+    if let Err(err) = syslog::init(
+        syslog::Facility::LOG_DAEMON,
+        if debug {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Info
+        },
+        Some("proxmox-datacenter-manager-priv"),
+    ) {
+        bail!("unable to inititialize syslog - {err}");
+    }
+
     create_directories()?;
 
     let mut args = std::env::args();
@@ -74,20 +88,6 @@ fn create_directories() -> Result<(), Error> {
 }
 
 async fn run() -> Result<(), Error> {
-    let debug = std::env::var("PROXMOX_DEBUG").is_ok();
-
-    if let Err(err) = syslog::init(
-        syslog::Facility::LOG_DAEMON,
-        if debug {
-            log::LevelFilter::Debug
-        } else {
-            log::LevelFilter::Info
-        },
-        Some("proxmox-datacenter-manager-priv"),
-    ) {
-        bail!("unable to inititialize syslog - {err}");
-    }
-
     auth::init(true);
 
     let api_user = pdm_config::api_user()?;

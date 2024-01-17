@@ -30,6 +30,20 @@ fn main() -> Result<(), Error> {
 
     pdm_api_common::env::sanitize_environment_vars();
 
+    let debug = std::env::var("PROXMOX_DEBUG").is_ok();
+
+    if let Err(err) = syslog::init(
+        syslog::Facility::LOG_DAEMON,
+        if debug {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Info
+        },
+        Some("proxmox-datacenter-manager-api"),
+    ) {
+        bail!("unable to inititialize syslog - {err}");
+    }
+
     if std::env::args().nth(1).is_some() {
         bail!("unexpected command line parameters");
     }
@@ -43,7 +57,7 @@ fn main() -> Result<(), Error> {
         bail!("api not running as api user or group (got uid {running_uid} gid {running_gid})");
     }
 
-    proxmox_async::runtime::main(run())
+    proxmox_async::runtime::main(run(debug))
 }
 
 /// check for a cookie with the user-preferred language, fallback to the config one if not set or
@@ -122,21 +136,7 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> 
     resp
 }
 
-async fn run() -> Result<(), Error> {
-    let debug = std::env::var("PROXMOX_DEBUG").is_ok();
-
-    if let Err(err) = syslog::init(
-        syslog::Facility::LOG_DAEMON,
-        if debug {
-            log::LevelFilter::Debug
-        } else {
-            log::LevelFilter::Info
-        },
-        Some("proxmox-datacenter-manager-api"),
-    ) {
-        bail!("unable to inititialize syslog - {err}");
-    }
-
+async fn run(debug: bool) -> Result<(), Error> {
     auth::init(false);
 
     let api_user = pdm_config::api_user()?;
