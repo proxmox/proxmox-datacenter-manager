@@ -3,7 +3,7 @@
 //use std::os::fd::OwnedFd;
 use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
 
-use anyhow::{bail, ensure, format_err, Error};
+use anyhow::{bail, format_err, Error};
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::unistd::{Gid, Uid};
@@ -44,7 +44,7 @@ pub fn mkdir_perms(dir: &str, uid: Uid, gid: Gid, mode: u32) -> Result<(), Error
     Ok(())
 }
 
-pub fn check_permissions(dir: &str, uid: Uid, gid: Gid, mode: u32) -> Result<(), Error> {
+fn check_permissions(dir: &str, uid: Uid, gid: Gid, mode: u32) -> Result<(), Error> {
     let uid = uid.as_raw();
     let gid = gid.as_raw();
 
@@ -55,10 +55,16 @@ pub fn check_permissions(dir: &str, uid: Uid, gid: Gid, mode: u32) -> Result<(),
         ..
     } = nix::sys::stat::stat(dir)?;
 
-    ensure!(st_uid == uid, "bad owner ({st_uid} != {uid})");
-    ensure!(st_gid == gid, "bad group ({st_gid} != {gid})");
+    if st_uid != uid {
+        log::error!("bad owner ({st_uid} != {uid})");
+    }
+    if st_gid != gid {
+        log::error!("bad group ({st_gid} != {gid})");
+    }
     let perms = st_mode & !nix::sys::stat::SFlag::S_IFMT.bits();
-    ensure!(perms == mode, "bad permissions (0o{perms:o} != 0o{mode:o})");
+    if perms != mode {
+        log::error!("bad permissions (0o{perms:o} != 0o{mode:o})");
+    }
 
     Ok(())
 }
