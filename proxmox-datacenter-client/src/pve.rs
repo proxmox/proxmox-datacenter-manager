@@ -114,7 +114,7 @@ fn task_cli() -> CommandLineInterface {
 async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
-    let entries = client()?.pve_list_nodes(&remote).await?;
+    let mut entries = client()?.pve_list_nodes(&remote).await?;
 
     if output_format == "text" {
         if entries.is_empty() {
@@ -122,6 +122,7 @@ async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
             return Ok(());
         }
 
+        entries.sort_by(|a, b| a.node.cmp(&b.node));
         for entry in entries {
             println!("{}: {}", entry.node, entry.status);
         }
@@ -193,7 +194,7 @@ async fn cluster_resources(
 async fn list_qemu(remote: String, node: Option<String>, param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
-    let entries = client()?.pve_list_qemu(&remote, node.as_deref()).await?;
+    let mut entries = client()?.pve_list_qemu(&remote, node.as_deref()).await?;
 
     if output_format == "text" {
         if entries.is_empty() {
@@ -201,6 +202,7 @@ async fn list_qemu(remote: String, node: Option<String>, param: Value) -> Result
             return Ok(());
         }
 
+        entries.sort_by(|a, b| a.vmid.cmp(&b.vmid));
         for entry in entries {
             println!("{}: {}", entry.vmid, entry.status);
         }
@@ -355,7 +357,7 @@ async fn stop_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<()
 async fn list_lxc(remote: String, node: Option<String>, param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
-    let entries = client()?.pve_list_lxc(&remote, node.as_deref()).await?;
+    let mut entries = client()?.pve_list_lxc(&remote, node.as_deref()).await?;
 
     if output_format == "text" {
         if entries.is_empty() {
@@ -363,6 +365,7 @@ async fn list_lxc(remote: String, node: Option<String>, param: Value) -> Result<
             return Ok(());
         }
 
+        entries.sort_by(|a, b| a.vmid.cmp(&b.vmid));
         for entry in entries {
             println!("{}: {}", entry.vmid, entry.status);
         }
