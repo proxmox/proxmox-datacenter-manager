@@ -204,7 +204,24 @@ async fn list_qemu(remote: String, node: Option<String>, param: Value) -> Result
 
         entries.sort_by(|a, b| a.vmid.cmp(&b.vmid));
         for entry in entries {
-            println!("{}: {}", entry.vmid, entry.status);
+            print!("{}: {}", entry.vmid, entry.status);
+            if let Some(name) = &entry.name {
+                print!(" ({name})");
+            }
+            let mut tag_sep = " [";
+            for tag in entry.tags() {
+                if let Some(color) = crate::tags::text_to_rgb(tag) {
+                    let (color, reset) = (color.as_ansi(), crate::tags::TtyResetColor);
+                    print!("{tag_sep}{color}{tag}{reset}",);
+                } else {
+                    print!("{tag_sep}{tag}");
+                }
+                tag_sep = ", ";
+            }
+            if tag_sep == ", " {
+                print!("]");
+            }
+            println!();
         }
     } else {
         format_and_print_result(&entries, &output_format);
