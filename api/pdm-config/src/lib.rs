@@ -88,6 +88,7 @@ pub fn api_group() -> Result<nix::unistd::Group, Error> {
     }
 }
 
+#[allow(dead_code)]
 pub struct ApiLockGuard(Option<std::fs::File>);
 
 #[doc(hidden)]
