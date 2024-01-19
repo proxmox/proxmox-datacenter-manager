@@ -29,6 +29,12 @@ impl VerifyResult {
     }
 }
 
+impl Default for FingerprintCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FingerprintCache {
     pub fn new() -> Self {
         Self {
@@ -72,7 +78,6 @@ impl FingerprintCache {
             None => return Ok(VerifyResult::unmodified(false)),
             Some(line) => line?.to_ascii_lowercase(),
         };
-        drop(stdout);
 
         if reply == "once" {
             return Ok(VerifyResult::unmodified(true));
@@ -125,7 +130,7 @@ impl FingerprintCache {
                 .next()
                 .ok_or_else(|| format_err!("bad line ({lineno}) in fingerprint cache"))?;
 
-            let fp = hex::decode(&fp)
+            let fp = hex::decode(fp.as_bytes())
                 .map_err(drop)
                 .and_then(|fp| <[u8; 32]>::try_from(&fp[..]).map_err(drop))
                 .map_err(|_| format_err!("bad fingerprint in fingerprint cache (line {lineno})"))?;

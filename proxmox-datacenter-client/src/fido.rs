@@ -103,6 +103,12 @@ pub struct Fido {
     _init: *mut (),
 }
 
+impl Default for Fido {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Fido {
     pub fn new() -> Self {
         unsafe {
@@ -184,6 +190,7 @@ fn finish_response(assertion: Assert) -> Result<String, Error> {
         )
     };
 
+    #[allow(clippy::unnecessary_cast)]
     let (id, sig, authdata) = unsafe {
         (
             std::slice::from_raw_parts(id, idlen as usize),
@@ -212,7 +219,7 @@ fn finish_response(assertion: Assert) -> Result<String, Error> {
         },
     };
 
-    let mut response = serde_json::to_value(&response)?;
+    let mut response = serde_json::to_value(response)?;
     response["response"]
         .as_object_mut()
         .unwrap()

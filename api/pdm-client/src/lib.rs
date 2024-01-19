@@ -267,6 +267,7 @@ impl<T: HttpApiClient> PdmClient<T> {
 
     pub async fn pve_stop_task(&self, remote: &str, upid: &str) -> Result<(), Error> {
         let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}");
+        #[allow(clippy::unit_arg)]
         Ok(self.0.delete(&path).await?.expect_json()?.data)
     }
 

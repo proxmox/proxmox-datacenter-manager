@@ -81,6 +81,7 @@ async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
         );
     }
 
+    #[allow(clippy::infallible_destructuring_match)]
     let pve = match get_remote(&remotes, upid.remote())? {
         Remote::Pve(pve) => pve,
     };
@@ -125,6 +126,7 @@ async fn get_task_status(
         );
     }
 
+    #[allow(clippy::infallible_destructuring_match)]
     let pve = match get_remote(&remotes, upid.remote())? {
         Remote::Pve(pve) => pve,
     };
@@ -206,6 +208,7 @@ async fn read_task_log(
         );
     }
 
+    #[allow(clippy::infallible_destructuring_match)]
     let pve = match get_remote(&remotes, upid.remote())? {
         Remote::Pve(pve) => pve,
     };

@@ -56,7 +56,7 @@ impl Env {
         };
 
         if let Some(file) = XDG.find_cache_file(FINGERPRINT_CACHE_PATH) {
-            let cache = std::fs::read_to_string(&file)?;
+            let cache = std::fs::read_to_string(file)?;
             this.fingerprint_cache.load(&cache)?;
         }
 
@@ -108,14 +108,17 @@ impl Env {
     fn update_server(&mut self, server: &str) -> Result<(), Error> {
         self.set_server(server)?;
 
+        let write_file = |path| {
+            let mut file = std::fs::File::create(path)?;
+            file.write_all(server.as_bytes())?;
+            file.write_all(b"\n")?;
+            Ok(())
+        };
+
         match XDG
             .place_cache_file(CURRENT_SERVER_CACHE_PATH)
-            .and_then(|path| {
-                let mut file = std::fs::File::create(path)?;
-                file.write_all(server.as_bytes())?;
-                file.write_all(b"\n")?;
-                Ok(())
-            }) {
+            .and_then(write_file)
+        {
             Ok(()) => (),
             Err(err) => eprintln!("failed to store current server in cache: {}", err),
         }
