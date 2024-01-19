@@ -111,9 +111,9 @@ pub(crate) fn set_api_certificate(cert_pem: &[u8], key_pem: &[u8]) -> Result<(),
     let cert_path = PathBuf::from(configdir!("/auth/api.pem"));
 
     //create_configdir()?;
-    pdm_config::replace_privileged_config(&key_path, key_pem)
+    pdm_config::replace_privileged_config(key_path, key_pem)
         .map_err(|err| format_err!("error writing certificate private key - {}", err))?;
-    pdm_config::replace_privileged_config(&cert_path, cert_pem)
+    pdm_config::replace_privileged_config(cert_path, cert_pem)
         .map_err(|err| format_err!("error writing certificate file - {}", err))?;
 
     Ok(())

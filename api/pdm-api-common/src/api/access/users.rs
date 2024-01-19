@@ -366,11 +366,13 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
         }
     }
 
-    match crate::auth::tfa::read().and_then(|mut cfg| {
+    let update = || {
+        let mut cfg = crate::auth::tfa::read()?;
         let _: proxmox_tfa::api::NeedsSaving =
             cfg.remove_user(&crate::auth::tfa::UserAccess, userid.as_str())?;
         crate::auth::tfa::write(&cfg)
-    }) {
+    };
+    match update() {
         Ok(()) => (),
         Err(err) => {
             eprintln!(
