@@ -86,7 +86,7 @@ static INSTANCE: OnceCell<Arc<ConfigVersionCache>> = OnceCell::new();
 impl ConfigVersionCache {
     /// Open the memory based communication channel singleton.
     pub fn new() -> Result<Arc<Self>, Error> {
-        INSTANCE.get_or_try_init(Self::open).map(Arc::clone)
+        INSTANCE.get_or_try_init(Self::open).cloned()
     }
 
     // Actual work of `new`:

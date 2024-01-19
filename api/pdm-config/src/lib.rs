@@ -24,7 +24,7 @@ pub struct ConfigDigest([u8; 32]);
 
 impl ConfigDigest {
     pub fn to_hex(&self) -> String {
-        hex::encode(&self.0)
+        hex::encode(&self.0[..])
     }
 }
 
@@ -35,10 +35,10 @@ impl From<[u8; 32]> for ConfigDigest {
     }
 }
 
-impl Into<[u8; 32]> for ConfigDigest {
+impl From<ConfigDigest> for [u8; 32] {
     #[inline]
-    fn into(self) -> [u8; 32] {
-        self.0
+    fn from(digest: ConfigDigest) -> Self {
+        digest.0
     }
 }
 
