@@ -1,5 +1,8 @@
 //! Proxmox Datacenter Manager API client.
 
+use std::collections::HashMap;
+
+use serde::Serialize;
 use serde_json::json;
 
 use proxmox_client::{Error, HttpApiClient};
@@ -208,6 +211,23 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await
     }
 
+    pub async fn pve_qemu_remote_migrate(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        target: String,
+        params: RemoteMigration,
+    ) -> Result<RemoteUpid, Error> {
+        let path = format!("/api2/extjs/pve/{remote}/qemu/{vmid}/remote-migrate");
+        let mut request = serde_json::to_value(&params).expect("failed to build json string");
+        request["target"] = target.into();
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        Ok(self.0.post(&path, &request).await?.expect_json()?.data)
+    }
+
     pub async fn pve_lxc_config(
         &self,
         remote: &str,
@@ -290,6 +310,100 @@ impl<T: HttpApiClient> PdmClient<T> {
         let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status?wait=1");
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
+}
+
+/// Builder for remote migration parameters.
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct RemoteMigration {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    target_vmid: Option<u32>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    delete: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    online: Option<bool>,
+
+    #[serde(rename = "target-storage", serialize_with = "stringify_target_mapping")]
+    target_storages: HashMap<String, String>,
+
+    #[serde(rename = "target-bridge", serialize_with = "stringify_target_mapping")]
+    target_bridges: HashMap<String, String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bwlimit: Option<u64>,
+}
+
+impl RemoteMigration {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn target_vmid(mut self, vmid: u32) -> Self {
+        self.target_vmid = Some(vmid);
+        self
+    }
+
+    pub fn delete_source(mut self, delete: bool) -> Self {
+        self.delete = Some(delete);
+        self
+    }
+
+    pub fn online(mut self, online: bool) -> Self {
+        self.online = Some(online);
+        self
+    }
+
+    pub fn bwlimit(mut self, limit: u64) -> Self {
+        self.bwlimit = Some(limit);
+        self
+    }
+
+    pub fn map_storage<S, T>(mut self, from: S, to: T) -> Self
+    where
+        S: Into<String>,
+        T: Into<String>,
+    {
+        self.target_storages.insert(from.into(), to.into());
+        self
+    }
+
+    pub fn map_bridge<S, T>(mut self, from: S, to: T) -> Self
+    where
+        S: Into<String>,
+        T: Into<String>,
+    {
+        self.target_bridges.insert(from.into(), to.into());
+        self
+    }
+}
+
+fn stringify_target_mapping<S>(
+    mapping: &HashMap<String, String>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    if mapping.is_empty() {
+        return serializer.serialize_none();
+    }
+
+    let mut output = String::new();
+    for (from, to) in mapping.iter() {
+        if !output.is_empty() {
+            output.reserve(from.len() + to.len() + 2);
+            output.push(',');
+        } else {
+            output.reserve(from.len() + to.len() + 1);
+        }
+        output.push_str(from);
+        output.push(':');
+        output.push_str(to);
+    }
+
+    serializer.serialize_str(&output)
 }
 
 #[derive(serde::Serialize)]
