@@ -12,7 +12,7 @@ use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use pdm_api_types::{RemoteUpid, NODE_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA};
 
-use crate::client;
+use crate::{client, env};
 
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
@@ -210,12 +210,19 @@ async fn list_qemu(remote: String, node: Option<String>, param: Value) -> Result
             }
             let mut tag_sep = " [";
             for tag in entry.tags() {
-                if let Some(color) = crate::tags::text_to_rgb(tag) {
-                    let (color, reset) = (color.as_ansi(), crate::tags::TtyResetColor);
-                    print!("{tag_sep}{color}{tag}{reset}",);
-                } else {
-                    print!("{tag_sep}{tag}");
+                let (color_owned, reset_owned);
+                let (mut color, mut reset) = ("", "");
+                if env().use_color() {
+                    if let Some(rgb) = crate::tags::text_to_rgb(tag) {
+                        (color_owned, reset_owned) = (
+                            rgb.as_ansi().to_string(),
+                            crate::tags::TtyResetColor.to_string(),
+                        );
+                        color = &color_owned;
+                        reset = &reset_owned;
+                    }
                 }
+                print!("{tag_sep}{color}{tag}{reset}",);
                 tag_sep = ", ";
             }
             if tag_sep == ", " {

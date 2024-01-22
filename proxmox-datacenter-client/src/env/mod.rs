@@ -1,6 +1,6 @@
 //! Client environment to query login data.
 
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 
 use anyhow::{bail, format_err, Error};
 use http::Uri;
@@ -33,6 +33,7 @@ const FINGERPRINT_CACHE_PATH: &str = xdg_path!("fingerprints");
 const CURRENT_SERVER_CACHE_PATH: &str = xdg_path!("current-server");
 
 pub struct Env {
+    use_color: UseColor,
     pub server: Option<String>,
     pub userid: Option<String>,
     pub fingerprint_cache: FingerprintCache,
@@ -50,6 +51,7 @@ impl Env {
         A: Iterator<Item = String>,
     {
         let mut this = Self {
+            use_color: UseColor::default(),
             server: None,
             userid: None,
             fingerprint_cache: FingerprintCache::new(),
@@ -91,6 +93,10 @@ impl Env {
                         .next()
                         .ok_or_else(|| format_err!("missing value for `--server` parameter"))?,
                 )?;
+            } else if let Some(color) = arg.strip_prefix("--color=") {
+                self.use_color = color.parse()?;
+            } else if arg == "--color" {
+                self.use_color = UseColor::Always;
             } else if arg == "--" {
                 // break without including the `--` separator
                 break;
@@ -354,4 +360,40 @@ impl Env {
         Ok(Box::pin(tokio::time::sleep(time)))
     }
     */
+
+    pub fn use_color(&self) -> bool {
+        self.use_color.to_bool()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum UseColor {
+    #[default]
+    No,
+    Always,
+    Auto,
+}
+
+impl std::str::FromStr for UseColor {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Error> {
+        Ok(match s {
+            "no" => Self::No,
+            "always" | "yes" | "on" => Self::Always,
+            "auto" => Self::Auto,
+            _ => bail!("bad argument for '--color', should be one of 'no', 'always' or 'auto'"),
+        })
+    }
+}
+
+impl UseColor {
+    /// Convert to a boolean by having 'Auto' test whether `stdout` is a tty.
+    pub fn to_bool(self) -> bool {
+        match self {
+            Self::No => false,
+            Self::Always => true,
+            Self::Auto => std::io::stdout().is_terminal(),
+        }
+    }
 }
