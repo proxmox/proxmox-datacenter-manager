@@ -234,7 +234,8 @@ impl Env {
         Ok(userid)
     }
 
-    pub fn query_password(&self, _api_url: &http::Uri, _userid: &str) -> Result<String, Error> {
+    pub fn query_password(&self, api_url: &http::Uri, userid: &str) -> Result<String, Error> {
+        println!("Password required for user {userid} at {api_url}");
         let password = proxmox_sys::linux::tty::read_password("Password: ")?;
         Ok(String::from_utf8(password)?)
     }
