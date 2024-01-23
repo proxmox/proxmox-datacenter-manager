@@ -275,6 +275,23 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await
     }
 
+    pub async fn pve_lxc_remote_migrate(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        target: String,
+        params: RemoteMigrateLxc,
+    ) -> Result<RemoteUpid, Error> {
+        let path = format!("/api2/extjs/pve/{remote}/lxc/{vmid}/remote-migrate");
+        let mut request = serde_json::to_value(&params).expect("failed to build json string");
+        request["target"] = target.into();
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        Ok(self.0.post(&path, &request).await?.expect_json()?.data)
+    }
+
     pub async fn pve_list_tasks(
         &self,
         remote: &str,

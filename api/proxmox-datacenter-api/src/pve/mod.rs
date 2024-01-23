@@ -46,6 +46,10 @@ const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     ("start", &Router::new().post(&API_METHOD_LXC_START)),
     ("stop", &Router::new().post(&API_METHOD_LXC_STOP)),
     ("shutdown", &Router::new().post(&API_METHOD_LXC_SHUTDOWN)),
+    (
+        "remote-migrate",
+        &Router::new().post(&API_METHOD_LXC_REMOTE_MIGRATE)
+    ),
 ]);
 
 const NODES_ROUTER: Router = Router::new().get(&API_METHOD_LIST_NODES);
@@ -443,7 +447,7 @@ pub async fn qemu_shutdown(
     },
     returns: { type: RemoteUpid },
 )]
-/// Perform a shutdown of a remote qemu vm.
+/// Perform a remote migration of a VM.
 #[allow(clippy::too_many_arguments)]
 pub async fn qemu_remote_migrate(
     remote: String, // this is the source
@@ -696,4 +700,132 @@ pub async fn lxc_shutdown(
         .await?;
 
     (remote, upid.to_string()).try_into()
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            target: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            "target-vmid": {
+                optional: true,
+                schema: VMID_SCHEMA,
+            },
+            delete: {
+                description: "Delete the original VM and related data after successful migration.",
+                optional: true,
+                default: false,
+            },
+            online: {
+                type: bool,
+                description: "Perform an online migration if the vm is running.",
+                optional: true,
+                default: false,
+            },
+            "target-storage": {
+                description: "Mapping of source storages to target storages.",
+            },
+            "target-bridge": {
+                description: "Mapping of source bridges to remote bridges.",
+            },
+            bwlimit: {
+                description: "Override I/O bandwidth limit (in KiB/s).",
+                optional: true,
+            },
+            restart: {
+                description: "Perform a restart-migration.",
+                optional: true,
+            },
+            timeout: {
+                description: "Add a shutdown timeout for the restart-migration.",
+                optional: true,
+            },
+        },
+    },
+    returns: { type: RemoteUpid },
+)]
+/// Perform a remote migration of an lxc container.
+#[allow(clippy::too_many_arguments)]
+pub async fn lxc_remote_migrate(
+    remote: String, // this is the source
+    target: String, // this is the destination remote name
+    node: Option<String>,
+    vmid: u32,
+    target_vmid: Option<u32>,
+    delete: bool,
+    online: bool,
+    target_storage: String,
+    target_bridge: String,
+    bwlimit: Option<u64>,
+    restart: Option<bool>,
+    timeout: Option<i64>,
+) -> Result<RemoteUpid, Error> {
+    let source = remote; // let's stick to "source" and "target" naming
+
+    log::info!("remote migration requested");
+
+    if source == target {
+        bail!("source and destination clusters must be different");
+    }
+
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let Remote::Pve(target) = get_remote(&remotes, &target)?;
+
+    let source_conn = match get_remote(&remotes, &source)? {
+        Remote::Pve(pve) => connect(pve)?,
+    };
+
+    // FIXME: Cache resources call.
+    let node = match node {
+        Some(node) => node,
+        None => source_conn
+            .cluster_resources(Some(ClusterResourceKind::Vm))
+            .await?
+            .into_iter()
+            .find(|entry| entry.vmid == Some(vmid))
+            .and_then(|entry| entry.node)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
+    };
+
+    // FIXME: For now we'll only try with the first node but we should probably try others, too, in
+    // case some are offline?
+
+    let target_node = target
+        .nodes
+        .first()
+        .ok_or_else(|| format_err!("no nodes configured for target cluster"))?;
+    let mut target_endpoint = format!(
+        "host={host},apitoken=PVEAPIToken={userid}={secret}",
+        host = target_node.hostname,
+        userid = target.userid,
+        secret = target.token,
+    );
+    if let Some(fp) = target_node.fingerprint.as_deref() {
+        target_endpoint.reserve(fp.len() + ",fingerprint=".len());
+        target_endpoint.push_str(",fingerprint=");
+        target_endpoint.push_str(fp);
+    }
+
+    log::info!("forwarding remote migration requested");
+    let params = pve_api_types::RemoteMigrateLxc {
+        target_bridge,
+        target_storage,
+        delete: Some(delete),
+        online: Some(online),
+        target_vmid,
+        target_endpoint,
+        bwlimit: bwlimit.map(|limit| limit as f64),
+        restart,
+        timeout,
+    };
+    log::info!("migrating vm {vmid} of node {node:?} with params {params:#?}");
+    let upid = source_conn.remote_migrate_lxc(&node, vmid, params).await?;
+
+    (source, upid.to_string()).try_into()
 }
