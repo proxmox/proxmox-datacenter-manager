@@ -1,6 +1,7 @@
 //! Proxmox Datacenter Manager API client.
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::json;
@@ -312,10 +313,10 @@ impl<T: HttpApiClient> PdmClient<T> {
     }
 }
 
-/// Builder for remote migration parameters.
+/// Builder for remote migration parameters - common parameters.
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct RemoteMigrateQemu {
+struct RemoteMigrateCommon {
     #[serde(skip_serializing_if = "Option::is_none")]
     target_vmid: Option<u32>,
 
@@ -335,46 +336,88 @@ pub struct RemoteMigrateQemu {
     bwlimit: Option<u64>,
 }
 
+macro_rules! remote_migrate_common_methods {
+    () => {
+        pub fn target_vmid(mut self, vmid: u32) -> Self {
+            self.common.target_vmid = Some(vmid);
+            self
+        }
+
+        pub fn delete_source(mut self, delete: bool) -> Self {
+            self.common.delete = Some(delete);
+            self
+        }
+
+        pub fn online(mut self, online: bool) -> Self {
+            self.common.online = Some(online);
+            self
+        }
+
+        pub fn bwlimit(mut self, limit: u64) -> Self {
+            self.common.bwlimit = Some(limit);
+            self
+        }
+
+        pub fn map_storage<S, T>(mut self, from: S, to: T) -> Self
+        where
+            S: Into<String>,
+            T: Into<String>,
+        {
+            self.common.target_storages.insert(from.into(), to.into());
+            self
+        }
+
+        pub fn map_bridge<S, T>(mut self, from: S, to: T) -> Self
+        where
+            S: Into<String>,
+            T: Into<String>,
+        {
+            self.common.target_bridges.insert(from.into(), to.into());
+            self
+        }
+    };
+}
+
+/// Builder for remote migration parameters.
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct RemoteMigrateQemu {
+    #[serde(flatten)]
+    common: RemoteMigrateCommon,
+}
+
 impl RemoteMigrateQemu {
+    remote_migrate_common_methods!();
+
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+/// Builder for remote migration parameters.
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct RemoteMigrateLxc {
+    #[serde(flatten)]
+    common: RemoteMigrateCommon,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    restart: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timeout: Option<i64>,
+}
+
+impl RemoteMigrateLxc {
+    remote_migrate_common_methods!();
+
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn target_vmid(mut self, vmid: u32) -> Self {
-        self.target_vmid = Some(vmid);
-        self
-    }
-
-    pub fn delete_source(mut self, delete: bool) -> Self {
-        self.delete = Some(delete);
-        self
-    }
-
-    pub fn online(mut self, online: bool) -> Self {
-        self.online = Some(online);
-        self
-    }
-
-    pub fn bwlimit(mut self, limit: u64) -> Self {
-        self.bwlimit = Some(limit);
-        self
-    }
-
-    pub fn map_storage<S, T>(mut self, from: S, to: T) -> Self
-    where
-        S: Into<String>,
-        T: Into<String>,
-    {
-        self.target_storages.insert(from.into(), to.into());
-        self
-    }
-
-    pub fn map_bridge<S, T>(mut self, from: S, to: T) -> Self
-    where
-        S: Into<String>,
-        T: Into<String>,
-    {
-        self.target_bridges.insert(from.into(), to.into());
+    pub fn restart(mut self, restart: bool, timeout: Option<Duration>) -> Self {
+        self.restart = Some(restart);
+        self.timeout = timeout.map(|t| t.as_secs() as i64);
         self
     }
 }
