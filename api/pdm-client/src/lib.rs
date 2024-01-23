@@ -217,7 +217,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         node: Option<&str>,
         vmid: u32,
         target: String,
-        params: RemoteMigration,
+        params: RemoteMigrateQemu,
     ) -> Result<RemoteUpid, Error> {
         let path = format!("/api2/extjs/pve/{remote}/qemu/{vmid}/remote-migrate");
         let mut request = serde_json::to_value(&params).expect("failed to build json string");
@@ -315,7 +315,7 @@ impl<T: HttpApiClient> PdmClient<T> {
 /// Builder for remote migration parameters.
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct RemoteMigration {
+pub struct RemoteMigrateQemu {
     #[serde(skip_serializing_if = "Option::is_none")]
     target_vmid: Option<u32>,
 
@@ -335,7 +335,7 @@ pub struct RemoteMigration {
     bwlimit: Option<u64>,
 }
 
-impl RemoteMigration {
+impl RemoteMigrateQemu {
     pub fn new() -> Self {
         Self::default()
     }

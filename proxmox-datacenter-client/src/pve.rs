@@ -424,7 +424,7 @@ async fn remote_migrate_qemu(
     map_bridge: Vec<String>,
     bwlimit: Option<u64>,
 ) -> Result<(), Error> {
-    let mut params = pdm_client::RemoteMigration::new();
+    let mut params = pdm_client::RemoteMigrateQemu::new();
     if let Some(online) = online {
         params = params.online(online);
     }
