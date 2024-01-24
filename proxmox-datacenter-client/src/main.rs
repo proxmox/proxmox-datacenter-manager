@@ -68,7 +68,7 @@ fn main() {
     match main_do() {
         Ok(()) => (),
         Err(err) => {
-            eprintln!("{err}");
+            eprintln!("{err:?}");
             std::process::exit(1);
         }
     }
