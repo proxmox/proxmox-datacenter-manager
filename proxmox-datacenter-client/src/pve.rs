@@ -1,5 +1,7 @@
 //! PVE node commands.
 
+use std::time::Duration;
+
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
@@ -87,6 +89,11 @@ fn lxc_cli() -> CommandLineInterface {
         .insert(
             "stop",
             CliCommand::new(&API_METHOD_STOP_LXC).arg_param(&["remote", "vmid"]),
+        )
+        .insert(
+            "remote-migrate",
+            CliCommand::new(&API_METHOD_REMOTE_MIGRATE_LXC)
+                .arg_param(&["remote", "vmid", "target"]),
         )
         .into()
 }
@@ -407,7 +414,7 @@ async fn stop_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<()
             bwlimit: {
                 description: "Override I/O bandwidth limit (in KiB/s).",
                 optional: true,
-            }
+            },
         }
     }
 )]
@@ -612,6 +619,111 @@ async fn shutdown_lxc(remote: String, node: Option<String>, vmid: u32) -> Result
 async fn stop_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client.pve_lxc_stop(&remote, node.as_deref(), vmid).await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            target: { schema: REMOTE_ID_SCHEMA },
+            delete: {
+                description: "Delete the original VM and related data after successful migration.",
+                optional: true,
+            },
+            online: {
+                type: bool,
+                description: "Perform an online migration if the vm is running.",
+                optional: true,
+            },
+            "map-storage": {
+                type: Array,
+                description: "Mapping of source storages to ones on the target cluster.",
+                items: {
+                    type: String,
+                    description: "Map a source storage to a target storage.",
+                    type_text: "FROM=TO",
+                },
+            },
+            "map-bridge": {
+                type: Array,
+                description: "Mapping of source network bridges to ones on the target cluster.",
+                items: {
+                    type: String,
+                    description: "Map a source network bridge to a target bridge.",
+                    type_text: "FROM=TO",
+                },
+            },
+            bwlimit: {
+                description: "Override I/O bandwidth limit (in KiB/s).",
+                optional: true,
+            },
+            restart: {
+                description: "Perform a restart-migration.",
+                optional: true,
+                default: false,
+            },
+            timeout: {
+                description: "Add a shutdown timeout for the restart-migration.",
+                optional: true,
+            },
+        }
+    }
+)]
+#[allow(clippy::too_many_arguments)]
+/// List all the remotes this instance is managing.
+async fn remote_migrate_lxc(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    target: String,
+    online: Option<bool>,
+    delete: Option<bool>,
+    map_storage: Vec<String>,
+    map_bridge: Vec<String>,
+    bwlimit: Option<u64>,
+    restart: bool,
+    timeout: Option<u64>,
+) -> Result<(), Error> {
+    let mut params = pdm_client::RemoteMigrateLxc::new();
+    if let Some(online) = online {
+        params = params.online(online);
+    }
+    if let Some(delete) = delete {
+        params = params.delete_source(delete);
+    }
+    if let Some(bwlimit) = bwlimit {
+        params = params.bwlimit(bwlimit);
+    }
+    if restart {
+        params = params.restart(true, timeout.map(|secs| Duration::from_secs(secs as u64)));
+    }
+    for mapping in map_storage {
+        let pos = mapping
+            .find(':')
+            .ok_or_else(|| format_err!("missing ':' in storage mapping {mapping:?}"))?;
+        params = params.map_storage(&mapping[..pos], &mapping[(pos + 1)..]);
+    }
+    for mapping in map_bridge {
+        let pos = mapping
+            .find(':')
+            .ok_or_else(|| format_err!("missing ':' in bridge mapping {mapping:?}"))?;
+        params = params.map_bridge(&mapping[..pos], &mapping[(pos + 1)..]);
+    }
+
+    let client = client()?;
+    let upid = client
+        .pve_lxc_remote_migrate(&remote, node.as_deref(), vmid, target, params)
+        .await?;
     println!("upid: {upid}");
     let status = client.pve_wait_for_task(&upid).await?;
     println!("{status:#?}");
