@@ -49,7 +49,7 @@ proxmox-sys = "0.5.0"
 proxmox-tfa = { version = "4.0", features = [ "api-types" ] }
 proxmox-time = "1.1.2"
 proxmox-uuid = "1"
-proxmox-login = { version = "0.1", features = [ "webauthn" ] }
+proxmox-login = { version = "0.1.1", features = [ "webauthn" ] }
 proxmox-client = { version = "0.3", features = [ "hyper-client" ] }
 
 # other proxmox crates
