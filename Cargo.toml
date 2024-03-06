@@ -24,7 +24,7 @@ members = [
     "api/proxmox-datacenter-api",
 
     "cli/client",
-    "proxmox-datacenter-manager",
+    "cli/admin",
 ]
 
 [workspace.dependencies]

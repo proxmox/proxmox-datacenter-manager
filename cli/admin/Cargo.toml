@@ -1,6 +1,6 @@
 [package]
-name = "proxmox-datacenter-manager"
-description = "Local Proxmox Datacenter Manager management CLI"
+name = "proxmox-datacenter-manager-admin"
+description = "Local Proxmox Datacenter Manager administration CLI"
 homepage = "https://www.proxmox.com"
 
 version.workspace = true
