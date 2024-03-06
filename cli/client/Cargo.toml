@@ -1,5 +1,5 @@
 [package]
-name = "proxmox-datacenter-client"
+name = "proxmox-datacenter-manager-client"
 description = "Proxmox Datacenter Manager command line client"
 homepage = "https://www.proxmox.com"
 

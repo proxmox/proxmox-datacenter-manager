@@ -23,7 +23,7 @@ members = [
     "api/proxmox-datacenter-privileged-api",
     "api/proxmox-datacenter-api",
 
-    "proxmox-datacenter-client",
+    "cli/client",
     "proxmox-datacenter-manager",
 ]
 
