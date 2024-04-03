@@ -72,6 +72,7 @@ pdm-client = { path = "api/pdm-client" }
 anyhow = "1.0"
 base64 = "0.13"
 bitflags = "1.2.1"
+const_format = "0.2"
 futures = "0.3"
 h2 = { version = "0.3", features = [ "stream" ] }
 handlebars = "3.0"
