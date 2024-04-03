@@ -1,6 +1,5 @@
 //! Basic API types used by most of the PDM code.
 
-use std::error::Error as StdError;
 use std::fmt;
 
 use anyhow::{bail, Error};
@@ -327,21 +326,7 @@ impl ConfigurationState {
 }
 
 serde_plain::derive_display_from_serialize!(ConfigurationState);
-serde_plain::derive_fromstr_from_deserialize!(
-    ConfigurationState,
-    |_err| -> BadConfigurationState { BadConfigurationState }
-);
-
-#[derive(Debug)]
-pub struct BadConfigurationState;
-
-impl StdError for BadConfigurationState {}
-
-impl fmt::Display for BadConfigurationState {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("not a valid configuration state")
-    }
-}
+serde_plain::derive_fromstr_from_deserialize!(ConfigurationState);
 
 pub const REMOTE_UPID_SCHEMA: Schema = StringSchema::new("A remote UPID")
     .min_length("C!UPID:N:12345678:12345678:12345678:::".len())
