@@ -33,8 +33,10 @@ fn ping() -> Result<String, Error> {
 
 #[api(
     access: {
-        description: "Anyone can access this.",
-        permission: &Permission::Anybody,
+        // only root-user can access privileged daemon locally, so make it easier to query by avoid
+        // requiring a ticket.
+        description: "Anyone that can access the privileged daemon can access this.",
+        permission: &Permission::World,
     }
 )]
 /// Return the program's version/release info
