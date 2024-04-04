@@ -38,7 +38,7 @@ fn ping() -> Result<String, Error> {
 
 #[api(
     access: {
-        description: "Anyone can access this.",
+        description: "Any valid user can access this.",
         permission: &Permission::Anybody,
     }
 )]
