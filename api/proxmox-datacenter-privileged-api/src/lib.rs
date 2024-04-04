@@ -31,11 +31,10 @@ fn ping() -> Result<String, Error> {
     Ok("pong".to_string())
 }
 
-// FIXME: version should be only accessible to valid user (albeit no specific priv)
 #[api(
     access: {
         description: "Anyone can access this.",
-        permission: &Permission::World,
+        permission: &Permission::Anybody,
     }
 )]
 /// Return the program's version/release info
