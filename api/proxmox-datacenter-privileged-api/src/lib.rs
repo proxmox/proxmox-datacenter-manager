@@ -22,17 +22,6 @@ pub const ROUTER: Router = Router::new()
 
 #[api(
     access: {
-        description: "Anyone can access this, just a cheap check if the API daemon is online.",
-        permission: &Permission::World,
-    }
-)]
-/// A simple ping method. returns "pong"
-fn ping() -> Result<String, Error> {
-    Ok("pong".to_string())
-}
-
-#[api(
-    access: {
         // only root-user can access privileged daemon locally, so make it easier to query by avoid
         // requiring a ticket.
         description: "Anyone that can access the privileged daemon can access this.",
