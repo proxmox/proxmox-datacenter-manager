@@ -1,4 +1,4 @@
-//! Unprivileged PDM API library.
+//! Privileged PDM API library.
 
 use anyhow::Error;
 use serde_json::{json, Value};
