@@ -1,6 +1,9 @@
-/target
 **/*.rs.bk
-*~
-*.deb
-*.changes
 *.buildinfo
+*.changes
+*.deb
+*~
+.create-shell-completions
+/target
+Cargo.lock
+proxmox-datacenter-manager-[0-9].*/
