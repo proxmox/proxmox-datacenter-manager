@@ -8,10 +8,12 @@ use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
 pub mod auth;
+pub mod nodes;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("access", &pdm_api_common::api::access::ROUTER),
+    ("nodes", &nodes::ROUTER),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
 ]);
 
