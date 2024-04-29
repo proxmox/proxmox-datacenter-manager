@@ -29,6 +29,19 @@ pub fn init(use_private_key: bool) {
     setup_auth_context(use_private_key);
 }
 
+pub fn setup_keys() -> Result<(), Error> {
+    if let Err(err) = key::generate_auth_key() {
+        bail!("unable to generate auth key - {err}");
+    }
+    if let Err(err) = csrf::generate_csrf_key() {
+        bail!("unable to generate csrf key - {err}");
+    }
+    if let Err(err) = certs::update_self_signed_cert(false) {
+        bail!("unable to generate TLS certs - {err}");
+    }
+    Ok(())
+}
+
 pub async fn check_auth(
     headers: &http::HeaderMap,
     method: &hyper::Method,

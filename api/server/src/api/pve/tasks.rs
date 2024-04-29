@@ -11,7 +11,7 @@ use pdm_api_types::{RemoteUpid, NODE_SCHEMA};
 use pve_api_types::PveUpid;
 
 use super::connect;
-use crate::remotes::get_remote;
+use crate::api::remotes::get_remote;
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TASKS)

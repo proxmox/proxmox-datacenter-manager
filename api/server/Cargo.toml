@@ -1,6 +1,6 @@
 [package]
-name = "proxmox-datacenter-api"
-description = "Proxmox Datacenter Manager Unprivileged API Server"
+name = "server"
+description = "Proxmox Datacenter Manager Common API parts"
 homepage = "https://www.proxmox.com"
 
 version.workspace = true
@@ -12,6 +12,7 @@ repository.workspace = true
 anyhow.workspace = true
 base64.workspace = true
 bitflags.workspace = true
+const_format.workspace = true
 futures.workspace = true
 h2.workspace = true
 handlebars.workspace = true
@@ -42,7 +43,7 @@ xdg.workspace = true
 zstd.workspace = true
 
 proxmox-async.workspace = true
-proxmox-auth-api = { workspace = true, features = [ "api", "pam-authenticator" ] }
+proxmox-auth-api = { workspace = true, features = [ "api", "ticket", "pam-authenticator" ] }
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
 proxmox-io.workspace = true
 proxmox-lang.workspace = true
@@ -55,7 +56,7 @@ proxmox-shared-memory.workspace = true
 proxmox-sortable-macro.workspace = true
 proxmox-subscription.workspace = true
 proxmox-sys = { workspace = true, features = [ "timer" ] }
-proxmox-tfa.workspace = true
+proxmox-tfa = { workspace = true, features = [ "api" ] }
 proxmox-time.workspace = true
 proxmox-uuid.workspace = true
 
@@ -64,7 +65,6 @@ proxmox-apt.workspace = true
 proxmox-client.workspace = true
 proxmox-openid.workspace = true
 
-pdm-api-common.workspace = true
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-config.workspace = true

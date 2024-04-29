@@ -8,8 +8,8 @@ use proxmox_router::cli::{
 use proxmox_router::{ApiHandler, RpcEnvironment};
 use proxmox_schema::{api, property_string};
 
+use server::api as dc_api;
 use pdm_api_types::remotes::{PveRemote, PveRemoteUpdater, Remote, RemoteType, REMOTE_ID_SCHEMA};
-use proxmox_datacenter_api as dc_api;
 
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()

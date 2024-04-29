@@ -14,7 +14,7 @@ use pdm_api_types::{
 use pve_api_types::client::PveClient;
 use pve_api_types::ClusterResourceKind;
 
-use crate::remotes::get_remote;
+use crate::api::remotes::get_remote;
 
 pub mod tasks;
 

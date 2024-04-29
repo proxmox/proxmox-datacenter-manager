@@ -18,13 +18,10 @@ resolver = "2"
 members = [
     "api/pdm-buildcfg",
 
-    "api/pdm-api-common",
+    "api/server",
     "api/pdm-api-types",
     "api/pdm-client",
     "api/pdm-config",
-
-    "api/proxmox-datacenter-privileged-api",
-    "api/proxmox-datacenter-api",
 
     "cli/client",
     "cli/admin",
@@ -64,7 +61,7 @@ proxmox-openid = "0.10"
 pve-api-types = { path = "proxmox-api-types/pve-api-types" }
 
 # PDM workspace
-pdm-api-common = { path = "api/pdm-api-common" }
+server = { path = "api/server" }
 pdm-api-types = { path = "api/pdm-api-types" }
 pdm-buildcfg = { path = "api/pdm-buildcfg" }
 pdm-config = { path = "api/pdm-config" }

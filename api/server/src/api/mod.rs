@@ -1,4 +1,4 @@
-//! Privileged PDM API library.
+//! Common API endpoints
 
 use anyhow::Error;
 use serde_json::{json, Value};
@@ -7,12 +7,17 @@ use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-pub mod auth;
+pub mod access;
 pub mod nodes;
+pub mod pve;
+pub mod remotes;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
-    ("access", &pdm_api_common::api::access::ROUTER),
+    ("access", &access::ROUTER),
+    ("ping", &Router::new().get(&API_METHOD_PING)),
+    ("pve", &pve::ROUTER),
+    ("remotes", &remotes::ROUTER),
     ("nodes", &nodes::ROUTER),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
 ]);
@@ -23,10 +28,19 @@ pub const ROUTER: Router = Router::new()
 
 #[api(
     access: {
-        // only root-user can access privileged daemon locally, so make it easier to query by avoid
-        // requiring a ticket.
-        description: "Anyone that can access the privileged daemon can access this.",
+        description: "Anyone can access this, just a cheap check if the API daemon is online.",
         permission: &Permission::World,
+    }
+)]
+/// A simple ping method. returns "pong"
+fn ping() -> Result<String, Error> {
+    Ok("pong".to_string())
+}
+
+#[api(
+    access: {
+        description: "Any valid user can access this.",
+        permission: &Permission::Anybody,
     }
 )]
 /// Return the program's version/release info

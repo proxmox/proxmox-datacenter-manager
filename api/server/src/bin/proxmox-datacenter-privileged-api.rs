@@ -8,16 +8,14 @@ use proxmox_rest_server::{daemon, ApiConfig, RestServer, UnixAcceptor};
 use proxmox_router::RpcEnvironmentType;
 use proxmox_sys::fs::CreateOptions;
 
-use pdm_api_common::auth;
-
-pub use proxmox_datacenter_privileged_api as privileged_api;
+use server::auth;
 
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
 
 fn main() -> Result<(), Error> {
     //pbs_tools::setup_libc_malloc_opts(); // TODO: move from PBS to proxmox-sys and uncomment
 
-    pdm_api_common::env::sanitize_environment_vars();
+    server::env::sanitize_environment_vars();
 
     let debug = std::env::var("PROXMOX_DEBUG").is_ok();
 
@@ -40,7 +38,7 @@ fn main() -> Result<(), Error> {
     for arg in args {
         match arg.as_ref() {
             "setup" => {
-                let code = match privileged_api::auth::setup_keys() {
+                let code = match server::auth::setup_keys() {
                     Ok(_) => 0,
                     Err(err) => {
                         eprintln!("got error on setup - {err}");
@@ -99,7 +97,7 @@ async fn run() -> Result<(), Error> {
 
     let config = ApiConfig::new(pdm_buildcfg::JS_DIR, RpcEnvironmentType::PRIVILEGED)
         .auth_handler_func(|h, m| Box::pin(auth::check_auth(h, m)))
-        .formatted_router(&["api2"], &proxmox_datacenter_privileged_api::ROUTER)
+        .formatted_router(&["api2"], &server::api::ROUTER)
         .enable_access_log(
             pdm_buildcfg::API_ACCESS_LOG_FN,
             Some(dir_opts.clone()),

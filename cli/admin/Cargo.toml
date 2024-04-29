@@ -19,4 +19,4 @@ proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 
 pdm-api-types.workspace = true
 pdm-config.workspace = true
-proxmox-datacenter-api.workspace = true
+server.workspace = true

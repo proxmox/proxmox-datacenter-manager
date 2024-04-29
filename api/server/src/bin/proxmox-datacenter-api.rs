@@ -21,14 +21,14 @@ use pdm_buildcfg::configdir;
 
 use pdm_api_types::Authid;
 
-use pdm_api_common::auth;
+use server::auth;
 
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
 
 fn main() -> Result<(), Error> {
     //pbs_tools::setup_libc_malloc_opts(); // TODO: move from PBS to proxmox-sys and uncomment
 
-    pdm_api_common::env::sanitize_environment_vars();
+    server::env::sanitize_environment_vars();
 
     let debug = std::env::var("PROXMOX_DEBUG").is_ok();
 
@@ -167,7 +167,7 @@ async fn run(debug: bool) -> Result<(), Error> {
             ),
             ("docs", "/usr/share/doc/proxmox-datacenter-manager/html"),
         ])
-        .formatted_router(&["api2"], &proxmox_datacenter_api::ROUTER)
+        .formatted_router(&["api2"], &server::api::ROUTER)
         // FIXME: disabled for testing on pure debian
         //.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
         .enable_access_log(
