@@ -1,6 +1,7 @@
 //! User Management
 
 use anyhow::{bail, format_err, Error};
+use proxmox_product_config::ConfigDigest;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -11,7 +12,7 @@ use proxmox_schema::api;
 use pdm_api_types::{
     ApiToken, Authid, Tokenname, User, UserUpdater, UserWithTokens, Userid, ENABLE_USER_SCHEMA,
     EXPIRE_USER_SCHEMA, PDM_PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT,
-    PROXMOX_CONFIG_DIGEST_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,
+    SINGLE_LINE_COMMENT_SCHEMA,
 };
 use pdm_config::{token_shadow, CachedUserInfo};
 
@@ -223,7 +224,7 @@ pub enum DeletableProperty {
             },
             digest: {
                 optional: true,
-                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                type: ConfigDigest,
             },
         },
     },
@@ -241,13 +242,13 @@ pub fn update_user(
     update: UserUpdater,
     password: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
-    digest: Option<String>,
+    digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let _lock = pdm_config::user::lock_config()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
-    pdm_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
 
     let mut data: User = config.lookup("user", userid.as_str())?;
 
@@ -327,7 +328,7 @@ pub fn update_user(
             },
             digest: {
                 optional: true,
-                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                type: ConfigDigest,
             },
         },
     },
@@ -339,12 +340,12 @@ pub fn update_user(
     },
 )]
 /// Remove a user from the configuration file.
-pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> {
+pub fn delete_user(userid: Userid, digest: Option<ConfigDigest>) -> Result<(), Error> {
     let _lock = pdm_config::user::lock_config()?;
     let _tfa_lock = crate::auth::tfa::write_lock()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
-    pdm_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
 
     match config.sections.get(userid.as_str()) {
         Some(_) => {
@@ -443,7 +444,7 @@ pub fn read_token(
             },
             digest: {
                 optional: true,
-                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                type: ConfigDigest,
             },
         },
     },
@@ -474,12 +475,12 @@ pub fn generate_token(
     comment: Option<String>,
     enable: Option<bool>,
     expire: Option<i64>,
-    digest: Option<String>,
+    digest: Option<ConfigDigest>,
 ) -> Result<Value, Error> {
     let _lock = pdm_config::user::lock_config()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
-    pdm_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
 
     let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
     let tokenid_string = tokenid.to_string();
@@ -536,7 +537,7 @@ pub fn generate_token(
             },
             digest: {
                 optional: true,
-                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                type: ConfigDigest,
             },
         },
     },
@@ -554,12 +555,12 @@ pub fn update_token(
     comment: Option<String>,
     enable: Option<bool>,
     expire: Option<i64>,
-    digest: Option<String>,
+    digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
     let _lock = pdm_config::user::lock_config()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
-    pdm_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
 
     let tokenid = Authid::from((userid, Some(token_name)));
     let tokenid_string = tokenid.to_string();
@@ -602,7 +603,7 @@ pub fn update_token(
             },
             digest: {
                 optional: true,
-                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                type: ConfigDigest,
             },
         },
     },
@@ -617,12 +618,12 @@ pub fn update_token(
 pub fn delete_token(
     userid: Userid,
     token_name: Tokenname,
-    digest: Option<String>,
+    digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
     let _lock = pdm_config::user::lock_config()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
-    pdm_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
 
     let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
     let tokenid_string = tokenid.to_string();

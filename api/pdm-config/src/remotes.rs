@@ -7,7 +7,7 @@ use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
 use pdm_api_types::remotes::{PveRemote, Remote, REMOTE_ID_SCHEMA};
 
 use crate::section_config::{ApiSectionDataEntry, SectionConfigData};
-use crate::{open_api_lockfile, replace_config, ApiLockGuard, ConfigDigest};
+use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard, ConfigDigest};
 
 pub const REMOTES_CFG_FILENAME: &str = "/etc/proxmox-datacenter-manager/remotes.cfg";
 pub const REMOTES_CFG_LOCKFILE: &str = "/etc/proxmox-datacenter-manager/.remotes.lock";

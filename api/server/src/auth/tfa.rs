@@ -18,7 +18,7 @@ pub use proxmox_tfa::api::{
 
 use pdm_api_types::{User, Userid};
 use pdm_buildcfg::configdir;
-use pdm_config::{open_api_lockfile, ApiLockGuard};
+use proxmox_product_config::{open_api_lockfile, ApiLockGuard};
 
 const CONF_FILE: &str = configdir!("/auth/tfa.json");
 const LOCK_FILE: &str = configdir!("/auth/.tfa.json.lock");

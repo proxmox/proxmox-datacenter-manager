@@ -12,7 +12,7 @@ use proxmox_schema::{ApiStringFormat, ApiType, Schema, StringSchema};
 
 use pdm_api_types::{Authid, Role, Userid, ROLE_NAME_NO_ACCESS};
 
-use crate::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
+use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
 
 lazy_static! {
     /// Map of pre-defined [Roles](Role) to their associated [privileges](PRIVILEGES) combination

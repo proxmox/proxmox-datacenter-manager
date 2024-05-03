@@ -62,6 +62,13 @@ pub use proxmox_schema::api_types::{PASSWORD_FORMAT, PASSWORD_SCHEMA};
 pub use proxmox_schema::api_types::{SERVICE_ID_SCHEMA, UUID_FORMAT};
 pub use proxmox_schema::api_types::{SYSTEMD_DATETIME_FORMAT, TIME_ZONE_SCHEMA};
 
+pub use proxmox_dns_api::SEARCH_DOMAIN_SCHEMA;
+pub use proxmox_dns_api::FIRST_DNS_SERVER_SCHEMA;
+pub use proxmox_dns_api::SECOND_DNS_SERVER_SCHEMA;
+pub use proxmox_dns_api::THIRD_DNS_SERVER_SCHEMA;
+
+pub use proxmox_product_config::PROXMOX_CONFIG_DIGEST_SCHEMA;
+
 #[macro_use]
 mod user;
 pub use user::*;
@@ -82,7 +89,6 @@ const_regex! {
     pub SUBSCRIPTION_KEY_REGEX = concat!(r"^pbs(?:[cbsp])-[0-9a-f]{10}$");
 }
 
-pub const PVE_CONFIG_DIGEST_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
 pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&BLOCKDEVICE_NAME_REGEX);
 pub const SUBSCRIPTION_KEY_FORMAT: ApiStringFormat =
@@ -98,10 +104,6 @@ pub const HTTP_URL_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HTTP_URL_
 pub const DAILY_DURATION_FORMAT: ApiStringFormat =
     ApiStringFormat::VerifyFn(|s| parse_daily_duration(s).map(drop));
 
-pub const SEARCH_DOMAIN_SCHEMA: Schema = proxmox_dns_api::SEARCH_DOMAIN_SCHEMA;
-pub const FIRST_DNS_SERVER_SCHEMA: Schema = proxmox_dns_api::FIRST_DNS_SERVER_SCHEMA;
-pub const SECOND_DNS_SERVER_SCHEMA: Schema = proxmox_dns_api::SECOND_DNS_SERVER_SCHEMA;
-pub const THIRD_DNS_SERVER_SCHEMA: Schema = proxmox_dns_api::THIRD_DNS_SERVER_SCHEMA;
 
 pub const OPENSSL_CIPHERS_TLS_1_2_SCHEMA: Schema =
     StringSchema::new("OpenSSL cipher list used by the api server for TLS <= 1.2")
@@ -124,15 +126,6 @@ pub const REALM_ID_SCHEMA: Schema = StringSchema::new("Realm name.")
     .min_length(2)
     .max_length(32)
     .schema();
-
-
-pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(
-    "Prevent changes if current configuration file has different \
-    SHA256 digest. This can be used to prevent concurrent \
-    modifications.",
-)
-.format(&PVE_CONFIG_DIGEST_FORMAT)
-.schema();
 
 pub const VMID_SCHEMA: Schema = IntegerSchema::new("A guest ID").minimum(1).schema();
 pub const SNAPSHOT_NAME_SCHEMA: Schema = StringSchema::new("The name of the snapshot")

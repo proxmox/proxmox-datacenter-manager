@@ -17,6 +17,8 @@ fn main() -> Result<(), Error> {
 
     server::env::sanitize_environment_vars();
 
+    proxmox_product_config::init_product_config(pdm_buildcfg::CONFIGDIR, pdm_config::api_user()?);
+
     let debug = std::env::var("PROXMOX_DEBUG").is_ok();
 
     if let Err(err) = syslog::init(

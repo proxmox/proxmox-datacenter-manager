@@ -7,9 +7,9 @@ use proxmox_router::{
 };
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
+use proxmox_product_config::ConfigDigest;
 
 use pdm_api_types::remotes::{PveRemoteUpdater, Remote, REMOTE_ID_SCHEMA};
-use pdm_api_types::PROXMOX_CONFIG_DIGEST_SCHEMA;
 use pdm_config::section_config::SectionConfigData;
 
 use super::pve;
@@ -94,7 +94,7 @@ pub fn add_remote(entry: Remote) -> Result<(), Error> {
             },
             digest: {
                 optional: true,
-                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                type: ConfigDigest,
             },
         },
     },
@@ -103,10 +103,10 @@ pub fn add_remote(entry: Remote) -> Result<(), Error> {
 pub fn update_remote(
     id: String,
     updater: PveRemoteUpdater,
-    digest: Option<String>,
+    digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
     let (mut remotes, config_digest) = pdm_config::remotes::config()?;
-    pdm_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
 
     let entry = remotes
         .get_mut(&id)

@@ -8,7 +8,7 @@ use proxmox_sys::fs::CreateOptions;
 
 use pdm_api_types::Authid;
 //use crate::auth;
-use crate::{open_api_lockfile, ApiLockGuard};
+use proxmox_product_config::{open_api_lockfile, ApiLockGuard};
 
 const LOCK_FILE: &str = pdm_buildcfg::configdir!("/token.shadow.lock");
 const CONF_FILE: &str = pdm_buildcfg::configdir!("/token.shadow");

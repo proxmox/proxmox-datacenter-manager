@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use proxmox_schema::{ApiType, Schema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use crate::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
+use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
 use pdm_api_types::{OpenIdRealmConfig, REALM_ID_SCHEMA};
 
 lazy_static! {

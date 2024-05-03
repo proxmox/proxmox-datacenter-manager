@@ -165,7 +165,7 @@ pub(crate) fn authenticate_user<'a>(
 }
 
 struct PdmLockedTfaConfig {
-    _lock: pdm_config::ApiLockGuard,
+    _lock: proxmox_product_config::ApiLockGuard,
     config: TfaConfig,
 }
 
