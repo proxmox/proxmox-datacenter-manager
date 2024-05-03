@@ -65,6 +65,9 @@ proxmox-apt.workspace = true
 proxmox-client.workspace = true
 proxmox-openid.workspace = true
 
+proxmox-product-config.workspace = true
+proxmox-dns-api.workspace = true
+
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-config.workspace = true

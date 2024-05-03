@@ -98,20 +98,10 @@ pub const HTTP_URL_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HTTP_URL_
 pub const DAILY_DURATION_FORMAT: ApiStringFormat =
     ApiStringFormat::VerifyFn(|s| parse_daily_duration(s).map(drop));
 
-pub const SEARCH_DOMAIN_SCHEMA: Schema =
-    StringSchema::new("Search domain for host-name lookup.").schema();
-
-pub const FIRST_DNS_SERVER_SCHEMA: Schema = StringSchema::new("First name server IP address.")
-    .format(&IP_FORMAT)
-    .schema();
-
-pub const SECOND_DNS_SERVER_SCHEMA: Schema = StringSchema::new("Second name server IP address.")
-    .format(&IP_FORMAT)
-    .schema();
-
-pub const THIRD_DNS_SERVER_SCHEMA: Schema = StringSchema::new("Third name server IP address.")
-    .format(&IP_FORMAT)
-    .schema();
+pub const SEARCH_DOMAIN_SCHEMA: Schema = proxmox_dns_api::SEARCH_DOMAIN_SCHEMA;
+pub const FIRST_DNS_SERVER_SCHEMA: Schema = proxmox_dns_api::FIRST_DNS_SERVER_SCHEMA;
+pub const SECOND_DNS_SERVER_SCHEMA: Schema = proxmox_dns_api::SECOND_DNS_SERVER_SCHEMA;
+pub const THIRD_DNS_SERVER_SCHEMA: Schema = proxmox_dns_api::THIRD_DNS_SERVER_SCHEMA;
 
 pub const OPENSSL_CIPHERS_TLS_1_2_SCHEMA: Schema =
     StringSchema::new("OpenSSL cipher list used by the api server for TLS <= 1.2")
