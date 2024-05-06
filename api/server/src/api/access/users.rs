@@ -248,7 +248,7 @@ pub fn update_user(
     let _lock = pdm_config::user::lock_config()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
-    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    config_digest.detect_modification(digest.as_ref())?;
 
     let mut data: User = config.lookup("user", userid.as_str())?;
 
@@ -345,7 +345,7 @@ pub fn delete_user(userid: Userid, digest: Option<ConfigDigest>) -> Result<(), E
     let _tfa_lock = crate::auth::tfa::write_lock()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
-    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    config_digest.detect_modification(digest.as_ref())?;
 
     match config.sections.get(userid.as_str()) {
         Some(_) => {
@@ -480,7 +480,7 @@ pub fn generate_token(
     let _lock = pdm_config::user::lock_config()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
-    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    config_digest.detect_modification(digest.as_ref())?;
 
     let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
     let tokenid_string = tokenid.to_string();
@@ -560,7 +560,7 @@ pub fn update_token(
     let _lock = pdm_config::user::lock_config()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
-    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    config_digest.detect_modification(digest.as_ref())?;
 
     let tokenid = Authid::from((userid, Some(token_name)));
     let tokenid_string = tokenid.to_string();
@@ -623,7 +623,7 @@ pub fn delete_token(
     let _lock = pdm_config::user::lock_config()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
-    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    config_digest.detect_modification(digest.as_ref())?;
 
     let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
     let tokenid_string = tokenid.to_string();

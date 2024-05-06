@@ -11,7 +11,7 @@ use pdm_api_types::{ApiToken, Authid, User, Userid};
 
 use crate::ConfigVersionCache;
 
-use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
+use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard, ConfigDigest};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
@@ -50,11 +50,11 @@ pub fn lock_config() -> Result<ApiLockGuard, Error> {
     open_api_lockfile(USER_CFG_LOCKFILE, None, true)
 }
 
-pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
+pub fn config() -> Result<(SectionConfigData, ConfigDigest), Error> {
     let content =
         proxmox_sys::fs::file_read_optional_string(USER_CFG_FILENAME)?.unwrap_or_default();
 
-    let digest = openssl::sha::sha256(content.as_bytes());
+    let digest = ConfigDigest::from_slice(content.as_bytes());
     let mut data = CONFIG.parse(USER_CFG_FILENAME, &content)?;
 
     if data.sections.get("root@pam").is_none() {

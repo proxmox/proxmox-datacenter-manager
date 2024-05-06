@@ -106,7 +106,7 @@ pub fn update_remote(
     digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
     let (mut remotes, config_digest) = pdm_config::remotes::config()?;
-    proxmox_product_config::detect_modified_configuration_file(digest.as_deref(), &config_digest)?;
+    config_digest.detect_modification(digest.as_ref())?;
 
     let entry = remotes
         .get_mut(&id)
