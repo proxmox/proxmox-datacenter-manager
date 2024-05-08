@@ -5,7 +5,7 @@ use proxmox_router::{Permission, Router};
 use proxmox_schema::api;
 
 use pdm_api_types::{NODE_SCHEMA, PRIV_SYS_MODIFY, TIME_ZONE_SCHEMA};
-use proxmox_system_config_api::ServerTimeInfo;
+use proxmox_system_config_api::time::ServerTimeInfo;
 
 #[api(
     input: {

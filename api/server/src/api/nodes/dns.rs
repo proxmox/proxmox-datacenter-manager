@@ -7,7 +7,7 @@ use proxmox_schema::api;
 
 use pdm_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
-use proxmox_system_config_api::{DeletableResolvConfProperty, ResolvConf, ResolvConfWithDigest};
+use proxmox_system_config_api::dns::{DeletableResolvConfProperty, ResolvConf, ResolvConfWithDigest};
 
 #[api(
     protected: true,
@@ -45,7 +45,7 @@ pub fn update_dns(
     delete: Option<Vec<DeletableResolvConfProperty>>,
     digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
-    proxmox_system_config_api::resolv_conf::update_dns(update, delete, digest)
+    proxmox_system_config_api::dns::update_dns(update, delete, digest)
 }
 
 #[api(
@@ -69,7 +69,7 @@ pub fn get_dns(
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ResolvConfWithDigest, Error> {
-    proxmox_system_config_api::resolv_conf::read_etc_resolv_conf(None)
+    proxmox_system_config_api::dns::read_etc_resolv_conf(None)
 }
 
 pub const ROUTER: Router = Router::new()

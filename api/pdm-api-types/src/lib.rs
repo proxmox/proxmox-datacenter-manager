@@ -62,10 +62,10 @@ pub use proxmox_schema::api_types::{PASSWORD_FORMAT, PASSWORD_SCHEMA};
 pub use proxmox_schema::api_types::{SERVICE_ID_SCHEMA, UUID_FORMAT};
 pub use proxmox_schema::api_types::{SYSTEMD_DATETIME_FORMAT, TIME_ZONE_SCHEMA};
 
-pub use proxmox_system_config_api::SEARCH_DOMAIN_SCHEMA;
-pub use proxmox_system_config_api::FIRST_DNS_SERVER_SCHEMA;
-pub use proxmox_system_config_api::SECOND_DNS_SERVER_SCHEMA;
-pub use proxmox_system_config_api::THIRD_DNS_SERVER_SCHEMA;
+pub use proxmox_system_config_api::dns::SEARCH_DOMAIN_SCHEMA;
+pub use proxmox_system_config_api::dns::FIRST_DNS_SERVER_SCHEMA;
+pub use proxmox_system_config_api::dns::SECOND_DNS_SERVER_SCHEMA;
+pub use proxmox_system_config_api::dns::THIRD_DNS_SERVER_SCHEMA;
 
 pub use proxmox_product_config::PROXMOX_CONFIG_DIGEST_SCHEMA;
 
