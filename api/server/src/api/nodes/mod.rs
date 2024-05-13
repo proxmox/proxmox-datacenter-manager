@@ -6,6 +6,7 @@ use proxmox_sortable_macro::sortable;
 pub mod dns;
 pub mod tasks;
 pub mod time;
+pub mod network;
 
 use anyhow::Error;
 use serde_json::{json, Value};
@@ -32,4 +33,5 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     ("dns", &dns::ROUTER),
     ("tasks", &tasks::ROUTER),
     ("time", &time::ROUTER),
+    ("network", &network::ROUTER),
 ]);
