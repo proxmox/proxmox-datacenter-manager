@@ -42,7 +42,7 @@ pub fn list_network_devices(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let (config, digest) = network::config()?;
-    let digest = hex::encode(digest);
+    rpcenv["digest"] = digest.to_string().into();
 
     let mut list = Vec::new();
 
@@ -51,7 +51,7 @@ pub fn list_network_devices(
             continue;
         } // do not list lo
         let mut item: Value = to_value(interface)?;
-        item["digest"] = digest.clone().into();
+        item["digest"] = digest.to_string().into();
         item["iface"] = iface.to_string().into();
         list.push(item);
     }
@@ -81,13 +81,14 @@ pub fn list_network_devices(
     },
 )]
 /// Read a network interface configuration.
-pub fn read_interface(iface: String) -> Result<Value, Error> {
+pub fn read_interface(iface: String, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     let (config, digest) = network::config()?;
+    rpcenv["digest"] = digest.to_string().into();
 
     let interface = config.lookup(&iface)?;
 
     let mut data: Value = to_value(interface)?;
-    data["digest"] = hex::encode(digest).into();
+    data["digest"] = digest.to_string().into();
 
     Ok(data)
 }
