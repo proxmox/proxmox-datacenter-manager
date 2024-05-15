@@ -20,6 +20,6 @@ proxmox-lang.workspace = true
 proxmox-product-config.workspace = true
 proxmox-schema = { workspace = true, features = ["api-macro"] }
 proxmox-serde.workspace = true
-proxmox-system-management-api = { workspace = true, features = ["dns", "time"] }
+proxmox-system-management-api = { workspace = true, features = ["dns-api-types", "time-api-types"] }
 proxmox-time.workspace = true
 proxmox-uuid = { workspace = true, features = ["serde"] }
