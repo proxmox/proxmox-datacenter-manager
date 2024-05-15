@@ -8,7 +8,7 @@ use proxmox_schema::api;
 
 use pdm_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
-use proxmox_system_config_api::network::{
+use proxmox_system_management_api::network::{
     self, parse_vlan_id_from_name, parse_vlan_raw_device_from_name, DeletableInterfaceProperty,
     Interface, InterfaceUpdater, LinuxBondMode, NetworkConfigMethod, NetworkInterfaceType,
     NETWORK_INTERFACE_NAME_SCHEMA,

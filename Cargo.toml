@@ -59,7 +59,7 @@ proxmox-openid = "0.10"
 
 # api implementation creates
 proxmox-product-config = "0.1"
-proxmox-system-config-api = "0.1"
+proxmox-system-management-api = "0.1"
 
 # API types for PVE (and later PMG?)
 pve-api-types = { path = "proxmox-api-types/pve-api-types" }
