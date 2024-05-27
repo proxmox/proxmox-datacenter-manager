@@ -20,8 +20,10 @@ use proxmox_sys::fs::CreateOptions;
 use pdm_buildcfg::configdir;
 
 use pdm_api_types::Authid;
+use proxmox_auth_api::api::assemble_csrf_prevention_token;
 
 use server::auth;
+use server::auth::csrf::csrf_secret;
 
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
 
@@ -85,7 +87,7 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> 
             match auth_id {
                 Ok(auth_id) if !auth_id.is_token() => {
                     let userid = auth_id.user().clone();
-                    let new_csrf_token = auth::csrf::assemble_csrf_prevention_token(&userid);
+                    let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), &userid);
                     (Some(userid), Some(new_csrf_token))
                 }
                 _ => (None, None),

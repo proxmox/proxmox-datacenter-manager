@@ -9,7 +9,7 @@ use once_cell::sync::OnceCell;
 
 use proxmox_auth_api::api::{Authenticator, LockedTfaConfig};
 use proxmox_auth_api::types::Authid;
-use proxmox_auth_api::Keyring;
+use proxmox_auth_api::{HMACKey, Keyring};
 use proxmox_rest_server::AuthError;
 use proxmox_router::UserInformation;
 use proxmox_tfa::api::{OpenUserChallengeData, TfaConfig};
@@ -64,7 +64,7 @@ fn setup_auth_context(use_private_key: bool) {
     AUTH_CONTEXT
         .set(PdmAuthContext {
             keyring,
-            csrf_secret: csrf::csrf_secret().to_vec(),
+            csrf_secret: csrf::csrf_secret(),
         })
         .map_err(drop)
         .expect("auth context setup twice");
@@ -74,7 +74,7 @@ fn setup_auth_context(use_private_key: bool) {
 
 struct PdmAuthContext {
     keyring: Keyring,
-    csrf_secret: Vec<u8>,
+    csrf_secret: &'static HMACKey
 }
 
 impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
@@ -116,7 +116,7 @@ impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
     }
 
     /// CSRF prevention token secret data.
-    fn csrf_secret(&self) -> &[u8] {
+    fn csrf_secret(&self) -> &'static HMACKey {
         &self.csrf_secret
     }
 
