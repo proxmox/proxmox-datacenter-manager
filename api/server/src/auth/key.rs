@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use anyhow::Error;
-use openssl::rsa::Rsa;
 
 use proxmox_sys::fs::file_get_contents;
 use proxmox_sys::fs::{replace_file, CreateOptions};
@@ -37,26 +36,22 @@ pub fn generate_auth_key() -> Result<(), Error> {
         return Ok(());
     }
 
-    let rsa = Rsa::generate(4096).unwrap();
-
-    let priv_pem = rsa.private_key_to_pem()?;
+    let key = proxmox_auth_api::PrivateKey::generate_ec()?;
 
     use nix::sys::stat::Mode;
 
     replace_file(
         &priv_path,
-        &priv_pem,
+        &key.private_key_to_pem()?,
         CreateOptions::new().perm(Mode::from_bits_truncate(0o0600)),
         true,
     )?;
-
-    let public_pem = rsa.public_key_to_pem()?;
 
     let api_user = pdm_config::api_user()?;
 
     replace_file(
         &public_path,
-        &public_pem,
+        &key.public_key_to_pem()?,
         CreateOptions::new()
             .perm(Mode::from_bits_truncate(0o0640))
             .owner(nix::unistd::ROOT)
