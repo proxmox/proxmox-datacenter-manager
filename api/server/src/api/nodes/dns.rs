@@ -1,5 +1,5 @@
 use anyhow::Error;
-use proxmox_product_config::ConfigDigest;
+use proxmox_config_digest::ConfigDigest;
 use serde_json::Value;
 
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};

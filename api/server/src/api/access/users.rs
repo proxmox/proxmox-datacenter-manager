@@ -1,7 +1,7 @@
 //! User Management
 
 use anyhow::{bail, format_err, Error};
-use proxmox_product_config::ConfigDigest;
+use proxmox_config_digest::ConfigDigest;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;

@@ -7,7 +7,7 @@ use proxmox_router::{
 };
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
-use proxmox_product_config::ConfigDigest;
+use proxmox_config_digest::ConfigDigest;
 
 use pdm_api_types::remotes::{PveRemoteUpdater, Remote, REMOTE_ID_SCHEMA};
 use pdm_config::section_config::SectionConfigData;

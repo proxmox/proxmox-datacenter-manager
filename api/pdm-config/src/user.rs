@@ -11,7 +11,8 @@ use pdm_api_types::{ApiToken, Authid, User, Userid};
 
 use crate::ConfigVersionCache;
 
-use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard, ConfigDigest};
+use proxmox_config_digest::ConfigDigest;
+use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();

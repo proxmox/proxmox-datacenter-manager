@@ -65,7 +65,8 @@ proxmox-apt.workspace = true
 proxmox-client.workspace = true
 proxmox-openid.workspace = true
 
-proxmox-product-config = { workspace = true, features = [ "impl" ] }
+proxmox-config-digest = { workspace = true, features = [ "openssl" ] }
+proxmox-product-config.workspace = true
 proxmox-system-management-api = { workspace = true, features = [ "dns-impl", "network-impl", "time-impl", "syslog-impl" ] }
 
 pdm-api-types.workspace = true

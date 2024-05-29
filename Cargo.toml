@@ -58,6 +58,7 @@ proxmox-apt = "0.10"
 proxmox-openid = "0.10"
 
 # api implementation creates
+proxmox-config-digest = "0.1"
 proxmox-product-config = "0.1"
 proxmox-system-management-api = "0.1"
 

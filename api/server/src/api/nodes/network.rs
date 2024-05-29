@@ -1,7 +1,7 @@
 use anyhow::Error;
 use serde_json::{to_value, Value};
 
-use proxmox_product_config::ConfigDigest;
+use proxmox_config_digest::ConfigDigest;
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
