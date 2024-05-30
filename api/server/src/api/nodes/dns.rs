@@ -1,13 +1,14 @@
 use anyhow::Error;
-use proxmox_config_digest::ConfigDigest;
 use serde_json::Value;
 
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pdm_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use pdm_api_types::{ConfigDigest, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
-use proxmox_system_management_api::dns::{DeletableResolvConfProperty, ResolvConf, ResolvConfWithDigest};
+use proxmox_system_management_api::dns::{
+    DeletableResolvConfProperty, ResolvConf, ResolvConfWithDigest,
+};
 
 #[api(
     protected: true,

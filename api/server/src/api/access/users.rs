@@ -1,7 +1,6 @@
 //! User Management
 
 use anyhow::{bail, format_err, Error};
-use proxmox_config_digest::ConfigDigest;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -10,9 +9,9 @@ use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
 
 use pdm_api_types::{
-    ApiToken, Authid, Tokenname, User, UserUpdater, UserWithTokens, Userid, ENABLE_USER_SCHEMA,
-    EXPIRE_USER_SCHEMA, PDM_PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT,
-    SINGLE_LINE_COMMENT_SCHEMA,
+    ApiToken, Authid, ConfigDigest, Tokenname, User, UserUpdater, UserWithTokens, Userid,
+    ENABLE_USER_SCHEMA, EXPIRE_USER_SCHEMA, PDM_PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY,
+    PRIV_SYS_AUDIT, SINGLE_LINE_COMMENT_SCHEMA,
 };
 use pdm_config::{token_shadow, CachedUserInfo};
 

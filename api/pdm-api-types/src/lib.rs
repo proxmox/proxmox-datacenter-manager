@@ -67,6 +67,7 @@ pub use proxmox_system_management_api::dns::FIRST_DNS_SERVER_SCHEMA;
 pub use proxmox_system_management_api::dns::SECOND_DNS_SERVER_SCHEMA;
 pub use proxmox_system_management_api::dns::THIRD_DNS_SERVER_SCHEMA;
 
+pub use proxmox_config_digest::ConfigDigest;
 pub use proxmox_config_digest::PROXMOX_CONFIG_DIGEST_SCHEMA;
 
 #[macro_use]

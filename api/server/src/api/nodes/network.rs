@@ -1,16 +1,13 @@
 use anyhow::Error;
 use serde_json::{to_value, Value};
 
-use proxmox_config_digest::ConfigDigest;
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pdm_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use pdm_api_types::{Authid, ConfigDigest, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
 use proxmox_system_management_api::network::{
-    self, DeletableInterfaceProperty,
-    Interface, InterfaceUpdater,
-    NETWORK_INTERFACE_NAME_SCHEMA,
+    self, DeletableInterfaceProperty, Interface, InterfaceUpdater, NETWORK_INTERFACE_NAME_SCHEMA,
 };
 
 use proxmox_rest_server::WorkerTask;
