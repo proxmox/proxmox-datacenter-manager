@@ -6,8 +6,8 @@ use proxmox_schema::api;
 
 use pdm_api_types::{Authid, ConfigDigest, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
-use proxmox_system_management_api::network::{
-    self, DeletableInterfaceProperty, Interface, InterfaceUpdater, NETWORK_INTERFACE_NAME_SCHEMA,
+use proxmox_network_api::{
+    DeletableInterfaceProperty, Interface, InterfaceUpdater, NETWORK_INTERFACE_NAME_SCHEMA,
 };
 
 use proxmox_rest_server::WorkerTask;
@@ -37,7 +37,7 @@ pub fn list_network_devices(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    let (config, digest) = network::config()?;
+    let (config, digest) = proxmox_network_api::config()?;
     rpcenv["digest"] = digest.to_string().into();
 
     let mut list = Vec::new();
@@ -52,7 +52,7 @@ pub fn list_network_devices(
         list.push(item);
     }
 
-    let diff = network::changes()?;
+    let diff = proxmox_network_api::changes()?;
     if !diff.is_empty() {
         rpcenv["changes"] = diff.into();
     }
@@ -78,7 +78,7 @@ pub fn list_network_devices(
 )]
 /// Read a network interface configuration.
 pub fn read_interface(iface: String, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-    let (config, digest) = network::config()?;
+    let (config, digest) = proxmox_network_api::config()?;
     rpcenv["digest"] = digest.to_string().into();
 
     let interface = config.lookup(&iface)?;
@@ -112,7 +112,7 @@ pub fn read_interface(iface: String, rpcenv: &mut dyn RpcEnvironment) -> Result<
 /// Create network interface configuration.
 #[allow(clippy::too_many_arguments)]
 pub fn create_interface(iface: String, config: InterfaceUpdater) -> Result<(), Error> {
-    network::create_interface(iface, config)
+    proxmox_network_api::create_interface(iface, config)
 }
 
 #[api(
@@ -154,7 +154,7 @@ pub fn update_interface(
     delete: Option<Vec<DeletableInterfaceProperty>>,
     digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
-    network::update_interface(iface, update, delete, digest)
+    proxmox_network_api::update_interface(iface, update, delete, digest)
 }
 
 #[api(
@@ -179,9 +179,9 @@ pub fn update_interface(
 )]
 /// Remove network interface configuration.
 pub fn delete_interface(iface: String, digest: Option<ConfigDigest>) -> Result<(), Error> {
-    let _lock = network::lock_config()?;
+    let _lock = proxmox_network_api::lock_config()?;
 
-    let (mut network_config, expected_digest) = network::config()?;
+    let (mut network_config, expected_digest) = proxmox_network_api::config()?;
 
     expected_digest.detect_modification(digest.as_ref())?;
 
@@ -189,7 +189,7 @@ pub fn delete_interface(iface: String, digest: Option<ConfigDigest>) -> Result<(
 
     network_config.interfaces.remove(&iface);
 
-    network::save_config(&network_config)?;
+    proxmox_network_api::save_config(&network_config)?;
 
     Ok(())
 }
@@ -209,7 +209,7 @@ pub fn delete_interface(iface: String, digest: Option<ConfigDigest>) -> Result<(
 )]
 /// Reload network configuration (requires ifupdown2).
 pub async fn reload_network_config(rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error> {
-    network::assert_ifupdown2_installed()?;
+    proxmox_network_api::assert_ifupdown2_installed()?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -220,11 +220,11 @@ pub async fn reload_network_config(rpcenv: &mut dyn RpcEnvironment) -> Result<St
         true,
         |_worker| async {
             let _ = std::fs::rename(
-                network::NETWORK_INTERFACES_NEW_FILENAME,
-                network::NETWORK_INTERFACES_FILENAME,
+                proxmox_network_api::NETWORK_INTERFACES_NEW_FILENAME,
+                proxmox_network_api::NETWORK_INTERFACES_FILENAME,
             );
 
-            network::network_reload()?;
+            proxmox_network_api::network_reload()?;
             Ok(())
         },
     )?;
@@ -247,7 +247,7 @@ pub async fn reload_network_config(rpcenv: &mut dyn RpcEnvironment) -> Result<St
 )]
 /// Revert network configuration (rm /etc/network/interfaces.new).
 pub fn revert_network_config() -> Result<(), Error> {
-    let _ = std::fs::remove_file(network::NETWORK_INTERFACES_NEW_FILENAME);
+    let _ = std::fs::remove_file(proxmox_network_api::NETWORK_INTERFACES_NEW_FILENAME);
 
     Ok(())
 }
