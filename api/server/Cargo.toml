@@ -67,10 +67,11 @@ proxmox-openid.workspace = true
 
 proxmox-config-digest = { workspace = true, features = [ "openssl" ] }
 proxmox-product-config.workspace = true
-proxmox-system-management-api = { workspace = true, features = [ "syslog-impl" ] }
+proxmox-system-management-api = { workspace = true, features = [ ] }
 proxmox-dns-api = { workspace = true, features = [ "impl" ] }
 proxmox-time-api = { workspace = true, features = [ "impl" ] }
 proxmox-network-api = { workspace = true, features = [ "impl" ] }
+proxmox-syslog-api = { workspace = true, features = [ "impl" ] }
 
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
