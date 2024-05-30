@@ -20,7 +20,6 @@ proxmox-lang.workspace = true
 proxmox-config-digest.workspace = true
 proxmox-schema = { workspace = true, features = ["api-macro"] }
 proxmox-serde.workspace = true
-proxmox-system-management-api = { workspace = true }
 proxmox-dns-api.workspace = true
 proxmox-time-api.workspace = true
 proxmox-time.workspace = true

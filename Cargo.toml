@@ -60,7 +60,6 @@ proxmox-openid = "0.10"
 # api implementation creates
 proxmox-config-digest = "0.1"
 proxmox-product-config = "0.1"
-proxmox-system-management-api = "0.1"
 proxmox-dns-api = "0.1"
 proxmox-time-api = "0.1"
 proxmox-network-api = "0.1"
