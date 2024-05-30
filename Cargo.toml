@@ -62,6 +62,7 @@ proxmox-config-digest = "0.1"
 proxmox-product-config = "0.1"
 proxmox-system-management-api = "0.1"
 proxmox-dns-api = "0.1"
+proxmox-time-api = "0.1"
 
 # API types for PVE (and later PMG?)
 pve-api-types = { path = "proxmox-api-types/pve-api-types" }

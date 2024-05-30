@@ -5,7 +5,7 @@ use proxmox_router::{Permission, Router};
 use proxmox_schema::api;
 
 use pdm_api_types::{NODE_SCHEMA, PRIV_SYS_MODIFY, TIME_ZONE_SCHEMA};
-use proxmox_system_management_api::time::ServerTimeInfo;
+use proxmox_time_api::ServerTimeInfo;
 
 #[api(
     input: {
@@ -24,7 +24,7 @@ use proxmox_system_management_api::time::ServerTimeInfo;
 )]
 /// Read server time and time zone settings.
 fn get_time(_param: Value) -> Result<ServerTimeInfo, Error> {
-    proxmox_system_management_api::time::get_server_time_info()
+    proxmox_time_api::get_server_time_info()
 }
 
 #[api(
@@ -46,7 +46,7 @@ fn get_time(_param: Value) -> Result<ServerTimeInfo, Error> {
 )]
 /// Set time zone
 fn set_timezone(timezone: String, _param: Value) -> Result<(), Error> {
-    proxmox_system_management_api::time::set_timezone(timezone)
+    proxmox_time_api::set_timezone(timezone)
 }
 
 pub const ROUTER: Router = Router::new()
