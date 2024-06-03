@@ -10,6 +10,8 @@ use proxmox_sys::fs::CreateOptions;
 
 use server::auth;
 
+use pdm_buildcfg::configdir;
+
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
 
 fn main() -> Result<(), Error> {
@@ -18,6 +20,7 @@ fn main() -> Result<(), Error> {
     server::env::sanitize_environment_vars();
 
     proxmox_product_config::init(pdm_config::api_user()?);
+    proxmox_acme_api::init(  configdir!("/acme"));
 
     let debug = std::env::var("PROXMOX_DEBUG").is_ok();
 

@@ -8,6 +8,7 @@ use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
 pub mod access;
+pub mod config;
 pub mod nodes;
 pub mod pve;
 pub mod remotes;
@@ -15,6 +16,7 @@ pub mod remotes;
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("access", &access::ROUTER),
+    ("config", &config::ROUTER),
     ("ping", &Router::new().get(&API_METHOD_PING)),
     ("pve", &pve::ROUTER),
     ("remotes", &remotes::ROUTER),
