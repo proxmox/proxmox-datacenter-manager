@@ -20,7 +20,7 @@ fn main() -> Result<(), Error> {
     server::env::sanitize_environment_vars();
 
     proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
-    proxmox_acme_api::init(  configdir!("/acme"));
+    proxmox_acme_api::init(configdir!("/acme"), true)?;
 
     let debug = std::env::var("PROXMOX_DEBUG").is_ok();
 
