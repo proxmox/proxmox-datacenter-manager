@@ -37,3 +37,11 @@ pub fn api_group() -> Result<nix::unistd::Group, Error> {
             .ok_or_else(|| format_err!("Unable to lookup '{}' group.", BACKUP_GROUP_NAME))
     }
 }
+
+pub fn priv_user() -> Result<nix::unistd::User, Error> {
+    if cfg!(test) {
+        Ok(User::from_uid(Uid::current())?.expect("current user does not exist"))
+    } else {
+        User::from_name("root")?.ok_or_else(|| format_err!("Unable to lookup superuser."))
+    }
+}
