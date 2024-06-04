@@ -763,10 +763,10 @@ mod test {
     fn test_acl_line_compression() {
         let tree = AclTree::from_raw(
             "\
-            acl:0:/store/store2:user1@pbs:Admin\n\
-            acl:0:/store/store2:user2@pbs:Admin\n\
-            acl:0:/store/store2:user1@pbs:DatastoreBackup\n\
-            acl:0:/store/store2:user2@pbs:DatastoreBackup\n\
+            acl:0:/store/store2:user1@pdm:Admin\n\
+            acl:0:/store/store2:user2@pdm:Admin\n\
+            acl:0:/store/store2:user1@pdm:RemoteAdmin\n\
+            acl:0:/store/store2:user2@pdm:RemoteAdmin\n\
             ",
         )
         .expect("failed to parse acl tree");
@@ -778,7 +778,7 @@ mod test {
 
         assert_eq!(
             raw,
-            "acl:0:/store/store2:user1@pbs,user2@pbs:Admin,DatastoreBackup\n"
+            "acl:0:/store/store2:user1@pdm,user2@pdm:Admin,RemoteAdmin\n"
         );
     }
 
@@ -786,22 +786,22 @@ mod test {
     fn test_roles_1() -> Result<(), Error> {
         let tree = AclTree::from_raw(
             r###"
-acl:1:/storage:user1@pbs:Admin
-acl:1:/storage/store1:user1@pbs:DatastoreBackup
-acl:1:/storage/store2:user2@pbs:DatastoreBackup
+acl:1:/storage:user1@pdm:Admin
+acl:1:/storage/store1:user1@pdm:RemoteAdmin
+acl:1:/storage/store2:user2@pdm:RemoteAdmin
 "###,
         )?;
-        let user1: Authid = "user1@pbs".parse()?;
+        let user1: Authid = "user1@pdm".parse()?;
         check_roles(&tree, &user1, "/", "");
         check_roles(&tree, &user1, "/storage", "Admin");
-        check_roles(&tree, &user1, "/storage/store1", "DatastoreBackup");
+        check_roles(&tree, &user1, "/storage/store1", "RemoteAdmin");
         check_roles(&tree, &user1, "/storage/store2", "Admin");
 
-        let user2: Authid = "user2@pbs".parse()?;
+        let user2: Authid = "user2@pdm".parse()?;
         check_roles(&tree, &user2, "/", "");
         check_roles(&tree, &user2, "/storage", "");
         check_roles(&tree, &user2, "/storage/store1", "");
-        check_roles(&tree, &user2, "/storage/store2", "DatastoreBackup");
+        check_roles(&tree, &user2, "/storage/store2", "RemoteAdmin");
 
         Ok(())
     }
@@ -810,28 +810,28 @@ acl:1:/storage/store2:user2@pbs:DatastoreBackup
     fn test_role_no_access() -> Result<(), Error> {
         let tree = AclTree::from_raw(
             r###"
-acl:1:/:user1@pbs:Admin
-acl:1:/storage:user1@pbs:NoAccess
-acl:1:/storage/store1:user1@pbs:DatastoreBackup
+acl:1:/:user1@pdm:Admin
+acl:1:/storage:user1@pdm:NoAccess
+acl:1:/storage/store1:user1@pdm:RemoteAdmin
 "###,
         )?;
-        let user1: Authid = "user1@pbs".parse()?;
+        let user1: Authid = "user1@pdm".parse()?;
         check_roles(&tree, &user1, "/", "Admin");
         check_roles(&tree, &user1, "/storage", "NoAccess");
-        check_roles(&tree, &user1, "/storage/store1", "DatastoreBackup");
+        check_roles(&tree, &user1, "/storage/store1", "RemoteAdmin");
         check_roles(&tree, &user1, "/storage/store2", "NoAccess");
         check_roles(&tree, &user1, "/system", "Admin");
 
         let tree = AclTree::from_raw(
             r###"
-acl:1:/:user1@pbs:Admin
-acl:0:/storage:user1@pbs:NoAccess
-acl:1:/storage/store1:user1@pbs:DatastoreBackup
+acl:1:/:user1@pdm:Admin
+acl:0:/storage:user1@pdm:NoAccess
+acl:1:/storage/store1:user1@pdm:RemoteAdmin
 "###,
         )?;
         check_roles(&tree, &user1, "/", "Admin");
         check_roles(&tree, &user1, "/storage", "NoAccess");
-        check_roles(&tree, &user1, "/storage/store1", "DatastoreBackup");
+        check_roles(&tree, &user1, "/storage/store1", "RemoteAdmin");
         check_roles(&tree, &user1, "/storage/store2", "Admin");
         check_roles(&tree, &user1, "/system", "Admin");
 
@@ -887,15 +887,15 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
     fn test_get_child_paths() -> Result<(), Error> {
         let tree = AclTree::from_raw(
             "\
-            acl:0:/store/store2:user1@pbs:Admin\n\
-            acl:1:/store/store2/store31/store4/store6:user2@pbs:DatastoreReader\n\
-            acl:0:/store/store2/store3:user1@pbs:Admin\n\
+            acl:0:/store/store2:user1@pdm:Admin\n\
+            acl:1:/store/store2/store31/store4/store6:user2@pdm:RemoteAdmin\n\
+            acl:0:/store/store2/store3:user1@pdm:Admin\n\
             ",
         )
         .expect("failed to parse acl tree");
 
-        let user1: Authid = "user1@pbs".parse()?;
-        let user2: Authid = "user2@pbs".parse()?;
+        let user1: Authid = "user1@pdm".parse()?;
+        let user2: Authid = "user2@pdm".parse()?;
 
         // user1 has admin on "/store/store2/store3" -> return paths
         let paths = tree.get_child_paths(&user1, &["store"])?;

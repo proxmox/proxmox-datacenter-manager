@@ -85,7 +85,7 @@ pub const PDM_SUBSCRIPTION_FN: &str = configdir!("/subscription");
 /// This is a simply way to get the full path for configuration files.
 /// #### Example:
 /// ```
-/// use pbs_buildcfg::configdir;
+/// use pdm_buildcfg::configdir;
 /// let cert_path = configdir!("/api.pfx");
 /// ```
 #[macro_export]
