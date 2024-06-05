@@ -9,7 +9,7 @@ use serde_json::json;
 use proxmox_client::{Error, HttpApiClient};
 
 use pdm_api_types::remotes::Remote;
-use pdm_api_types::{ConfigurationState, RemoteUpid};
+use pdm_api_types::{ConfigurationState, RemoteUpid, User, UserWithTokens};
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
 
@@ -58,6 +58,73 @@ impl<T: HttpApiClient> PdmClient<T> {
     ) -> Result<pve_api_types::VersionResponse, proxmox_client::Error> {
         let path = format!("/api2/extjs/remotes/{remote}/version");
         Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn read_user(&self, user: &str) -> Result<Vec<User>, Error> {
+        let path = format!("/api2/extjs/access/users/{user}");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn list_users(&self, include_api_tokens: bool) -> Result<Vec<UserWithTokens>, Error> {
+        let mut path = "/api2/extjs/access/users".to_string();
+        add_query_arg(
+            &mut path,
+            &mut '?',
+            "include_tokens",
+            &Some(include_api_tokens),
+        );
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn create_user(&self, config: &User, password: Option<&str>) -> Result<(), Error> {
+        #[derive(serde::Serialize)]
+        struct CreateUser<'a> {
+            password: Option<&'a str>,
+            #[serde(flatten)]
+            config: &'a User,
+        }
+
+        let path = "/api2/extjs/access/users";
+        self.0
+            .post(path, &CreateUser { password, config })
+            .await?
+            .nodata()
+    }
+
+    pub async fn update_user(
+        &self,
+        userid: &str,
+        updater: &pdm_api_types::UserUpdater,
+        password: Option<&str>,
+        delete: &[&str],
+    ) -> Result<(), Error> {
+        #[derive(serde::Serialize)]
+        struct UpdateUser<'a> {
+            #[serde(flatten)]
+            updater: &'a pdm_api_types::UserUpdater,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            password: Option<&'a str>,
+            #[serde(skip_serializing_if = "<[&str]>::is_empty")]
+            delete: &'a [&'a str],
+        }
+
+        let path = format!("/api2/extjs/access/users/{userid}");
+        self.0
+            .put(
+                &path,
+                &UpdateUser {
+                    updater,
+                    password,
+                    delete,
+                },
+            )
+            .await?
+            .nodata()
+    }
+
+    pub async fn delete_user(&self, userid: &str) -> Result<(), Error> {
+        let path = format!("/api2/extjs/access/users/{userid}");
+        self.0.delete(&path).await?.nodata()
     }
 
     pub async fn list_user_tfa(
