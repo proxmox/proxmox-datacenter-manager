@@ -51,6 +51,7 @@ proxmox-time = "1.1.2"
 proxmox-uuid = "1"
 proxmox-login = { version = "0.1.1", features = [ "webauthn" ] }
 proxmox-client = { version = "0.3", features = [ "hyper-client" ] }
+proxmox-simple-config = "0.1"
 
 # other proxmox crates
 proxmox-acme = "0.5"

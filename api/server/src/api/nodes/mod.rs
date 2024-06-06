@@ -3,6 +3,7 @@
 use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
 use proxmox_sortable_macro::sortable;
 
+pub mod certificates;
 pub mod dns;
 pub mod tasks;
 pub mod time;
@@ -31,6 +32,7 @@ pub const ITEM_ROUTER: Router = Router::new()
 #[rustfmt::skip] // it'll put both entries on 1 line...
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
+    ("certificates", &certificates::ROUTER),
     ("dns", &dns::ROUTER),
     ("tasks", &tasks::ROUTER),
     ("time", &time::ROUTER),
