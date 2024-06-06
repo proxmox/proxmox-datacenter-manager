@@ -62,8 +62,8 @@ pub use proxmox_schema::api_types::{PASSWORD_FORMAT, PASSWORD_SCHEMA};
 pub use proxmox_schema::api_types::{SERVICE_ID_SCHEMA, UUID_FORMAT};
 pub use proxmox_schema::api_types::{SYSTEMD_DATETIME_FORMAT, TIME_ZONE_SCHEMA};
 
-pub use proxmox_dns_api::SEARCH_DOMAIN_SCHEMA;
 pub use proxmox_dns_api::FIRST_DNS_SERVER_SCHEMA;
+pub use proxmox_dns_api::SEARCH_DOMAIN_SCHEMA;
 pub use proxmox_dns_api::SECOND_DNS_SERVER_SCHEMA;
 pub use proxmox_dns_api::THIRD_DNS_SERVER_SCHEMA;
 
@@ -101,10 +101,8 @@ pub const OPENSSL_CIPHERS_TLS_FORMAT: ApiStringFormat =
 pub const HOST_PORT_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HOST_PORT_REGEX);
 pub const HTTP_URL_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HTTP_URL_REGEX);
 
-
 pub const DAILY_DURATION_FORMAT: ApiStringFormat =
     ApiStringFormat::VerifyFn(|s| parse_daily_duration(s).map(drop));
-
 
 pub const OPENSSL_CIPHERS_TLS_1_2_SCHEMA: Schema =
     StringSchema::new("OpenSSL cipher list used by the api server for TLS <= 1.2")

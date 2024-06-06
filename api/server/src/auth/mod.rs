@@ -74,7 +74,7 @@ fn setup_auth_context(use_private_key: bool) {
 
 struct PdmAuthContext {
     keyring: Keyring,
-    csrf_secret: &'static HMACKey
+    csrf_secret: &'static HMACKey,
 }
 
 impl proxmox_auth_api::api::AuthContext for PdmAuthContext {

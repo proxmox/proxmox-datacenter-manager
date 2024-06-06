@@ -14,17 +14,17 @@ pub fn csrf_secret() -> &'static HMACKey {
     static SECRET: OnceLock<HMACKey> = OnceLock::new();
 
     SECRET.get_or_init(|| {
-            let bytes = file_get_contents(configdir!("/auth/csrf.key")).unwrap();
-            std::str::from_utf8(&bytes)
-                .map_err(anyhow::Error::new)
-                .and_then(HMACKey::from_base64)
-                // legacy fall back to load legacy csrf secrets
-                // TODO: remove once we move away from legacy token verification
-                .unwrap_or_else(|_| {
-                    let key_as_b64 = base64::encode_config(bytes, base64::STANDARD_NO_PAD);
-                    HMACKey::from_base64(&key_as_b64).unwrap()
-                })
-        })
+        let bytes = file_get_contents(configdir!("/auth/csrf.key")).unwrap();
+        std::str::from_utf8(&bytes)
+            .map_err(anyhow::Error::new)
+            .and_then(HMACKey::from_base64)
+            // legacy fall back to load legacy csrf secrets
+            // TODO: remove once we move away from legacy token verification
+            .unwrap_or_else(|_| {
+                let key_as_b64 = base64::encode_config(bytes, base64::STANDARD_NO_PAD);
+                HMACKey::from_base64(&key_as_b64).unwrap()
+            })
+    })
 }
 
 pub fn generate_csrf_key() -> Result<(), Error> {

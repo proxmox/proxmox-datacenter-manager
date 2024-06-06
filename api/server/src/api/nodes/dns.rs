@@ -6,9 +6,7 @@ use proxmox_schema::api;
 
 use pdm_api_types::{ConfigDigest, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
-use proxmox_dns_api::{
-    DeletableResolvConfProperty, ResolvConf, ResolvConfWithDigest,
-};
+use proxmox_dns_api::{DeletableResolvConfProperty, ResolvConf, ResolvConfWithDigest};
 
 #[api(
     protected: true,

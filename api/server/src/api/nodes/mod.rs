@@ -5,10 +5,10 @@ use proxmox_sortable_macro::sortable;
 
 pub mod certificates;
 pub mod dns;
-pub mod tasks;
-pub mod time;
 pub mod network;
 pub mod syslog;
+pub mod tasks;
+pub mod time;
 
 use anyhow::Error;
 use serde_json::{json, Value};

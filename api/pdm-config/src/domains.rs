@@ -6,8 +6,8 @@ use lazy_static::lazy_static;
 use proxmox_schema::{ApiType, Schema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
 use pdm_api_types::{OpenIdRealmConfig, REALM_ID_SCHEMA};
+use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();

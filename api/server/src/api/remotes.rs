@@ -8,8 +8,8 @@ use proxmox_router::{
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::ConfigDigest;
 use pdm_api_types::remotes::{PveRemoteUpdater, Remote, REMOTE_ID_SCHEMA};
+use pdm_api_types::ConfigDigest;
 use pdm_config::section_config::SectionConfigData;
 
 use super::pve;

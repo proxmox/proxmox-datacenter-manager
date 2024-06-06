@@ -38,7 +38,6 @@ fn get_syslog(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<SyslogLine>, Error> {
-
     //filter.service = filter.service.map(crate::api2::node::services::real_service_name);
 
     let (count, lines) = dump_journal(filter)?;
