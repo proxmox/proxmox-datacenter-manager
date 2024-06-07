@@ -4,6 +4,7 @@ use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{Router, RpcEnvironment, SubdirMap};
 
 use proxmox_schema::api;
+use proxmox_sortable_macro::sortable;
 
 use proxmox_acme_api::{
     AccountEntry, AccountInfo, AcmeAccountName, AcmeChallengeSchema, ChallengeSchemaWrapper,
@@ -19,7 +20,8 @@ pub(crate) const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
     .subdirs(SUBDIRS);
 
-const SUBDIRS: SubdirMap = &[
+#[sortable]
+const SUBDIRS: SubdirMap = &sorted!([
     (
         "account",
         &Router::new()
@@ -46,7 +48,7 @@ const SUBDIRS: SubdirMap = &[
         "tos",
         &proxmox_router::Router::new().get(&API_METHOD_GET_TOS),
     ),
-];
+]);
 
 const ACCOUNT_ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_GET_ACCOUNT)
