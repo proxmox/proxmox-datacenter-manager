@@ -5,10 +5,13 @@ use proxmox_dns_api::read_etc_resolv_conf;
 
 use pdm_buildcfg::configdir;
 
+pub const API_KEY_FN: &str = configdir!("/auth/api.key");
+pub const API_CERT_FN: &str = configdir!("/auth/api.pem");
+
 /// Update self signed node certificate.
 pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
-    let key_path = PathBuf::from(configdir!("/auth/api.key"));
-    let cert_path = PathBuf::from(configdir!("/auth/api.pem"));
+    let key_path = PathBuf::from(API_KEY_FN);
+    let cert_path = PathBuf::from(API_CERT_FN);
 
     if key_path.exists() && cert_path.exists() && !force {
         return Ok(());
@@ -31,10 +34,9 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
 }
 
 pub(crate) fn set_api_certificate(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), Error> {
-    let key_path = PathBuf::from(configdir!("/auth/api.key"));
-    let cert_path = PathBuf::from(configdir!("/auth/api.pem"));
+    let key_path = PathBuf::from(API_KEY_FN);
+    let cert_path = PathBuf::from(API_CERT_FN);
 
-    //create_configdir()?;
     proxmox_product_config::replace_privileged_config(key_path, key_pem)
         .map_err(|err| format_err!("error writing certificate private key - {}", err))?;
     proxmox_product_config::replace_privileged_config(cert_path, cert_pem)
