@@ -9,6 +9,7 @@ use nix::sys::stat::Mode;
 use nix::unistd::{Gid, Uid};
 
 use pdm_buildcfg::configdir;
+use proxmox_sys::fs::CreateOptions;
 
 pub fn create_configdir() -> Result<(), Error> {
     let api_user = crate::api_user()?;
@@ -25,6 +26,12 @@ pub fn mkdir_perms(dir: &str, uid: Uid, gid: Gid, mode: u32) -> Result<(), Error
     match nix::unistd::mkdir(dir, nix_mode) {
         Ok(()) => (),
         Err(nix::errno::Errno::EEXIST) => {
+            CreateOptions::new()
+                .owner(uid)
+                .group(gid)
+                .perm(nix_mode)
+                .check(dir)?;
+
             check_permissions(dir, uid, gid, mode)
                 .map_err(|err| format_err!("unexpected permissions directory '{dir}': {err}"))?;
             return Ok(());
