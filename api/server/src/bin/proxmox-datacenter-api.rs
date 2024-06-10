@@ -59,6 +59,8 @@ fn main() -> Result<(), Error> {
         bail!("api not running as api user or group (got uid {running_uid} gid {running_gid})");
     }
 
+    proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
+
     proxmox_async::runtime::main(run(debug))
 }
 
@@ -141,7 +143,6 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> 
 async fn run(debug: bool) -> Result<(), Error> {
     auth::init(false);
 
-    proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
     proxmox_acme_api::init(configdir!("/acme"), false)?;
 
     let api_user = pdm_config::api_user()?;

@@ -35,6 +35,8 @@ fn main() -> Result<(), Error> {
 
     create_directories()?;
 
+    proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
+
     let mut args = std::env::args();
     args.next();
     for arg in args {
@@ -90,7 +92,6 @@ fn create_directories() -> Result<(), Error> {
 async fn run() -> Result<(), Error> {
     auth::init(true);
 
-    proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
     proxmox_acme_api::init(configdir!("/acme"), true)?;
 
     let api_user = pdm_config::api_user()?;
