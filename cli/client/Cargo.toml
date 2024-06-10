@@ -25,6 +25,7 @@ webauthn-rs.workspace = true
 xdg.workspace = true
 
 pdm-api-types.workspace = true
+pdm-buildcfg.workspace = true
 pdm-client.workspace = true
 
 proxmox-async.workspace = true
@@ -37,3 +38,6 @@ proxmox-tfa = { workspace = true, features = [ "types" ] }
 
 # for the pve API types:
 pve-api-types.workspace = true
+
+# when root wants to log into localhost, we just create a ticket directly
+proxmox-auth-api = { workspace = true, features = [ "api", "ticket" ] }

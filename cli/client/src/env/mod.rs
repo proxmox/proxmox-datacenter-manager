@@ -93,6 +93,8 @@ impl Env {
                         .next()
                         .ok_or_else(|| format_err!("missing value for `--server` parameter"))?,
                 )?;
+            } else if arg == "--local" {
+                self.update_server("https://root@pam@localhost")?;
             } else if let Some(color) = arg.strip_prefix("--color=") {
                 self.use_color = color.parse()?;
             } else if arg == "--color" {

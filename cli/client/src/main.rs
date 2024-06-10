@@ -1,6 +1,9 @@
+use std::io;
+
 use anyhow::{bail, format_err, Error};
 use once_cell::sync::{Lazy, OnceCell};
 
+use proxmox_auth_api::types::Userid;
 use proxmox_client::{Client, TlsOptions};
 use proxmox_login::Login;
 use proxmox_router::cli::{run_cli_command_with_args, CliCommand, CliCommandMap, CliEnvironment};
@@ -106,11 +109,21 @@ async fn login() -> Result<(), Error> {
 
     let client = client()?;
     let userid = env().query_userid(client.api_url())?;
-    let password = env().query_password(client.api_url(), &userid)?;
-    if let Some(tfa) = client
-        .login(Login::new(client.api_url().to_string(), &userid, &password))
-        .await?
-    {
+
+    let login_how = 'login: {
+        if let Some(server) = env().server.as_deref() {
+            if matches!(server, "localhost" | "127.0.0.1" | "::1") {
+                if let Some(login_how) = try_create_local_ticket(&client, &userid)? {
+                    break 'login login_how;
+                }
+            }
+        }
+
+        let password = env().query_password(client.api_url(), &userid)?;
+        Login::new(client.api_url().to_string(), &userid, password)
+    };
+
+    if let Some(tfa) = client.login(login_how).await? {
         let response = env().query_second_factor(client.api_url(), &userid, &tfa.challenge)?;
         let response = tfa.respond_raw(&response);
         client.login_tfa(tfa, response).await?;
@@ -121,4 +134,36 @@ async fn login() -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+fn try_create_local_ticket(
+    client: &PdmClient<Client>,
+    username: &str,
+) -> Result<Option<Login>, Error> {
+    use proxmox_auth_api::api::ApiTicket;
+    use proxmox_auth_api::ticket::Ticket;
+    use proxmox_auth_api::{Keyring, PrivateKey};
+
+    let username: Userid = username.parse()?;
+
+    let authkey_path = pdm_buildcfg::configdir!("/auth/authkey.key");
+    let keyring = match std::fs::read(authkey_path) {
+        Err(err) => {
+            if !matches!(
+                err.kind(),
+                io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied
+            ) {
+                log::error!("failed to read auth key from {authkey_path:?}: {err:?}");
+            }
+            return Ok(None);
+        }
+        Ok(pem) => Keyring::with_private_key(PrivateKey::from_pem(&pem)?),
+    };
+
+    let ticket = Ticket::new("PDM", &ApiTicket::Full(username))?.sign(&keyring, None)?;
+
+    Ok(Some(
+        Login::renew(client.api_url().to_string(), ticket)
+            .expect("failed to parse generated ticket"),
+    ))
 }
