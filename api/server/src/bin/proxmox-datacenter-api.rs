@@ -69,7 +69,7 @@ fn main() -> Result<(), Error> {
 fn get_language(headers: &http::HeaderMap) -> String {
     let exists = |l: &str| Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{l}.js")).exists();
 
-    match cookie_from_header(headers, "PBSLangCookie") {
+    match cookie_from_header(headers, "PDMLangCookie") {
         Some(cookie_lang) if exists(&cookie_lang) => cookie_lang,
         _ => String::from(""),
     }

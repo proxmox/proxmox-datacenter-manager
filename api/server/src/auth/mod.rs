@@ -87,19 +87,19 @@ impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
         &self.keyring
     }
 
-    /// The auth prefix without the separating colon. Eg. `"PBS"`.
+    /// The auth prefix without the separating colon. Eg. `"PDM"`.
     fn auth_prefix(&self) -> &'static str {
-        "PBS"
+        "PDM"
     }
 
     /// API token prefix (without the `'='`).
     fn auth_token_prefix(&self) -> &'static str {
-        "PBSAPIToken"
+        "PDMAPIToken"
     }
 
     /// Auth cookie name.
     fn auth_cookie_name(&self) -> &'static str {
-        "PBSAuthCookie"
+        "PDMAuthCookie"
     }
 
     /// Check if a userid is enabled and return a [`UserInformation`] handle.
