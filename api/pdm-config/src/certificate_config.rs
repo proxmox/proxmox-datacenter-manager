@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::{bail, Error};
+use pdm_api_types::ConfigDigest;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, ApiStringFormat, ApiType, Updater};
@@ -18,9 +19,9 @@ pub fn lock() -> Result<ApiLockGuard, Error> {
 }
 
 /// Read the certificate configuration (account + domains).
-pub fn config() -> Result<(AcmeCertificateConfig, [u8; 32]), Error> {
+pub fn config() -> Result<(AcmeCertificateConfig, ConfigDigest), Error> {
     let content = proxmox_sys::fs::file_read_optional_string(CONF_FILE)?.unwrap_or_default();
-    let digest = openssl::sha::sha256(content.as_bytes());
+    let digest = ConfigDigest::from_slice(content.as_bytes());
     let data: AcmeCertificateConfig =
         proxmox_simple_config::from_str(&content, &AcmeCertificateConfig::API_SCHEMA)?;
     Ok((data, digest))
