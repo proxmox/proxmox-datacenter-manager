@@ -246,7 +246,7 @@ fn spawn_certificate_worker(
     force: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-    // We only have 1 certificate path in PBS which makes figuring out whether or not it is a
+    // We only have 1 certificate path in PDM which makes figuring out whether or not it is a
     // custom one too hard... We keep the parameter because the widget-toolkit may be using it...
     let _ = force;
 
