@@ -32,9 +32,6 @@ fn main() -> Result<(), Error> {
 
     server::env::sanitize_environment_vars();
 
-    proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
-    proxmox_acme_api::init(configdir!("/acme"), false)?;
-
     let debug = std::env::var("PROXMOX_DEBUG").is_ok();
 
     if let Err(err) = syslog::init(
@@ -143,6 +140,9 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> 
 
 async fn run(debug: bool) -> Result<(), Error> {
     auth::init(false);
+
+    proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
+    proxmox_acme_api::init(configdir!("/acme"), false)?;
 
     let api_user = pdm_config::api_user()?;
     let mut commando_sock =
