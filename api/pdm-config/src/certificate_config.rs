@@ -4,7 +4,7 @@ use anyhow::{bail, Error};
 use pdm_api_types::ConfigDigest;
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, ApiStringFormat, ApiType, Updater};
+use proxmox_schema::{api, ApiStringFormat, ApiType};
 
 use proxmox_acme_api::{AcmeConfig, AcmeDomain, ACME_DOMAIN_PROPERTY_SCHEMA};
 use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard};
@@ -64,7 +64,7 @@ pub fn save_config(config: &AcmeCertificateConfig) -> Result<(), Error> {
         },
     },
 )]
-#[derive(Deserialize, Serialize, Updater)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 /// Certificate configuration.
 pub struct AcmeCertificateConfig {
