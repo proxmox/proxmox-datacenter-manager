@@ -56,9 +56,9 @@ static AUTH_CONTEXT: OnceCell<PdmAuthContext> = OnceCell::new();
 
 fn setup_auth_context(use_private_key: bool) {
     let keyring = if use_private_key {
-        Keyring::with_private_key(key::private_auth_key().clone().into())
+        Keyring::with_private_key(key::private_auth_key().clone())
     } else {
-        Keyring::with_public_key(key::public_auth_key().clone().into())
+        Keyring::with_public_key(key::public_auth_key().clone())
     };
 
     AUTH_CONTEXT
