@@ -5,21 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, ApiStringFormat, ApiType, Updater};
 
-/*
-use pbs_api_types::{
-    EMAIL_SCHEMA, MULTI_LINE_COMMENT_SCHEMA, OPENSSL_CIPHERS_TLS_1_2_SCHEMA,
-    OPENSSL_CIPHERS_TLS_1_3_SCHEMA,
-};
-*/
-
 use proxmox_acme_api::{AcmeConfig, AcmeDomain, ACME_DOMAIN_PROPERTY_SCHEMA};
 use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard};
 
 use pdm_buildcfg::configdir;
-
-//use crate::api2::types::{
-//    AcmeAccountName, AcmeDomain, ACME_DOMAIN_PROPERTY_SCHEMA, HTTP_PROXY_SCHEMA,
-//};
 
 const CONF_FILE: &str = configdir!("/acme/certificate.cfg");
 const LOCK_FILE: &str = configdir!("/acme/.certificate.lck");
