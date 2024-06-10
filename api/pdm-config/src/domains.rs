@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use proxmox_schema::{ApiType, Schema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use pdm_api_types::{OpenIdRealmConfig, REALM_ID_SCHEMA};
+use pdm_api_types::{ConfigDigest, OpenIdRealmConfig, REALM_ID_SCHEMA};
 use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
 
 lazy_static! {
@@ -38,11 +38,10 @@ pub fn lock_config() -> Result<ApiLockGuard, Error> {
     open_api_lockfile(DOMAINS_CFG_LOCKFILE, None, true)
 }
 
-pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
+pub fn config() -> Result<(SectionConfigData, ConfigDigest), Error> {
     let content =
         proxmox_sys::fs::file_read_optional_string(DOMAINS_CFG_FILENAME)?.unwrap_or_default();
-
-    let digest = openssl::sha::sha256(content.as_bytes());
+    let digest = ConfigDigest::from_slice(content.as_bytes());
     let data = CONFIG.parse(DOMAINS_CFG_FILENAME, &content)?;
     Ok((data, digest))
 }
