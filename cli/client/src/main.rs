@@ -17,6 +17,7 @@ pub mod fido;
 pub mod pve;
 pub mod remotes;
 pub mod tags;
+pub mod time;
 pub mod user;
 
 pub static XDG: Lazy<xdg::BaseDirectories> = Lazy::new(|| {

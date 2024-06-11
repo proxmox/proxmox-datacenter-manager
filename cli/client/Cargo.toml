@@ -30,6 +30,7 @@ pdm-client.workspace = true
 
 proxmox-async.workspace = true
 proxmox-client = { workspace = true, features = [ "hyper-client" ] }
+proxmox-lang.workspace = true
 proxmox-login.workspace = true
 proxmox-router = { workspace = true, features = [ "cli" ], default-features = false }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
