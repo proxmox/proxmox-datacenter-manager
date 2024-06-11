@@ -15,7 +15,7 @@ pub fn create_configdir() -> Result<(), Error> {
     let api_user = crate::api_user()?;
 
     let cfgdir = pdm_buildcfg::CONFIGDIR;
-    mkdir_perms(cfgdir, api_user.uid, api_user.gid, 0o770)?;
+    mkdir_perms(cfgdir, api_user.uid, api_user.gid, 0o1770)?;
     mkdir_perms(configdir!("/auth"), nix::unistd::ROOT, api_user.gid, 0o750)?;
 
     Ok(())
