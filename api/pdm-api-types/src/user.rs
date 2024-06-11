@@ -97,6 +97,33 @@ pub struct UserWithTokens {
     pub tokens: Vec<ApiToken>,
 }
 
+impl UserWithTokens {
+    pub fn empty_from_user(user: User) -> Self {
+        Self {
+            userid: user.userid,
+            comment: user.comment,
+            enable: user.enable,
+            expire: user.expire,
+            firstname: user.firstname,
+            lastname: user.lastname,
+            email: user.email,
+            tokens: Vec::new(),
+        }
+    }
+
+    pub fn into_user(self) -> User {
+        User {
+            userid: self.userid,
+            comment: self.comment,
+            enable: self.enable,
+            expire: self.expire,
+            firstname: self.firstname,
+            lastname: self.lastname,
+            email: self.email,
+        }
+    }
+}
+
 #[api(
     properties: {
         tokenid: {

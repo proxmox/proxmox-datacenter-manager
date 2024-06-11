@@ -11,7 +11,10 @@ use proxmox_tfa::TfaType;
 use crate::{client, env};
 
 pub fn cli() -> CommandLineInterface {
-    CliCommandMap::new().insert("tfa", tfa_cli()).into()
+    CliCommandMap::new()
+        .insert("list", CliCommand::new(&API_METHOD_LIST_USERS))
+        .insert("tfa", tfa_cli())
+        .into()
 }
 
 fn tfa_cli() -> CommandLineInterface {
@@ -27,6 +30,61 @@ fn tfa_cli() -> CommandLineInterface {
         //    CliCommand::new(&API_METHOD_UPDATE_TFA).arg_param(&["id"]),
         //)
         .into()
+}
+
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// List all users or show a single user's information.
+async fn list_users(param: Value) -> Result<(), Error> {
+    let output_format = get_output_format(&param);
+
+    let client = client()?;
+
+    let entries = client.list_users(false).await?;
+
+    if output_format == "text" {
+        if entries.is_empty() {
+            println!("No users configured");
+            return Ok(());
+        }
+
+        for entry in entries {
+            let enabled = if entry.enable.unwrap_or(true) {
+                "✓"
+            } else {
+                "✗"
+            };
+
+            println!("{enabled} {}", entry.userid);
+            if let Some(value) = &entry.email {
+                println!("  email: {value}");
+            }
+            if let Some(value) = &entry.firstname {
+                println!("  first name: {value}");
+            }
+            if let Some(value) = &entry.lastname {
+                println!("  last name: {value}");
+            }
+            if let Some(value) = &entry.comment {
+                println!("  comment: {value}");
+            }
+            if let Some(value) = entry.expire {
+                println!("  expires: {}", crate::time::format_epoch_lossy(value));
+            }
+        }
+    } else {
+        let data = serde_json::to_value(entries)?;
+        format_and_print_result(&data, &output_format);
+    }
+    Ok(())
 }
 
 #[api(
@@ -63,7 +121,7 @@ async fn list_user_tfa(userid: Option<String>, param: Value) -> Result<(), Error
             let enabled = if entry.info.enable { "✓" } else { "✗" };
 
             println!("{enabled} {}: {}", entry.ty, entry.info.id);
-            // FIXME: print a nicere date...
+            // FIXME: print a nicer date...
             println!("    created: {}", entry.info.created);
             if !entry.info.description.is_empty() {
                 println!("    {}", entry.info.description);
