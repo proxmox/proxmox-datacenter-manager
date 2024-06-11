@@ -84,6 +84,10 @@ fn main_do() -> Result<(), Error> {
         bail!("failed to initialize environment");
     }
 
+    unsafe {
+        libc::setlocale(libc::LC_ALL, [0].as_ptr());
+    }
+
     let cmd_def = CliCommandMap::new()
         .insert("login", CliCommand::new(&API_METHOD_LOGIN))
         .insert("pve", pve::cli())
