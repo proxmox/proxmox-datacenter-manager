@@ -1,5 +1,6 @@
+use std::sync::OnceLock;
+
 use anyhow::Error;
-use once_cell::sync::Lazy;
 
 use proxmox_schema::ApiType;
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
@@ -32,22 +33,22 @@ pub fn save_config(config: &SectionConfigData<Remote>) -> Result<(), Error> {
     replace_config(REMOTES_CFG_FILENAME, raw.as_bytes())
 }
 
-static CONFIG: Lazy<SectionConfig> = Lazy::new(|| {
-    let mut this = SectionConfig::new(&REMOTE_ID_SCHEMA);
-    this.register_plugin(SectionConfigPlugin::new(
-        "pve".to_string(),
-        Some("id".to_string()),
-        PveRemote::API_SCHEMA.unwrap_object_schema(),
-    ));
-    this
-});
+static CONFIG: OnceLock<SectionConfig> = OnceLock::new();
 
 // To be derived via a macro from the enum.
 impl ApiSectionDataEntry for Remote {
     const INTERNALLY_TAGGED: Option<&'static str> = Some("type");
 
     fn section_config() -> &'static SectionConfig {
-        &CONFIG
+        CONFIG.get_or_init(|| {
+            let mut this = SectionConfig::new(&REMOTE_ID_SCHEMA);
+            this.register_plugin(SectionConfigPlugin::new(
+                "pve".to_string(),
+                Some("id".to_string()),
+                PveRemote::API_SCHEMA.unwrap_object_schema(),
+            ));
+            this
+        })
     }
 
     fn section_type(&self) -> &'static str {

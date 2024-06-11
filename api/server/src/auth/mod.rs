@@ -3,9 +3,9 @@
 use std::future::Future;
 use std::net::IpAddr;
 use std::pin::Pin;
+use std::sync::OnceLock;
 
 use anyhow::{bail, Error};
-use once_cell::sync::OnceCell;
 
 use proxmox_auth_api::api::{Authenticator, LockedTfaConfig};
 use proxmox_auth_api::types::Authid;
@@ -52,7 +52,7 @@ pub async fn check_auth(
         .map(move |name| (name, Box::new(user_info) as _))
 }
 
-static AUTH_CONTEXT: OnceCell<PdmAuthContext> = OnceCell::new();
+static AUTH_CONTEXT: OnceLock<PdmAuthContext> = OnceLock::new();
 
 fn setup_auth_context(use_private_key: bool) {
     let keyring = if use_private_key {

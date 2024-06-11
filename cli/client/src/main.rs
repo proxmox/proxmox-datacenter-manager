@@ -1,7 +1,8 @@
 use std::io;
+use std::sync::OnceLock;
 
 use anyhow::{bail, format_err, Error};
-use once_cell::sync::{Lazy, OnceCell};
+use once_cell::sync::Lazy;
 
 use proxmox_auth_api::types::Userid;
 use proxmox_client::{Client, TlsOptions};
@@ -22,7 +23,7 @@ pub static XDG: Lazy<xdg::BaseDirectories> = Lazy::new(|| {
     xdg::BaseDirectories::new().expect("failed to initialize XDG base directory info")
 });
 
-static ENV: OnceCell<env::Env> = OnceCell::new();
+static ENV: OnceLock<env::Env> = OnceLock::new();
 
 pub fn env() -> &'static env::Env {
     // unwrap: initialized at startup

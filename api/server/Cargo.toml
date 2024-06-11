@@ -23,7 +23,6 @@ lazy_static.workspace = true
 libc.workspace = true
 log.workspace = true
 nix.workspace = true
-once_cell.workspace = true
 openssl.workspace = true
 percent-encoding.workspace = true
 regex.workspace = true
