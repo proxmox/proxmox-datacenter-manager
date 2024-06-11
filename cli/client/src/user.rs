@@ -8,11 +8,17 @@ use proxmox_router::cli::{
 use proxmox_schema::api;
 use proxmox_tfa::TfaType;
 
+use pdm_api_types::User;
+
 use crate::{client, env};
 
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_USERS))
+        .insert(
+            "create",
+            CliCommand::new(&API_METHOD_CREATE_USER).arg_param(&["userid"]),
+        )
         .insert("tfa", tfa_cli())
         .into()
 }
@@ -84,6 +90,42 @@ async fn list_users(param: Value) -> Result<(), Error> {
         let data = serde_json::to_value(entries)?;
         format_and_print_result(&data, &output_format);
     }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            user: {
+                type: User,
+                flatten: true,
+            },
+            password: {
+                schema: proxmox_schema::api_types::PASSWORD_SCHEMA,
+                optional: true,
+            },
+        }
+    }
+)]
+/// List all users or show a single user's information.
+async fn create_user(user: User, password: Option<String>) -> Result<(), Error> {
+    let client = client()?;
+
+    let password = if password.is_some() {
+        password
+    } else {
+        let password = proxmox_sys::linux::tty::read_password("New password: ")?;
+        if password.is_empty() {
+            None
+        } else {
+            Some(
+                String::from_utf8(password)
+                    .map_err(|_| format_err!("password must be valid utf-8"))?,
+            )
+        }
+    };
+
+    client.create_user(&user, password.as_deref()).await?;
     Ok(())
 }
 
