@@ -145,7 +145,10 @@ pub(crate) fn lookup_authenticator(
         "pam" => Ok(Box::new(proxmox_auth_api::Pam::new(
             "proxmox-datacenter-auth",
         ))),
-        // "pdm" => Ok(Box::new(PdmAuthenticator)),
+        "pdm" => Ok(Box::new(proxmox_auth_api::PasswordAuthenticator {
+            config_filename: pdm_buildcfg::configdir!("/access/shadow.json"),
+            lock_filename: pdm_buildcfg::configdir!("/access/shadow.json.lock"),
+        })),
         realm => bail!("unknown realm '{}'", realm),
     }
 }
