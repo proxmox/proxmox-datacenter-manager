@@ -17,6 +17,12 @@ pub fn create_configdir() -> Result<(), Error> {
     let cfgdir = pdm_buildcfg::CONFIGDIR;
     mkdir_perms(cfgdir, api_user.uid, api_user.gid, 0o1770)?;
     mkdir_perms(configdir!("/auth"), nix::unistd::ROOT, api_user.gid, 0o750)?;
+    mkdir_perms(
+        configdir!("/access"),
+        nix::unistd::ROOT,
+        api_user.gid,
+        0o750,
+    )?;
 
     Ok(())
 }
