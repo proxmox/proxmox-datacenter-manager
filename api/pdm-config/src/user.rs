@@ -43,8 +43,8 @@ fn init() -> SectionConfig {
     config
 }
 
-pub const USER_CFG_FILENAME: &str = "/etc/proxmox-datacenter-manager/auth/user.cfg";
-pub const USER_CFG_LOCKFILE: &str = "/etc/proxmox-datacenter-manager/auth/.user.lock";
+pub const USER_CFG_FILENAME: &str = "/etc/proxmox-datacenter-manager/access/user.cfg";
+pub const USER_CFG_LOCKFILE: &str = "/etc/proxmox-datacenter-manager/access/.user.lock";
 
 /// Get exclusive lock
 pub fn lock_config() -> Result<ApiLockGuard, Error> {

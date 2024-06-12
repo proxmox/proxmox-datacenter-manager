@@ -30,8 +30,8 @@ fn init() -> SectionConfig {
     config
 }
 
-pub const DOMAINS_CFG_FILENAME: &str = "/etc/proxmox-datacenter-manager/auth/domains.cfg";
-pub const DOMAINS_CFG_LOCKFILE: &str = "/etc/proxmox-datacenter-manager/auth/.domains.lock";
+pub const DOMAINS_CFG_FILENAME: &str = "/etc/proxmox-datacenter-manager/access/domains.cfg";
+pub const DOMAINS_CFG_LOCKFILE: &str = "/etc/proxmox-datacenter-manager/access/.domains.lock";
 
 /// Get exclusive lock
 pub fn lock_config() -> Result<ApiLockGuard, Error> {
