@@ -7,18 +7,23 @@ use once_cell::sync::Lazy;
 use proxmox_auth_api::types::Userid;
 use proxmox_client::{Client, TlsOptions};
 use proxmox_login::Login;
-use proxmox_router::cli::{run_cli_command_with_args, CliCommand, CliCommandMap, CliEnvironment};
+use proxmox_router::cli::{CliCommand, CliCommandMap, CliEnvironment, GlobalOptions};
 use proxmox_schema::api;
 
 use pdm_client::PdmClient;
 
+#[macro_use]
 pub mod env;
+
+pub mod config;
 pub mod fido;
 pub mod pve;
 pub mod remotes;
 pub mod tags;
 pub mod time;
 pub mod user;
+
+use config::PdmConnectArgs;
 
 pub static XDG: Lazy<xdg::BaseDirectories> = Lazy::new(|| {
     xdg::BaseDirectories::new().expect("failed to initialize XDG base directory info")
@@ -32,14 +37,7 @@ pub fn env() -> &'static env::Env {
 }
 
 pub fn client() -> Result<PdmClient<Client>, Error> {
-    let address = format!(
-        "https://{}:8443/",
-        env()
-            .server
-            .as_ref()
-            .ok_or_else(|| format_err!("no server address specified"))?
-    )
-    .parse()?;
+    let address = env().url()?.parse()?;
 
     let options = TlsOptions::Callback(Box::new(|valid, store| {
         if valid {
@@ -80,36 +78,48 @@ fn main() {
 }
 
 fn main_do() -> Result<(), Error> {
-    let (env, args) = env::Env::from_args(std::env::args())?;
-    if ENV.set(env).is_err() {
-        bail!("failed to initialize environment");
-    }
+    let mut env = env::Env::new()?;
 
     unsafe {
         libc::setlocale(libc::LC_ALL, [0].as_ptr());
     }
 
     let cmd_def = CliCommandMap::new()
+        .global_option(GlobalOptions::of::<PdmConnectArgs>())
+        .global_option(
+            GlobalOptions::of::<config::FormattingArgs>()
+                .completion_cb("color", env::complete_color),
+        )
         .insert("login", CliCommand::new(&API_METHOD_LOGIN))
         .insert("pve", pve::cli())
         .insert("remote", remotes::cli())
-        .insert("user", user::cli());
+        .insert("user", user::cli())
+        .insert_help()
+        .build();
 
-    let rpcenv = CliEnvironment::new();
-    run_cli_command_with_args(
-        cmd_def,
-        rpcenv,
-        Some(|future| proxmox_async::runtime::main(future)),
-        args,
-    );
+    let mut rpcenv = CliEnvironment::new();
 
-    Ok(())
+    let cli_parser = proxmox_router::cli::CommandLine::new(cmd_def)
+        .with_async(|future| proxmox_async::runtime::main(future));
+    let invocation = cli_parser.parse(&mut rpcenv, std::env::args())?;
+
+    env.connect_args = rpcenv
+        .take_global_option()
+        .ok_or_else(|| format_err!("missing connect args"))?;
+    env.connect_args.finalize()?;
+    println!("ARGS: {:#?}", env.connect_args);
+
+    if ENV.set(env).is_err() {
+        bail!("failed to initialize environment");
+    }
+
+    invocation.call(&mut rpcenv)
 }
 
 #[api]
 /// Log into a server.
 async fn login() -> Result<(), Error> {
-    if env().server.is_none() || env().userid.is_none() {
+    if env().connect_args.host.is_none() || env().connect_args.user.is_none() {
         bail!("no server chosen, please use the '--server=https://USER@HOST' parameter");
     }
 
@@ -117,7 +127,7 @@ async fn login() -> Result<(), Error> {
     let userid = env().query_userid(client.api_url())?;
 
     let login_how = 'login: {
-        if let Some(server) = env().server.as_deref() {
+        if let Some(server) = env().connect_args.host.as_deref() {
             if matches!(server, "localhost" | "127.0.0.1" | "::1") {
                 if let Some(login_how) = try_create_local_ticket(&client, &userid)? {
                     break 'login login_how;
@@ -126,7 +136,7 @@ async fn login() -> Result<(), Error> {
         }
 
         let password = env().query_password(client.api_url(), &userid)?;
-        Login::new(client.api_url().to_string(), &userid, password)
+        Login::new(client.api_url().to_string(), userid.as_str(), password)
     };
 
     if let Some(tfa) = client.login(login_how).await? {
@@ -144,13 +154,11 @@ async fn login() -> Result<(), Error> {
 
 fn try_create_local_ticket(
     client: &PdmClient<Client>,
-    username: &str,
+    userid: &Userid,
 ) -> Result<Option<Login>, Error> {
     use proxmox_auth_api::api::ApiTicket;
     use proxmox_auth_api::ticket::Ticket;
     use proxmox_auth_api::{Keyring, PrivateKey};
-
-    let username: Userid = username.parse()?;
 
     let authkey_path = pdm_buildcfg::configdir!("/auth/authkey.key");
     let keyring = match std::fs::read(authkey_path) {
@@ -166,7 +174,7 @@ fn try_create_local_ticket(
         Ok(pem) => Keyring::with_private_key(PrivateKey::from_pem(&pem)?),
     };
 
-    let ticket = Ticket::new("PDM", &ApiTicket::Full(username))?.sign(&keyring, None)?;
+    let ticket = Ticket::new("PDM", &ApiTicket::Full(userid.clone()))?.sign(&keyring, None)?;
 
     Ok(Some(
         Login::renew(client.api_url().to_string(), ticket)

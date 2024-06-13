@@ -1,13 +1,18 @@
 //! Client environment to query login data.
 
+use std::collections::HashMap;
 use std::io::{self, IsTerminal, Write};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context as _, Error};
 use http::Uri;
 use openssl::x509;
+use serde::Serialize;
 
+use proxmox_auth_api::types::Userid;
 use proxmox_client::TfaChallenge;
+use proxmox_schema::api;
 
+use crate::config::PdmConnectArgs;
 use crate::XDG;
 
 mod fingerprint_cache;
@@ -35,26 +40,33 @@ const CURRENT_SERVER_CACHE_PATH: &str = xdg_path!("current-server");
 
 pub struct Env {
     use_color: UseColor,
-    pub server: Option<String>,
-    pub userid: Option<String>,
+    pub connect_args: PdmConnectArgs,
     pub fingerprint_cache: FingerprintCache,
 }
 
 impl Env {
-    pub fn need_userid(&self) -> Result<&str, Error> {
-        self.userid
-            .as_deref()
+    pub fn need_userid(&self) -> Result<&Userid, Error> {
+        self.connect_args
+            .user
+            .as_ref()
             .ok_or_else(|| format_err!("no userid to login with was specified"))
     }
 
-    pub fn from_args<A>(args: A) -> Result<(Self, Vec<String>), Error>
-    where
-        A: Iterator<Item = String>,
-    {
+    pub fn url(&self) -> Result<String, Error> {
+        Ok(format!(
+            "https://{}:{}/",
+            self.connect_args
+                .host
+                .as_deref()
+                .ok_or_else(|| format_err!("no host specified"))?,
+            self.connect_args.port.unwrap_or(8443)
+        ))
+    }
+
+    pub fn new() -> Result<Self, Error> {
         let mut this = Self {
             use_color: UseColor::default(),
-            server: None,
-            userid: None,
+            connect_args: PdmConnectArgs::default(),
             fingerprint_cache: FingerprintCache::new(),
         };
 
@@ -70,69 +82,7 @@ impl Env {
             }
         }
 
-        let args = this.parse_arguments(args)?;
-        Ok((this, args))
-    }
-
-    /// Parse the client parameters out and return the remaining parameters.
-    pub fn parse_arguments<A>(&mut self, mut args: A) -> Result<Vec<String>, Error>
-    where
-        A: Iterator<Item = String>,
-    {
-        let mut out = Vec::new();
-        out.push(
-            args.next()
-                .ok_or_else(|| format_err!("no parameters provided"))?,
-        );
-
-        while let Some(arg) = args.next() {
-            if let Some(server) = arg.strip_prefix("--server=") {
-                self.update_server(server)?;
-            } else if arg == "--server" {
-                self.update_server(
-                    &args
-                        .next()
-                        .ok_or_else(|| format_err!("missing value for `--server` parameter"))?,
-                )?;
-            } else if arg == "--local" {
-                self.update_server("https://root@pam@localhost")?;
-            } else if let Some(color) = arg.strip_prefix("--color=") {
-                self.use_color = color.parse()?;
-            } else if arg == "--color" {
-                self.use_color = UseColor::Always;
-            } else if arg == "--" {
-                // break without including the `--` separator
-                break;
-            } else {
-                // first unrecognized parameter: include it in the output
-                out.push(arg);
-                break;
-            }
-        }
-        out.extend(args);
-
-        Ok(out)
-    }
-
-    fn update_server(&mut self, server: &str) -> Result<(), Error> {
-        self.set_server(server)?;
-
-        let write_file = |path| {
-            let mut file = std::fs::File::create(path)?;
-            file.write_all(server.as_bytes())?;
-            file.write_all(b"\n")?;
-            Ok(())
-        };
-
-        match XDG
-            .place_cache_file(CURRENT_SERVER_CACHE_PATH)
-            .and_then(write_file)
-        {
-            Ok(()) => (),
-            Err(err) => eprintln!("failed to store current server in cache: {}", err),
-        }
-
-        Ok(())
+        Ok(this)
     }
 
     fn set_server(&mut self, server: &str) -> Result<(), Error> {
@@ -168,14 +118,14 @@ impl Env {
             .strip_suffix('@')
             .ok_or_else(|| format_err!("missing username in url"))?;
 
-        self.server = Some(host.to_string());
-        self.userid = Some(user.to_string());
+        self.connect_args.host = Some(host.to_string());
+        self.connect_args.user = Some(user.parse().context("failed to parse previous user id")?);
 
         Ok(())
     }
 
     pub fn verify_cert(&self, chain: &mut x509::X509StoreContextRef) -> Result<bool, Error> {
-        let result = match self.server.as_deref() {
+        let result = match self.connect_args.host.as_deref() {
             Some(server) => self.fingerprint_cache.verify(server, chain)?,
             None => return Ok(false),
         };
@@ -196,7 +146,7 @@ impl Env {
 }
 
 impl Env {
-    fn ticket_path(api_url: &Uri, userid: &str) -> String {
+    fn ticket_path(api_url: &Uri, userid: &Userid) -> String {
         format!(
             xdg_path!("{}/ticket-{}"),
             api_url.to_string().replace('/', "+"),
@@ -216,9 +166,9 @@ impl Env {
 }
 
 impl Env {
-    pub fn query_userid(&self, _api_url: &http::Uri) -> Result<String, Error> {
-        if let Some(userid) = &self.userid {
-            return Ok(userid.clone());
+    pub fn query_userid(&self, _api_url: &http::Uri) -> Result<Userid, Error> {
+        if let Some(userid) = self.connect_args.user.clone() {
+            return Ok(userid);
         }
 
         if let Some(path) = XDG.find_cache_file(USERID_CACHE_PATH) {
@@ -226,7 +176,7 @@ impl Env {
             let userid = userid.trim_start().trim_end();
             if !userid.is_empty() {
                 println!("Using userid {userid:?}");
-                return Ok(userid.to_owned());
+                return userid.parse().context("invalid user id");
             }
         }
 
@@ -240,10 +190,10 @@ impl Env {
 
         Env::remember_userid(&userid);
 
-        Ok(userid)
+        userid.parse().context("invalid user id")
     }
 
-    pub fn query_password(&self, api_url: &http::Uri, userid: &str) -> Result<String, Error> {
+    pub fn query_password(&self, api_url: &http::Uri, userid: &Userid) -> Result<String, Error> {
         println!("Password required for user {userid} at {api_url}");
         let password = proxmox_sys::linux::tty::read_password("Password: ")?;
         Ok(String::from_utf8(password)?)
@@ -252,7 +202,7 @@ impl Env {
     pub fn query_second_factor(
         &self,
         api_url: &Uri,
-        userid: &str,
+        userid: &Userid,
         challenge: &TfaChallenge,
     ) -> Result<String, Error> {
         println!(
@@ -342,12 +292,12 @@ impl Env {
         ))
     }
 
-    pub fn store_ticket(&self, api_url: &Uri, userid: &str, ticket: &[u8]) -> Result<(), Error> {
+    pub fn store_ticket(&self, api_url: &Uri, userid: &Userid, ticket: &[u8]) -> Result<(), Error> {
         let path = XDG.place_cache_file(Env::ticket_path(api_url, userid))?;
         std::fs::write(path, ticket).map_err(Error::from)
     }
 
-    pub fn load_ticket(&self, api_url: &Uri, userid: &str) -> Result<Option<Vec<u8>>, Error> {
+    pub fn load_ticket(&self, api_url: &Uri, userid: &Userid) -> Result<Option<Vec<u8>>, Error> {
         Ok(
             match XDG.find_cache_file(Env::ticket_path(api_url, userid)) {
                 Some(path) => Some(std::fs::read(path)?),
@@ -369,13 +319,22 @@ impl Env {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-enum UseColor {
+#[api]
+/// Control terminal color output.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UseColor {
+    /// Never use colored output.
     #[default]
     No,
+    /// Force ANSI color output.
     Always,
+    /// Automatically decide whether to use colored output.
     Auto,
 }
+
+serde_plain::derive_deserialize_from_fromstr!(UseColor, "valid color formatting option");
+serde_plain::derive_display_from_serialize!(UseColor);
 
 impl std::str::FromStr for UseColor {
     type Err = Error;
@@ -388,6 +347,14 @@ impl std::str::FromStr for UseColor {
             _ => bail!("bad argument for '--color', should be one of 'no', 'always' or 'auto'"),
         })
     }
+}
+
+pub fn complete_color(arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    ["no", "yes", "on", "always", "auto"]
+        .into_iter()
+        .filter(|value| value.starts_with(arg))
+        .map(str::to_string)
+        .collect()
 }
 
 impl UseColor {

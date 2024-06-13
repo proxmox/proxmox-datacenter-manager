@@ -8,7 +8,7 @@ use proxmox_router::cli::{
 use proxmox_schema::api;
 use proxmox_tfa::TfaType;
 
-use pdm_api_types::User;
+use pdm_api_types::{User, Userid};
 
 use crate::{client, env};
 
@@ -136,22 +136,19 @@ async fn create_user(user: User, password: Option<String>) -> Result<(), Error> 
                 schema: OUTPUT_FORMAT,
                 optional: true,
             },
-            userid: {
-                description: "userid",
-                optional: true,
-            },
+            userid: { optional: true },
         }
     }
 )]
 /// List all the remotes this instance is managing.
-async fn list_user_tfa(userid: Option<String>, param: Value) -> Result<(), Error> {
+async fn list_user_tfa(userid: Option<Userid>, param: Value) -> Result<(), Error> {
     let userid = userid
-        .or_else(|| env().userid.clone())
+        .or_else(|| env().connect_args.user.clone())
         .ok_or_else(|| format_err!("missing userid and no user logged in?"))?;
 
     let output_format = get_output_format(&param);
 
-    let entries = client()?.list_user_tfa(&userid).await?;
+    let entries = client()?.list_user_tfa(userid.as_str()).await?;
 
     if output_format == "text" {
         if entries.is_empty() {
@@ -200,7 +197,7 @@ async fn add_tfa(
         .or_else(|| Some(env_userid.to_string()))
         .ok_or_else(|| format_err!("missing userid and no user logged in?"))?;
 
-    let password = if userid != env_userid {
+    let password = if userid != env_userid.as_str() {
         let password = proxmox_sys::linux::tty::read_password("Password: ")?;
         Some(String::from_utf8(password)?)
     } else {
@@ -248,7 +245,7 @@ async fn remove_tfa(userid: Option<String>, id: String) -> Result<(), Error> {
         .or_else(|| Some(env_userid.to_string()))
         .ok_or_else(|| format_err!("missing userid and no user logged in?"))?;
 
-    let password = if userid != env_userid {
+    let password = if userid != env_userid.as_str() {
         let password = proxmox_sys::linux::tty::read_password("Password: ")?;
         Some(String::from_utf8(password)?)
     } else {
