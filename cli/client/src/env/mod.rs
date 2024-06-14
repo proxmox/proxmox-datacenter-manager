@@ -11,6 +11,7 @@ use proxmox_client::TfaChallenge;
 use crate::XDG;
 
 mod fingerprint_cache;
+pub use fingerprint_cache::Fingerprint;
 use fingerprint_cache::FingerprintCache;
 
 macro_rules! xdg_path {

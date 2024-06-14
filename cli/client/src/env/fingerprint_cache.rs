@@ -6,10 +6,87 @@ use anyhow::{bail, format_err, Error};
 use openssl::hash::MessageDigest;
 use openssl::x509::X509StoreContextRef;
 
+/// A sha256 fingerprint.
+// NOTE: The difference to ConfigDigest is that this also allows colons between bytes when parsing.
+// Also the API type's description is different.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Fingerprint([u8; 32]);
+serde_plain::derive_deserialize_from_fromstr!(Fingerprint, "valid sha256 fingerprint");
+serde_plain::derive_serialize_from_display!(Fingerprint);
+
+impl From<[u8; 32]> for Fingerprint {
+    #[inline]
+    fn from(fp: [u8; 32]) -> Self {
+        Self(fp)
+    }
+}
+
+impl From<Fingerprint> for [u8; 32] {
+    #[inline]
+    fn from(fp: Fingerprint) -> Self {
+        fp.0
+    }
+}
+
+impl TryFrom<&[u8]> for Fingerprint {
+    type Error = std::array::TryFromSliceError;
+
+    fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
+        Ok(Self(slice.try_into()?))
+    }
+}
+
+impl AsRef<[u8]> for Fingerprint {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl AsRef<[u8; 32]> for Fingerprint {
+    fn as_ref(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for Fingerprint {
+    type Target = [u8; 32];
+
+    fn deref(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for Fingerprint {
+    fn deref_mut(&mut self) -> &mut [u8; 32] {
+        &mut self.0
+    }
+}
+
+impl std::fmt::Display for Fingerprint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:02x}", self[0])?;
+        for b in &self[1..] {
+            write!(f, ":{b:02x}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::str::FromStr for Fingerprint {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Error> {
+        let s = s.replace(':', "");
+        let mut fp = [0u8; 32];
+        hex::decode_to_slice(s, &mut fp)?;
+        Ok(Fingerprint(fp))
+    }
+}
+
 pub struct FingerprintCache {
     pub interactive: bool,
 
-    entries: RwLock<HashMap<String, [u8; 32]>>,
+    entries: RwLock<HashMap<String, Fingerprint>>,
 }
 
 pub struct VerifyResult {
@@ -59,17 +136,17 @@ impl FingerprintCache {
         };
 
         if let Some(stored_fp) = self.entries.read().unwrap().get(hostname) {
-            return Ok(VerifyResult::unmodified(*stored_fp == *fp));
+            return Ok(VerifyResult::unmodified(**stored_fp == *fp));
         }
 
-        let fp =
-            <[u8; 32]>::try_from(&*fp).map_err(|_| format_err!("unexpected fingerprint length"))?;
+        let fp = Fingerprint::try_from(&*fp)
+            .map_err(|_| format_err!("unexpected fingerprint length"))?;
 
         if !self.interactive {
             return Ok(VerifyResult::unmodified(false));
         }
 
-        println!("Certificate SHA256 fingerprint: {}", fp_string(&fp));
+        println!("Certificate SHA256 fingerprint: {fp}");
 
         let mut stdout = std::io::stdout();
         stdout.write_all(b"Do you want to trust this certificate? [No/yes/once] ")?;
@@ -130,9 +207,8 @@ impl FingerprintCache {
                 .next()
                 .ok_or_else(|| format_err!("bad line ({lineno}) in fingerprint cache"))?;
 
-            let fp = hex::decode(fp.as_bytes())
-                .map_err(drop)
-                .and_then(|fp| <[u8; 32]>::try_from(&fp[..]).map_err(drop))
+            let fp = fp
+                .parse()
                 .map_err(|_| format_err!("bad fingerprint in fingerprint cache (line {lineno})"))?;
 
             entries.insert(host.to_string(), fp);
@@ -140,17 +216,4 @@ impl FingerprintCache {
 
         Ok(())
     }
-}
-
-fn fp_string(fp: &[u8]) -> String {
-    use std::fmt::Write as _;
-
-    let mut out = String::new();
-    for b in fp {
-        if !out.is_empty() {
-            out.push(':');
-        }
-        let _ = write!(out, "{b:02x}");
-    }
-    out
 }
