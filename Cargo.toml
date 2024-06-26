@@ -37,7 +37,7 @@ proxmox-lang = "1.1"
 #proxmox-metrics = "0.2"
 proxmox-rest-server = "0.5"
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
-proxmox-router = { version = "2.1", default_features = false }
+proxmox-router = { version = "2.1", default-features = false }
 # everything but pbs-config and pbs-client ues "api-macro"
 proxmox-schema = "3.1.1"
 proxmox-section-config = "2"
