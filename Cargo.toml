@@ -18,6 +18,8 @@ resolver = "2"
 members = [
     "api/pdm-buildcfg",
 
+    "api/proxmox-section-config-typed",
+
     "api/server",
     "api/pdm-api-types",
     "api/pdm-client",
@@ -77,13 +79,13 @@ server = { path = "api/server" }
 pdm-api-types = { path = "api/pdm-api-types" }
 pdm-buildcfg = { path = "api/pdm-buildcfg" }
 pdm-config = { path = "api/pdm-config" }
-proxmox-datacenter-api = { path = "api/proxmox-datacenter-api" }
 pdm-client = { path = "api/pdm-client" }
+proxmox-section-config-typed = { path = "api/proxmox-section-config-typed" }
 
 # regular crates
 anyhow = "1.0"
 base64 = "0.13"
-bitflags = "1.2.1"
+bitflags = "2.4"
 const_format = "0.2"
 futures = "0.3"
 h2 = { version = "0.3", features = [ "stream" ] }

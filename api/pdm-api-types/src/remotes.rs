@@ -1,9 +1,13 @@
+use std::sync::OnceLock;
+
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::property_string::PropertyString;
 use proxmox_schema::{
     api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema, Updater,
 };
+use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
+use proxmox_section_config_typed::ApiSectionDataEntry;
 
 pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
     .format(&crate::PROXMOX_SAFE_ID_FORMAT)
@@ -106,6 +110,31 @@ impl Remote {
     pub fn id(&self) -> &str {
         match self {
             Self::Pve(r) => &r.id,
+        }
+    }
+}
+
+// To be derived via a macro from the enum.
+impl ApiSectionDataEntry for Remote {
+    const INTERNALLY_TAGGED: Option<&'static str> = Some("type");
+
+    fn section_config() -> &'static SectionConfig {
+        static CONFIG: OnceLock<SectionConfig> = OnceLock::new();
+
+        CONFIG.get_or_init(|| {
+            let mut this = SectionConfig::new(&REMOTE_ID_SCHEMA);
+            this.register_plugin(SectionConfigPlugin::new(
+                "pve".to_string(),
+                Some("id".to_string()),
+                PveRemote::API_SCHEMA.unwrap_object_schema(),
+            ));
+            this
+        })
+    }
+
+    fn section_type(&self) -> &'static str {
+        match self {
+            Remote::Pve(_) => "pve",
         }
     }
 }

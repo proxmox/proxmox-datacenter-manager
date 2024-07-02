@@ -1,7 +1,6 @@
 //! Experimental way to connect a `SectionConfig` to a proper rust datatype.
 //!
-//! To be eventually moved to `proxmox-section-config` with a derive macro for enums with only
-//! newtype variants.
+//! To be eventually accompanied with a derive macro for enums with only newtype variants.
 
 use std::collections::HashMap;
 
@@ -12,7 +11,10 @@ use serde_json::{json, Value};
 use proxmox_section_config::SectionConfig;
 use proxmox_section_config::SectionConfigData as RawSectionConfigData;
 
+/// Implement this for an enum to allow it to be used as a section config.
 pub trait ApiSectionDataEntry: Sized {
+    /// If the serde representation is internally tagged, this should be the name of the type
+    /// property.
     const INTERNALLY_TAGGED: Option<&'static str> = None;
 
     /// Get the `SectionConfig` configuration for this enum.
@@ -21,6 +23,7 @@ pub trait ApiSectionDataEntry: Sized {
     /// Maps an enum value to its type name.
     fn section_type(&self) -> &'static str;
 
+    /// Provided. If necessary, insert the "type" property into an object and then deserialize it.
     fn from_value(ty: String, mut value: Value) -> Result<Self, serde_json::Error>
     where
         Self: serde::de::DeserializeOwned,
@@ -34,7 +37,7 @@ pub trait ApiSectionDataEntry: Sized {
                 _ => {
                     use serde::ser::Error;
                     Err(serde_json::Error::custom(
-                        "cannot add type property non-object",
+                        "cannot add type property to non-object",
                     ))
                 }
             }
@@ -43,8 +46,9 @@ pub trait ApiSectionDataEntry: Sized {
         }
     }
 
-    /// The default implementation only succeeds for externally tagged enums (serde's default enum
-    /// representation).
+    /// Turn this entry into a pair of `(type, value)`.
+    /// Works for externally tagged objects and internally tagged objects, provided the
+    /// `INTERNALLY_TAGGED` value is set.
     fn into_pair(self) -> Result<(String, Value), serde_json::Error>
     where
         Self: Serialize,
@@ -52,8 +56,9 @@ pub trait ApiSectionDataEntry: Sized {
         to_pair(serde_json::to_value(self)?, Self::INTERNALLY_TAGGED)
     }
 
-    /// The default implementation only succeeds for externally tagged enums (serde's default enum
-    /// representation).
+    /// Turn this entry into a pair of `(type, value)`.
+    /// Works for externally tagged objects and internally tagged objects, provided the
+    /// `INTERNALLY_TAGGED` value is set.
     fn to_pair(&self) -> Result<(String, Value), serde_json::Error>
     where
         Self: Serialize,
@@ -61,6 +66,7 @@ pub trait ApiSectionDataEntry: Sized {
         to_pair(serde_json::to_value(self)?, Self::INTERNALLY_TAGGED)
     }
 
+    /// Provided. Shortcut for `Self::section_config().parse(filename, data)?.try_into()`.
     fn parse_section_config(filename: &str, data: &str) -> Result<SectionConfigData<Self>, Error>
     where
         Self: serde::de::DeserializeOwned,
@@ -68,6 +74,7 @@ pub trait ApiSectionDataEntry: Sized {
         Ok(Self::section_config().parse(filename, data)?.try_into()?)
     }
 
+    /// Provided. Shortcut for `Self::section_config().write(filename, &data.try_into()?)`.
     fn write_section_config(filename: &str, data: &SectionConfigData<Self>) -> Result<String, Error>
     where
         Self: Serialize,
@@ -76,6 +83,15 @@ pub trait ApiSectionDataEntry: Sized {
     }
 }
 
+/// Turn an object into a `(type, value)` pair.
+///
+/// For internally tagged objects (`tag` is `Some`), the type is *extracted* first. It is then no
+/// longer present in the object itself.
+///
+/// Otherwise, an externally typed object is expected, which means a map with a single entry, with
+/// the type being the key.
+///
+/// Otherwise this will fail.
 fn to_pair(value: Value, tag: Option<&'static str>) -> Result<(String, Value), serde_json::Error> {
     use serde::ser::Error;
 
@@ -98,7 +114,8 @@ fn to_pair(value: Value, tag: Option<&'static str>) -> Result<(String, Value), s
     }
 }
 
-/// Types section config data.
+/// Typed variant of [`SectionConfigData`](proxmox_section_config::SectionConfigData).
+/// This dereferences to the section hash for convenience.
 #[derive(Debug, Clone)]
 pub struct SectionConfigData<T> {
     pub sections: HashMap<String, T>,
@@ -223,6 +240,7 @@ impl<T> IntoIterator for SectionConfigData<T> {
     }
 }
 
+/// Iterates over the sections in their original order.
 pub struct IntoIter<T> {
     sections: HashMap<String, T>,
     order: std::vec::IntoIter<String>,
@@ -253,6 +271,7 @@ impl<'a, T> IntoIterator for &'a SectionConfigData<T> {
     }
 }
 
+/// Iterates over the sections in their original order.
 pub struct Iter<'a, T> {
     sections: &'a HashMap<String, T>,
     order: std::slice::Iter<'a, String>,

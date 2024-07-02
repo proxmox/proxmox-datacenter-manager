@@ -19,8 +19,11 @@ proxmox-auth-api = { workspace = true, features = ["api-types"] }
 proxmox-lang.workspace = true
 proxmox-config-digest.workspace = true
 proxmox-schema = { workspace = true, features = ["api-macro"] }
+proxmox-section-config.workspace = true
 proxmox-serde.workspace = true
 proxmox-dns-api.workspace = true
 proxmox-time-api.workspace = true
 proxmox-time.workspace = true
 proxmox-uuid = { workspace = true, features = ["serde"] }
+
+proxmox-section-config-typed.workspace = true

@@ -3,8 +3,6 @@ use nix::unistd::{Gid, Group, Uid, User};
 
 pub use pdm_buildcfg::{BACKUP_GROUP_NAME, BACKUP_USER_NAME};
 
-pub mod section_config;
-
 pub mod acl;
 pub mod certificate_config;
 pub mod domains;
