@@ -2,14 +2,13 @@
 
 use anyhow::Error;
 
+use proxmox_access_control::types::User;
+use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{http_bail, http_err, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_tfa::api::methods;
 
-use pdm_api_types::{
-    Authid, User, Userid, PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT,
-};
-use pdm_config::CachedUserInfo;
+use pdm_api_types::{Authid, Userid, PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
 
 use crate::auth::tfa::UserAccess;
 
@@ -55,7 +54,7 @@ async fn tfa_update_auth(
 
     // After authentication, verify that the to-be-modified user actually exists:
     if must_exist && authid.user() != userid {
-        let (config, _digest) = pdm_config::user::config()?;
+        let (config, _digest) = proxmox_access_control::user::config()?;
 
         if config.lookup::<User>("user", userid.as_str()).is_err() {
             http_bail!(UNAUTHORIZED, "user '{}' does not exists.", userid);

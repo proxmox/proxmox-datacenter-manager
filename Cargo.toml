@@ -31,6 +31,7 @@ members = [
 
 [workspace.dependencies]
 # proxmox workspace
+proxmox-access-control = "0.2"
 proxmox-async = "0.4"
 proxmox-auth-api = "0.4"
 proxmox-http = { version = "0.9", features = [ "client", "http-helpers", "websocket" ] } # see below

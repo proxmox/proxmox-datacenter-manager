@@ -29,6 +29,7 @@ pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-client.workspace = true
 
+proxmox-access-control.workspace = true
 proxmox-async.workspace = true
 proxmox-client = { workspace = true, features = [ "hyper-client" ] }
 proxmox-lang.workspace = true

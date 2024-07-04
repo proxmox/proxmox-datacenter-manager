@@ -6,10 +6,11 @@ use std::time::Duration;
 use serde::Serialize;
 use serde_json::json;
 
+use proxmox_access_control::types::{User, UserWithTokens};
 use proxmox_client::{Error, HttpApiClient};
 
 use pdm_api_types::remotes::Remote;
-use pdm_api_types::{ConfigurationState, RemoteUpid, User, UserWithTokens};
+use pdm_api_types::{ConfigurationState, RemoteUpid};
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
 
@@ -94,14 +95,14 @@ impl<T: HttpApiClient> PdmClient<T> {
     pub async fn update_user(
         &self,
         userid: &str,
-        updater: &pdm_api_types::UserUpdater,
+        updater: &proxmox_access_control::types::UserUpdater,
         password: Option<&str>,
         delete: &[pdm_api_types::DeletableUserProperty],
     ) -> Result<(), Error> {
         #[derive(serde::Serialize)]
         struct UpdateUser<'a> {
             #[serde(flatten)]
-            updater: &'a pdm_api_types::UserUpdater,
+            updater: &'a proxmox_access_control::types::UserUpdater,
             #[serde(skip_serializing_if = "Option::is_none")]
             password: Option<&'a str>,
             #[serde(skip_serializing_if = "Vec::is_empty")]

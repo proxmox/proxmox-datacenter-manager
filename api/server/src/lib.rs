@@ -1,5 +1,6 @@
 //! Common API crate for PDM.
 
+pub mod acl;
 pub mod api;
 pub mod auth;
 pub mod env;

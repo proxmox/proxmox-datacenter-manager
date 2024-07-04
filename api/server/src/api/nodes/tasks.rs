@@ -4,6 +4,7 @@ use http::{header, Response, StatusCode};
 use hyper::Body;
 use serde_json::{json, Value};
 
+use proxmox_access_control::CachedUserInfo;
 use proxmox_async::stream::AsyncReaderStream;
 use proxmox_rest_server::{upid_log_path, upid_read_status, TaskState};
 use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
@@ -14,7 +15,6 @@ use pdm_api_types::{
     Authid, TaskListItem, TaskStateType, Tokenname, Userid, NODE_SCHEMA, PRIV_SYS_AUDIT,
     PRIV_SYS_MODIFY, UPID, UPID_SCHEMA,
 };
-use pdm_config::CachedUserInfo;
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TASKS)

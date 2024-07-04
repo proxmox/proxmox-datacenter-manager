@@ -7,6 +7,8 @@ use std::path::PathBuf;
 use anyhow::{bail, format_err, Error};
 use nix::sys::stat::Mode;
 
+use proxmox_access_control::types::User;
+use proxmox_product_config::{open_api_lockfile, ApiLockGuard};
 use proxmox_sys::error::SysError;
 use proxmox_sys::fs::CreateOptions;
 use proxmox_tfa::totp::Totp;
@@ -16,9 +18,8 @@ pub use proxmox_tfa::api::{
     WebauthnConfigUpdater,
 };
 
-use pdm_api_types::{User, Userid};
+use pdm_api_types::Userid;
 use pdm_buildcfg::configdir;
-use proxmox_product_config::{open_api_lockfile, ApiLockGuard};
 
 const CONF_FILE: &str = configdir!("/auth/tfa.json");
 const LOCK_FILE: &str = configdir!("/auth/.tfa.json.lock");

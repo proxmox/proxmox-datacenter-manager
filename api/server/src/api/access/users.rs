@@ -5,26 +5,24 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
+use proxmox_access_control::types::{
+    ApiToken, User, UserUpdater, UserWithTokens, ENABLE_USER_SCHEMA, EXPIRE_USER_SCHEMA,
+};
+use proxmox_access_control::{token_shadow, CachedUserInfo};
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
 
 use pdm_api_types::{
-    ApiToken, Authid, ConfigDigest, DeletableUserProperty, Tokenname, User, UserUpdater,
-    UserWithTokens, Userid, ENABLE_USER_SCHEMA, EXPIRE_USER_SCHEMA, PDM_PASSWORD_SCHEMA,
+    Authid, ConfigDigest, DeletableUserProperty, Tokenname, Userid, PDM_PASSWORD_SCHEMA,
     PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT, SINGLE_LINE_COMMENT_SCHEMA,
 };
-use pdm_config::{token_shadow, CachedUserInfo};
 
 fn new_user_with_tokens(user: User) -> UserWithTokens {
     UserWithTokens {
-        userid: user.userid,
-        comment: user.comment,
-        enable: user.enable,
-        expire: user.expire,
-        firstname: user.firstname,
-        lastname: user.lastname,
-        email: user.email,
+        user,
         tokens: Vec::new(),
+        totp_locked: false,
+        tfa_locked_until: None,
     }
 }
 
@@ -55,7 +53,7 @@ pub fn list_users(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<UserWithTokens>, Error> {
-    let (config, digest) = pdm_config::user::config()?;
+    let (config, digest) = proxmox_access_control::user::config()?;
 
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -91,7 +89,7 @@ pub fn list_users(
         );
         iter.map(|user: User| {
             let mut user = new_user_with_tokens(user);
-            user.tokens = user_to_tokens.remove(&user.userid).unwrap_or_default();
+            user.tokens = user_to_tokens.remove(&user.user.userid).unwrap_or_default();
             user
         })
         .collect()
@@ -126,9 +124,9 @@ pub fn create_user(
     config: User,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let _lock = pdm_config::user::lock_config()?;
+    let _lock = proxmox_access_control::user::lock_config()?;
 
-    let (mut section_config, _digest) = pdm_config::user::config()?;
+    let (mut section_config, _digest) = proxmox_access_control::user::config()?;
 
     if section_config
         .sections
@@ -145,7 +143,7 @@ pub fn create_user(
     // Fails if realm does not exist!
     let authenticator = crate::auth::lookup_authenticator(realm)?;
 
-    pdm_config::user::save_config(&section_config)?;
+    proxmox_access_control::user::save_config(&section_config)?;
 
     if let Some(password) = password {
         let user_info = CachedUserInfo::new()?;
@@ -178,7 +176,7 @@ pub fn create_user(
 )]
 /// Read user configuration data.
 pub fn read_user(userid: Userid, rpcenv: &mut dyn RpcEnvironment) -> Result<User, Error> {
-    let (config, digest) = pdm_config::user::config()?;
+    let (config, digest) = proxmox_access_control::user::config()?;
     let user = config.lookup("user", userid.as_str())?;
     rpcenv["digest"] = hex::encode(digest).into();
     Ok(user)
@@ -235,9 +233,9 @@ pub fn update_user(
         .ok_or_else(|| format_err!("no authid available"))?
         .parse()?;
 
-    let _lock = pdm_config::user::lock_config()?;
+    let _lock = proxmox_access_control::user::lock_config()?;
 
-    let (mut config, config_digest) = pdm_config::user::config()?;
+    let (mut config, config_digest) = proxmox_access_control::user::config()?;
     config_digest.detect_modification(digest.as_ref())?;
 
     let mut data: User = config.lookup("user", userid.as_str())?;
@@ -317,7 +315,7 @@ pub fn update_user(
 
     config.set_data(userid.as_str(), "user", &data)?;
 
-    pdm_config::user::save_config(&config)?;
+    proxmox_access_control::user::save_config(&config)?;
 
     Ok(())
 }
@@ -342,10 +340,10 @@ pub fn update_user(
 )]
 /// Remove a user from the configuration file.
 pub fn delete_user(userid: Userid, digest: Option<ConfigDigest>) -> Result<(), Error> {
-    let _lock = pdm_config::user::lock_config()?;
+    let _lock = proxmox_access_control::user::lock_config()?;
     let _tfa_lock = crate::auth::tfa::write_lock()?;
 
-    let (mut config, config_digest) = pdm_config::user::config()?;
+    let (mut config, config_digest) = proxmox_access_control::user::config()?;
     config_digest.detect_modification(digest.as_ref())?;
 
     match config.sections.get(userid.as_str()) {
@@ -355,7 +353,7 @@ pub fn delete_user(userid: Userid, digest: Option<ConfigDigest>) -> Result<(), E
         None => bail!("user '{}' does not exist.", userid),
     }
 
-    pdm_config::user::save_config(&config)?;
+    proxmox_access_control::user::save_config(&config)?;
 
     let authenticator = crate::auth::lookup_authenticator(userid.realm())?;
     match authenticator.remove_password(userid.name()) {
@@ -413,7 +411,7 @@ pub fn read_token(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ApiToken, Error> {
-    let (config, digest) = pdm_config::user::config()?;
+    let (config, digest) = proxmox_access_control::user::config()?;
 
     let tokenid = Authid::from((userid, Some(token_name)));
 
@@ -478,9 +476,9 @@ pub fn generate_token(
     expire: Option<i64>,
     digest: Option<ConfigDigest>,
 ) -> Result<Value, Error> {
-    let _lock = pdm_config::user::lock_config()?;
+    let _lock = proxmox_access_control::user::lock_config()?;
 
-    let (mut config, config_digest) = pdm_config::user::config()?;
+    let (mut config, config_digest) = proxmox_access_control::user::config()?;
     config_digest.detect_modification(digest.as_ref())?;
 
     let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
@@ -506,7 +504,7 @@ pub fn generate_token(
 
     config.set_data(&tokenid_string, "token", &token)?;
 
-    pdm_config::user::save_config(&config)?;
+    proxmox_access_control::user::save_config(&config)?;
 
     Ok(json!({
         "tokenid": tokenid_string,
@@ -558,9 +556,9 @@ pub fn update_token(
     expire: Option<i64>,
     digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
-    let _lock = pdm_config::user::lock_config()?;
+    let _lock = proxmox_access_control::user::lock_config()?;
 
-    let (mut config, config_digest) = pdm_config::user::config()?;
+    let (mut config, config_digest) = proxmox_access_control::user::config()?;
     config_digest.detect_modification(digest.as_ref())?;
 
     let tokenid = Authid::from((userid, Some(token_name)));
@@ -587,7 +585,7 @@ pub fn update_token(
 
     config.set_data(&tokenid_string, "token", &data)?;
 
-    pdm_config::user::save_config(&config)?;
+    proxmox_access_control::user::save_config(&config)?;
 
     Ok(())
 }
@@ -621,9 +619,9 @@ pub fn delete_token(
     token_name: Tokenname,
     digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
-    let _lock = pdm_config::user::lock_config()?;
+    let _lock = proxmox_access_control::user::lock_config()?;
 
-    let (mut config, config_digest) = pdm_config::user::config()?;
+    let (mut config, config_digest) = proxmox_access_control::user::config()?;
     config_digest.detect_modification(digest.as_ref())?;
 
     let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
@@ -642,7 +640,7 @@ pub fn delete_token(
 
     token_shadow::delete_secret(&tokenid)?;
 
-    pdm_config::user::save_config(&config)?;
+    proxmox_access_control::user::save_config(&config)?;
 
     Ok(())
 }
@@ -689,7 +687,7 @@ pub fn list_tokens(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TokenApiEntry>, Error> {
-    let (config, digest) = pdm_config::user::config()?;
+    let (config, digest) = proxmox_access_control::user::config()?;
 
     let list: Vec<ApiToken> = config.convert_to_typed_array("token")?;
 

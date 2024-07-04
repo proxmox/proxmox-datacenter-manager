@@ -1,6 +1,7 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
+use proxmox_access_control::types::User;
 use proxmox_router::cli::{
     format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
     OUTPUT_FORMAT,
@@ -8,7 +9,7 @@ use proxmox_router::cli::{
 use proxmox_schema::api;
 use proxmox_tfa::TfaType;
 
-use pdm_api_types::{DeletableUserProperty, User, Userid};
+use pdm_api_types::{DeletableUserProperty, Userid};
 
 use crate::{client, env};
 
@@ -75,26 +76,26 @@ async fn list_users(param: Value) -> Result<(), Error> {
         }
 
         for entry in entries {
-            let enabled = if entry.enable.unwrap_or(true) {
+            let enabled = if entry.user.enable.unwrap_or(true) {
                 "✓"
             } else {
                 "✗"
             };
 
-            println!("{enabled} {}", entry.userid);
-            if let Some(value) = &entry.email {
+            println!("{enabled} {}", entry.user.userid);
+            if let Some(value) = &entry.user.email {
                 println!("  email: {value}");
             }
-            if let Some(value) = &entry.firstname {
+            if let Some(value) = &entry.user.firstname {
                 println!("  first name: {value}");
             }
-            if let Some(value) = &entry.lastname {
+            if let Some(value) = &entry.user.lastname {
                 println!("  last name: {value}");
             }
-            if let Some(value) = &entry.comment {
+            if let Some(value) = &entry.user.comment {
                 println!("  comment: {value}");
             }
-            if let Some(value) = entry.expire {
+            if let Some(value) = entry.user.expire {
                 println!("  expires: {}", crate::time::format_epoch_lossy(value));
             }
         }
@@ -159,7 +160,7 @@ async fn delete_user(userid: Userid) -> Result<(), Error> {
         properties: {
             userid: { type: Userid },
             user: {
-                type: pdm_api_types::UserUpdater,
+                type: proxmox_access_control::types::UserUpdater,
                 flatten: true,
             },
             delete: {
@@ -176,7 +177,7 @@ async fn delete_user(userid: Userid) -> Result<(), Error> {
 /// Change user information.
 async fn update_user(
     userid: Userid,
-    user: pdm_api_types::UserUpdater,
+    user: proxmox_access_control::types::UserUpdater,
     delete: Option<Vec<DeletableUserProperty>>,
 ) -> Result<(), Error> {
     let client = client()?;

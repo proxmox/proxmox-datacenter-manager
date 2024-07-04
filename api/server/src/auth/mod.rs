@@ -7,6 +7,7 @@ use std::sync::OnceLock;
 
 use anyhow::{bail, Error};
 
+use proxmox_access_control::CachedUserInfo;
 use proxmox_auth_api::api::{Authenticator, LockedTfaConfig};
 use proxmox_auth_api::types::Authid;
 use proxmox_auth_api::{HMACKey, Keyring};
@@ -15,7 +16,6 @@ use proxmox_router::UserInformation;
 use proxmox_tfa::api::{OpenUserChallengeData, TfaConfig};
 
 use pdm_api_types::{RealmRef, Userid};
-use pdm_config::CachedUserInfo;
 
 pub mod certs;
 pub mod csrf;
@@ -24,6 +24,8 @@ pub mod tfa;
 
 /// Pre-load lazy-static pre-load things like csrf & auth key
 pub fn init(use_private_key: bool) {
+    crate::acl::init();
+
     let _ = key::public_auth_key(); // load with lazy_static
     let _ = csrf::csrf_secret(); // load with lazy_static
     setup_auth_context(use_private_key);
@@ -104,7 +106,7 @@ impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
 
     /// Check if a userid is enabled and return a [`UserInformation`] handle.
     fn auth_id_is_active(&self, auth_id: &Authid) -> Result<bool, Error> {
-        Ok(pdm_config::CachedUserInfo::new()?.is_active_auth_id(auth_id))
+        Ok(CachedUserInfo::new()?.is_active_auth_id(auth_id))
     }
 
     /// Access the TFA config with an exclusive lock.
@@ -122,7 +124,7 @@ impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
 
     /// Verify a token secret.
     fn verify_token_secret(&self, token_id: &Authid, token_secret: &str) -> Result<(), Error> {
-        pdm_config::token_shadow::verify_secret(token_id, token_secret)
+        proxmox_access_control::token_shadow::verify_secret(token_id, token_secret)
     }
 
     // /// Check path based tickets. (Used for terminal tickets).

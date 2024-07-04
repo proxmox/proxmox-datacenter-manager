@@ -3,19 +3,13 @@ use nix::unistd::{Gid, Group, Uid, User};
 
 pub use pdm_buildcfg::{BACKUP_GROUP_NAME, BACKUP_USER_NAME};
 
-pub mod acl;
 pub mod certificate_config;
 pub mod domains;
 pub mod remotes;
 pub mod setup;
-pub mod token_shadow;
-pub mod user;
 
 mod config_version_cache;
 pub use config_version_cache::ConfigVersionCache;
-
-mod cached_user_info;
-pub use cached_user_info::CachedUserInfo;
 
 /// Return User info for the main system user (``getpwnam_r(3)``)
 pub fn api_user() -> Result<nix::unistd::User, Error> {

@@ -41,6 +41,7 @@ walkdir.workspace = true
 xdg.workspace = true
 zstd.workspace = true
 
+proxmox-access-control = { workspace = true, features = [ "impl" ] }
 proxmox-async.workspace = true
 proxmox-auth-api = { workspace = true, features = [ "api", "ticket", "pam-authenticator", "password-authenticator" ] }
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
