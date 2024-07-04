@@ -96,7 +96,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         userid: &str,
         updater: &pdm_api_types::UserUpdater,
         password: Option<&str>,
-        delete: &[&str],
+        delete: &[pdm_api_types::DeletableUserProperty],
     ) -> Result<(), Error> {
         #[derive(serde::Serialize)]
         struct UpdateUser<'a> {
@@ -104,9 +104,14 @@ impl<T: HttpApiClient> PdmClient<T> {
             updater: &'a pdm_api_types::UserUpdater,
             #[serde(skip_serializing_if = "Option::is_none")]
             password: Option<&'a str>,
-            #[serde(skip_serializing_if = "<[&str]>::is_empty")]
-            delete: &'a [&'a str],
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            delete: Vec<String>,
         }
+
+        let delete = delete
+            .into_iter()
+            .map(|d| d.to_string())
+            .collect::<Vec<_>>();
 
         let path = format!("/api2/extjs/access/users/{userid}");
         self.0

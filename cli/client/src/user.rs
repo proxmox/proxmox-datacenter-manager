@@ -8,7 +8,7 @@ use proxmox_router::cli::{
 use proxmox_schema::api;
 use proxmox_tfa::TfaType;
 
-use pdm_api_types::{User, Userid};
+use pdm_api_types::{DeletableUserProperty, User, Userid};
 
 use crate::{client, env};
 
@@ -18,6 +18,14 @@ pub fn cli() -> CommandLineInterface {
         .insert(
             "create",
             CliCommand::new(&API_METHOD_CREATE_USER).arg_param(&["userid"]),
+        )
+        .insert(
+            "update",
+            CliCommand::new(&API_METHOD_UPDATE_USER).arg_param(&["userid"]),
+        )
+        .insert(
+            "passwd",
+            CliCommand::new(&API_METHOD_CHANGE_USER_PASSWORD).arg_param(&["userid"]),
         )
         .insert("tfa", tfa_cli())
         .into()
@@ -126,6 +134,84 @@ async fn create_user(user: User, password: Option<String>) -> Result<(), Error> 
     };
 
     client.create_user(&user, password.as_deref()).await?;
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            userid: { type: Userid },
+            user: {
+                type: pdm_api_types::UserUpdater,
+                flatten: true,
+            },
+            delete: {
+                description: "Clear/reset user properties.",
+                optional: true,
+                type: Array,
+                items: {
+                    type: DeletableUserProperty,
+                },
+            },
+        }
+    }
+)]
+/// Change user information.
+async fn update_user(
+    userid: Userid,
+    user: pdm_api_types::UserUpdater,
+    delete: Option<Vec<DeletableUserProperty>>,
+) -> Result<(), Error> {
+    let client = client()?;
+
+    client
+        .update_user(
+            userid.as_str(),
+            &user,
+            None,
+            delete.as_deref().unwrap_or_default(),
+        )
+        .await?;
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            userid: { type: Userid },
+            password: {
+                schema: proxmox_schema::api_types::PASSWORD_SCHEMA,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Change a user's password. If no password is provided, it will be prompted for interactively.
+async fn change_user_password(userid: Userid, password: Option<String>) -> Result<(), Error> {
+    let client = client()?;
+
+    let password = if password.is_some() {
+        password
+    } else {
+        let password = proxmox_sys::linux::tty::read_password("New password: ")?;
+        if password.is_empty() {
+            None
+        } else {
+            Some(
+                String::from_utf8(password)
+                    .map_err(|_| format_err!("password must be valid utf-8"))?,
+            )
+        }
+    };
+
+    client
+        .update_user(
+            userid.as_str(),
+            &Default::default(),
+            password.as_deref(),
+            &[],
+        )
+        .await?;
     Ok(())
 }
 

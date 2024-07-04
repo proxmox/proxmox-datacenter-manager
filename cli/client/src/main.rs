@@ -107,7 +107,6 @@ fn main_do() -> Result<(), Error> {
         .take_global_option()
         .ok_or_else(|| format_err!("missing connect args"))?;
     env.connect_args.finalize()?;
-    println!("ARGS: {:#?}", env.connect_args);
 
     if ENV.set(env).is_err() {
         bail!("failed to initialize environment");
