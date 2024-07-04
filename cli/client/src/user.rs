@@ -27,6 +27,10 @@ pub fn cli() -> CommandLineInterface {
             "passwd",
             CliCommand::new(&API_METHOD_CHANGE_USER_PASSWORD).arg_param(&["userid"]),
         )
+        .insert(
+            "delete",
+            CliCommand::new(&API_METHOD_DELETE_USER).arg_param(&["userid"]),
+        )
         .insert("tfa", tfa_cli())
         .into()
 }
@@ -134,6 +138,19 @@ async fn create_user(user: User, password: Option<String>) -> Result<(), Error> 
     };
 
     client.create_user(&user, password.as_deref()).await?;
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            userid: { type: Userid },
+        }
+    }
+)]
+/// List all users or show a single user's information.
+async fn delete_user(userid: Userid) -> Result<(), Error> {
+    client()?.delete_user(userid.as_str()).await?;
     Ok(())
 }
 
