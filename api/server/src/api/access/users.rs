@@ -9,9 +9,9 @@ use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
 
 use pdm_api_types::{
-    ApiToken, Authid, ConfigDigest, Tokenname, User, UserUpdater, UserWithTokens, Userid,
-    ENABLE_USER_SCHEMA, EXPIRE_USER_SCHEMA, PDM_PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY,
-    PRIV_SYS_AUDIT, SINGLE_LINE_COMMENT_SCHEMA,
+    ApiToken, Authid, ConfigDigest, DeletableUserProperty, Tokenname, User, UserUpdater,
+    UserWithTokens, Userid, ENABLE_USER_SCHEMA, EXPIRE_USER_SCHEMA, PDM_PASSWORD_SCHEMA,
+    PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT, SINGLE_LINE_COMMENT_SCHEMA,
 };
 use pdm_config::{token_shadow, CachedUserInfo};
 
@@ -184,20 +184,6 @@ pub fn read_user(userid: Userid, rpcenv: &mut dyn RpcEnvironment) -> Result<User
     Ok(user)
 }
 
-#[api()]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DeletableProperty {
-    /// Delete the comment property.
-    Comment,
-    /// Delete the firstname property.
-    Firstname,
-    /// Delete the lastname property.
-    Lastname,
-    /// Delete the email property.
-    Email,
-}
-
 #[api(
     protected: true,
     input: {
@@ -218,7 +204,7 @@ pub enum DeletableProperty {
                 type: Array,
                 optional: true,
                 items: {
-                    type: DeletableProperty,
+                    type: DeletableUserProperty,
                 }
             },
             digest: {
@@ -240,10 +226,15 @@ pub fn update_user(
     userid: Userid,
     update: UserUpdater,
     password: Option<String>,
-    delete: Option<Vec<DeletableProperty>>,
+    delete: Option<Vec<DeletableUserProperty>>,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .ok_or_else(|| format_err!("no authid available"))?
+        .parse()?;
+
     let _lock = pdm_config::user::lock_config()?;
 
     let (mut config, config_digest) = pdm_config::user::config()?;
@@ -251,13 +242,24 @@ pub fn update_user(
 
     let mut data: User = config.lookup("user", userid.as_str())?;
 
+    let user_info = CachedUserInfo::new()?;
+    let top_level_privs = user_info.lookup_privs(&auth_id, &["access", "users"]);
+    let top_level_modify_allowed = (top_level_privs & PRIV_PERMISSIONS_MODIFY) != 0;
+
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::Comment => data.comment = None,
-                DeletableProperty::Firstname => data.firstname = None,
-                DeletableProperty::Lastname => data.lastname = None,
-                DeletableProperty::Email => data.email = None,
+                DeletableUserProperty::Comment => data.comment = None,
+                DeletableUserProperty::Firstname => data.firstname = None,
+                DeletableUserProperty::Lastname => data.lastname = None,
+                DeletableUserProperty::Email => data.email = None,
+                DeletableUserProperty::Enable => data.enable = None,
+                DeletableUserProperty::Expire => {
+                    if !top_level_modify_allowed {
+                        bail!("modifying expiration date not allowed");
+                    }
+                    data.expire = None;
+                }
             }
         }
     }
@@ -276,11 +278,13 @@ pub fn update_user(
     }
 
     if let Some(expire) = update.expire {
+        if !top_level_modify_allowed {
+            bail!("modifying expiration date not allowed");
+        }
         data.expire = if expire > 0 { Some(expire) } else { None };
     }
 
     if let Some(password) = password {
-        let user_info = CachedUserInfo::new()?;
         let current_auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let self_service = current_auth_id.user() == &userid;
         let target_realm = userid.realm();
@@ -322,9 +326,7 @@ pub fn update_user(
     protected: true,
     input: {
         properties: {
-            userid: {
-                type: Userid,
-            },
+            userid: { type: Userid },
             digest: {
                 optional: true,
                 type: ConfigDigest,
