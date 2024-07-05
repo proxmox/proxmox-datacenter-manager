@@ -13,11 +13,17 @@ impl proxmox_access_control::init::AccessControlConfig for AccessControlConfig {
         PRIVILEGES.get_or_init(|| pdm_api_types::PRIVILEGES.into_iter().copied().collect())
     }
 
+    #[rustfmt::skip]
     fn roles(&self) -> &HashMap<&str, u64> {
         ROLES.get_or_init(|| {
             [
-                ("Admin", pdm_api_types::ROLE_ADMIN),
-                ("Audit", pdm_api_types::ROLE_AUDIT),
+                ("Administrator", pdm_api_types::ROLE_ADMINISTRATOR),
+                ("Auditor", pdm_api_types::ROLE_AUDITOR),
+                ("SystemAdministrator", pdm_api_types::ROLE_SYS_ADMINISTRATOR),
+                ("SystemAuditor", pdm_api_types::ROLE_SYS_AUDITOR),
+                ("ResourceAdministrator", pdm_api_types::ROLE_RESOURCE_ADMINISTRATOR),
+                ("ResourceAuditor", pdm_api_types::ROLE_RESOURCE_AUDITOR),
+                ("AccessAuditor", pdm_api_types::ROLE_ACCESS_AUDITOR),
             ]
             .into_iter()
             .collect()
@@ -29,7 +35,7 @@ impl proxmox_access_control::init::AccessControlConfig for AccessControlConfig {
     }
 
     fn role_admin(&self) -> Option<&str> {
-        Some("Admin")
+        Some("Administrator")
     }
 }
 

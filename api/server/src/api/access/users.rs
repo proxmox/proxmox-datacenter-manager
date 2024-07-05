@@ -14,7 +14,7 @@ use proxmox_schema::api;
 
 use pdm_api_types::{
     Authid, ConfigDigest, DeletableUserProperty, Tokenname, Userid, PDM_PASSWORD_SCHEMA,
-    PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT, SINGLE_LINE_COMMENT_SCHEMA,
+    PRIV_ACCESS_MODIFY, PRIV_SYS_AUDIT, SINGLE_LINE_COMMENT_SCHEMA,
 };
 
 fn new_user_with_tokens(user: User) -> UserWithTokens {
@@ -115,7 +115,7 @@ pub fn list_users(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
     },
 )]
 /// Create new user.
@@ -213,7 +213,7 @@ pub fn read_user(userid: Userid, rpcenv: &mut dyn RpcEnvironment) -> Result<User
     },
     access: {
         permission: &Permission::Or(&[
-            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
     },
@@ -242,7 +242,7 @@ pub fn update_user(
 
     let user_info = CachedUserInfo::new()?;
     let top_level_privs = user_info.lookup_privs(&auth_id, &["access", "users"]);
-    let top_level_modify_allowed = (top_level_privs & PRIV_PERMISSIONS_MODIFY) != 0;
+    let top_level_modify_allowed = (top_level_privs & PRIV_ACCESS_MODIFY) != 0;
 
     if let Some(delete) = delete {
         for delete_prop in delete {
@@ -333,7 +333,7 @@ pub fn update_user(
     },
     access: {
         permission: &Permission::Or(&[
-            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
     },
@@ -449,7 +449,7 @@ pub fn read_token(
     },
     access: {
         permission: &Permission::Or(&[
-            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
     },
@@ -542,7 +542,7 @@ pub fn generate_token(
     },
     access: {
         permission: &Permission::Or(&[
-            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
     },
@@ -608,7 +608,7 @@ pub fn update_token(
     },
     access: {
         permission: &Permission::Or(&[
-            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
     },

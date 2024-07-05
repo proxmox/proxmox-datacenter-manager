@@ -22,28 +22,22 @@ constnamedbitmap! {
     /// The names are used when displaying/persisting privileges anywhere, the values are used to
     /// allow easy matching of privileges as bitflags.
     PRIVILEGES: u64 => {
-        /// Sys.Audit allows knowing about the system and its status
-        PRIV_SYS_AUDIT("Sys.Audit");
-        /// Sys.Modify allows modifying system-level configuration
-        PRIV_SYS_MODIFY("Sys.Modify");
-        /// Sys.Modify allows to poweroff/reboot/.. the system
-        PRIV_SYS_POWER_MANAGEMENT("Sys.PowerManagement");
+        /// `System.Audit` allows knowing about the system and its status.
+        PRIV_SYS_AUDIT("System.Audit");
+        /// `System.Modify` allows modifying system-level configuration.
+        PRIV_SYS_MODIFY("System.Modify");
 
-        /// Permissions.Modify allows modifying ACLs
-        PRIV_PERMISSIONS_MODIFY("Permissions.Modify");
+        /// `Resource.Audit` allows auditing guests, storages and other resources.
+        PRIV_RESOURCE_AUDIT("Resource.Audit");
+        /// `Resource.Manage` allows managing resources, like starting or stopping guests.
+        PRIV_RESOURCE_MANAGE("Resource.Manage");
+        /// `Resource.Modify` allows modifying resources, like making configuration changes.
+        PRIV_RESOURCE_MODIFY("Resource.Modify");
 
-        /// Remote.Audit allows reading remote.cfg and sync.cfg entries
-        PRIV_REMOTE_AUDIT("Remote.Audit");
-        /// Remote.Modify allows modifying remote.cfg
-        PRIV_REMOTE_MODIFY("Remote.Modify");
-        /// Remote.Read allows reading data from a configured `Remote`
-        PRIV_REMOTE_READ("Remote.Read");
-
-        /// Sys.Console allows access to the system's console
-        PRIV_SYS_CONSOLE("Sys.Console");
-
-        /// Realm.Allocate allows viewing, creating, modifying and deleting realms
-        PRIV_REALM_ALLOCATE("Realm.Allocate");
+        /// `Access.Audit` allows auditing permissions and users.
+        PRIV_ACCESS_AUDIT("Access.Audit");
+        /// `Access.Modify` allows modifying permissions and users.
+        PRIV_ACCESS_MODIFY("Access.Modify");
     }
 }
 
@@ -58,47 +52,52 @@ pub fn privs_to_priv_names(privs: u64) -> Vec<&'static str> {
         })
 }
 
-/// Admin always has all privileges. It can do everything except a few actions
-/// which are limited to the 'root@pam` superuser
-pub const ROLE_ADMIN: u64 = u64::MAX;
-
-/// NoAccess can be used to remove privileges from specific (sub-)paths
-pub const ROLE_NO_ACCESS: u64 = 0;
-
 #[rustfmt::skip]
 #[allow(clippy::identity_op)]
-/// Audit can view configuration and status information, but not modify it.
-pub const ROLE_AUDIT: u64 = 0
-    | PRIV_SYS_AUDIT
-    | PRIV_REMOTE_AUDIT;
+mod roles {
+    use super::*;
 
-#[rustfmt::skip]
-#[allow(clippy::identity_op)]
-/// Remote.Audit can audit the remote
-pub const ROLE_REMOTE_AUDIT: u64 = 0
-    | PRIV_REMOTE_AUDIT;
+    /// Admin always has all privileges. It can do everything except a few actions
+    /// which are limited to the 'root@pam` superuser
+    pub const ROLE_ADMINISTRATOR: u64 = u64::MAX;
 
-#[rustfmt::skip]
-#[allow(clippy::identity_op)]
-/// Remote.Admin can do anything on the remote.
-pub const ROLE_REMOTE_ADMIN: u64 = 0
-    | PRIV_REMOTE_AUDIT
-    | PRIV_REMOTE_MODIFY
-    | PRIV_REMOTE_READ;
+    /// NoAccess can be used to remove privileges from specific (sub-)paths
+    pub const ROLE_NO_ACCESS: u64 = 0;
 
-#[rustfmt::skip]
-#[allow(clippy::identity_op)]
-/// Remote.SyncOperator can do read and prune on the remote.
-pub const ROLE_REMOTE_SYNC_OPERATOR: u64 = 0
-    | PRIV_REMOTE_AUDIT
-    | PRIV_REMOTE_READ;
+    /// Audit can view configuration and status information, but not modify it.
+    pub const ROLE_AUDITOR: u64 = 0
+        | PRIV_SYS_AUDIT
+        | PRIV_RESOURCE_AUDIT
+        | PRIV_ACCESS_AUDIT;
 
-/// NoAccess can be used to remove privileges from specific (sub-)paths
-pub const ROLE_NAME_NO_ACCESS: &str = "NoAccess";
+    /// The system administrator has `System.Modify` access everywhere.
+    pub const ROLE_SYS_ADMINISTRATOR: u64 = 0
+        | PRIV_SYS_AUDIT
+        | PRIV_SYS_MODIFY;
 
-#[api(
-    type_text: "<role>",
-)]
+    /// The system auditor has `System.Audit` access everywhere.
+    pub const ROLE_SYS_AUDITOR: u64 = 0
+        | PRIV_SYS_AUDIT;
+    ///
+    /// The resource administrator has `Resource.Modify` access everywhere.
+    pub const ROLE_RESOURCE_ADMINISTRATOR: u64 = 0
+        | PRIV_RESOURCE_AUDIT
+        | PRIV_RESOURCE_MODIFY;
+
+    /// The resource auditor has `Resource.Audit` access everywhere.
+    pub const ROLE_RESOURCE_AUDITOR: u64 = 0
+        | PRIV_RESOURCE_AUDIT;
+
+    /// The access auditor has `Access.Audit` access everywhere.
+    pub const ROLE_ACCESS_AUDITOR: u64 = 0
+        | PRIV_ACCESS_AUDIT;
+
+    /// NoAccess can be used to remove privileges from specific (sub-)paths
+    pub const ROLE_NAME_NO_ACCESS: &str = "NoAccess";
+}
+pub use roles::*;
+
+#[api(type_text: "<role>")]
 #[repr(u64)]
 #[derive(Serialize, Deserialize)]
 /// Enum representing roles via their [PRIVILEGES] combination.
@@ -107,17 +106,11 @@ pub const ROLE_NAME_NO_ACCESS: &str = "NoAccess";
 /// single, unique `u64` value that is used in this enum definition.
 pub enum Role {
     /// Administrator
-    Admin = ROLE_ADMIN,
+    Administrator = ROLE_ADMINISTRATOR,
     /// Auditor
-    Audit = ROLE_AUDIT,
+    Auditor = ROLE_AUDITOR,
     /// Disable Access
     NoAccess = ROLE_NO_ACCESS,
-    /// Remote Auditor
-    RemoteAudit = ROLE_REMOTE_AUDIT,
-    /// Remote Administrator
-    RemoteAdmin = ROLE_REMOTE_ADMIN,
-    /// Syncronisation Opertator
-    RemoteSyncOperator = ROLE_REMOTE_SYNC_OPERATOR,
 }
 
 impl FromStr for Role {

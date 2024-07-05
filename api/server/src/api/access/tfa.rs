@@ -8,7 +8,7 @@ use proxmox_router::{http_bail, http_err, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_tfa::api::methods;
 
-use pdm_api_types::{Authid, Userid, PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
+use pdm_api_types::{Authid, Userid, PASSWORD_SCHEMA, PRIV_ACCESS_MODIFY, PRIV_SYS_AUDIT};
 
 use crate::auth::tfa::UserAccess;
 
@@ -99,7 +99,7 @@ fn list_tfa(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<methods::TfaUser>, Er
     },
     access: {
         permission: &Permission::Or(&[
-            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
     },
@@ -121,7 +121,7 @@ fn list_user_tfa(userid: Userid) -> Result<Vec<methods::TypedTfaInfo>, Error> {
     },
     access: {
         permission: &Permission::Or(&[
-            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
     },
@@ -152,7 +152,7 @@ fn get_tfa_entry(userid: Userid, id: String) -> Result<methods::TypedTfaInfo, Er
     },
     access: {
         permission: &Permission::Or(&[
-            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
     },
@@ -216,7 +216,7 @@ async fn delete_tfa(
     returns: { type: methods::TfaUpdateInfo },
     access: {
         permission: &Permission::Or(&[
-            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
     },
@@ -279,7 +279,7 @@ async fn add_tfa_entry(
     },
     access: {
         permission: &Permission::Or(&[
-            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
     },
