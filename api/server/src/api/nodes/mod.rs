@@ -3,6 +3,7 @@
 use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
 use proxmox_sortable_macro::sortable;
 
+pub mod apt;
 pub mod certificates;
 pub mod dns;
 pub mod network;

@@ -80,6 +80,8 @@ pub const PDM_PRIVILEGED_API_SOCKET_FN: &str = concat!(PDM_RUN_DIR_M!(), "/priv.
 
 pub const PDM_SUBSCRIPTION_FN: &str = configdir!("/subscription");
 
+pub const APT_PKG_STATE_FN: &str = concat!(PDM_STATE_DIR_M!(), "/pkg-state.json");
+
 /// Prepend configuration directory to a file name
 ///
 /// This is a simply way to get the full path for configuration files.

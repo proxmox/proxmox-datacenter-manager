@@ -60,7 +60,9 @@ proxmox-time.workspace = true
 proxmox-uuid.workspace = true
 
 proxmox-acme.workspace = true
-proxmox-apt.workspace = true
+proxmox-apt = { workspace = true, features = [ "cache" ] }
+proxmox-apt-api-types.workspace = true
+
 proxmox-client.workspace = true
 proxmox-openid.workspace = true
 
