@@ -44,7 +44,8 @@ fn new_user_with_tokens(user: User) -> UserWithTokens {
     },
     access: {
         permission: &Permission::Anybody,
-        description: "Returns all or just the logged-in user (/API token owner), depending on privileges.",
+        description: "Returns all or just the logged-in user (/API token owner), \
+            depending on privileges.",
     },
 )]
 /// List users
