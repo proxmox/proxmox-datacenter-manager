@@ -27,6 +27,7 @@ members = [
 
     "cli/client",
     "cli/admin",
+    "cli/proxmox-fido2",
 ]
 
 [workspace.dependencies]
@@ -81,6 +82,7 @@ pdm-api-types = { path = "api/pdm-api-types" }
 pdm-buildcfg = { path = "api/pdm-buildcfg" }
 pdm-config = { path = "api/pdm-config" }
 pdm-client = { path = "api/pdm-client" }
+proxmox-fido2 = { path = "cli/proxmox-fido2" }
 proxmox-section-config-typed = { path = "api/proxmox-section-config-typed" }
 
 # regular crates
