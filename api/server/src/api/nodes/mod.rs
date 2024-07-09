@@ -33,6 +33,7 @@ pub const ITEM_ROUTER: Router = Router::new()
 #[rustfmt::skip] // it'll put both entries on 1 line...
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
+    ("apt", &apt::ROUTER),
     ("certificates", &certificates::ROUTER),
     ("dns", &dns::ROUTER),
     ("tasks", &tasks::ROUTER),
