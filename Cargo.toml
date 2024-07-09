@@ -55,7 +55,7 @@ proxmox-simple-config = "0.1"
 
 # other proxmox crates
 proxmox-acme = "0.5"
-proxmox-apt = "0.10"
+proxmox-apt = "0.11"
 proxmox-apt-api-types = "1.0"
 proxmox-openid = "0.10"
 
