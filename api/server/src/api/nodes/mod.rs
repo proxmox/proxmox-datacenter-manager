@@ -6,6 +6,7 @@ use proxmox_sortable_macro::sortable;
 pub mod apt;
 pub mod certificates;
 pub mod dns;
+pub mod journal;
 pub mod network;
 pub mod syslog;
 pub mod tasks;
@@ -36,8 +37,9 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     ("apt", &apt::ROUTER),
     ("certificates", &certificates::ROUTER),
     ("dns", &dns::ROUTER),
-    ("tasks", &tasks::ROUTER),
-    ("time", &time::ROUTER),
+    ("journal", &journal::ROUTER),
     ("network", &network::ROUTER),
     ("syslog", &syslog::ROUTER),
+    ("tasks", &tasks::ROUTER),
+    ("time", &time::ROUTER),
 ]);
