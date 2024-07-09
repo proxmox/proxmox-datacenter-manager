@@ -16,7 +16,6 @@ use pdm_client::PdmClient;
 pub mod env;
 
 pub mod config;
-pub mod fido;
 pub mod pve;
 pub mod remotes;
 pub mod tags;

@@ -270,11 +270,7 @@ impl Env {
             print!("Please type in one of the available recovery codes: ");
             prefix = "recovery";
         } else if tfa_type == WEBAUTHN {
-            let mut fido = crate::fido::Fido::new();
-            println!("Please push the button on your FIDO2 device.");
-            // Unwrap: WEBAUTHN is not in the available list if it's not Some.
-            let response =
-                fido.get_assertion(challenge.webauthn.as_ref().unwrap(), &api_url.to_string())?;
+            let response = perform_fido_auth(api_url, challenge)?;
             return Ok(format!("webauthn:{response}"));
         } else {
             // not possible
@@ -317,6 +313,114 @@ impl Env {
     pub fn use_color(&self) -> bool {
         self.use_color.to_bool()
     }
+}
+
+fn perform_fido_auth(api_url: &http::Uri, challenge: &TfaChallenge) -> Result<String, Error> {
+    use proxmox_fido2::FidoOpt;
+    use webauthn_rs::proto::UserVerificationPolicy;
+
+    let public_key = &challenge.webauthn.as_ref().unwrap().public_key;
+    let raw_challenge: &[u8] = public_key.challenge.as_ref();
+    let b64u_challenge = base64::encode_config(raw_challenge, base64::URL_SAFE_NO_PAD);
+    let client_data_json = serde_json::to_string(&serde_json::json!({
+        "type": "webauthn.get",
+        "origin": api_url.to_string().trim_end_matches('/'),
+        "challenge": b64u_challenge.as_str(),
+        "clientExtensions": {},
+    }))
+    .expect("failed to build json string");
+    let hash = openssl::sha::sha256(client_data_json.as_bytes());
+
+    let libfido = proxmox_fido2::Lib::open()?;
+    let mut assert = libfido
+        .assert_new()?
+        .set_relying_party(public_key.rp_id.as_str())?
+        .set_user_verification_required(match public_key.user_verification {
+            UserVerificationPolicy::Discouraged => FidoOpt::False,
+            UserVerificationPolicy::Preferred_DO_NOT_USE => FidoOpt::Omit,
+            UserVerificationPolicy::Required => FidoOpt::True,
+        })?
+        .set_clientdata_hash(&hash)?;
+    for cred in &public_key.allow_credentials {
+        assert = assert.allow_cred(cred.id.as_ref())?;
+    }
+
+    for dev_info in libfido.list_devices(None)? {
+        log::debug!(
+            "opening FIDO2 device {manufacturer:?} {product:?} at {path:?}",
+            manufacturer = dev_info.manufacturer,
+            product = dev_info.product,
+            path = dev_info.path,
+        );
+        let dev = match libfido.dev_open(&dev_info.path) {
+            Ok(dev) => dev,
+            Err(err) => {
+                log::debug!(
+                    "failed to open FIDO2 device {path:?} - {err}",
+                    path = dev_info.path,
+                );
+                continue;
+            }
+        };
+
+        let mut pin = None;
+        'retry: loop {
+            match dev.assert(&assert, pin.as_deref()) {
+                Ok(()) => (),
+                Err(proxmox_fido2::Error::PinRequired) if pin.is_none() => {
+                    let user_pin = proxmox_sys::linux::tty::read_password("fido2 pin: ")?;
+                    pin = Some(
+                        String::from_utf8(user_pin)
+                            .map_err(|_| format_err!("invalid bytes in pin"))?,
+                    );
+                    continue 'retry;
+                }
+                Err(err) => return Err(err.into()),
+            }
+            return finish_fido_auth(assert, client_data_json, b64u_challenge);
+        }
+    }
+
+    bail!("failed to perform fido2 authentication");
+}
+
+fn finish_fido_auth(
+    assert: proxmox_fido2::FidoAssert,
+    client_data_json: String,
+    b64u_challenge: String,
+) -> Result<String, Error> {
+    use webauthn_rs::base64_data::Base64UrlSafeData;
+
+    let id = assert.id()?;
+    let sig = assert.signature()?;
+    let auth_data = assert.auth_data()?;
+    let auth_data = match serde_cbor::from_slice::<serde_cbor::Value>(auth_data)? {
+        serde_cbor::Value::Bytes(bytes) => bytes,
+        _ => bail!("auth data has invalid format"),
+    };
+
+    let response = webauthn_rs::proto::PublicKeyCredential {
+        type_: "public-key".to_string(),
+        id: base64::encode_config(id, base64::URL_SAFE_NO_PAD),
+        raw_id: Base64UrlSafeData(id.to_vec()),
+        extensions: None,
+        response: webauthn_rs::proto::AuthenticatorAssertionResponseRaw {
+            authenticator_data: Base64UrlSafeData(auth_data),
+            signature: Base64UrlSafeData(sig.to_vec()),
+            user_handle: None,
+            client_data_json: Base64UrlSafeData(client_data_json.into_bytes()),
+        },
+    };
+
+    let mut response = serde_json::to_value(response)?;
+    response["response"]
+        .as_object_mut()
+        .unwrap()
+        .remove("userHandle");
+    response.as_object_mut().unwrap().remove("extensions");
+    response["challenge"] = b64u_challenge.into();
+
+    Ok(serde_json::to_string(&response)?)
 }
 
 #[api]
