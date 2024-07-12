@@ -2,6 +2,7 @@ use anyhow::{bail, format_err, Error};
 use futures::*;
 use nix::sys::stat::{fchmodat, FchmodatFlags, Mode};
 use nix::unistd::{fchownat, FchownatFlags};
+use tracing::level_filters::LevelFilter;
 
 use proxmox_lang::try_block;
 use proxmox_rest_server::{daemon, ApiConfig, RestServer, UnixAcceptor};
@@ -19,19 +20,11 @@ fn main() -> Result<(), Error> {
 
     server::env::sanitize_environment_vars();
 
-    let debug = std::env::var("PROXMOX_DEBUG").is_ok();
-
-    if let Err(err) = syslog::init(
-        syslog::Facility::LOG_DAEMON,
-        if debug {
-            log::LevelFilter::Debug
-        } else {
-            log::LevelFilter::Info
-        },
-        Some("proxmox-datacenter-manager-priv"),
-    ) {
-        bail!("unable to inititialize syslog - {err}");
-    }
+    proxmox_log::init_logger(
+        "PROXMOX_DEBUG",
+        LevelFilter::INFO,
+        "proxmox-datacenter-manager-privileged-api",
+    )?;
 
     create_directories()?;
 

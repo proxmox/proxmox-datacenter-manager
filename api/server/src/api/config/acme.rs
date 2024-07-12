@@ -148,14 +148,14 @@ fn register_account(
         Some(name.to_string()),
         auth_id,
         true,
-        move |worker| async move {
-            proxmox_sys::task_log!(worker, "Registering ACME account '{}'...", &name,);
+        move |_worker| async move {
+            proxmox_log::info!("Registering ACME account '{}'...", &name,);
 
             let location =
                 proxmox_acme_api::register_account(&name, contact, tos_url, directory, eab_cread)
                     .await?;
 
-            proxmox_sys::task_log!(worker, "Registration successful, account URL: {}", location);
+            proxmox_log::info!("Registration successful, account URL: {}", location);
 
             Ok(())
         },
@@ -208,12 +208,12 @@ pub fn update_account(
         Some(name.to_string()),
         auth_id,
         true,
-        move |worker| async move {
-            proxmox_sys::task_log!(worker, "Update ACME account '{}'...", &name,);
+        move |_worker| async move {
+            proxmox_log::info!("Update ACME account '{}'...", &name,);
 
             proxmox_acme_api::update_account(&name, contact).await?;
 
-            proxmox_sys::task_log!(worker, "Update ACME account '{}' successful", &name,);
+            proxmox_log::info!("Update ACME account '{}' successful", &name,);
 
             Ok(())
         },
@@ -250,12 +250,12 @@ pub fn deactivate_account(
         Some(name.to_string()),
         auth_id,
         true,
-        move |worker| async move {
-            proxmox_sys::task_log!(worker, "Deactivate ACME account '{}'...", &name,);
+        move |_worker| async move {
+            proxmox_log::info!("Deactivate ACME account '{}'...", &name,);
 
-            proxmox_acme_api::deactivate_account(&worker, &name, force).await?;
+            proxmox_acme_api::deactivate_account(&name, force).await?;
 
-            proxmox_sys::task_log!(worker, "Deactivate ACME account '{}' successful", &name,);
+            proxmox_log::info!("Deactivate ACME account '{}' successful", &name,);
 
             Ok(())
         },

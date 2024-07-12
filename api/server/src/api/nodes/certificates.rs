@@ -2,11 +2,11 @@ use anyhow::{bail, format_err, Error};
 use openssl::pkey::PKey;
 use openssl::x509::X509;
 
+use proxmox_log::info;
 use proxmox_router::list_subdirs_api_method;
 use proxmox_router::SubdirMap;
 use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
-use proxmox_sys::task_log;
 
 use proxmox_acme_api::{AcmeDomain, CertificateInfo};
 
@@ -324,13 +324,10 @@ pub fn revoke_acme_cert(rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error
         None,
         auth_id,
         true,
-        move |worker| async move {
-            task_log!(worker, "Revoking old certificate");
+        move |_worker| async move {
+            info!("Revoking old certificate");
             proxmox_acme_api::revoke_certificate(&acme_config, &cert_pem).await?;
-            task_log!(
-                worker,
-                "Deleting certificate and regenerating a self-signed one"
-            );
+            info!("Deleting certificate and regenerating a self-signed one");
             delete_custom_certificate().await?;
             Ok(())
         },

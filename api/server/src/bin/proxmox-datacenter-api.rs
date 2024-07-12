@@ -7,10 +7,10 @@ use http::request::Parts;
 use http::Response;
 use hyper::header;
 use hyper::{Body, StatusCode};
-use url::form_urlencoded;
-
 use openssl::ssl::SslAcceptor;
 use serde_json::{json, Value};
+use tracing::level_filters::LevelFilter;
+use url::form_urlencoded;
 
 use proxmox_lang::try_block;
 use proxmox_rest_server::{cookie_from_header, daemon, ApiConfig, RestEnvironment, RestServer};
@@ -33,18 +33,11 @@ fn main() -> Result<(), Error> {
     server::env::sanitize_environment_vars();
 
     let debug = std::env::var("PROXMOX_DEBUG").is_ok();
-
-    if let Err(err) = syslog::init(
-        syslog::Facility::LOG_DAEMON,
-        if debug {
-            log::LevelFilter::Debug
-        } else {
-            log::LevelFilter::Info
-        },
-        Some("proxmox-datacenter-manager-api"),
-    ) {
-        bail!("unable to inititialize syslog - {err}");
-    }
+    proxmox_log::init_logger(
+        "PROXMOX_DEBUG",
+        LevelFilter::INFO,
+        "proxmox-datacenter-manager-api",
+    )?;
 
     if std::env::args().nth(1).is_some() {
         bail!("unexpected command line parameters");

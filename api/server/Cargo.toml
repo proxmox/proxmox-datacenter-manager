@@ -28,7 +28,6 @@ percent-encoding.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-syslog.workspace = true
 termcolor.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = [ "fs", "io-util", "io-std", "macros", "net", "parking_lot", "process", "rt", "rt-multi-thread", "signal", "time" ] }
@@ -36,6 +35,7 @@ tokio-openssl.workspace = true
 tokio-stream.workspace = true
 tokio-util = { workspace = true, features = [ "codec" ] }
 tower-service.workspace = true
+tracing.workspace = true
 url.workspace = true
 walkdir.workspace = true
 xdg.workspace = true
@@ -46,6 +46,7 @@ proxmox-auth-api = { workspace = true, features = [ "api", "ticket", "pam-authen
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
 proxmox-io.workspace = true
 proxmox-lang.workspace = true
+proxmox-log.workspace = true
 proxmox-rest-server = { workspace = true, features = [ "templates" ] }
 proxmox-router = { workspace = true, features = [ "cli", "server"] }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }

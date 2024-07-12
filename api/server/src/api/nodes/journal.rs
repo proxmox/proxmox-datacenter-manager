@@ -1,8 +1,5 @@
-use std::process::{Command, Stdio};
-
 use anyhow::Error;
-use serde_json::{json, Value};
-use std::io::{BufRead, BufReader};
+use serde_json::Value;
 
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
