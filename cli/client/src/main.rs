@@ -15,6 +15,7 @@ use pdm_client::PdmClient;
 #[macro_use]
 pub mod env;
 
+pub mod acl;
 pub mod config;
 pub mod pve;
 pub mod remotes;
@@ -93,6 +94,7 @@ fn main_do() -> Result<(), Error> {
         .insert("pve", pve::cli())
         .insert("remote", remotes::cli())
         .insert("user", user::cli())
+        .insert("acl", acl::cli())
         .insert_help()
         .build();
 
