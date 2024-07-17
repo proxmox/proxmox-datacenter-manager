@@ -3,12 +3,14 @@
 use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
 use proxmox_sortable_macro::sortable;
 
+mod acl;
 mod domains;
 mod tfa;
 mod users;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
+    ("acl", &acl::ROUTER),
     ("domains", &domains::ROUTER),
     ("tfa", &tfa::ROUTER),
     (
