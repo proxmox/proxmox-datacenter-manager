@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use serde::Serialize;
-use serde_json::json;
+use serde_json::{json, Value};
 
 use proxmox_access_control::types::{User, UserWithTokens};
 use proxmox_client::{Error, HttpApiClient};
 
 use pdm_api_types::remotes::Remote;
-use pdm_api_types::{ConfigurationState, RemoteUpid};
+use pdm_api_types::{AclListItem, Authid, ConfigurationState, RemoteUpid};
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
 
@@ -78,7 +78,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     }
 
     pub async fn create_user(&self, config: &User, password: Option<&str>) -> Result<(), Error> {
-        #[derive(serde::Serialize)]
+        #[derive(Serialize)]
         struct CreateUser<'a> {
             password: Option<&'a str>,
             #[serde(flatten)]
@@ -99,7 +99,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         password: Option<&str>,
         delete: &[pdm_api_types::DeletableUserProperty],
     ) -> Result<(), Error> {
-        #[derive(serde::Serialize)]
+        #[derive(Serialize)]
         struct UpdateUser<'a> {
             #[serde(flatten)]
             updater: &'a proxmox_access_control::types::UserUpdater,
@@ -401,6 +401,80 @@ impl<T: HttpApiClient> PdmClient<T> {
         let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status?wait=1");
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
+
+    pub async fn read_acl(
+        &self,
+        path: Option<&str>,
+        exact: bool,
+    ) -> Result<(Vec<AclListItem>, Option<Value>), Error> {
+        let mut query = format!("/api2/extjs/access/acl?exact={}", exact as u8);
+        let mut sep = '?';
+        pve_api_types::client::add_query_arg(&mut query, &mut sep, "path", &path);
+        let mut res = self.0.get(&query).await?.expect_json()?;
+        Ok((res.data, res.attribs.remove("digest")))
+    }
+
+    pub async fn update_acl(
+        &self,
+        path: &str,
+        role: &str,
+        params: &UpdateAcl,
+        digest: Option<Value>,
+    ) -> Result<(), Error> {
+        #[derive(Serialize)]
+        struct UpdateAclArgs<'a> {
+            path: &'a str,
+            role: &'a str,
+            #[serde(flatten)]
+            params: &'a UpdateAcl,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            digest: Option<Value>,
+        }
+
+        let api_path = "/api2/extjs/access/acl";
+        self.0
+            .put(
+                api_path,
+                &UpdateAclArgs {
+                    path,
+                    role,
+                    params,
+                    digest,
+                },
+            )
+            .await?
+            .nodata()
+    }
+
+    pub async fn delete_acl(
+        &self,
+        path: &str,
+        role: &str,
+        digest: Option<Value>,
+    ) -> Result<(), Error> {
+        #[derive(Serialize)]
+        struct UpdateAclArgs<'a> {
+            path: &'a str,
+            role: &'a str,
+            delete: bool,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            digest: Option<Value>,
+        }
+
+        let api_path = "/api2/extjs/access/acl";
+        self.0
+            .put(
+                api_path,
+                &UpdateAclArgs {
+                    path,
+                    role,
+                    delete: true,
+                    digest,
+                },
+            )
+            .await?
+            .nodata()
+    }
 }
 
 /// Builder for remote migration parameters - common parameters.
@@ -539,7 +613,7 @@ where
     serializer.serialize_str(&output)
 }
 
-#[derive(serde::Serialize)]
+#[derive(Serialize)]
 struct AddTfaEntry {
     #[serde(rename = "type")]
     ty: proxmox_tfa::TfaType,
@@ -583,4 +657,12 @@ where
             percent_encoding::NON_ALPHANUMERIC,
         ));
     }
+}
+
+/// Parameters to create, update or remove an ACL entry.
+#[derive(Default, Serialize)]
+pub struct UpdateAcl {
+    pub propagate: Option<bool>,
+    pub auth_id: Option<Authid>,
+    pub group: Option<String>,
 }
