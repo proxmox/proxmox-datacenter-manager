@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+use anyhow::{Context as _, Error};
+
+use proxmox_access_control::types::User;
 use proxmox_auth_api::types::Authid;
+use proxmox_section_config::SectionConfigData;
 
 struct AccessControlConfig;
 
@@ -36,6 +40,28 @@ impl proxmox_access_control::init::AccessControlConfig for AccessControlConfig {
 
     fn role_admin(&self) -> Option<&str> {
         Some("Administrator")
+    }
+
+    fn init_user_config(&self, config: &mut SectionConfigData) -> Result<(), Error> {
+        if !config.sections.contains_key("root@pam") {
+            config
+                .set_data(
+                    "root@pam",
+                    "user",
+                    User {
+                        userid: "root@pam".parse().expect("invalid user id"),
+                        comment: Some("Superuser".to_string()),
+                        enable: None,
+                        expire: None,
+                        firstname: None,
+                        lastname: None,
+                        email: None,
+                    },
+                )
+                .context("failed to insert default user into user config")?
+        }
+
+        Ok(())
     }
 }
 
