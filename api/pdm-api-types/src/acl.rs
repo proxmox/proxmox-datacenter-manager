@@ -6,9 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_lang::constnamedbitmap;
 use proxmox_schema::api_types::SAFE_ID_REGEX_STR;
-use proxmox_schema::{
-    api, const_regex, ApiStringFormat, BooleanSchema, EnumEntry, Schema, StringSchema,
-};
+use proxmox_schema::{api, const_regex, ApiStringFormat, BooleanSchema, Schema, StringSchema};
 
 const_regex! {
     pub ACL_PATH_REGEX = concatcp!(r"^(?:/|", r"(?:/", SAFE_ID_REGEX_STR, ")+", r")$");
@@ -134,31 +132,29 @@ pub const ACL_PROPAGATE_SCHEMA: Schema =
         .default(true)
         .schema();
 
-pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new("Type of 'ugid' property.")
-    .format(&ApiStringFormat::Enum(&[
-        EnumEntry::new("user", "User"),
-        EnumEntry::new("group", "Group"),
-    ]))
-    .schema();
+#[api]
+/// Type of the 'ugid' property in the ACL entry list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AclUgidType {
+    /// An entry for a user (or token).
+    User,
+    /// An entry for a group.
+    Group,
+}
+serde_plain::derive_display_from_serialize!(AclUgidType);
+serde_plain::derive_fromstr_from_deserialize!(AclUgidType);
 
 #[api(
     properties: {
-        propagate: {
-            schema: ACL_PROPAGATE_SCHEMA,
-        },
-        path: {
-            schema: ACL_PATH_SCHEMA,
-        },
-        ugid_type: {
-            schema: ACL_UGID_TYPE_SCHEMA,
-        },
+        propagate: { schema: ACL_PROPAGATE_SCHEMA, },
+        path: { schema: ACL_PATH_SCHEMA, },
+        ugid_type: { type: AclUgidType },
         ugid: {
             type: String,
             description: "User or Group ID.",
         },
-        roleid: {
-            type: Role,
-        }
+        roleid: { type: Role }
     }
 )]
 #[derive(Serialize, Deserialize)]
@@ -166,7 +162,7 @@ pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new("Type of 'ugid' prope
 pub struct AclListItem {
     pub path: String,
     pub ugid: String,
-    pub ugid_type: String,
+    pub ugid_type: AclUgidType,
     pub propagate: bool,
     pub roleid: String,
 }

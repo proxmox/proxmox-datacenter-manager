@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use proxmox_access_control::types::{User, UserWithTokens};
@@ -406,29 +406,31 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         path: Option<&str>,
         exact: bool,
-    ) -> Result<(Vec<AclListItem>, Option<Value>), Error> {
+    ) -> Result<(Vec<AclListItem>, Option<ConfigDigest>), Error> {
         let mut query = format!("/api2/extjs/access/acl?exact={}", exact as u8);
         let mut sep = '?';
         pve_api_types::client::add_query_arg(&mut query, &mut sep, "path", &path);
         let mut res = self.0.get(&query).await?.expect_json()?;
-        Ok((res.data, res.attribs.remove("digest")))
+        Ok((res.data, res.attribs.remove("digest").map(ConfigDigest)))
     }
 
     pub async fn update_acl(
         &self,
+        recipient: AclRecipient<'_>,
         path: &str,
         role: &str,
-        params: &UpdateAcl,
-        digest: Option<Value>,
+        propagate: bool,
+        digest: Option<ConfigDigest>,
     ) -> Result<(), Error> {
         #[derive(Serialize)]
         struct UpdateAclArgs<'a> {
             path: &'a str,
             role: &'a str,
+            propagate: bool,
             #[serde(flatten)]
-            params: &'a UpdateAcl,
+            recipient: AclRecipient<'a>,
             #[serde(skip_serializing_if = "Option::is_none")]
-            digest: Option<Value>,
+            digest: Option<ConfigDigest>,
         }
 
         let api_path = "/api2/extjs/access/acl";
@@ -438,7 +440,8 @@ impl<T: HttpApiClient> PdmClient<T> {
                 &UpdateAclArgs {
                     path,
                     role,
-                    params,
+                    propagate,
+                    recipient,
                     digest,
                 },
             )
@@ -448,17 +451,20 @@ impl<T: HttpApiClient> PdmClient<T> {
 
     pub async fn delete_acl(
         &self,
+        recipient: AclRecipient<'_>,
         path: &str,
         role: &str,
-        digest: Option<Value>,
+        digest: Option<ConfigDigest>,
     ) -> Result<(), Error> {
         #[derive(Serialize)]
         struct UpdateAclArgs<'a> {
             path: &'a str,
             role: &'a str,
+            #[serde(flatten)]
+            recipient: AclRecipient<'a>,
             delete: bool,
             #[serde(skip_serializing_if = "Option::is_none")]
-            digest: Option<Value>,
+            digest: Option<ConfigDigest>,
         }
 
         let api_path = "/api2/extjs/access/acl";
@@ -468,6 +474,7 @@ impl<T: HttpApiClient> PdmClient<T> {
                 &UpdateAclArgs {
                     path,
                     role,
+                    recipient,
                     delete: true,
                     digest,
                 },
@@ -659,10 +666,44 @@ where
     }
 }
 
-/// Parameters to create, update or remove an ACL entry.
-#[derive(Default, Serialize)]
-pub struct UpdateAcl {
-    pub propagate: Option<bool>,
-    pub auth_id: Option<Authid>,
-    pub group: Option<String>,
+/// ACL entries are either for a user or for a group.
+#[derive(Clone, Serialize)]
+pub enum AclRecipient<'a> {
+    #[serde(rename = "auth-id")]
+    User(&'a Authid),
+
+    #[serde(rename = "group")]
+    Group(&'a str),
+}
+
+/// Some calls return an optional configuration digest. This can be passed back to the API as-is on
+/// update calls to avoid modifying things based on outdated data.
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct ConfigDigest(Value);
+
+/// Digests are usually a string of a hash, but it's best to treat them as arbitrary blobs and pass
+/// them back uninterpreted, therefore [`ConfigDigest`] can be converted to and back from a
+/// [`serde_json::Value`].
+impl From<Value> for ConfigDigest {
+    fn from(value: Value) -> Self {
+        Self(value)
+    }
+}
+///
+/// Digests are usually a string of a hash, but it's best to treat them as arbitrary blobs and pass
+/// them back uninterpreted, therefore [`ConfigDigest`] can be converted to and back from a
+/// [`serde_json::Value`].
+impl From<ConfigDigest> for Value {
+    fn from(value: ConfigDigest) -> Self {
+        value.0
+    }
+}
+
+/// From the command line we always get a `String`, therefore we allow building a [`ConfigDigest`]
+/// from a `String. Note that we do not implement `FromStr` as this is not a "parsed" value,
+/// instead, this should clarify that we do not want the digest to be interpreted.
+impl From<String> for ConfigDigest {
+    fn from(value: String) -> Self {
+        Self(value.into())
+    }
 }

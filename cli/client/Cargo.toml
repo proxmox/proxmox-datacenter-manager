@@ -32,6 +32,7 @@ pdm-client.workspace = true
 proxmox-access-control.workspace = true
 proxmox-async.workspace = true
 proxmox-client = { workspace = true, features = [ "hyper-client" ] }
+proxmox-config-digest.workspace = true
 proxmox-fido2.workspace = true
 proxmox-lang.workspace = true
 proxmox-login.workspace = true

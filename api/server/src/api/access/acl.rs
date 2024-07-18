@@ -7,8 +7,8 @@ use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
 use pdm_api_types::{
-    AclListItem, Authid, Role, ACL_PATH_SCHEMA, ACL_PROPAGATE_SCHEMA, PRIV_ACCESS_AUDIT,
-    PRIV_ACCESS_MODIFY, PROXMOX_GROUP_ID_SCHEMA,
+    AclListItem, AclUgidType, Authid, Role, ACL_PATH_SCHEMA, ACL_PROPAGATE_SCHEMA,
+    PRIV_ACCESS_AUDIT, PRIV_ACCESS_MODIFY, PROXMOX_GROUP_ID_SCHEMA,
 };
 
 pub(super) const ROUTER: Router = Router::new()
@@ -45,7 +45,7 @@ fn extract_acl_node_data(
                     path.to_string()
                 },
                 propagate: *propagate,
-                ugid_type: String::from("user"),
+                ugid_type: AclUgidType::User,
                 ugid: user.to_string(),
                 roleid: role.to_string(),
             });
@@ -64,7 +64,7 @@ fn extract_acl_node_data(
                     path.to_string()
                 },
                 propagate: *propagate,
-                ugid_type: String::from("group"),
+                ugid_type: AclUgidType::Group,
                 ugid: group.to_string(),
                 roleid: role.to_string(),
             });
@@ -165,6 +165,7 @@ fn read_acl(
                 optional: true,
                 description: "Remove permissions (instead of adding it).",
                 type: bool,
+                default: false,
             },
             digest: {
                 optional: true,
@@ -185,7 +186,7 @@ fn update_acl(
     propagate: Option<bool>,
     auth_id: Option<Authid>,
     group: Option<String>,
-    delete: Option<bool>,
+    delete: bool,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -222,8 +223,6 @@ fn update_acl(
     expected_digest.detect_modification(digest.as_ref())?;
 
     let propagate = propagate.unwrap_or(true);
-
-    let delete = delete.unwrap_or(false);
 
     if let Some(ref _group) = group {
         bail!("parameter 'group' - groups are currently not supported.");
