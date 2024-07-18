@@ -3,7 +3,7 @@
 use std::io;
 use std::sync::OnceLock;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context as _, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_auth_api::types::Userid;
@@ -241,6 +241,43 @@ impl PdmConnectArgs {
         self.normalize()?;
 
         Ok(())
+    }
+
+    pub fn get_password(&self) -> Result<Option<String>, Error> {
+        if let Some(file) = &self.password_file {
+            match std::fs::read_to_string(file) {
+                Ok(mut pw) => {
+                    if pw.ends_with('\n') {
+                        let _ = pw.pop();
+                    }
+                    return Ok(Some(pw));
+                }
+                Err(err) => {
+                    if err.kind() != io::ErrorKind::NotFound {
+                        return Err(Error::from(err).context(format!("error reading {file:?}")));
+                    }
+                }
+            }
+        }
+
+        if let Some(cmd) = &self.password_command {
+            let result = std::process::Command::new("sh")
+                .arg("-c")
+                .arg(cmd)
+                .stderr(std::process::Stdio::inherit())
+                .output()?;
+            if !result.status.success() {
+                bail!("password command exited with errors");
+            }
+            let mut pw = String::from_utf8(result.stdout)
+                .context("password command returned non-utf8 data")?;
+            if pw.ends_with('\n') {
+                let _ = pw.pop();
+            }
+            return Ok(Some(pw));
+        }
+
+        Ok(None)
     }
 
     /*

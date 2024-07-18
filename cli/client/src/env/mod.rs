@@ -194,6 +194,10 @@ impl Env {
     }
 
     pub fn query_password(&self, api_url: &http::Uri, userid: &Userid) -> Result<String, Error> {
+        if let Some(pw) = self.connect_args.get_password()? {
+            return Ok(pw);
+        }
+
         println!("Password required for user {userid} at {api_url}");
         let password = proxmox_sys::linux::tty::read_password("Password: ")?;
         Ok(String::from_utf8(password)?)
