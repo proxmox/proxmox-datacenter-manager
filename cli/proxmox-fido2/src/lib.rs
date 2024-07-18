@@ -28,6 +28,8 @@ impl fmt::Display for OpenError {
 #[non_exhaustive]
 pub enum Error {
     PinRequired,
+    UnsupportedAlgorithm,
+    NoCredentials,
     Other(String),
 }
 
@@ -37,7 +39,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::PinRequired => f.write_str("pin required"),
-            Self::Other(err) => f.write_str(&err),
+            Self::UnsupportedAlgorithm => f.write_str("unsupported algorithm"),
+            Self::NoCredentials => f.write_str("no credentials"),
+            Self::Other(err) => f.write_str(err),
         }
     }
 }
@@ -45,6 +49,8 @@ impl fmt::Display for Error {
 fn result_msg(lib: &Lib, res: libc::c_int, what: &'static str) -> Result<(), Error> {
     match res {
         0 => Ok(()),
+        0x26 => Err(Error::UnsupportedAlgorithm),
+        0x2e => Err(Error::NoCredentials),
         0x36 => Err(Error::PinRequired),
         other => Err(Error::Other(format!(
             "{what}: {:?}",
@@ -120,8 +126,10 @@ pub struct Lib {
 
     fido_cred_new: extern "C" fn() -> *mut libc::c_void,
     fido_cred_free: extern "C" fn(&mut *mut libc::c_void),
+    fido_cred_exclude: extern "C" fn(*mut libc::c_void, *const u8, libc::size_t) -> libc::c_int,
     fido_cred_set_extensions: extern "C" fn(*mut libc::c_void, libc::c_int) -> libc::c_int,
     fido_cred_set_rp: extern "C" fn(*mut libc::c_void, *const i8, *const i8) -> libc::c_int,
+    fido_cred_set_fmt: extern "C" fn(*mut libc::c_void, *const i8) -> libc::c_int,
     fido_cred_set_type: extern "C" fn(*mut libc::c_void, libc::c_int) -> libc::c_int,
     fido_cred_set_user: extern "C" fn(
         *mut libc::c_void,
@@ -138,6 +146,12 @@ pub struct Lib {
     fido_cred_set_prot: extern "C" fn(*mut libc::c_void, libc::c_int) -> libc::c_int,
     fido_cred_id_ptr: extern "C" fn(*mut libc::c_void) -> *const u8,
     fido_cred_id_len: extern "C" fn(*mut libc::c_void) -> libc::size_t,
+    fido_cred_sig_ptr: extern "C" fn(*mut libc::c_void, libc::size_t) -> *const u8,
+    fido_cred_sig_len: extern "C" fn(*mut libc::c_void, libc::size_t) -> libc::size_t,
+    fido_cred_authdata_ptr: extern "C" fn(*mut libc::c_void, libc::size_t) -> *const u8,
+    fido_cred_authdata_len: extern "C" fn(*mut libc::c_void, libc::size_t) -> libc::size_t,
+    fido_cred_x5c_ptr: extern "C" fn(*mut libc::c_void, libc::size_t) -> *const u8,
+    fido_cred_x5c_len: extern "C" fn(*mut libc::c_void, libc::size_t) -> libc::size_t,
 
     fido_assert_new: extern "C" fn() -> *mut libc::c_void,
     fido_assert_free: extern "C" fn(&mut *mut libc::c_void),
@@ -226,8 +240,10 @@ impl Lib {
 
             fido_cred_new: lib.get(c"fido_cred_new")?,
             fido_cred_free: lib.get(c"fido_cred_free")?,
+            fido_cred_exclude: lib.get(c"fido_cred_exclude")?,
             fido_cred_set_extensions: lib.get(c"fido_cred_set_extensions")?,
             fido_cred_set_rp: lib.get(c"fido_cred_set_rp")?,
+            fido_cred_set_fmt: lib.get(c"fido_cred_set_fmt")?,
             fido_cred_set_type: lib.get(c"fido_cred_set_type")?,
             fido_cred_set_user: lib.get(c"fido_cred_set_user")?,
             fido_cred_set_clientdata_hash: lib.get(c"fido_cred_set_clientdata_hash")?,
@@ -236,6 +252,12 @@ impl Lib {
             fido_cred_set_prot: lib.get(c"fido_cred_set_prot")?,
             fido_cred_id_ptr: lib.get(c"fido_cred_id_ptr")?,
             fido_cred_id_len: lib.get(c"fido_cred_id_len")?,
+            fido_cred_sig_ptr: lib.get(c"fido_cred_sig_ptr")?,
+            fido_cred_sig_len: lib.get(c"fido_cred_sig_len")?,
+            fido_cred_authdata_ptr: lib.get(c"fido_cred_authdata_ptr")?,
+            fido_cred_authdata_len: lib.get(c"fido_cred_authdata_len")?,
+            fido_cred_x5c_ptr: lib.get(c"fido_cred_x5c_ptr")?,
+            fido_cred_x5c_len: lib.get(c"fido_cred_x5c_len")?,
 
             fido_assert_new: lib.get(c"fido_assert_new")?,
             fido_assert_free: lib.get(c"fido_assert_free")?,
@@ -289,10 +311,11 @@ impl Lib {
             bail!("failed to create new fido2 credentials");
         }
 
-        Ok(FidoCred {
+        FidoCred {
             lib: Arc::clone(self),
             cred,
-        })
+        }
+        .set_format("packed")
     }
 
     pub fn assert_new(self: &Arc<Self>) -> Result<FidoAssert, Error> {
@@ -483,7 +506,7 @@ impl FidoDev {
         (self.lib.fido_dev_is_fido2)(self.dev) != 0
     }
 
-    pub fn make_cred<'c>(&self, cred: &'c FidoCred, pin: Option<&str>) -> Result<(), Error> {
+    pub fn make_cred(&self, cred: &FidoCred, pin: Option<&str>) -> Result<(), Error> {
         let pin_cstr;
         let pin = match pin {
             Some(pin) => {
@@ -500,7 +523,7 @@ impl FidoDev {
         )
     }
 
-    pub fn assert<'c>(&self, assert: &'c FidoAssert, pin: Option<&str>) -> Result<(), Error> {
+    pub fn assert(&self, assert: &FidoAssert, pin: Option<&str>) -> Result<(), Error> {
         let pin_cstr;
         let pin = match pin {
             Some(pin) => {
@@ -589,7 +612,7 @@ impl Drop for CborInfo {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct DeviceOptions {
     pub hmac_secret: bool,
     pub resident_key: bool,
@@ -632,12 +655,30 @@ impl FidoCred {
         Ok(self)
     }
 
-    /// Use COSE_ES256 algorithm.
-    pub fn set_cose_es256(self) -> Result<Self, Error> {
-        if (self.lib.fido_cred_set_type)(self.cred, -7) != 0 {
-            bail!("failed to set credentials algorithm");
+    /// Set the format.
+    /// NOTE: We do not want to support U2F currently, so we don't publicly expose this.
+    fn set_format(self, kind: &str) -> Result<Self, Error> {
+        let kind =
+            CString::new(kind).map_err(|_| format_err!("invalid bytes in format specification"))?;
+        if (self.lib.fido_cred_set_fmt)(self.cred, kind.as_ptr()) != 0 {
+            bail!("failed to set fido format");
         }
         Ok(self)
+    }
+
+    /// Set the COSE type to use for the credentials.
+    pub fn set_cose_type(self, ty: libc::c_int) -> Result<Self, Error> {
+        result_msg(
+            &self.lib,
+            (self.lib.fido_cred_set_type)(self.cred, ty),
+            "failed to set cerdentials algorithm",
+        )?;
+        Ok(self)
+    }
+
+    /// Use COSE_ES256 algorithm.
+    pub fn set_cose_es256(self) -> Result<Self, Error> {
+        self.set_cose_type(-7)
     }
 
     /// Set userid information.
@@ -700,6 +741,30 @@ impl FidoCred {
         Ok(self)
     }
 
+    /// Set the client data hash.
+    pub fn set_clientdata_hash(self, hash: &[u8; 32]) -> Result<Self, Error> {
+        if (self.lib.fido_cred_set_clientdata_hash)(self.cred, hash.as_ptr(), hash.len()) != 0 {
+            bail!("failed to set clientdata hash");
+        }
+        Ok(self)
+    }
+
+    /// Exclude/disallow a specific client id.
+    pub fn exclude_cred(self, cid: &[u8]) -> Result<Self, Error> {
+        if (self.lib.fido_cred_exclude)(self.cred, cid.as_ptr(), cid.len()) != 0 {
+            bail!("failed to declare excluded client id");
+        }
+        Ok(self)
+    }
+
+    /// Disable resident key.
+    pub fn set_resident_key(self, opt: FidoOpt) -> Result<Self, Error> {
+        if (self.lib.fido_cred_set_rk)(self.cred, opt) != 0 {
+            bail!("failed to set resident key requirement");
+        }
+        Ok(self)
+    }
+
     /// Disable resident key.
     pub fn disable_resident_key(self) -> Result<Self, Error> {
         if (self.lib.fido_cred_set_rk)(self.cred, FidoOpt::False) != 0 {
@@ -709,11 +774,20 @@ impl FidoCred {
     }
 
     /// Disable user verification.
+    pub fn set_user_verification(self, opt: FidoOpt) -> Result<Self, Error> {
+        if (self.lib.fido_cred_set_uv)(self.cred, opt) != 0 {
+            bail!("failed to set user verification policy");
+        }
+        Ok(self)
+    }
 
-    pub fn set_user_verification(self, on: bool) -> Result<Self, Error> {
-        let value = if on { FidoOpt::True } else { FidoOpt::False };
-        if (self.lib.fido_cred_set_uv)(self.cred, value) != 0 {
-            bail!("failed to set disable user verification");
+    /// Set credential protection policy.
+    pub fn set_protection(
+        self,
+        prot: Option<CredentialProtection>,
+    ) -> Result<Self, Error> {
+        if (self.lib.fido_cred_set_prot)(self.cred, prot.map(|p| p as i32).unwrap_or(0)) != 0 {
+            bail!("failed to set credential protection policy");
         }
         Ok(self)
     }
@@ -728,12 +802,37 @@ impl FidoCred {
         Ok(unsafe { std::slice::from_raw_parts(cid, len) })
     }
 
-    /// Disable user verification.
-    pub fn set_protection(self, prot: CredentialProtection) -> Result<Self, Error> {
-        if (self.lib.fido_cred_set_prot)(self.cred, prot as i32) != 0 {
-            bail!("failed to set credential protection policy");
+    /// Get the current signature.
+    /// Usable after creating webauthn credentials.
+    pub fn signature(&self) -> Result<&[u8], Error> {
+        let sig = (self.lib.fido_cred_sig_ptr)(self.cred, 0);
+        if sig.is_null() {
+            bail!("failed to get credentials signature pointer");
         }
-        Ok(self)
+        let len = (self.lib.fido_cred_sig_len)(self.cred, 0);
+        Ok(unsafe { std::slice::from_raw_parts(sig, len) })
+    }
+
+    /// Get the current auth data.
+    /// Usable after creating webauthn credentials.
+    pub fn auth_data(&self) -> Result<&[u8], Error> {
+        let authdata = (self.lib.fido_cred_authdata_ptr)(self.cred, 0);
+        if authdata.is_null() {
+            bail!("failed to get credentials auth data pointer");
+        }
+        let len = (self.lib.fido_cred_authdata_len)(self.cred, 0);
+        Ok(unsafe { std::slice::from_raw_parts(authdata, len) })
+    }
+
+    /// Get the current x5c value to generate an attestation object.
+    /// Usable after creating webauthn credentials.
+    pub fn x5c(&self) -> Result<&[u8], Error> {
+        let x5c = (self.lib.fido_cred_x5c_ptr)(self.cred, 0);
+        if x5c.is_null() {
+            bail!("failed to get credentials x5c data pointer");
+        }
+        let len = (self.lib.fido_cred_x5c_len)(self.cred, 0);
+        Ok(unsafe { std::slice::from_raw_parts(x5c, len) })
     }
 }
 

@@ -185,6 +185,67 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(result.recovery)
     }
 
+    pub async fn add_webauthn(
+        &self,
+        userid: &str,
+        password: Option<&str>,
+        description: &str,
+    ) -> Result<String, Error> {
+        let path = format!("/api2/extjs/access/tfa/{userid}");
+
+        let result: proxmox_tfa::TfaUpdateInfo = self
+            .0
+            .post(
+                &path,
+                &AddTfaEntry {
+                    ty: proxmox_tfa::TfaType::Webauthn,
+                    description: Some(description.to_string()),
+                    password: password.map(str::to_owned),
+                    ..AddTfaEntry::empty()
+                },
+            )
+            .await?
+            .expect_json()?
+            .data;
+
+        result.challenge.ok_or_else(|| {
+            Error::BadApi(
+                "api returned no challenge to confirm webauthn entry".to_string(),
+                None,
+            )
+        })
+    }
+
+    pub async fn add_webauthn_finish(
+        &self,
+        userid: &str,
+        password: Option<&str>,
+        challenge: &str,
+        response: &str,
+    ) -> Result<String, Error> {
+        let path = format!("/api2/extjs/access/tfa/{userid}");
+
+        let result: proxmox_tfa::TfaUpdateInfo = self
+            .0
+            .post(
+                &path,
+                &AddTfaEntry {
+                    ty: proxmox_tfa::TfaType::Webauthn,
+                    challenge: Some(challenge.to_string()),
+                    value: Some(response.to_string()),
+                    password: password.map(str::to_owned),
+                    ..AddTfaEntry::empty()
+                },
+            )
+            .await?
+            .expect_json()?
+            .data;
+
+        result
+            .id
+            .ok_or_else(|| Error::BadApi("api returned no webauthn entry id".to_string(), None))
+    }
+
     pub async fn pve_list_nodes(
         &self,
         remote: &str,
