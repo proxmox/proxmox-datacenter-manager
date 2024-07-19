@@ -214,7 +214,7 @@ impl PdmConnectArgs {
             */
 
             if remote.address.is_some() {
-                self.host = remote.address.clone();
+                self.host.clone_from(&remote.address);
             }
 
             if self.port.is_none() {
@@ -222,19 +222,20 @@ impl PdmConnectArgs {
             }
 
             if self.user.is_none() {
-                self.user = remote.args.user.clone();
+                self.user.clone_from(&remote.args.user);
             }
 
             if self.fingerprint.is_none() {
-                self.fingerprint = remote.args.fingerprint.clone();
+                self.fingerprint.clone_from(&remote.args.fingerprint);
             }
 
             if self.password_file.is_none() {
-                self.password_file = remote.args.password_file.clone();
+                self.password_file.clone_from(&remote.args.password_file);
             }
 
             if self.password_command.is_none() {
-                self.password_command = remote.args.password_command.clone();
+                self.password_command
+                    .clone_from(&remote.args.password_command);
             }
         }
 

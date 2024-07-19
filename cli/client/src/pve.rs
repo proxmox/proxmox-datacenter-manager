@@ -705,7 +705,7 @@ async fn remote_migrate_lxc(
         params = params.bwlimit(bwlimit);
     }
     if restart {
-        params = params.restart(true, timeout.map(|secs| Duration::from_secs(secs)));
+        params = params.restart(true, timeout.map(Duration::from_secs));
     }
     for mapping in map_storage {
         let pos = mapping
