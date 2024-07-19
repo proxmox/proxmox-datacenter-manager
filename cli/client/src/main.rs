@@ -119,8 +119,8 @@ fn main_do() -> Result<(), Error> {
 #[api]
 /// Log into a server.
 async fn login() -> Result<(), Error> {
-    if env().connect_args.host.is_none() || env().connect_args.user.is_none() {
-        bail!("no server chosen, please use the '--server=https://USER@HOST' parameter");
+    if env().connect_args.host.is_none() {
+        bail!("no server chosen, please use the '--host' parameters");
     }
 
     let client = client()?;
