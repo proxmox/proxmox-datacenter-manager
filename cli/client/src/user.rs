@@ -353,8 +353,6 @@ async fn add_webauthn(
     let challenge = serde_json::from_str(&challenge_str)
         .context("failed to decode webauthn credential creation challenge")?;
 
-    println!("{}", serde_json::to_string_pretty(&challenge)?);
-
     let response = perform_fido_creation(&uri, &challenge)?;
 
     let id = client
