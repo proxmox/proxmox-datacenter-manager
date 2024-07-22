@@ -120,8 +120,7 @@ pub fn add_remote(entry: Remote) -> Result<(), Error> {
         },
     },
     access: {
-        permission: &Permission::Anybody,
-        description: "Requires 'modify' access on `/resource/{id}`.",
+        permission: &Permission::Privilege(&["resource", "{id}"], PRIV_RESOURCE_MODIFY, false),
     },
 )]
 /// List all the remotes this instance is managing.
@@ -129,19 +128,7 @@ pub fn update_remote(
     id: String,
     updater: PveRemoteUpdater,
     digest: Option<ConfigDigest>,
-    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let auth_id: Authid = rpcenv
-        .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
-        .parse()?;
-    CachedUserInfo::new()?.check_privs(
-        &auth_id,
-        &["resource", &id],
-        PRIV_RESOURCE_MODIFY,
-        false,
-    )?;
-
     let (mut remotes, config_digest) = pdm_config::remotes::config()?;
     config_digest.detect_modification(digest.as_ref())?;
 
@@ -199,24 +186,14 @@ pub fn remove_remote(id: String) -> Result<(), Error> {
     },
     returns: { type: pve_api_types::VersionResponse },
     access: {
-        permission: &Permission::Anybody,
-        description: "Requires 'audit' access on `/resource/{id}`.",
+        permission: &Permission::Privilege(&["resource", "{id}"], PRIV_RESOURCE_AUDIT, false),
     },
 )]
 /// Query the remote's version.
 ///
 /// FIXME: Should we add an option to explicitly query the entire cluster to get a full version
 /// overview?
-pub async fn version(
-    id: String,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<pve_api_types::VersionResponse, Error> {
-    let auth_id: Authid = rpcenv
-        .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
-        .parse()?;
-    CachedUserInfo::new()?.check_privs(&auth_id, &["resource", &id], PRIV_RESOURCE_AUDIT, false)?;
-
+pub async fn version(id: String) -> Result<pve_api_types::VersionResponse, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     match get_remote(&remotes, &id)? {
