@@ -399,7 +399,7 @@ async fn stop_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<()
                 items: {
                     type: String,
                     description: "Map a source storage to a target storage.",
-                    type_text: "FROM=TO",
+                    type_text: "FROM:TO,...",
                 },
             },
             "map-bridge": {
@@ -408,7 +408,7 @@ async fn stop_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<()
                 items: {
                     type: String,
                     description: "Map a source network bridge to a target bridge.",
-                    type_text: "FROM=TO",
+                    type_text: "FROM:TO,...",
                 },
             },
             bwlimit: {
@@ -651,7 +651,7 @@ async fn stop_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(),
                 items: {
                     type: String,
                     description: "Map a source storage to a target storage.",
-                    type_text: "FROM=TO",
+                    type_text: "FROM:TO,...",
                 },
             },
             "map-bridge": {
@@ -660,7 +660,7 @@ async fn stop_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(),
                 items: {
                     type: String,
                     description: "Map a source network bridge to a target bridge.",
-                    type_text: "FROM=TO",
+                    type_text: "FROM:TO,...",
                 },
             },
             bwlimit: {
