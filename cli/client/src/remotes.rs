@@ -14,7 +14,10 @@ use crate::client;
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_REMOTES))
-        .insert("add", CliCommand::new(&API_METHOD_ADD_REMOTE))
+        .insert(
+            "add",
+            CliCommand::new(&API_METHOD_ADD_REMOTE).arg_param(&["type", "id"]),
+        )
         .insert(
             "remove",
             CliCommand::new(&API_METHOD_REMOVE_REMOTE).arg_param(&["id"]),
