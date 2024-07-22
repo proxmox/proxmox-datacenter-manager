@@ -19,8 +19,8 @@ pub fn cli() -> CommandLineInterface {
             CliCommand::new(&API_METHOD_ADD_REMOTE).arg_param(&["type", "id"]),
         )
         .insert(
-            "remove",
-            CliCommand::new(&API_METHOD_REMOVE_REMOTE).arg_param(&["id"]),
+            "delete",
+            CliCommand::new(&API_METHOD_DELETE_REMOTE).arg_param(&["id"]),
         )
         .insert(
             "update",
@@ -121,8 +121,8 @@ async fn update_remote(id: String, updater: PveRemoteUpdater) -> Result<(), Erro
     }
 )]
 /// Add a new remote.
-async fn remove_remote(id: String) -> Result<(), Error> {
-    client()?.remove_remote(&id).await?;
+async fn delete_remote(id: String) -> Result<(), Error> {
+    client()?.delete_remote(&id).await?;
     Ok(())
 }
 

@@ -45,8 +45,8 @@ fn tfa_cli() -> CommandLineInterface {
             CliCommand::new(&API_METHOD_ADD_TFA).arg_param(&["type", "description"]),
         )
         .insert(
-            "remove",
-            CliCommand::new(&API_METHOD_REMOVE_TFA).arg_param(&["id"]),
+            "delete",
+            CliCommand::new(&API_METHOD_DELETE_TFA).arg_param(&["id"]),
         )
         //.insert(
         //    "update",
@@ -380,8 +380,8 @@ async fn add_webauthn(
         }
     }
 )]
-/// Remove a TFA entry by id.
-async fn remove_tfa(userid: Option<String>, id: String) -> Result<(), Error> {
+/// Delete a TFA entry by id.
+async fn delete_tfa(userid: Option<String>, id: String) -> Result<(), Error> {
     let env_userid = env().need_userid()?;
 
     let userid = userid
@@ -396,7 +396,7 @@ async fn remove_tfa(userid: Option<String>, id: String) -> Result<(), Error> {
     };
 
     Ok(client()?
-        .remove_tfa_entry(&userid, password.as_deref(), &id)
+        .delete_tfa_entry(&userid, password.as_deref(), &id)
         .await?)
 }
 

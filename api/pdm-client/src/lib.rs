@@ -47,7 +47,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(())
     }
 
-    pub async fn remove_remote(&self, remote: &str) -> Result<(), Error> {
+    pub async fn delete_remote(&self, remote: &str) -> Result<(), Error> {
         let path = format!("/api2/extjs/remotes/{remote}");
         self.0.delete(&path).await?.nodata()?;
         Ok(())
@@ -141,7 +141,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
-    pub async fn remove_tfa_entry(
+    pub async fn delete_tfa_entry(
         &self,
         userid: &str,
         password: Option<&str>,
