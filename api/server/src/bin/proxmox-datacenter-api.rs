@@ -154,6 +154,7 @@ async fn run(debug: bool) -> Result<(), Error> {
         )
         .index_handler_func(|e, p| Box::pin(get_index_future(e, p)))
         .auth_handler_func(|h, m| Box::pin(auth::check_auth(h, m)))
+        .register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
         .aliases([
             ("extjs", "/usr/share/javascript/extjs"),
             ("qrcodejs", "/usr/share/javascript/qrcodejs"),

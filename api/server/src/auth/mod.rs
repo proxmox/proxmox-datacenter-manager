@@ -7,8 +7,10 @@ use std::sync::OnceLock;
 
 use anyhow::{bail, Error};
 
+use const_format::concatcp;
 use proxmox_access_control::CachedUserInfo;
 use proxmox_auth_api::api::{Authenticator, LockedTfaConfig};
+use proxmox_auth_api::ticket::Ticket;
 use proxmox_auth_api::types::Authid;
 use proxmox_auth_api::{HMACKey, Keyring};
 use proxmox_rest_server::AuthError;
@@ -21,6 +23,8 @@ pub mod certs;
 pub mod csrf;
 pub mod key;
 pub mod tfa;
+
+pub const TERM_PREFIX: &str = "PDMTERM";
 
 /// Pre-load lazy-static pre-load things like csrf & auth key
 pub fn init(use_private_key: bool) {
@@ -127,17 +131,44 @@ impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
         proxmox_access_control::token_shadow::verify_secret(token_id, token_secret)
     }
 
-    // /// Check path based tickets. (Used for terminal tickets).
-    //fn check_path_ticket(
-    //    &self,
-    //    userid: &Userid,
-    //    password: &str,
-    //    path: String,
-    //    privs: String,
-    //    port: u16,
-    //) -> Result<Option<bool>, Error> {
-    //    Ok(None)
-    //}
+    /// Check path based tickets. (Used for terminal tickets).
+    fn check_path_ticket(
+        &self,
+        userid: &Userid,
+        password: &str,
+        path: String,
+        privs: String,
+        port: u16,
+    ) -> Result<Option<bool>, Error> {
+        if !password.starts_with(concatcp!(TERM_PREFIX, ":")) {
+            return Ok(None);
+        }
+
+        if let Ok(proxmox_auth_api::ticket::Empty) = Ticket::parse(password).and_then(|ticket| {
+            ticket.verify(
+                &self.keyring,
+                TERM_PREFIX,
+                Some(&format!("{}{}{}", userid, path, port)),
+            )
+        }) {
+            let user_info = CachedUserInfo::new()?;
+            let auth_id = Authid::from(userid.clone());
+            for (name, privilege) in pdm_api_types::PRIVILEGES {
+                if *name == privs {
+                    let mut path_vec = Vec::new();
+                    for part in path.split('/') {
+                        if !part.is_empty() {
+                            path_vec.push(part);
+                        }
+                    }
+                    user_info.check_privs(&auth_id, &path_vec, *privilege, false)?;
+                    return Ok(Some(true));
+                }
+            }
+        }
+
+        Ok(Some(false))
+    }
 }
 
 pub(crate) fn lookup_authenticator(

@@ -24,6 +24,8 @@ constnamedbitmap! {
         PRIV_SYS_AUDIT("System.Audit");
         /// `System.Modify` allows modifying system-level configuration.
         PRIV_SYS_MODIFY("System.Modify");
+        /// `Sys.Console` allows access to the system's console
+        PRIV_SYS_CONSOLE("Sys.Console");
 
         /// `Resource.Audit` allows auditing guests, storages and other resources.
         PRIV_RESOURCE_AUDIT("Resource.Audit");

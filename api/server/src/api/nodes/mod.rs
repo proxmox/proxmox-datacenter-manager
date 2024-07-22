@@ -10,7 +10,9 @@ pub mod journal;
 pub mod network;
 pub mod syslog;
 pub mod tasks;
+pub mod termproxy;
 pub mod time;
+pub mod vncwebsocket;
 
 use anyhow::Error;
 use serde_json::{json, Value};
@@ -41,5 +43,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     ("network", &network::ROUTER),
     ("syslog", &syslog::ROUTER),
     ("tasks", &tasks::ROUTER),
+    ("termproxy", &termproxy::ROUTER),
     ("time", &time::ROUTER),
+    ("vncwebsocket", &vncwebsocket::ROUTER),
 ]);
