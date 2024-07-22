@@ -1,15 +1,21 @@
 //! Manage PVE instances.
 
+use std::sync::Arc;
+
 use anyhow::{bail, format_err, Error};
 
+use proxmox_access_control::CachedUserInfo;
 use proxmox_client::{Client, TlsOptions};
-use proxmox_router::{http_err, list_subdirs_api_method, Router, SubdirMap};
+use proxmox_router::{
+    http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
+};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::{PveRemote, Remote, REMOTE_ID_SCHEMA};
 use pdm_api_types::{
-    ConfigurationState, RemoteUpid, NODE_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
+    Authid, ConfigurationState, RemoteUpid, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE,
+    PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
 use pve_api_types::client::PveClient;
 use pve_api_types::ClusterResourceKind;
@@ -109,6 +115,9 @@ pub fn connect(remote: &PveRemote) -> Result<PveClient<Client>, Error> {
         description: "List of basic PVE node information",
         items: { type: pve_api_types::ClusterNodeIndexResponse },
     },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
+    },
 )]
 /// Query the remote's version.
 ///
@@ -139,8 +148,14 @@ pub async fn list_nodes(
         description: "List all the resources in a PVE cluster.",
         items: { type: pve_api_types::ClusterResource },
     },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
+    },
 )]
 /// Query the cluster's resources.
+///
+// FIXME: Use more fine grained permissions and filter on:
+//   - `/resource/{remote-id}/{resource-type=guest,storage}/{resource-id}`
 pub async fn cluster_resources(
     remote: String,
     kind: Option<ClusterResourceKind>,
@@ -150,6 +165,39 @@ pub async fn cluster_resources(
     match get_remote(&remotes, &remote)? {
         Remote::Pve(pve) => Ok(connect(pve)?.cluster_resources(kind).await?),
     }
+}
+
+/// Common permission checks between listing qemu & lxc guests.
+///
+/// Returns the data commonly reused afterwards: (auth_id, CachedUserInfo, top_level_allowed).
+fn check_guest_list_permissions(
+    remote: &str,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(Authid, Arc<CachedUserInfo>, bool), Error> {
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .ok_or_else(|| format_err!("no authid available"))?
+        .parse()?;
+
+    let user_info = CachedUserInfo::new()?;
+
+    if !user_info.any_privs_below(&auth_id, &["resource", remote], PRIV_RESOURCE_AUDIT)? {
+        http_bail!(UNAUTHORIZED, "user has no access to resource list");
+    }
+
+    let top_level_allowed = 0 != user_info.lookup_privs(&auth_id, &["resource", remote]);
+
+    Ok((auth_id, user_info, top_level_allowed))
+}
+
+/// Shared permission check for a specific guest.
+fn check_guest_permissions(
+    auth_id: &Authid,
+    user_info: &CachedUserInfo,
+    remote: &str,
+    vmid: u32,
+) -> bool {
+    0 != user_info.lookup_privs(auth_id, &["resource", remote, "guest", &vmid.to_string()])
 }
 
 #[api(
@@ -167,27 +215,43 @@ pub async fn cluster_resources(
         description: "Get a list of VMs",
         items: { type: pve_api_types::VmEntry },
     },
+    access: {
+        permission: &Permission::Anybody,
+        description: "Returns the resources the user has access to.",
+    },
 )]
 /// Query the remote's list of qemu VMs. If no node is provided, the all nodes are queried.
 pub async fn list_qemu(
     remote: String,
     node: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<pve_api_types::VmEntry>, Error> {
+    let (auth_id, user_info, top_level_allowed) = check_guest_list_permissions(&remote, rpcenv)?;
+
     let (remotes, _) = pdm_config::remotes::config()?;
 
     let pve = match get_remote(&remotes, &remote)? {
         Remote::Pve(pve) => connect(pve)?,
     };
 
-    if let Some(node) = node {
-        Ok(pve.list_qemu(&node, None).await?)
+    let list = if let Some(node) = node {
+        pve.list_qemu(&node, None).await?
     } else {
-        let mut entry = Vec::new();
+        let mut list = Vec::new();
         for node in pve.list_nodes().await? {
-            entry.extend(pve.list_qemu(&node.node, None).await?);
+            list.extend(pve.list_qemu(&node.node, None).await?);
         }
-        Ok(entry)
+        list
+    };
+
+    if top_level_allowed {
+        return Ok(list);
     }
+
+    Ok(list
+        .into_iter()
+        .filter(|entry| check_guest_permissions(&auth_id, &user_info, &remote, entry.vmid))
+        .collect())
 }
 
 #[api(
@@ -210,22 +274,34 @@ pub async fn list_qemu(
 pub async fn list_lxc(
     remote: String,
     node: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<pve_api_types::LxcEntry>, Error> {
+    let (auth_id, user_info, top_level_allowed) = check_guest_list_permissions(&remote, rpcenv)?;
+
     let (remotes, _) = pdm_config::remotes::config()?;
 
     let pve = match get_remote(&remotes, &remote)? {
         Remote::Pve(pve) => connect(pve)?,
     };
 
-    if let Some(node) = node {
-        Ok(pve.list_lxc(&node).await?)
+    let list = if let Some(node) = node {
+        pve.list_lxc(&node).await?
     } else {
-        let mut entry = Vec::new();
+        let mut list = Vec::new();
         for node in pve.list_nodes().await? {
-            entry.extend(pve.list_lxc(&node.node).await?);
+            list.extend(pve.list_lxc(&node.node).await?);
         }
-        Ok(entry)
+        list
+    };
+
+    if top_level_allowed {
+        return Ok(list);
     }
+
+    Ok(list
+        .into_iter()
+        .filter(|entry| check_guest_permissions(&auth_id, &user_info, &remote, entry.vmid))
+        .collect())
 }
 
 #[api(
@@ -245,6 +321,9 @@ pub async fn list_lxc(
         },
     },
     returns: { type: pve_api_types::QemuConfig },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
+    },
 )]
 /// Get the configuration of a qemu VM from a remote. If a node is provided, the VM must be on that
 /// node, otherwise the node is determined automatically.
@@ -290,6 +369,9 @@ pub async fn qemu_get_config(
         },
     },
     returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
 )]
 /// Start a remote qemu vm.
 pub async fn qemu_start(
@@ -334,6 +416,9 @@ pub async fn qemu_start(
         },
     },
     returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
 )]
 /// Stop a remote qemu vm.
 pub async fn qemu_stop(
@@ -376,6 +461,9 @@ pub async fn qemu_stop(
         },
     },
     returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
 )]
 /// Perform a shutdown of a remote qemu vm.
 pub async fn qemu_shutdown(
@@ -406,6 +494,24 @@ pub async fn qemu_shutdown(
         .await?;
 
     (remote, upid.to_string()).try_into()
+}
+
+fn check_guest_delete_perms(
+    rpcenv: &mut dyn RpcEnvironment,
+    remote: &str,
+    vmid: u32,
+) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .ok_or_else(|| format_err!("no authid available"))?
+        .parse()?;
+
+    CachedUserInfo::new()?.check_privs(
+        &auth_id,
+        &["resource", remote, "guest", &vmid.to_string()],
+        PRIV_RESOURCE_DELETE,
+        false,
+    )
 }
 
 #[api(
@@ -446,6 +552,12 @@ pub async fn qemu_shutdown(
         },
     },
     returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::And(&[
+            &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
+            &Permission::Privilege(&["resource", "{target}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
+        ]),
+    },
 )]
 /// Perform a remote migration of a VM.
 #[allow(clippy::too_many_arguments)]
@@ -460,7 +572,12 @@ pub async fn qemu_remote_migrate(
     target_storage: String,
     target_bridge: String,
     bwlimit: Option<u64>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<RemoteUpid, Error> {
+    if delete {
+        check_guest_delete_perms(rpcenv, &remote, vmid)?;
+    }
+
     let source = remote; // let's stick to "source" and "target" naming
 
     log::info!("remote migration requested");
@@ -541,6 +658,9 @@ pub async fn qemu_remote_migrate(
         },
     },
     returns: { type: pve_api_types::LxcConfig },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
+    },
 )]
 /// Get the configuration of an lxc container from a remote. If a node is provided, the container
 /// must be on that node, otherwise the node is determined automatically.
@@ -586,6 +706,9 @@ pub async fn lxc_get_config(
         },
     },
     returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
 )]
 /// Start a remote lxc container.
 pub async fn lxc_start(
@@ -628,6 +751,9 @@ pub async fn lxc_start(
         },
     },
     returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
 )]
 /// Stop a remote lxc container.
 pub async fn lxc_stop(
@@ -670,6 +796,9 @@ pub async fn lxc_stop(
         },
     },
     returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
 )]
 /// Perform a shutdown of a remote lxc container.
 pub async fn lxc_shutdown(
@@ -748,6 +877,12 @@ pub async fn lxc_shutdown(
         },
     },
     returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::And(&[
+            &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
+            &Permission::Privilege(&["resource", "{target}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
+        ]),
+    },
 )]
 /// Perform a remote migration of an lxc container.
 #[allow(clippy::too_many_arguments)]
@@ -764,7 +899,12 @@ pub async fn lxc_remote_migrate(
     bwlimit: Option<u64>,
     restart: Option<bool>,
     timeout: Option<i64>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<RemoteUpid, Error> {
+    if delete {
+        check_guest_delete_perms(rpcenv, &remote, vmid)?;
+    }
+
     let source = remote; // let's stick to "source" and "target" naming
 
     log::info!("remote migration requested");

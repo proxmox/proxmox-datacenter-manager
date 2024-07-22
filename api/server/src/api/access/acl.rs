@@ -295,13 +295,16 @@ fn check_acl_path(path: &str) -> Result<(), Error> {
             }
         }
         "resource" => {
-            if components_len == 1 {
+            // `/resource` and `/resource/{remote}`
+            if components_len <= 2 {
                 return Ok(());
             }
-            match components[1] {
-                "remote" => {
-                    // /resource/{resource}
-                    if components_len <= 2 {
+            // `/resource/{remote-id}/{resource-type=guest,storage}/{resource-id}`
+            match components[2] {
+                "guest" | "storage" => {
+                    // /resource/{remote-id}/{resource-type}
+                    // /resource/{remote-id}/{resource-type}/{resource-id}
+                    if components_len <= 4 {
                         return Ok(());
                     }
                 }

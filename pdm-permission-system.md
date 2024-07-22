@@ -16,7 +16,9 @@ SDN or the node (host) for now, require the rest.
 
 - Resource.Audit -> read-only
 - Resource.Manage -> Migrate, Start, Stop, ...
-- Resource.Modify -> Change config or state of resource (e.g. required for **remote**-migration)
+- Resource.Modify -> Change config or state of resource
+- Resource.Migrate -> Remote Migration
+- Resource.Delete -> Delete guests
 
 In the future we might extend this to something like:
 

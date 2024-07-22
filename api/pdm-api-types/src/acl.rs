@@ -31,6 +31,12 @@ constnamedbitmap! {
         PRIV_RESOURCE_MANAGE("Resource.Manage");
         /// `Resource.Modify` allows modifying resources, like making configuration changes.
         PRIV_RESOURCE_MODIFY("Resource.Modify");
+        /// `Resource.Create` allows creating a guest.
+        PRIV_RESOURCE_CREATE("Resource.Create");
+        /// `Resource.Delete` allows deleting a guest.
+        PRIV_RESOURCE_DELETE("Resource.Delete");
+        /// `Resource.Migrate` allows remote migration of a guest.
+        PRIV_RESOURCE_MIGRATE("Resource.Migrate");
 
         /// `Access.Audit` allows auditing permissions and users.
         PRIV_ACCESS_AUDIT("Access.Audit");
@@ -80,7 +86,9 @@ mod roles {
     /// The resource administrator has `Resource.Modify` access everywhere.
     pub const ROLE_RESOURCE_ADMINISTRATOR: u64 = 0
         | PRIV_RESOURCE_AUDIT
-        | PRIV_RESOURCE_MODIFY;
+        | PRIV_RESOURCE_MODIFY
+        | PRIV_RESOURCE_DELETE
+        | PRIV_RESOURCE_MIGRATE;
 
     /// The resource auditor has `Resource.Audit` access everywhere.
     pub const ROLE_RESOURCE_AUDITOR: u64 = 0
