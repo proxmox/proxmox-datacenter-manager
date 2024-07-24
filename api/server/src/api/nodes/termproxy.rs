@@ -139,8 +139,8 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
                 path,
                 "--perm",
                 "Sys.Console",
-                "--authport",
-                "82",
+                "--authsocket",
+                pdm_buildcfg::PDM_PRIVILEGED_API_SOCKET_FN,
                 "--port-as-fd",
                 "--",
             ]);
