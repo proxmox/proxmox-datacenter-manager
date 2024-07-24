@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::pin::pin;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Context as _, Error};
@@ -13,7 +14,7 @@ use tracing::level_filters::LevelFilter;
 use url::form_urlencoded;
 
 use proxmox_lang::try_block;
-use proxmox_rest_server::{cookie_from_header, daemon, ApiConfig, RestEnvironment, RestServer};
+use proxmox_rest_server::{cookie_from_header, ApiConfig, RestEnvironment, RestServer};
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
 use proxmox_sys::fs::CreateOptions;
 
@@ -33,11 +34,7 @@ fn main() -> Result<(), Error> {
     server::env::sanitize_environment_vars();
 
     let debug = std::env::var("PROXMOX_DEBUG").is_ok();
-    proxmox_log::init_logger(
-        "PROXMOX_DEBUG",
-        LevelFilter::INFO,
-        "proxmox-datacenter-manager-api",
-    )?;
+    proxmox_log::init_logger("PROXMOX_DEBUG", LevelFilter::INFO)?;
 
     if std::env::args().nth(1).is_some() {
         bail!("unexpected command line parameters");
@@ -139,8 +136,7 @@ async fn run(debug: bool) -> Result<(), Error> {
     proxmox_acme_api::init(configdir!("/acme"), false)?;
 
     let api_user = pdm_config::api_user()?;
-    let mut commando_sock =
-        proxmox_rest_server::CommandSocket::new(proxmox_rest_server::our_ctrl_sock(), api_user.gid);
+    let mut command_sock = proxmox_daemon::command_socket::CommandSocket::new(api_user.gid);
 
     let dir_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
@@ -174,13 +170,13 @@ async fn run(debug: bool) -> Result<(), Error> {
             pdm_buildcfg::API_ACCESS_LOG_FN,
             Some(dir_opts.clone()),
             Some(file_opts.clone()),
-            &mut commando_sock,
+            &mut command_sock,
         )?
         .enable_auth_log(
             pdm_buildcfg::API_AUTH_LOG_FN,
             Some(dir_opts.clone()),
             Some(file_opts.clone()),
-            &mut commando_sock,
+            &mut command_sock,
         )?;
 
     let rest_server = RestServer::new(config);
@@ -197,7 +193,7 @@ async fn run(debug: bool) -> Result<(), Error> {
     let acceptor = Arc::new(Mutex::new(acceptor));
 
     // to renew the acceptor we just add a command-socket handler
-    commando_sock.register_command("reload-certificate".to_string(), {
+    command_sock.register_command("reload-certificate".to_string(), {
         let acceptor = Arc::clone(&acceptor);
         move |_value| -> Result<_, Error> {
             log::info!("reloading certificate");
@@ -213,23 +209,24 @@ async fn run(debug: bool) -> Result<(), Error> {
     })?;
 
     let connections = proxmox_rest_server::connection::AcceptBuilder::new().debug(debug);
-    let server = daemon::create_daemon(
+    let server = proxmox_daemon::server::create_daemon(
         ([0, 0, 0, 0, 0, 0, 0, 0], pdm_buildcfg::PDM_PORT).into(),
         move |listener| {
             let (secure_connections, insecure_connections) =
                 connections.accept_tls_optional(listener, acceptor);
 
             Ok(async {
-                daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
+                log::info!("service is ready");
+                proxmox_systemd::notify::SystemdNotify::Ready.notify()?;
 
                 let secure_server = hyper::Server::builder(secure_connections)
                     .serve(rest_server)
-                    .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
+                    .with_graceful_shutdown(proxmox_daemon::shutdown_future())
                     .map_err(Error::from);
 
                 let insecure_server = hyper::Server::builder(insecure_connections)
                     .serve(redirector)
-                    .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
+                    .with_graceful_shutdown(proxmox_daemon::shutdown_future())
                     .map_err(Error::from);
 
                 let (secure_res, insecure_res) =
@@ -262,10 +259,10 @@ async fn run(debug: bool) -> Result<(), Error> {
     proxmox_rest_server::write_pid(pdm_buildcfg::PDM_API_PID_FN)?;
 
     let init_result: Result<(), Error> = try_block!({
-        proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
-        commando_sock.spawn()?;
-        proxmox_rest_server::catch_shutdown_signal()?;
-        proxmox_rest_server::catch_reload_signal()?;
+        proxmox_rest_server::register_task_control_commands(&mut command_sock)?;
+        command_sock.spawn(proxmox_rest_server::last_worker_future())?;
+        proxmox_daemon::catch_shutdown_signal(proxmox_rest_server::last_worker_future())?;
+        proxmox_daemon::catch_reload_signal(proxmox_rest_server::last_worker_future())?;
         Ok(())
     });
 
@@ -288,7 +285,7 @@ async fn run(debug: bool) -> Result<(), Error> {
 
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");
-    proxmox_rest_server::last_worker_future().await?;
+    proxmox_rest_server::last_worker_future().await;
     log::info!("done - exit server");
 
     Ok(())
@@ -305,10 +302,11 @@ fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
 
 // TODO: move scheduling stuff to own module
 fn start_task_scheduler() {
-    let abort_future = proxmox_rest_server::shutdown_future();
-    let future = Box::pin(run_task_scheduler());
-    let task = futures::future::select(future, abort_future);
-    tokio::spawn(task.map(|_| ()));
+    tokio::spawn(async move {
+        let task_scheduler = pin!(run_task_scheduler());
+        let abort_future = pin!(proxmox_daemon::shutdown_future());
+        futures::future::select(task_scheduler, abort_future).await;
+    });
 }
 
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};

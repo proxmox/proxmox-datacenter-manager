@@ -1,3 +1,5 @@
+use std::pin::pin;
+
 use anyhow::{bail, format_err, Error};
 use futures::*;
 use nix::sys::stat::{fchmodat, FchmodatFlags, Mode};
@@ -5,7 +7,7 @@ use nix::unistd::{fchownat, FchownatFlags};
 use tracing::level_filters::LevelFilter;
 
 use proxmox_lang::try_block;
-use proxmox_rest_server::{daemon, ApiConfig, RestServer, UnixAcceptor};
+use proxmox_rest_server::{ApiConfig, RestServer, UnixAcceptor};
 use proxmox_router::RpcEnvironmentType;
 use proxmox_sys::fs::CreateOptions;
 
@@ -20,11 +22,7 @@ fn main() -> Result<(), Error> {
 
     server::env::sanitize_environment_vars();
 
-    proxmox_log::init_logger(
-        "PROXMOX_DEBUG",
-        LevelFilter::INFO,
-        "proxmox-datacenter-manager-privileged-api",
-    )?;
+    proxmox_log::init_logger("PROXMOX_DEBUG", LevelFilter::INFO)?;
 
     create_directories()?;
 
@@ -88,8 +86,7 @@ async fn run() -> Result<(), Error> {
     proxmox_acme_api::init(configdir!("/acme"), true)?;
 
     let api_user = pdm_config::api_user()?;
-    let mut commando_sock =
-        proxmox_rest_server::CommandSocket::new(proxmox_rest_server::our_ctrl_sock(), api_user.gid);
+    let mut command_sock = proxmox_daemon::command_socket::CommandSocket::new(api_user.gid);
 
     let dir_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
@@ -101,13 +98,13 @@ async fn run() -> Result<(), Error> {
             pdm_buildcfg::API_ACCESS_LOG_FN,
             Some(dir_opts.clone()),
             Some(file_opts.clone()),
-            &mut commando_sock,
+            &mut command_sock,
         )?
         .enable_auth_log(
             pdm_buildcfg::API_AUTH_LOG_FN,
             Some(dir_opts.clone()),
             Some(file_opts.clone()),
-            &mut commando_sock,
+            &mut command_sock,
         )?;
 
     let rest_server = RestServer::new(config);
@@ -122,7 +119,7 @@ async fn run() -> Result<(), Error> {
         Err(err) if err.kind() == io::ErrorKind::NotFound => (),
         Err(err) => bail!("failed to remove old socket: {err}"),
     }
-    let server = daemon::create_daemon(
+    let server = proxmox_daemon::server::create_daemon(
         std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_PRIVILEGED_API_SOCKET_FN)
             .expect("bad api socket path"),
         move |listener: tokio::net::UnixListener| {
@@ -153,11 +150,11 @@ async fn run() -> Result<(), Error> {
             let incoming = UnixAcceptor::from(listener);
 
             Ok(async {
-                daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
+                proxmox_systemd::notify::SystemdNotify::Ready.notify()?;
 
                 hyper::Server::builder(incoming)
                     .serve(rest_server)
-                    .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
+                    .with_graceful_shutdown(proxmox_daemon::shutdown_future())
                     .map_err(Error::from)
                     .await
             })
@@ -168,10 +165,10 @@ async fn run() -> Result<(), Error> {
     proxmox_rest_server::write_pid(pdm_buildcfg::PDM_PRIVILEGED_API_PID_FN)?;
 
     let init_result: Result<(), Error> = try_block!({
-        proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
-        commando_sock.spawn()?;
-        proxmox_rest_server::catch_shutdown_signal()?;
-        proxmox_rest_server::catch_reload_signal()?;
+        proxmox_rest_server::register_task_control_commands(&mut command_sock)?;
+        command_sock.spawn(proxmox_rest_server::last_worker_future())?;
+        proxmox_daemon::catch_shutdown_signal(proxmox_rest_server::last_worker_future())?;
+        proxmox_daemon::catch_reload_signal(proxmox_rest_server::last_worker_future())?;
         Ok(())
     });
 
@@ -194,7 +191,7 @@ async fn run() -> Result<(), Error> {
 
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");
-    proxmox_rest_server::last_worker_future().await?;
+    proxmox_rest_server::last_worker_future().await;
     log::info!("done - exit server");
 
     Ok(())
@@ -202,10 +199,11 @@ async fn run() -> Result<(), Error> {
 
 // TODO: move scheduling stuff to own module
 fn start_task_scheduler() {
-    let abort_future = proxmox_rest_server::shutdown_future();
-    let future = Box::pin(run_task_scheduler());
-    let task = futures::future::select(future, abort_future);
-    tokio::spawn(task.map(|_| ()));
+    tokio::spawn(async move {
+        let task_scheduler = pin!(run_task_scheduler());
+        let abort_future = pin!(proxmox_daemon::shutdown_future());
+        futures::future::select(task_scheduler, abort_future).await;
+    });
 }
 
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};

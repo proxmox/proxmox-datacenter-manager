@@ -38,9 +38,10 @@ proxmox-auth-api = "0.4"
 proxmox-http = { version = "0.9", features = [ "client", "http-helpers", "websocket" ] } # see below
 proxmox-io = "1.0.1" # tools and client use "tokio" feature
 proxmox-lang = "1.1"
-proxmox-log = "0.1"
+proxmox-log = "0.2"
 #proxmox-metrics = "0.2"
-proxmox-rest-server = "0.6"
+proxmox-daemon = "0.1"
+proxmox-rest-server = "0.7"
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
 proxmox-router = { version = "2.2", default-features = false }
 # everything but pbs-config and pbs-client ues "api-macro"
@@ -51,6 +52,7 @@ proxmox-shared-memory = "0.3.0"
 proxmox-sortable-macro = "0.1.2"
 proxmox-subscription = { version = "0.4", features = [ "api-types" ] }
 proxmox-sys = "0.6.0"
+proxmox-systemd = "0.1"
 proxmox-tfa = { version = "5", features = [ "api-types" ] }
 proxmox-time = "2"
 proxmox-uuid = "1"
@@ -123,10 +125,10 @@ webauthn-rs = "0.3.2"
 xdg = "2.2"
 zstd = { version = "0.12", features = [ "bindgen" ] }
 
-# # Local path overrides
-# # NOTE: You must run `cargo update` after changing this for it to take effect!
-# [patch.crates-io]
-#
+# Local path overrides
+# NOTE: You must run `cargo update` after changing this for it to take effect!
+[patch.crates-io]
+
 # proxmox-access-control = { path = "../proxmox/proxmox-access-control" }
 # proxmox-acme = { path = "../proxmox/proxmox-acme" }
 # proxmox-acme-api = { path = "../proxmox/proxmox-acme-api" }
@@ -136,6 +138,7 @@ zstd = { version = "0.12", features = [ "bindgen" ] }
 # proxmox-auth-api = { path = "../proxmox/proxmox-auth-api" }
 # proxmox-client = { path = "../proxmox/proxmox-client" }
 # proxmox-config-digest = { path = "../proxmox/proxmox-config-digest" }
+# proxmox-daemon = { path = "../proxmox/proxmox-daemon" }
 # proxmox-dns-api = { path = "../proxmox/proxmox-dns-api" }
 # proxmox-http = { path = "../proxmox/proxmox-http" }
 # proxmox-io = { path = "../proxmox/proxmox-io" }
@@ -156,6 +159,7 @@ zstd = { version = "0.12", features = [ "bindgen" ] }
 # proxmox-subscription = { path = "../proxmox/proxmox-subscription" }
 # proxmox-sys = { path = "../proxmox/proxmox-sys" }
 # proxmox-syslog-api = { path = "../proxmox/proxmox-syslog-api" }
+# proxmox-systemd = { path = "../proxmox/proxmox-systemd" }
 # proxmox-tfa = { path = "../proxmox/proxmox-tfa" }
 # proxmox-time = { path = "../proxmox/proxmox-time" }
 # proxmox-time-api = { path = "../proxmox/proxmox-time-api" }
