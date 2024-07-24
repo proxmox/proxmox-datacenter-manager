@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::pin::pin;
 use std::sync::{Arc, Mutex};
 
@@ -141,6 +141,9 @@ async fn run(debug: bool) -> Result<(), Error> {
     let dir_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
 
+    let mut indexpath = PathBuf::from(pdm_buildcfg::JS_DIR);
+    indexpath.push("index.hbs");
+
     let config = ApiConfig::new(pdm_buildcfg::JS_DIR, RpcEnvironmentType::PUBLIC)
         .privileged_addr(
             std::os::unix::net::SocketAddr::from_pathname(
@@ -150,6 +153,7 @@ async fn run(debug: bool) -> Result<(), Error> {
         )
         .index_handler_func(|e, p| Box::pin(get_index_future(e, p)))
         .auth_handler_func(|h, m| Box::pin(auth::check_auth(h, m)))
+        .register_template("index", &indexpath)?
         .register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
         .aliases([
             ("extjs", "/usr/share/javascript/extjs"),
