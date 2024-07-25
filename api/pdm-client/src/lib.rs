@@ -731,7 +731,7 @@ where
 #[derive(Clone, Serialize)]
 pub enum AclRecipient<'a> {
     #[serde(rename = "auth-id")]
-    User(&'a Authid),
+    Authid(&'a Authid),
 
     #[serde(rename = "group")]
     Group(&'a str),

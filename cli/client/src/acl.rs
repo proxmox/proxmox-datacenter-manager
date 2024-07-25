@@ -117,7 +117,7 @@ async fn update_acl(
 
     client()?
         .update_acl(
-            AclRecipient::User(&auth_id),
+            AclRecipient::Authid(&auth_id),
             &path,
             &role,
             propagate,
@@ -159,7 +159,7 @@ async fn delete_acl(
     let digest = digest.map(ConfigDigest::from);
 
     client()?
-        .delete_acl(AclRecipient::User(&auth_id), &path, &role, digest)
+        .delete_acl(AclRecipient::Authid(&auth_id), &path, &role, digest)
         .await?;
     Ok(())
 }
