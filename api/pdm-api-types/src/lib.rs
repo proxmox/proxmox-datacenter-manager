@@ -15,7 +15,6 @@ use proxmox_time::parse_daily_duration;
 mod acl;
 pub use acl::*;
 
-pub use proxmox_auth_api::types as userid;
 pub use proxmox_auth_api::types::{Authid, Userid};
 pub use proxmox_auth_api::types::{Realm, RealmRef};
 pub use proxmox_auth_api::types::{Tokenname, TokennameRef};
