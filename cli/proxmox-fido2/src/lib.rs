@@ -782,10 +782,7 @@ impl FidoCred {
     }
 
     /// Set credential protection policy.
-    pub fn set_protection(
-        self,
-        prot: Option<CredentialProtection>,
-    ) -> Result<Self, Error> {
+    pub fn set_protection(self, prot: Option<CredentialProtection>) -> Result<Self, Error> {
         if (self.lib.fido_cred_set_prot)(self.cred, prot.map(|p| p as i32).unwrap_or(0)) != 0 {
             bail!("failed to set credential protection policy");
         }
