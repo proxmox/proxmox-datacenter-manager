@@ -203,7 +203,7 @@ impl Lib {
             return Ok(Arc::clone(lib));
         }
 
-        let lib = unsafe { libc::dlopen(b"libfido2.so.1\0".as_ptr() as _, libc::RTLD_NOW) };
+        let lib = unsafe { libc::dlopen(c"libfido2.so.1".as_ptr(), libc::RTLD_NOW) };
         if lib.is_null() {
             return Err(OpenError::MissingLibrary);
         }
