@@ -1,6 +1,7 @@
+use std::path::Path;
 use std::pin::pin;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context as _, Error};
 use futures::*;
 use nix::sys::stat::{fchmodat, FchmodatFlags, Mode};
 use nix::unistd::{fchownat, FchownatFlags};
@@ -87,6 +88,19 @@ async fn run() -> Result<(), Error> {
 
     let api_user = pdm_config::api_user()?;
     let mut command_sock = proxmox_daemon::command_socket::CommandSocket::new(api_user.gid);
+
+    // FIXME: remove this once we ship UI files in the package
+    {
+        std::fs::create_dir_all(pdm_buildcfg::JS_DIR)
+            .context("failed to create javascript directory")?;
+        let indexpath = Path::new(pdm_buildcfg::JS_DIR).join("index.hbs");
+        let _file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(&indexpath)
+            .with_context(|| format!("failed to ensure {indexpath:?} exists"));
+    }
 
     let dir_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
