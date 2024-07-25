@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::pin::pin;
 use std::sync::{Arc, Mutex};
 
@@ -141,8 +141,7 @@ async fn run(debug: bool) -> Result<(), Error> {
     let dir_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
 
-    let mut indexpath = PathBuf::from(pdm_buildcfg::JS_DIR);
-    indexpath.push("index.hbs");
+    let indexpath = Path::new(pdm_buildcfg::JS_DIR).join("index.hbs");
 
     let config = ApiConfig::new(pdm_buildcfg::JS_DIR, RpcEnvironmentType::PUBLIC)
         .privileged_addr(
