@@ -26,7 +26,7 @@ pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
     default_key: "hostname",
 )]
 /// A node and its certificate information.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct NodeUrl {
     /// The node address.
     pub hostname: String,
@@ -56,7 +56,7 @@ pub enum RemoteType {
     },
 )]
 /// A Proxmox VE cluster.
-#[derive(Clone, Debug, Deserialize, Serialize, Updater)]
+#[derive(Clone, Debug, Deserialize, Serialize, Updater, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct PveRemote {
     /// An id for this cluster entry.
@@ -76,7 +76,7 @@ pub struct PveRemote {
     pub token: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Updater)]
+#[derive(Clone, Debug, Deserialize, Serialize, Updater, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Remote {
     Pve(PveRemote),
