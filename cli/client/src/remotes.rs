@@ -1,15 +1,14 @@
 use anyhow::Error;
-use serde_json::Value;
 
 use proxmox_router::cli::{
-    format_and_print_result, format_and_print_result_full, get_output_format, CliCommand,
-    CliCommandMap, CommandLineInterface, OUTPUT_FORMAT,
+    format_and_print_result, format_and_print_result_full, CliCommand, CliCommandMap,
+    CommandLineInterface, OutputFormat,
 };
 use proxmox_schema::{api, property_string, ApiType, ReturnType};
 
 use pdm_api_types::remotes::{PveRemoteUpdater, Remote, REMOTE_ID_SCHEMA};
 
-use crate::client;
+use crate::{client, env};
 
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
@@ -33,23 +32,13 @@ pub fn cli() -> CommandLineInterface {
         .into()
 }
 
-#[api(
-    input: {
-        properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
-        }
-    }
-)]
+#[api]
 /// List all the remotes this instance is managing.
-async fn list_remotes(param: Value) -> Result<(), Error> {
-    let output_format = get_output_format(&param);
-
+async fn list_remotes() -> Result<(), Error> {
     let entries = client()?.list_remotes().await?;
 
-    if output_format == "text" {
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
         if entries.is_empty() {
             println!("No remotes configured");
             return Ok(());
@@ -73,7 +62,7 @@ async fn list_remotes(param: Value) -> Result<(), Error> {
             }
         }
     } else {
-        format_and_print_result(&entries, &output_format);
+        format_and_print_result(&entries, &output_format.to_string());
     }
     Ok(())
 }
@@ -129,18 +118,12 @@ async fn delete_remote(id: String) -> Result<(), Error> {
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             id: { schema: REMOTE_ID_SCHEMA },
         }
     }
 )]
 /// Add a new remote.
-async fn remote_version(id: String, param: Value) -> Result<(), Error> {
-    let output_format = get_output_format(&param);
-
+async fn remote_version(id: String) -> Result<(), Error> {
     let data = client()?.remote_version(&id).await?;
     format_and_print_result_full(
         &mut serde_json::to_value(data)?,
@@ -148,7 +131,7 @@ async fn remote_version(id: String, param: Value) -> Result<(), Error> {
             optional: false,
             schema: &pve_api_types::VersionResponse::API_SCHEMA,
         },
-        &output_format,
+        &env().format_args.output_format.to_string(),
         &Default::default(),
     );
     Ok(())

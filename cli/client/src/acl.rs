@@ -1,16 +1,13 @@
-use anyhow::{bail, Error};
-use serde_json::Value;
+use anyhow::Error;
 
 use proxmox_config_digest::PROXMOX_CONFIG_DIGEST_SCHEMA;
-use proxmox_router::cli::{
-    get_output_format, CliCommand, CliCommandMap, CommandLineInterface, OUTPUT_FORMAT,
-};
+use proxmox_router::cli::{CliCommand, CliCommandMap, CommandLineInterface, OutputFormat};
 use proxmox_schema::api;
 
 use pdm_api_types::{AclUgidType, Authid, Role, ACL_PATH_SCHEMA, ACL_PROPAGATE_SCHEMA};
 use pdm_client::{AclRecipient, ConfigDigest};
 
-use crate::client;
+use crate::{client, env};
 
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
@@ -29,10 +26,6 @@ pub fn cli() -> CommandLineInterface {
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             path: {
                 schema: ACL_PATH_SCHEMA,
                 optional: true,
@@ -47,17 +40,16 @@ pub fn cli() -> CommandLineInterface {
     }
 )]
 /// List all users or show a single user's information.
-async fn list_acls(path: Option<String>, exact: bool, param: Value) -> Result<(), Error> {
-    let output_format = get_output_format(&param);
-
+async fn list_acls(path: Option<String>, exact: bool) -> Result<(), Error> {
     let client = client()?;
 
     let (entries, _digest) = client.read_acl(path.as_deref(), exact).await?;
 
-    match output_format.as_str() {
-        "json" => println!("{}", serde_json::to_string(&entries)?),
-        "json-pretty" => println!("{}", serde_json::to_string_pretty(&entries)?),
-        "text" => {
+    let output_format = env().format_args.output_format;
+    match output_format {
+        OutputFormat::Json => println!("{}", serde_json::to_string(&entries)?),
+        OutputFormat::JsonPretty => println!("{}", serde_json::to_string_pretty(&entries)?),
+        OutputFormat::Text => {
             for entry in entries {
                 println!(
                     "{ugid}: {path} {ugid_prefix}{ugid} {propagate} {roleid}",
@@ -72,7 +64,6 @@ async fn list_acls(path: Option<String>, exact: bool, param: Value) -> Result<()
                 );
             }
         }
-        _ => bail!("unsupported output format {output_format:?}"),
     }
 
     Ok(())

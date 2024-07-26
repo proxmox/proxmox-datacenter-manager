@@ -1,11 +1,9 @@
 use anyhow::{bail, format_err, Context as _, Error};
-use serde_json::Value;
 
 use proxmox_access_control::types::User;
 use proxmox_fido2::FidoOpt;
 use proxmox_router::cli::{
-    format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
-    OUTPUT_FORMAT,
+    format_and_print_result, CliCommand, CliCommandMap, CommandLineInterface, OutputFormat,
 };
 use proxmox_schema::api;
 use proxmox_tfa::TfaType;
@@ -55,25 +53,15 @@ fn tfa_cli() -> CommandLineInterface {
         .into()
 }
 
-#[api(
-    input: {
-        properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
-        }
-    }
-)]
+#[api]
 /// List all users or show a single user's information.
-async fn list_users(param: Value) -> Result<(), Error> {
-    let output_format = get_output_format(&param);
-
+async fn list_users() -> Result<(), Error> {
     let client = client()?;
 
     let entries = client.list_users(false).await?;
 
-    if output_format == "text" {
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
         if entries.is_empty() {
             println!("No users configured");
             return Ok(());
@@ -105,7 +93,7 @@ async fn list_users(param: Value) -> Result<(), Error> {
         }
     } else {
         let data = serde_json::to_value(entries)?;
-        format_and_print_result(&data, &output_format);
+        format_and_print_result(&data, &output_format.to_string());
     }
     Ok(())
 }
@@ -240,25 +228,20 @@ async fn change_user_password(userid: Userid, password: Option<String>) -> Resul
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             userid: { optional: true },
         }
     }
 )]
 /// List all the remotes this instance is managing.
-async fn list_user_tfa(userid: Option<Userid>, param: Value) -> Result<(), Error> {
+async fn list_user_tfa(userid: Option<Userid>) -> Result<(), Error> {
     let userid = userid
         .or_else(|| env().connect_args.user.clone())
         .ok_or_else(|| format_err!("missing userid and no user logged in?"))?;
 
-    let output_format = get_output_format(&param);
-
     let entries = client()?.list_user_tfa(userid.as_str()).await?;
 
-    if output_format == "text" {
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
         if entries.is_empty() {
             println!("No TFA entries configured");
             return Ok(());
@@ -276,7 +259,7 @@ async fn list_user_tfa(userid: Option<Userid>, param: Value) -> Result<(), Error
         }
     } else {
         let data = serde_json::to_value(entries)?;
-        format_and_print_result(&data, &output_format);
+        format_and_print_result(&data, &output_format.to_string());
     }
     Ok(())
 }

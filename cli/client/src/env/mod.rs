@@ -12,7 +12,7 @@ use proxmox_auth_api::types::Userid;
 use proxmox_client::TfaChallenge;
 use proxmox_schema::api;
 
-use crate::config::PdmConnectArgs;
+use crate::config::{FormatArgs, PdmConnectArgs};
 use crate::XDG;
 
 mod fingerprint_cache;
@@ -39,7 +39,7 @@ const FINGERPRINT_CACHE_PATH: &str = xdg_path!("fingerprints");
 const CURRENT_SERVER_CACHE_PATH: &str = xdg_path!("current-server");
 
 pub struct Env {
-    use_color: UseColor,
+    pub format_args: FormatArgs,
     pub connect_args: PdmConnectArgs,
     pub fingerprint_cache: FingerprintCache,
 }
@@ -65,7 +65,7 @@ impl Env {
 
     pub fn new() -> Result<Self, Error> {
         let mut this = Self {
-            use_color: UseColor::default(),
+            format_args: FormatArgs::default(),
             connect_args: PdmConnectArgs::default(),
             fingerprint_cache: FingerprintCache::new(),
         };
@@ -321,7 +321,7 @@ impl Env {
     */
 
     pub fn use_color(&self) -> bool {
-        self.use_color.to_bool()
+        self.format_args.color.to_bool()
     }
 }
 

@@ -87,8 +87,7 @@ fn main_do() -> Result<(), Error> {
     let cmd_def = CliCommandMap::new()
         .global_option(GlobalOptions::of::<PdmConnectArgs>())
         .global_option(
-            GlobalOptions::of::<config::FormattingArgs>()
-                .completion_cb("color", env::complete_color),
+            GlobalOptions::of::<config::FormatArgs>().completion_cb("color", env::complete_color),
         )
         .insert("login", CliCommand::new(&API_METHOD_LOGIN))
         .insert("pve", pve::cli())
@@ -108,6 +107,7 @@ fn main_do() -> Result<(), Error> {
         .take_global_option()
         .ok_or_else(|| format_err!("missing connect args"))?;
     env.connect_args.finalize()?;
+    env.format_args = rpcenv.take_global_option().unwrap_or_default();
 
     if ENV.set(env).is_err() {
         bail!("failed to initialize environment");

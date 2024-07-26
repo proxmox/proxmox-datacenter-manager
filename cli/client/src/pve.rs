@@ -3,11 +3,10 @@
 use std::time::Duration;
 
 use anyhow::{bail, format_err, Error};
-use serde_json::Value;
 
 use proxmox_router::cli::{
-    format_and_print_result, format_and_print_result_full, get_output_format, CliCommand,
-    CliCommandMap, CommandLineInterface, OUTPUT_FORMAT,
+    format_and_print_result, format_and_print_result_full, CliCommand, CliCommandMap,
+    CommandLineInterface, OutputFormat,
 };
 use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 
@@ -114,21 +113,16 @@ fn task_cli() -> CommandLineInterface {
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             remote: { schema: REMOTE_ID_SCHEMA },
         }
     }
 )]
 /// List all the remotes this instance is managing.
-async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
-    let output_format = get_output_format(&param);
-
+async fn list_nodes(remote: String) -> Result<(), Error> {
     let mut entries = client()?.pve_list_nodes(&remote).await?;
 
-    if output_format == "text" {
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
         if entries.is_empty() {
             println!("No nodes found?");
             return Ok(());
@@ -139,7 +133,7 @@ async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
             println!("{}: {}", entry.node, entry.status);
         }
     } else {
-        format_and_print_result(&entries, &output_format);
+        format_and_print_result(&entries, &output_format.to_string());
     }
     Ok(())
 }
@@ -147,10 +141,6 @@ async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             kind: {
                 type: pve_api_types::ClusterResourceKind,
                 optional: true,
@@ -163,15 +153,12 @@ async fn list_nodes(remote: String, param: Value) -> Result<(), Error> {
 async fn cluster_resources(
     remote: String,
     kind: Option<pve_api_types::ClusterResourceKind>,
-    param: Value,
 ) -> Result<(), Error> {
     const CLUSTER_LIST_SCHEMA: Schema = ArraySchema::new(
         "cluster resources",
         &pve_api_types::ClusterResource::API_SCHEMA,
     )
     .schema();
-
-    let output_format = get_output_format(&param);
 
     let data = client()?.pve_cluster_resources(&remote, kind).await?;
 
@@ -181,7 +168,7 @@ async fn cluster_resources(
             optional: false,
             schema: &CLUSTER_LIST_SCHEMA,
         },
-        &output_format,
+        &env().format_args.output_format.to_string(),
         &Default::default(),
     );
     Ok(())
@@ -190,10 +177,6 @@ async fn cluster_resources(
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             remote: { schema: REMOTE_ID_SCHEMA },
             node: {
                 schema: NODE_SCHEMA,
@@ -203,12 +186,11 @@ async fn cluster_resources(
     }
 )]
 /// List all the remotes this instance is managing.
-async fn list_qemu(remote: String, node: Option<String>, param: Value) -> Result<(), Error> {
-    let output_format = get_output_format(&param);
-
+async fn list_qemu(remote: String, node: Option<String>) -> Result<(), Error> {
     let mut entries = client()?.pve_list_qemu(&remote, node.as_deref()).await?;
 
-    if output_format == "text" {
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
         if entries.is_empty() {
             println!("No vms available");
             return Ok(());
@@ -243,7 +225,7 @@ async fn list_qemu(remote: String, node: Option<String>, param: Value) -> Result
             println!();
         }
     } else {
-        format_and_print_result(&entries, &output_format);
+        format_and_print_result(&entries, &output_format.to_string());
     }
     Ok(())
 }
@@ -251,10 +233,6 @@ async fn list_qemu(remote: String, node: Option<String>, param: Value) -> Result
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             remote: { schema: REMOTE_ID_SCHEMA },
             node: {
                 schema: NODE_SCHEMA,
@@ -279,10 +257,7 @@ async fn get_qemu_config(
     vmid: u32,
     state: Option<pdm_api_types::ConfigurationState>,
     snapshot: Option<String>,
-    param: Value,
 ) -> Result<(), Error> {
-    let output_format = get_output_format(&param);
-
     let config = client()?
         .pve_qemu_config(
             &remote,
@@ -293,10 +268,11 @@ async fn get_qemu_config(
         )
         .await?;
 
-    if output_format == "text" {
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
         println!("{}", serde_json::to_string_pretty(&config)?);
     } else {
-        format_and_print_result(&config, &output_format);
+        format_and_print_result(&config, &output_format.to_string());
     }
     Ok(())
 }
@@ -468,10 +444,6 @@ async fn remote_migrate_qemu(
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             remote: { schema: REMOTE_ID_SCHEMA },
             node: {
                 schema: NODE_SCHEMA,
@@ -481,12 +453,11 @@ async fn remote_migrate_qemu(
     }
 )]
 /// List all the remotes this instance is managing.
-async fn list_lxc(remote: String, node: Option<String>, param: Value) -> Result<(), Error> {
-    let output_format = get_output_format(&param);
-
+async fn list_lxc(remote: String, node: Option<String>) -> Result<(), Error> {
     let mut entries = client()?.pve_list_lxc(&remote, node.as_deref()).await?;
 
-    if output_format == "text" {
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
         if entries.is_empty() {
             println!("No containers available");
             return Ok(());
@@ -497,7 +468,7 @@ async fn list_lxc(remote: String, node: Option<String>, param: Value) -> Result<
             println!("{}: {}", entry.vmid, entry.status);
         }
     } else {
-        format_and_print_result(&entries, &output_format);
+        format_and_print_result(&entries, &output_format.to_string());
     }
     Ok(())
 }
@@ -505,10 +476,6 @@ async fn list_lxc(remote: String, node: Option<String>, param: Value) -> Result<
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             remote: { schema: REMOTE_ID_SCHEMA },
             node: {
                 schema: NODE_SCHEMA,
@@ -533,10 +500,7 @@ async fn get_lxc_config(
     vmid: u32,
     state: Option<pdm_api_types::ConfigurationState>,
     snapshot: Option<String>,
-    param: Value,
 ) -> Result<(), Error> {
-    let output_format = get_output_format(&param);
-
     let config = client()?
         .pve_lxc_config(
             &remote,
@@ -547,10 +511,11 @@ async fn get_lxc_config(
         )
         .await?;
 
-    if output_format == "text" {
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
         println!("{}", serde_json::to_string_pretty(&config)?);
     } else {
-        format_and_print_result(&config, &output_format);
+        format_and_print_result(&config, &output_format.to_string());
     }
     Ok(())
 }
@@ -734,10 +699,6 @@ async fn remote_migrate_lxc(
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             remote: { schema: REMOTE_ID_SCHEMA },
             node: {
                 schema: NODE_SCHEMA,
@@ -747,11 +708,9 @@ async fn remote_migrate_lxc(
     }
 )]
 /// List all the remotes this instance is managing.
-async fn list_tasks(remote: String, node: Option<String>, param: Value) -> Result<(), Error> {
+async fn list_tasks(remote: String, node: Option<String>) -> Result<(), Error> {
     const TASK_LIST_SCHEMA: Schema =
         ArraySchema::new("task list", &pve_api_types::ListTasksResponse::API_SCHEMA).schema();
-
-    let output_format = get_output_format(&param);
 
     let data = client()?.pve_list_tasks(&remote, node.as_deref()).await?;
 
@@ -761,7 +720,7 @@ async fn list_tasks(remote: String, node: Option<String>, param: Value) -> Resul
             optional: false,
             schema: &TASK_LIST_SCHEMA,
         },
-        &output_format,
+        &env().format_args.output_format.to_string(),
         &proxmox_router::cli::default_table_format_options(),
     );
     Ok(())
@@ -770,19 +729,13 @@ async fn list_tasks(remote: String, node: Option<String>, param: Value) -> Resul
 #[api(
     input: {
         properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
             remote: { schema: REMOTE_ID_SCHEMA },
             upid: { type: RemoteUpid },
         }
     }
 )]
 /// List all the remotes this instance is managing.
-async fn task_status(remote: String, upid: RemoteUpid, param: Value) -> Result<(), Error> {
-    let output_format = get_output_format(&param);
-
+async fn task_status(remote: String, upid: RemoteUpid) -> Result<(), Error> {
     if remote != upid.remote() {
         bail!("mismatching remote in upid");
     }
@@ -794,7 +747,7 @@ async fn task_status(remote: String, upid: RemoteUpid, param: Value) -> Result<(
             optional: false,
             schema: &pve_api_types::TaskStatus::API_SCHEMA,
         },
-        &output_format,
+        &env().format_args.output_format.to_string(),
         &Default::default(),
     );
     Ok(())

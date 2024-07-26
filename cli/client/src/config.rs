@@ -7,6 +7,7 @@ use anyhow::{bail, format_err, Context as _, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_auth_api::types::Userid;
+use proxmox_router::cli::OutputFormat;
 use proxmox_schema::api_types::DNS_NAME_OR_IP_SCHEMA;
 use proxmox_schema::{
     api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema, Updater,
@@ -21,17 +22,20 @@ const CONFIG_FILE_NAME: &str = xdg_path!("config");
 
 #[api(
     properties: {
-        color: {
-            optional: true,
-        },
+        color: { optional: true },
+        "output-format": { optional: true },
     },
 )]
 /// Generic global CLI parameters affecting the output formatting.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct FormattingArgs {
+#[serde(rename_all = "kebab-case")]
+pub struct FormatArgs {
     /// Use colored output in the terminal.
     #[serde(default)]
     pub color: crate::env::UseColor,
+
+    #[serde(default)]
+    pub output_format: OutputFormat,
 }
 
 /// If the server includes a userid, return the userid and host parts separately.
