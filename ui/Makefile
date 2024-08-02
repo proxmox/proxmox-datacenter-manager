@@ -21,29 +21,55 @@ endif
 
 DESTDIR =
 PREFIX = /usr
-UIDIR = $(PREFIX)/share/proxmox-datacenter-manager/ui
+UIDIR = $(PREFIX)/share/javascript/proxmox-datacenter-manager
 
-COMPILED_OUTPUT := # TODO
+COMPILED_OUTPUT := \
+	dist/pdm_bundle.js \
+	dist/pdm_bg.wasm \
+	dist/crisp-yew-style.css \
+	dist/material-yew-style.css \
+	dist/desktop-yew-style.css
 
-all:
+all: $(COMPILED_OUTPUT)
 
-install: $(COMPILED_OUTPUT)
-	install -dm755 $(DESTDIR)$(UIDIR)
+dist/pdm.js dist/pdm_bg.wasm:
+	proxmox-wasm-builder build -n pdm --release
 
-$(COMPILED_OUTPUT): .do-cargo-build
-.do-cargo-build:
-	$(CARGO) build $(CARGO_BUILD_ARGS)
-	touch .do-cargo-build
+dist/pdm_bundle.js: dist/pdm.js dist/pdm_bg.wasm
+	esbuild --bundle dist/pdm.js --format=esm > dist/pdm_bundle.js
 
-.PHONY: cargo-build
-cargo-build:
-	rm -f .do-cargo-build
-	$(MAKE) $(COMPILED_OUTPUT)
+dist/crisp-yew-style.css: pwt-assets/scss/crisp-yew-style.scss
+	rust-grass pwt-assets/scss/crisp-yew-style.scss dist/crisp-yew-style.css
+
+dist/material-yew-style.css: pwt-assets/scss/material-yew-style.scss
+	rust-grass pwt-assets/scss/material-yew-style.scss dist/material-yew-style.css
+
+dist/desktop-yew-style.css: pwt-assets/scss/desktop-yew-style.scss
+	rust-grass pwt-assets/scss/desktop-yew-style.scss dist/desktop-yew-style.css
+
+install: $(COMPILED_OUTPUT) index.hbs
+	install -dm0755 $(DESTDIR)$(UIDIR)
+	install -dm0755 $(DESTDIR)$(UIDIR)/js
+
+	install -dm0755 $(DESTDIR)$(UIDIR)/images
+	install -m0644 images/proxmox_logo.png $(DESTDIR)$(UIDIR)/images
+	install -m0644 images/proxmox_logo_white.png $(DESTDIR)$(UIDIR)/images
+
+	install -dm0755 $(DESTDIR)$(UIDIR)/fonts
+	install -m0644 pwt-assets/assets/fonts/RobotoFlexVariableFont.ttf $(DESTDIR)$(UIDIR)/fonts
+
+	install -m0644 dist/pdm_bundle.js $(DESTDIR)$(UIDIR)/js
+	install -m0644 dist/pdm_bg.wasm $(DESTDIR)$(UIDIR)/js
+	install -m0644 index.hbs $(DESTDIR)$(UIDIR)
+	install -m0644 dist/crisp-yew-style.css $(DESTDIR)$(UIDIR)
+	install -m0644 dist/material-yew-style.css $(DESTDIR)$(UIDIR)
+	install -m0644 dist/desktop-yew-style.css $(DESTDIR)$(UIDIR)
+
 
 $(BUILDDIR):
 	rm -rf $@ $@.tmp
 	mkdir $@.tmp
-	cp -a debian/ src/ assets/ Makefile Cargo.toml $@.tmp
+	cp -a debian/ src/ pwt-assets/ index.hbs Makefile Cargo.toml $@.tmp
 	echo "git clone git://git.proxmox.com/git/$(PACKAGE).git\\ngit checkout $$(git rev-parse HEAD)" \
 	    > $@.tmp/debian/SOURCE
 	mv $@.tmp $@
@@ -80,7 +106,7 @@ upload: $(DEB) $(DBG_DEB)
 distclean: clean
 clean:
 	$(CARGO) clean
-	rm -rf $(PACKAGE)-[0-9]*/ build/
+	rm -rf $(PACKAGE)-[0-9]*/ build/ dist/
 	rm -f *.deb *.changes *.dsc *.tar.* *.buildinfo *.build .do-cargo-build
 
 .PHONY: dinstall
