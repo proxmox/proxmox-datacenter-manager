@@ -16,14 +16,14 @@ codegen-units = 1 # release-buiĺd takes really long otherwise (rustc v1.70 -> 4
 [workspace]
 resolver = "2"
 members = [
-    "api/pdm-buildcfg",
+    "lib/pdm-buildcfg",
 
-    "api/proxmox-section-config-typed",
+    "lib/proxmox-section-config-typed",
 
-    "api/server",
-    "api/pdm-api-types",
-    "api/pdm-client",
-    "api/pdm-config",
+    "server",
+    "lib/pdm-api-types",
+    "lib/pdm-client",
+    "lib/pdm-config",
 
     "cli/client",
     "cli/admin",
@@ -76,16 +76,16 @@ proxmox-syslog-api = "0.1"
 proxmox-acme-api = "0.1"
 
 # API types for PVE (and later PMG?)
-pve-api-types = { path = "proxmox-api-types/pve-api-types" }
+pve-api-types = { path = "lib/proxmox-api-types/pve-api-types" }
 
 # PDM workspace
-server = { path = "api/server" }
-pdm-api-types = { path = "api/pdm-api-types" }
-pdm-buildcfg = { path = "api/pdm-buildcfg" }
-pdm-config = { path = "api/pdm-config" }
-pdm-client = { path = "api/pdm-client" }
+server = { path = "server" }
+pdm-api-types = { path = "lib/pdm-api-types" }
+pdm-buildcfg = { path = "lib/pdm-buildcfg" }
+pdm-config = { path = "lib/pdm-config" }
+pdm-client = { path = "lib/pdm-client" }
 proxmox-fido2 = { path = "cli/proxmox-fido2" }
-proxmox-section-config-typed = { path = "api/proxmox-section-config-typed" }
+proxmox-section-config-typed = { path = "lib/proxmox-section-config-typed" }
 
 # regular crates
 anyhow = "1.0"

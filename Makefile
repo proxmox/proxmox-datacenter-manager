@@ -91,7 +91,7 @@ cargo-build:
 $(BUILDDIR):
 	rm -rf $@ $@.tmp
 	mkdir $@.tmp
-	cp -a debian/ api/ cli/ proxmox-api-types/ Makefile Cargo.toml $@.tmp
+	cp -a debian/ server/ cli/ lib/ docs/ Makefile Cargo.toml $@.tmp
 	echo "git clone git://git.proxmox.com/git/$(PACKAGE).git\\ngit checkout $$(git rev-parse HEAD)" \
 	    > $@.tmp/debian/SOURCE
 	mv $@.tmp $@
