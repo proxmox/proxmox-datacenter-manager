@@ -3,9 +3,7 @@ use std::sync::OnceLock;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::property_string::PropertyString;
-use proxmox_schema::{
-    api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema, Updater,
-};
+use proxmox_schema::{api, ApiType, Schema, StringSchema, Updater};
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
 use proxmox_section_config_typed::ApiSectionDataEntry;
 
@@ -44,8 +42,12 @@ pub enum RemoteType {
     Pve,
 }
 
+serde_plain::derive_display_from_serialize!(RemoteType);
+serde_plain::derive_fromstr_from_deserialize!(RemoteType);
+
 #[api(
     properties: {
+        "type": { type: RemoteType },
         "nodes": {
             type: Array,
             items: {
@@ -55,11 +57,15 @@ pub enum RemoteType {
         },
     },
 )]
-/// A Proxmox VE cluster.
+/// The information required to connect to a remote instance.
 #[derive(Clone, Debug, Deserialize, Serialize, Updater, PartialEq)]
 #[serde(rename_all = "kebab-case")]
-pub struct PveRemote {
-    /// An id for this cluster entry.
+pub struct Remote {
+    #[serde(rename = "type")]
+    #[updater(skip)]
+    pub ty: RemoteType,
+
+    /// An id for this entry.
     #[updater(skip)]
     pub id: String,
 
@@ -76,48 +82,10 @@ pub struct PveRemote {
     pub token: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Updater, PartialEq)]
-#[serde(tag = "type", rename_all = "lowercase")]
-pub enum Remote {
-    Pve(PveRemote),
-}
-
-impl ApiType for Remote {
-    const API_SCHEMA: Schema = OneOfSchema::new(
-        "A remote API entry",
-        &(
-            "type",
-            false,
-            &StringSchema::new("The remote type")
-                .format(&ApiStringFormat::Enum(&[EnumEntry::new(
-                    "pve",
-                    "a Proxmox VE remote entry",
-                )]))
-                .schema(),
-        ),
-        &[("pve", &PveRemote::API_SCHEMA)],
-    )
-    .schema();
-}
-
-impl From<PveRemote> for Remote {
-    fn from(pve: PveRemote) -> Self {
-        Remote::Pve(pve)
-    }
-}
-
-impl Remote {
-    pub fn id(&self) -> &str {
-        match self {
-            Self::Pve(r) => &r.id,
-        }
-    }
-}
-
-// To be derived via a macro from the enum.
 impl ApiSectionDataEntry for Remote {
     const INTERNALLY_TAGGED: Option<&'static str> = Some("type");
 
+    /// Get the `SectionConfig` configuration for this enum.
     fn section_config() -> &'static SectionConfig {
         static CONFIG: OnceLock<SectionConfig> = OnceLock::new();
 
@@ -126,15 +94,16 @@ impl ApiSectionDataEntry for Remote {
             this.register_plugin(SectionConfigPlugin::new(
                 "pve".to_string(),
                 Some("id".to_string()),
-                PveRemote::API_SCHEMA.unwrap_object_schema(),
+                Remote::API_SCHEMA.unwrap_object_schema(),
             ));
             this
         })
     }
 
+    /// Maps an enum value to its type name.
     fn section_type(&self) -> &'static str {
-        match self {
-            Remote::Pve(_) => "pve",
+        match self.ty {
+            RemoteType::Pve => "pve",
         }
     }
 }

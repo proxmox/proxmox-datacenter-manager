@@ -6,12 +6,11 @@ use proxmox_router::{list_subdirs_api_method, Router, RpcEnvironment, SubdirMap}
 use proxmox_schema::{api, Schema};
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::{Remote, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use pdm_api_types::{RemoteUpid, NODE_SCHEMA};
 use pve_api_types::PveUpid;
 
-use super::connect;
-use crate::api::remotes::get_remote;
+use super::{connect, connect_to_remote, get_remote};
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TASKS)
@@ -47,9 +46,7 @@ async fn list_tasks(
 ) -> Result<Vec<pve_api_types::ListTasksResponse>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     if let Some(node) = node {
         Ok(pve.get_task_list(&node, Default::default()).await?)
@@ -81,10 +78,7 @@ async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
         );
     }
 
-    #[allow(clippy::infallible_destructuring_match)]
-    let pve = match get_remote(&remotes, upid.remote())? {
-        Remote::Pve(pve) => pve,
-    };
+    let pve = get_remote(&remotes, upid.remote())?;
 
     let pve_upid: PveUpid = upid
         .upid
@@ -126,10 +120,7 @@ async fn get_task_status(
         );
     }
 
-    #[allow(clippy::infallible_destructuring_match)]
-    let pve = match get_remote(&remotes, upid.remote())? {
-        Remote::Pve(pve) => pve,
-    };
+    let pve = get_remote(&remotes, upid.remote())?;
 
     let pve_upid: PveUpid = upid
         .upid
@@ -208,10 +199,7 @@ async fn read_task_log(
         );
     }
 
-    #[allow(clippy::infallible_destructuring_match)]
-    let pve = match get_remote(&remotes, upid.remote())? {
-        Remote::Pve(pve) => pve,
-    };
+    let pve = get_remote(&remotes, upid.remote())?;
 
     let pve_upid: PveUpid = upid
         .upid

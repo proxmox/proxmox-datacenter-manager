@@ -10,7 +10,7 @@ use proxmox_schema::api;
 use proxmox_section_config_typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::{PveRemoteUpdater, Remote, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
 use pdm_api_types::{Authid, ConfigDigest, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY};
 
 use super::pve;
@@ -93,7 +93,7 @@ pub fn list_remotes(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<Remote>, Erro
 pub fn add_remote(entry: Remote) -> Result<(), Error> {
     let (mut remotes, _) = pdm_config::remotes::config()?;
 
-    let id = entry.id().to_owned();
+    let id = entry.id.to_owned();
     if remotes.insert(id.clone(), entry).is_some() {
         bail!("entry {id:?} already exists");
     }
@@ -111,7 +111,7 @@ pub fn add_remote(entry: Remote) -> Result<(), Error> {
             id: { schema: REMOTE_ID_SCHEMA },
             updater: {
                 flatten: true,
-                type: PveRemoteUpdater,
+                type: RemoteUpdater,
             },
             digest: {
                 optional: true,
@@ -126,7 +126,7 @@ pub fn add_remote(entry: Remote) -> Result<(), Error> {
 /// List all the remotes this instance is managing.
 pub fn update_remote(
     id: String,
-    updater: PveRemoteUpdater,
+    updater: RemoteUpdater,
     digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
     let (mut remotes, config_digest) = pdm_config::remotes::config()?;
@@ -136,18 +136,14 @@ pub fn update_remote(
         .get_mut(&id)
         .ok_or_else(|| http_err!(NOT_FOUND, "no such remote {id:?}"))?;
 
-    match entry {
-        Remote::Pve(entry) => {
-            if let Some(v) = updater.nodes {
-                entry.nodes = v;
-            }
-            if let Some(v) = updater.userid {
-                entry.userid = v;
-            }
-            if let Some(v) = updater.token {
-                entry.token = v;
-            }
-        }
+    if let Some(v) = updater.nodes {
+        entry.nodes = v;
+    }
+    if let Some(v) = updater.userid {
+        entry.userid = v;
+    }
+    if let Some(v) = updater.token {
+        entry.token = v;
     }
 
     pdm_config::remotes::save_config(&remotes)?;
@@ -196,7 +192,8 @@ pub fn remove_remote(id: String) -> Result<(), Error> {
 pub async fn version(id: String) -> Result<pve_api_types::VersionResponse, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    match get_remote(&remotes, &id)? {
-        Remote::Pve(pve) => Ok(pve::connect(pve)?.version().await?),
+    let remote = get_remote(&remotes, &id)?;
+    match remote.ty {
+        RemoteType::Pve => Ok(pve::connect(remote)?.version().await?),
     }
 }

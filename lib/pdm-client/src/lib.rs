@@ -40,7 +40,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     pub async fn update_remote(
         &self,
         remote: &str,
-        updater: &pdm_api_types::remotes::PveRemoteUpdater,
+        updater: &pdm_api_types::remotes::RemoteUpdater,
     ) -> Result<(), Error> {
         let path = format!("/api2/extjs/remotes/{remote}");
         self.0.put(&path, updater).await?.nodata()?;

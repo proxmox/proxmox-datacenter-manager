@@ -8,7 +8,7 @@ use proxmox_router::cli::{
 use proxmox_router::{ApiHandler, RpcEnvironment};
 use proxmox_schema::{api, property_string};
 
-use pdm_api_types::remotes::{PveRemote, PveRemoteUpdater, Remote, RemoteType, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
 use server::api as dc_api;
 
 pub fn cli() -> CommandLineInterface {
@@ -60,19 +60,17 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Err
         }
 
         for entry in entries {
-            match entry {
-                Remote::Pve(pve) => {
-                    println!("Proxmox VE node {}:", pve.id);
-                    println!("    userid: {}", pve.userid);
-                    println!("    token: {}", pve.token);
-                    if pve.nodes.len() == 1 {
-                        println!("    node: {}", property_string::print(&*pve.nodes[0])?);
-                    } else {
-                        println!("    nodes:");
-                        for node in &pve.nodes {
-                            println!("        {}", property_string::print(&**node)?);
-                        }
-                    }
+            match entry.ty {
+                RemoteType::Pve => println!("Proxmox VE node {}:", entry.id),
+            }
+            println!("    userid: {}", entry.userid);
+            println!("    token: {}", entry.token);
+            if entry.nodes.len() == 1 {
+                println!("    node: {}", property_string::print(&*entry.nodes[0])?);
+            } else {
+                println!("    nodes:");
+                for node in &entry.nodes {
+                    println!("        {}", property_string::print(&**node)?);
                 }
             }
         }
@@ -96,7 +94,7 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Err
             type: { type: RemoteType },
             remote: {
                 flatten: true,
-                type: PveRemote,
+                type: Remote,
             },
         }
     }
@@ -104,7 +102,7 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Err
 /// Add a new remote.
 fn add_remote(
     r#type: RemoteType,
-    remote: pdm_api_types::remotes::PveRemote,
+    remote: pdm_api_types::remotes::Remote,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let mut param = serde_json::to_value(remote)?;
@@ -124,7 +122,7 @@ fn add_remote(
             id: { schema: REMOTE_ID_SCHEMA },
             updater: {
                 flatten: true,
-                type: PveRemoteUpdater,
+                type: RemoteUpdater,
             },
         }
     }
@@ -132,7 +130,7 @@ fn add_remote(
 /// Update a remote.
 fn update_remote(
     id: String,
-    updater: PveRemoteUpdater,
+    updater: RemoteUpdater,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let mut param = serde_json::to_value(updater)?;

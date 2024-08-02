@@ -6,7 +6,7 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::{api, property_string, ApiType, ReturnType};
 
-use pdm_api_types::remotes::{PveRemoteUpdater, Remote, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
 
 use crate::{client, env};
 
@@ -45,19 +45,17 @@ async fn list_remotes() -> Result<(), Error> {
         }
 
         for entry in entries {
-            match entry {
-                Remote::Pve(pve) => {
-                    println!("Proxmox VE node {}:", pve.id);
-                    println!("    userid: {}", pve.userid);
-                    println!("    token: {}", pve.token);
-                    if pve.nodes.len() == 1 {
-                        println!("    node: {}", property_string::print(&*pve.nodes[0])?);
-                    } else {
-                        println!("    nodes:");
-                        for node in &pve.nodes {
-                            println!("        {}", property_string::print(&**node)?);
-                        }
-                    }
+            match entry.ty {
+                RemoteType::Pve => println!("Proxmox VE node {}:", entry.id),
+            }
+            println!("    userid: {}", entry.userid);
+            println!("    token: {}", entry.token);
+            if entry.nodes.len() == 1 {
+                println!("    node: {}", property_string::print(&*entry.nodes[0])?);
+            } else {
+                println!("    nodes:");
+                for node in &entry.nodes {
+                    println!("        {}", property_string::print(&**node)?);
                 }
             }
         }
@@ -91,13 +89,13 @@ async fn add_remote(entry: Remote) -> Result<(), Error> {
             id: { schema: REMOTE_ID_SCHEMA },
             updater: {
                 flatten: true,
-                type: PveRemoteUpdater,
+                type: RemoteUpdater,
             },
         }
     }
 )]
 /// Update a remote.
-async fn update_remote(id: String, updater: PveRemoteUpdater) -> Result<(), Error> {
+async fn update_remote(id: String, updater: RemoteUpdater) -> Result<(), Error> {
     client()?.update_remote(&id, &updater).await?;
     Ok(())
 }

@@ -10,17 +10,16 @@ use proxmox_router::{
     http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::api;
+use proxmox_section_config_typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::{PveRemote, Remote, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{Remote, RemoteType, REMOTE_ID_SCHEMA};
 use pdm_api_types::{
     Authid, ConfigurationState, RemoteUpid, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE,
     PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
 use pve_api_types::client::PveClient;
 use pve_api_types::ClusterResourceKind;
-
-use crate::api::remotes::get_remote;
 
 pub mod tasks;
 
@@ -81,7 +80,18 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
 
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
 
-pub fn connect(remote: &PveRemote) -> Result<PveClient<Client>, Error> {
+pub fn get_remote<'a>(
+    config: &'a SectionConfigData<Remote>,
+    id: &str,
+) -> Result<&'a Remote, Error> {
+    let remote = super::remotes::get_remote(config, id)?;
+    if remote.ty != RemoteType::Pve {
+        bail!("remote {id:?} is not a pve remote");
+    }
+    Ok(remote)
+}
+
+pub fn connect(remote: &Remote) -> Result<PveClient<Client>, Error> {
     let node = remote
         .nodes
         .first()
@@ -102,6 +112,13 @@ pub fn connect(remote: &PveRemote) -> Result<PveClient<Client>, Error> {
     });
 
     Ok(PveClient(client))
+}
+
+pub fn connect_to_remote(
+    config: &SectionConfigData<Remote>,
+    id: &str,
+) -> Result<PveClient<Client>, Error> {
+    connect(get_remote(config, id)?)
 }
 
 #[api(
@@ -128,9 +145,7 @@ pub async fn list_nodes(
 ) -> Result<Vec<pve_api_types::ClusterNodeIndexResponse>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => Ok(connect(pve)?.list_nodes().await?),
-    }
+    Ok(connect_to_remote(&remotes, &remote)?.list_nodes().await?)
 }
 
 #[api(
@@ -162,9 +177,9 @@ pub async fn cluster_resources(
 ) -> Result<Vec<pve_api_types::ClusterResource>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => Ok(connect(pve)?.cluster_resources(kind).await?),
-    }
+    Ok(connect_to_remote(&remotes, &remote)?
+        .cluster_resources(kind)
+        .await?)
 }
 
 /// Common permission checks between listing qemu & lxc guests.
@@ -230,9 +245,7 @@ pub async fn list_qemu(
 
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     let list = if let Some(node) = node {
         pve.list_qemu(&node, None).await?
@@ -280,9 +293,7 @@ pub async fn list_lxc(
 
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     let list = if let Some(node) = node {
         pve.list_lxc(&node).await?
@@ -336,9 +347,7 @@ pub async fn qemu_get_config(
 ) -> Result<pve_api_types::QemuConfig, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     // FIXME: The pve client should cache the resources and provide
     let node = match node {
@@ -381,9 +390,7 @@ pub async fn qemu_start(
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     // FIXME: The pve client should cache the resources and provide
     let node = match node {
@@ -428,9 +435,7 @@ pub async fn qemu_stop(
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     // FIXME: The pve client should cache the resources and provide
     let node = match node {
@@ -473,9 +478,7 @@ pub async fn qemu_shutdown(
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     // FIXME: The pve client should cache the resources and provide
     let node = match node {
@@ -587,12 +590,8 @@ pub async fn qemu_remote_migrate(
     }
 
     let (remotes, _) = pdm_config::remotes::config()?;
-
-    let Remote::Pve(target) = get_remote(&remotes, &target)?;
-
-    let source_conn = match get_remote(&remotes, &source)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let target = get_remote(&remotes, &target)?;
+    let source_conn = connect_to_remote(&remotes, &source)?;
 
     // FIXME: Cache resources call.
     let node = match node {
@@ -673,9 +672,7 @@ pub async fn lxc_get_config(
 ) -> Result<pve_api_types::LxcConfig, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     // FIXME: The pve client should cache the resources and provide
     let node = match node {
@@ -718,9 +715,7 @@ pub async fn lxc_start(
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     // FIXME: The pve client should cache the resources and provide
     let node = match node {
@@ -763,9 +758,7 @@ pub async fn lxc_stop(
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     // FIXME: The pve client should cache the resources and provide
     let node = match node {
@@ -808,9 +801,7 @@ pub async fn lxc_shutdown(
 ) -> Result<RemoteUpid, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    let pve = match get_remote(&remotes, &remote)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let pve = connect_to_remote(&remotes, &remote)?;
 
     // FIXME: The pve client should cache the resources and provide
     let node = match node {
@@ -914,12 +905,8 @@ pub async fn lxc_remote_migrate(
     }
 
     let (remotes, _) = pdm_config::remotes::config()?;
-
-    let Remote::Pve(target) = get_remote(&remotes, &target)?;
-
-    let source_conn = match get_remote(&remotes, &source)? {
-        Remote::Pve(pve) => connect(pve)?,
-    };
+    let target = get_remote(&remotes, &target)?;
+    let source_conn = connect_to_remote(&remotes, &source)?;
 
     // FIXME: Cache resources call.
     let node = match node {
