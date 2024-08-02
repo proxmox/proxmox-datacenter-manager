@@ -1,0 +1,23 @@
+Source: proxmox-datacenter-manager-ui
+Section: admin
+Priority: optional
+Build-Depends: cargo:native,
+               debhelper-compat (= 13),
+               dh-cargo (>= 25),
+Maintainer: Proxmox Support Team <support@proxmox.com>
+Standards-Version: 4.6.1
+Vcs-Git: git://git.proxmox.com/git/proxmox-datacenter-manager.git
+Vcs-Browser: https://git.proxmox.com/?p=proxmox-datacenter-manager.git;a=summary
+Homepage: https://www.proxmox.com
+Rules-Requires-Root: no
+
+Package: proxmox-datacenter-manager-ui
+Architecture: any
+Multi-Arch: allowed
+Depends: pve-xtermjs,
+         ${misc:Depends},
+         ${shlibs:Depends},
+Description: A web UI to for the Proxmox Datacenter Manager
+ This package provides the web UI of the Proxmox Datacenter Manager (PDM)
+ which allows one to add multiple Proxmox VE and Proxmox Backup Server
+ remotes and to manage these remotes from a central UI.
