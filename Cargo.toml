@@ -46,7 +46,7 @@ proxmox-rest-server = "0.7"
 proxmox-router = { version = "2.2.2", default-features = false }
 # everything but pbs-config and pbs-client ues "api-macro"
 proxmox-schema = "3.1.1"
-proxmox-section-config = "2"
+proxmox-section-config = "2.1"
 proxmox-serde = "0.1.1"
 proxmox-shared-memory = "0.3.0"
 proxmox-sortable-macro = "0.1.2"
