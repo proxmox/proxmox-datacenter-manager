@@ -4,7 +4,6 @@ Priority: optional
 Build-Depends: cargo:native,
                debhelper-compat (= 13),
                dh-cargo (>= 25),
-               libfido2-dev,
                librust-anyhow-1+default-dev,
                librust-base64-0.13+default-dev,
                librust-bitflags-2+default-dev (>= 2.4-~~),
