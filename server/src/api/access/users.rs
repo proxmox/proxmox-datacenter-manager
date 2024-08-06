@@ -129,11 +129,7 @@ pub fn create_user(
 
     let (mut section_config, _digest) = proxmox_access_control::user::config()?;
 
-    if section_config
-        .sections
-        .get(config.userid.as_str())
-        .is_some()
-    {
+    if section_config.sections.contains_key(config.userid.as_str()) {
         bail!("user '{}' already exists.", config.userid);
     }
 
@@ -485,7 +481,7 @@ pub fn generate_token(
     let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
     let tokenid_string = tokenid.to_string();
 
-    if config.sections.get(&tokenid_string).is_some() {
+    if config.sections.contains_key(&tokenid_string) {
         bail!(
             "token '{}' for user '{}' already exists.",
             token_name.as_str(),

@@ -14,7 +14,7 @@ static ROLES: OnceLock<HashMap<&str, u64>> = OnceLock::new();
 
 impl proxmox_access_control::init::AccessControlConfig for AccessControlConfig {
     fn privileges(&self) -> &HashMap<&str, u64> {
-        PRIVILEGES.get_or_init(|| pdm_api_types::PRIVILEGES.into_iter().copied().collect())
+        PRIVILEGES.get_or_init(|| pdm_api_types::PRIVILEGES.iter().copied().collect())
     }
 
     #[rustfmt::skip]

@@ -109,10 +109,7 @@ impl<T: HttpApiClient> PdmClient<T> {
             delete: Vec<String>,
         }
 
-        let delete = delete
-            .into_iter()
-            .map(|d| d.to_string())
-            .collect::<Vec<_>>();
+        let delete = delete.iter().map(|d| d.to_string()).collect::<Vec<_>>();
 
         let path = format!("/api2/extjs/access/users/{userid}");
         self.0

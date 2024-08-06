@@ -188,7 +188,7 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
         "proxmox-datacenter",
         "proxmox-datacenter-manager",
         &running_daemon_version,
-        &PACKAGES,
+        PACKAGES,
     )
 }
 

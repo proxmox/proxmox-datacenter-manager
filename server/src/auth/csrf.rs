@@ -42,7 +42,7 @@ pub fn generate_csrf_key() -> Result<(), Error> {
 
     replace_file(
         &path,
-        &key.as_bytes(),
+        key.as_bytes(),
         CreateOptions::new()
             .perm(Mode::from_bits_truncate(0o0640))
             .owner(nix::unistd::ROOT)

@@ -123,7 +123,7 @@ impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
 
     /// CSRF prevention token secret data.
     fn csrf_secret(&self) -> &'static HMACKey {
-        &self.csrf_secret
+        self.csrf_secret
     }
 
     /// Verify a token secret.

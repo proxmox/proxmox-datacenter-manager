@@ -285,6 +285,7 @@ fn spawn_certificate_worker(
             Ok(())
         };
 
+        #[allow(clippy::let_and_return)] // there's still a fixme to resolve before the return...
         let res = work().await;
 
         // fixme: send_certificate_renewal_mail(&res)?;
