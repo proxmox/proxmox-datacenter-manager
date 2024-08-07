@@ -506,7 +506,7 @@ impl FidoDev {
         (self.lib.fido_dev_is_fido2)(self.dev) != 0
     }
 
-    pub fn make_cred(&self, cred: &FidoCred, pin: Option<&str>) -> Result<(), Error> {
+    pub fn make_cred<'a>(&self, cred: &'a mut FidoCred, pin: Option<&str>) -> Result<FidoCredSigned<'a>, Error> {
         let pin_cstr;
         let pin = match pin {
             Some(pin) => {
@@ -520,10 +520,12 @@ impl FidoDev {
             &self.lib,
             (self.lib.fido_dev_make_cred)(self.dev, cred.cred, pin),
             "failed to make credentials",
-        )
+        )?;
+
+        Ok(FidoCredSigned(cred))
     }
 
-    pub fn assert(&self, assert: &FidoAssert, pin: Option<&str>) -> Result<(), Error> {
+    pub fn assert<'a>(&self, assert: &'a mut FidoAssert, pin: Option<&str>) -> Result<FidoAssertSigned<'a>, Error> {
         let pin_cstr;
         let pin = match pin {
             Some(pin) => {
@@ -537,7 +539,9 @@ impl FidoDev {
             &self.lib,
             (self.lib.fido_dev_get_assert)(self.dev, assert.assert, pin),
             "failed to get assertion",
-        )
+        )?;
+
+        Ok(FidoAssertSigned(assert))
     }
 
     pub fn options(&self) -> Result<DeviceOptions, Error> {
@@ -788,47 +792,51 @@ impl FidoCred {
         }
         Ok(self)
     }
+}
 
+pub struct FidoCredSigned<'a>(&'a FidoCred);
+
+impl FidoCredSigned<'_> {
     /// Get the current ID.
     pub fn id(&self) -> Result<&[u8], Error> {
-        let cid = (self.lib.fido_cred_id_ptr)(self.cred);
+        let cid = (self.0.lib.fido_cred_id_ptr)(self.0.cred);
         if cid.is_null() {
             bail!("failed to get credential id pointer");
         }
-        let len = (self.lib.fido_cred_id_len)(self.cred);
+        let len = (self.0.lib.fido_cred_id_len)(self.0.cred);
         Ok(unsafe { std::slice::from_raw_parts(cid, len) })
     }
 
     /// Get the current signature.
     /// Usable after creating webauthn credentials.
     pub fn signature(&self) -> Result<&[u8], Error> {
-        let sig = (self.lib.fido_cred_sig_ptr)(self.cred, 0);
+        let sig = (self.0.lib.fido_cred_sig_ptr)(self.0.cred, 0);
         if sig.is_null() {
             bail!("failed to get credentials signature pointer");
         }
-        let len = (self.lib.fido_cred_sig_len)(self.cred, 0);
+        let len = (self.0.lib.fido_cred_sig_len)(self.0.cred, 0);
         Ok(unsafe { std::slice::from_raw_parts(sig, len) })
     }
 
     /// Get the current auth data.
     /// Usable after creating webauthn credentials.
     pub fn auth_data(&self) -> Result<&[u8], Error> {
-        let authdata = (self.lib.fido_cred_authdata_ptr)(self.cred, 0);
+        let authdata = (self.0.lib.fido_cred_authdata_ptr)(self.0.cred, 0);
         if authdata.is_null() {
             bail!("failed to get credentials auth data pointer");
         }
-        let len = (self.lib.fido_cred_authdata_len)(self.cred, 0);
+        let len = (self.0.lib.fido_cred_authdata_len)(self.0.cred, 0);
         Ok(unsafe { std::slice::from_raw_parts(authdata, len) })
     }
 
     /// Get the current x5c value to generate an attestation object.
     /// Usable after creating webauthn credentials.
     pub fn x5c(&self) -> Result<&[u8], Error> {
-        let x5c = (self.lib.fido_cred_x5c_ptr)(self.cred, 0);
+        let x5c = (self.0.lib.fido_cred_x5c_ptr)(self.0.cred, 0);
         if x5c.is_null() {
             bail!("failed to get credentials x5c data pointer");
         }
-        let len = (self.lib.fido_cred_x5c_len)(self.cred, 0);
+        let len = (self.0.lib.fido_cred_x5c_len)(self.0.cred, 0);
         Ok(unsafe { std::slice::from_raw_parts(x5c, len) })
     }
 }
@@ -917,48 +925,53 @@ impl FidoAssert {
         }
         Ok(self)
     }
+}
 
+
+pub struct FidoAssertSigned<'a>(&'a FidoAssert);
+
+impl FidoAssertSigned<'_> {
     /// Get the current hmac secret.
     /// Usable after creating an assertion or making credentials for a HMAC secret.
     pub fn hmac_secret(&self) -> Result<&[u8], Error> {
-        let hmac = (self.lib.fido_assert_hmac_secret_ptr)(self.assert, 0);
+        let hmac = (self.0.lib.fido_assert_hmac_secret_ptr)(self.0.assert, 0);
         if hmac.is_null() {
             bail!("failed to get assertion hmac secret pointer");
         }
-        let len = (self.lib.fido_assert_hmac_secret_len)(self.assert, 0);
+        let len = (self.0.lib.fido_assert_hmac_secret_len)(self.0.assert, 0);
         Ok(unsafe { std::slice::from_raw_parts(hmac, len) })
     }
 
     /// Get the current identity.
     /// Usable after creating webauthn assertion.
     pub fn id(&self) -> Result<&[u8], Error> {
-        let id = (self.lib.fido_assert_id_ptr)(self.assert, 0);
+        let id = (self.0.lib.fido_assert_id_ptr)(self.0.assert, 0);
         if id.is_null() {
             bail!("failed to get assertion id pointer");
         }
-        let len = (self.lib.fido_assert_id_len)(self.assert, 0);
+        let len = (self.0.lib.fido_assert_id_len)(self.0.assert, 0);
         Ok(unsafe { std::slice::from_raw_parts(id, len) })
     }
 
     /// Get the current signature.
     /// Usable after creating webauthn assertion.
     pub fn signature(&self) -> Result<&[u8], Error> {
-        let sig = (self.lib.fido_assert_sig_ptr)(self.assert, 0);
+        let sig = (self.0.lib.fido_assert_sig_ptr)(self.0.assert, 0);
         if sig.is_null() {
             bail!("failed to get assertion signature pointer");
         }
-        let len = (self.lib.fido_assert_sig_len)(self.assert, 0);
+        let len = (self.0.lib.fido_assert_sig_len)(self.0.assert, 0);
         Ok(unsafe { std::slice::from_raw_parts(sig, len) })
     }
 
     /// Get the current auth data.
     /// Usable after creating webauthn assertion.
     pub fn auth_data(&self) -> Result<&[u8], Error> {
-        let authdata = (self.lib.fido_assert_authdata_ptr)(self.assert, 0);
+        let authdata = (self.0.lib.fido_assert_authdata_ptr)(self.0.assert, 0);
         if authdata.is_null() {
             bail!("failed to get assertion auth data pointer");
         }
-        let len = (self.lib.fido_assert_authdata_len)(self.assert, 0);
+        let len = (self.0.lib.fido_assert_authdata_len)(self.0.assert, 0);
         Ok(unsafe { std::slice::from_raw_parts(authdata, len) })
     }
 }

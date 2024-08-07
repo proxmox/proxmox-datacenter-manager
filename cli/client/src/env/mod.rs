@@ -399,8 +399,8 @@ fn perform_fido_auth(
 
         let mut pin = None;
         'with_pin: loop {
-            match dev.assert(&assert, pin.as_deref()) {
-                Ok(()) => (),
+            return match dev.assert(&mut assert, pin.as_deref()) {
+                Ok(assert) => finish_fido_auth(assert, client_data_json, b64u_challenge),
                 Err(proxmox_fido2::Error::NoCredentials) => {
                     println!("Device did not contain the required credentials");
                     continue 'device;
@@ -414,8 +414,7 @@ fn perform_fido_auth(
                     continue 'with_pin;
                 }
                 Err(err) => return Err(err.into()),
-            }
-            return finish_fido_auth(assert, client_data_json, b64u_challenge);
+            };
         }
     }
 
@@ -423,7 +422,7 @@ fn perform_fido_auth(
 }
 
 fn finish_fido_auth(
-    assert: proxmox_fido2::FidoAssert,
+    assert: proxmox_fido2::FidoAssertSigned<'_>,
     client_data_json: String,
     b64u_challenge: String,
 ) -> Result<String, Error> {

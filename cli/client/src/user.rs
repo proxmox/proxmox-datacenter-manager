@@ -433,14 +433,16 @@ fn perform_fido_creation(
                 continue 'algorithm;
             };
 
-            let Some(cred) = prepare_cerds(&libfido, public_key, &hash, &options, alg)? else {
+            let Some(mut cred) = prepare_cerds(&libfido, public_key, &hash, &options, alg)? else {
                 continue 'device;
             };
 
             let mut pin = None;
             'with_pin: loop {
-                match dev.make_cred(&cred, pin.as_deref()) {
-                    Ok(()) => return finish_fido_auth(cred, client_data_json, b64u_challenge, alg),
+                match dev.make_cred(&mut cred, pin.as_deref()) {
+                    Ok(cred) => {
+                        return finish_fido_auth(cred, client_data_json, b64u_challenge, alg)
+                    }
                     Err(proxmox_fido2::Error::UnsupportedAlgorithm) => continue 'algorithm,
                     Err(proxmox_fido2::Error::PinRequired) if pin.is_none() => {
                         let user_pin = proxmox_sys::linux::tty::read_password("fido2 pin: ")?;
@@ -534,7 +536,7 @@ fn prepare_cerds(
 }
 
 fn finish_fido_auth(
-    cred: proxmox_fido2::FidoCred,
+    cred: proxmox_fido2::FidoCredSigned<'_>,
     client_data_json: String,
     b64u_challenge: String,
     alg: i32,
