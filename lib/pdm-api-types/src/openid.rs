@@ -17,10 +17,10 @@ pub const OPENID_SCOPE_ARRAY_SCHEMA: Schema =
 pub const OPENID_SCOPE_LIST_FORMAT: ApiStringFormat =
     ApiStringFormat::PropertyString(&OPENID_SCOPE_ARRAY_SCHEMA);
 
-pub const OPENID_DEFAILT_SCOPE_LIST: &str = "email profile";
+pub const OPENID_DEFAULT_SCOPE_LIST: &str = "email profile";
 pub const OPENID_SCOPE_LIST_SCHEMA: Schema = StringSchema::new("OpenID Scope List")
     .format(&OPENID_SCOPE_LIST_FORMAT)
-    .default(OPENID_DEFAILT_SCOPE_LIST)
+    .default(OPENID_DEFAULT_SCOPE_LIST)
     .schema();
 
 pub const OPENID_ACR_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SAFE_ID_REGEX);

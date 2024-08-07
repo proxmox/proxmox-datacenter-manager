@@ -6,7 +6,7 @@ VE, Proxmox Backup Server and potentially also Proxmox Mail Gateway in one centr
 - Status and Health overview for the core resources. E.g., for PVE/PBS/PMG hosts, PVE guests or PBS
   backups
 - *Basic* Management of the core resources.
-- Connect those seprate instances. E.g., cross-cluster VM live-migration.
+- Connect those separate instances. E.g., cross-cluster VM live-migration.
 
 
 ## Feature Overview
@@ -71,7 +71,7 @@ proportions.
     - Manage: only access to GET and some POST calls, to alter the state (e.g., start/stop) of a
       resource, but not to alter its configuration
 
-      POST allows creation too, so this may require some anotations in the API schema.
+      POST allows creation too, so this may require some annotations in the API schema.
 
     - Admin: can do everything
 

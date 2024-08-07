@@ -39,7 +39,7 @@ SDN or the node (host) for now, require the rest.
 - Access.Modify -> Change config or state of resource
 
 We could also create sub-types to provide more flexibility, like:
-- Access.ACL.Modfiy
+- Access.ACL.Modify
 - Access.User.Modify
 
 The biggest value from having a separate ACL and User modification privilege would be the ability to
@@ -54,7 +54,7 @@ could be still added later on, as it's an extension.
 - Auditor
 - SystemAdministrator
 - SystemAuditor
-- ResourceAdministator
+- ResourceAdministrator
 - ResourceAuditor
 - AccessAuditor
 - ... can be extended in the future.

@@ -547,7 +547,7 @@ impl FidoDev {
     pub fn options(&self) -> Result<DeviceOptions, Error> {
         let info = (self.lib.fido_cbor_info_new)();
         if info.is_null() {
-            bail!("failed to alloate fido cbor info");
+            bail!("failed to allocate fido cbor info");
         }
 
         let info = CborInfo {

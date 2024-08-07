@@ -307,7 +307,7 @@ fn stop_task(upid: UPID, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
             exitstatus: {
                 type: String,
                 optional: true,
-                description: "'OK', 'Error: <msg>', or 'unkwown'.",
+                description: "'OK', 'Error: <msg>', or 'unknown'.",
             },
         },
     },
