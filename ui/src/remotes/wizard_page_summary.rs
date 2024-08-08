@@ -14,7 +14,7 @@ use pdm_api_types::remotes::NodeUrl;
 
 use pwt_macros::builder;
 
-use super::{ServerInfo, ServerType};
+use super::ServerInfo;
 
 #[derive(Clone, PartialEq, Properties)]
 #[builder]

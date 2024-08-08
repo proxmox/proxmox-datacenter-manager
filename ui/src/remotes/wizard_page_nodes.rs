@@ -17,7 +17,7 @@ use pdm_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
 use pwt_macros::builder;
 
-use super::{ServerInfo, ServerType};
+use super::ServerInfo;
 
 #[derive(Clone, PartialEq, Properties)]
 #[builder]

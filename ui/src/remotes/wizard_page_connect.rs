@@ -10,12 +10,12 @@ use pwt::widget::{Button, Column, InputPanel, Mask, Row};
 
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
 
-use pdm_api_types::remotes::NodeUrl;
+use pdm_api_types::remotes::{NodeUrl, RemoteType};
 use pdm_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
 use pwt_macros::builder;
 
-use super::{ConnectParams, ServerInfo, ServerType};
+use super::{ConnectParams, ServerInfo};
 
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
@@ -42,7 +42,7 @@ async fn connect(form_ctx: FormContext) -> Result<ServerInfo, Error> {
     let _ = future.await;
 
     Ok(ServerInfo {
-        server_type: ServerType::PVE,
+        remote_type: RemoteType::Pve,
         nodes: vec![
             NodeUrl {
                 hostname: String::from("node1"),

@@ -37,18 +37,12 @@ use pwt::widget::{Button, Toolbar};
 
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 
-use pdm_api_types::remotes::NodeUrl;
-
-#[derive(Copy, Clone, PartialEq)]
-pub enum ServerType {
-    PVE,
-    PBS,
-}
+use pdm_api_types::remotes::{NodeUrl, RemoteType};
 
 /// Data returned by connect call.
 #[derive(Clone, PartialEq)]
 pub struct ServerInfo {
-    server_type: ServerType,
+    remote_type: RemoteType,
     nodes: Vec<NodeUrl>,
 }
 
