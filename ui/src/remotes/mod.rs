@@ -133,7 +133,7 @@ impl LoadableComponent for PbsRemoteConfigPanel {
     }
 
     fn create(ctx: &LoadableComponentContext<Self>) -> Self {
-        let store = Store::with_extract_key(|record: &Remote| Key::from(record.id()));
+        let store = Store::with_extract_key(|record: &Remote| Key::from(record.id.clone()));
 
         let selection = Selection::new().on_select(ctx.link().callback(|_| Msg::SelectionChange));
 
@@ -230,10 +230,10 @@ thread_local! {
         DataTableColumn::new(tr!("Remote ID"))
             .width("200px")
             .render(|item: &Remote| html!{
-                item.id()
+                &item.id
             })
             .sorter(|a: &Remote, b: &Remote| {
-                a.id().cmp(&b.id())
+                a.id.cmp(&b.id)
             })
             .sort_order(true)
             .into(),
