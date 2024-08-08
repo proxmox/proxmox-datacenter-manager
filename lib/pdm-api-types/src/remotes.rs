@@ -35,7 +35,7 @@ pub struct NodeUrl {
 }
 
 #[api]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, Ord, PartialOrd)]
 #[serde(rename_all = "lowercase")]
 pub enum RemoteType {
     /// A Proxmox VE node.

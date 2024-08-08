@@ -231,22 +231,26 @@ thread_local! {
             })
             .sort_order(true)
             .into(),
-/*
-        DataTableColumn::new(tr!("Host") + ":" + &tr!("Port"))
-            .width("200px")
-            .render(|item: &Remote| {
-                let host = if item.config.host.contains(':') { // poor mans v6 test
-                    format!("[{}]", item.config.host)
-                } else {
-                    item.config.host.clone()
-                };
-                html!{{format!("{}:{}", host, item.config.port.unwrap_or(8007))}}
+
+            DataTableColumn::new(tr!("Type"))
+            .width("50px")
+            .render(|item: &Remote| html!{
+                &item.ty
             })
             .sorter(|a: &Remote, b: &Remote| {
-                a.config.host.cmp(&b.config.host)
+                a.ty.cmp(&b.ty)
             })
             .into(),
-
+        DataTableColumn::new(tr!("AuthId"))
+            .width("200px")
+            .render(|item: &Remote| html!{
+                &item.userid
+            })
+            .sorter(|a: &Remote, b: &Remote| {
+                a.userid.cmp(&b.userid)
+            })
+            .into(),
+/*
         DataTableColumn::new(tr!("Auth ID"))
             .width("200px")
             .render(|item: &Remote| html!{
