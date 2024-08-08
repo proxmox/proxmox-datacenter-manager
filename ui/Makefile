@@ -32,20 +32,18 @@ COMPILED_OUTPUT := \
 
 all: $(COMPILED_OUTPUT)
 
+dist:
+	mkdir dist
+
 dist/pdm.js dist/pdm_bg.wasm &:
 	proxmox-wasm-builder build -n pdm --release
 
 dist/pdm_bundle.js: dist/pdm.js dist/pdm_bg.wasm
-	esbuild --bundle dist/pdm.js --format=esm > dist/pdm_bundle.js
+	esbuild --bundle dist/pdm.js --format=esm >dist/pdm_bundle.js.tmp
+	mv dist/pdm_bundle.js.tmp dist/pdm_bundle.js
 
-dist/crisp-yew-style.css: pwt-assets/scss/crisp-yew-style.scss
-	rust-grass pwt-assets/scss/crisp-yew-style.scss dist/crisp-yew-style.css
-
-dist/material-yew-style.css: pwt-assets/scss/material-yew-style.scss
-	rust-grass pwt-assets/scss/material-yew-style.scss dist/material-yew-style.css
-
-dist/desktop-yew-style.css: pwt-assets/scss/desktop-yew-style.scss
-	rust-grass pwt-assets/scss/desktop-yew-style.scss dist/desktop-yew-style.css
+dist/%.css: pwt-assets/scss/%.scss | dist
+	rust-grass $< $@
 
 install: $(COMPILED_OUTPUT) index.hbs
 	install -dm0755 $(DESTDIR)$(UIDIR)
