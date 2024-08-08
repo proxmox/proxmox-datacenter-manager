@@ -17,10 +17,7 @@ serde.workspace = true
 serde_json.workspace = true
 webauthn-rs.workspace = true
 
-pdm-buildcfg.workspace = true
-
 pdm-api-types.workspace = true
-pdm-config.workspace = true
 
 proxmox-access-control.workspace = true
 proxmox-client = { workspace = true, features = [ "hyper-client" ] }
