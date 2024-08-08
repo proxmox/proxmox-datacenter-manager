@@ -133,17 +133,18 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
 
             let mut arguments: Vec<&str> = Vec::new();
             let fd_string = listener.as_raw_fd().to_string();
-            arguments.push(&fd_string);
             arguments.extend_from_slice(&[
                 "--path",
                 path,
                 "--perm",
                 "Sys.Console",
-                "--authsocket",
+                "--auth-socket",
                 pdm_buildcfg::PDM_PRIVILEGED_API_SOCKET_FN,
                 "--port-as-fd",
-                "--",
             ]);
+            arguments.push(&fd_string);
+            arguments.push("--");
+
             arguments.extend_from_slice(&command);
 
             let mut cmd = tokio::process::Command::new("/usr/bin/termproxy");
