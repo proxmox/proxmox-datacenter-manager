@@ -32,7 +32,7 @@ COMPILED_OUTPUT := \
 
 all: $(COMPILED_OUTPUT)
 
-dist/pdm.js dist/pdm_bg.wasm:
+dist/pdm.js dist/pdm_bg.wasm &:
 	proxmox-wasm-builder build -n pdm --release
 
 dist/pdm_bundle.js: dist/pdm.js dist/pdm_bg.wasm
