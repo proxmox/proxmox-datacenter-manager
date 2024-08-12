@@ -6,11 +6,16 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use proxmox_access_control::types::{User, UserWithTokens};
 use proxmox_client::{Error, HttpApiClient};
 
-use pdm_api_types::remotes::Remote;
-use pdm_api_types::{AclListItem, Authid, ConfigurationState, RemoteUpid};
+use types::*;
+/// For convenience we reexport all the api types the client uses.
+pub mod types {
+    pub use proxmox_access_control::types::{User, UserWithTokens};
+
+    pub use pdm_api_types::remotes::Remote;
+    pub use pdm_api_types::{AclListItem, Authid, ConfigurationState, RemoteUpid};
+}
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
 
