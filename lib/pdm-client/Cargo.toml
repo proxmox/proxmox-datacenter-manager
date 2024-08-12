@@ -9,20 +9,18 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-hex.workspace = true
-hyper = { workspace = true, features = [ "client", "tcp", "http1", "http2" ] }
-log.workspace = true
 percent-encoding.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-webauthn-rs.workspace = true
 
 pdm-api-types.workspace = true
 
 proxmox-access-control.workspace = true
-proxmox-client = { workspace = true, features = [ "hyper-client" ] }
-proxmox-http.workspace = true
-proxmox-login.workspace = true
+proxmox-client.workspace = true
 proxmox-tfa = { workspace = true, features = [ "types" ] }
 
 pve-api-types = { workspace = true, features = [ "client" ] }
+
+[features]
+default = []
+hyper-client = [ "proxmox-client/hyper-client" ]
