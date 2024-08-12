@@ -4,13 +4,10 @@ use yew::html::IntoEventCallback;
 use yew::virtual_dom::VComp;
 
 use pwt::prelude::*;
-use pwt::widget::form::Field;
-use pwt::widget::{Column, InputPanel, TabBarItem};
+use pwt::widget::TabBarItem;
 
 use proxmox_yew_comp::{Wizard, WizardPageRenderInfo};
 use yew::virtual_dom::VNode;
-
-use pdm_api_types::remotes::NodeUrl;
 
 use super::{ServerInfo, WizardPageConnect, WizardPageNodes, WizardPageSummary};
 
@@ -42,11 +39,11 @@ impl Component for AddWizardState {
     type Message = Msg;
     type Properties = AddWizard;
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self { server_info: None }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::ServerChange(server_info) => {
                 self.server_info = server_info;

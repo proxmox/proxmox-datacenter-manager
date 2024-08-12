@@ -1,14 +1,13 @@
 use std::rc::Rc;
 
-use anyhow::Error;
 use yew::html::IntoPropValue;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::prelude::*;
 use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
-use pwt::widget::form::{Field, FormContextObserver, InputType};
-use pwt::widget::{Button, Column, Container, InputPanel, Row};
+use pwt::widget::form::Field;
+use pwt::widget::Container;
 
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
 
@@ -77,7 +76,7 @@ impl Component for PdmWizardPageNodes {
         true
     }
 
-    fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {
+    fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
         let props = ctx.props();
         props.info.page_lock(props.server_info.is_none());
         if let Some(server_info) = &props.server_info {
@@ -138,7 +137,7 @@ fn columns(selection: Selection) -> Vec<DataTableHeader<NodeUrl>> {
             .into(),
         DataTableColumn::new(tr!("Fingerprint"))
             .width("200px")
-            .render(|item: &NodeUrl| {
+            .render(|_item: &NodeUrl| {
                 Container::new()
                     .with_child(Field::new().schema(&CERT_FINGERPRINT_SHA256_SCHEMA))
                     .onclick(|event: MouseEvent| event.stop_propagation())

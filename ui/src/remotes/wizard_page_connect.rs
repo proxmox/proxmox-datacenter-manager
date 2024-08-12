@@ -2,10 +2,10 @@ use std::rc::Rc;
 
 use anyhow::Error;
 use yew::html::IntoEventCallback;
-use yew::virtual_dom::{Key, VComp, VNode};
+use yew::virtual_dom::{VComp, VNode};
 
 use pwt::prelude::*;
-use pwt::widget::form::{Field, Form, FormContext, FormContextObserver, InputType};
+use pwt::widget::form::{Field, FormContext, FormContextObserver, InputType};
 use pwt::widget::{Button, Column, InputPanel, Mask, Row};
 
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
@@ -35,7 +35,7 @@ impl WizardPageConnect {
 
 async fn connect(form_ctx: FormContext) -> Result<ServerInfo, Error> {
     let data = form_ctx.get_submit_data();
-    let data: ConnectParams = serde_json::from_value(data)?;
+    let _data: ConnectParams = serde_json::from_value(data)?;
 
     // fixme: do real api call
     let future: wasm_bindgen_futures::JsFuture = proxmox_yew_comp::async_sleep(1000).into();
@@ -123,7 +123,7 @@ impl Component for PdmWizardPageConnect {
                     Ok(server_info) => {
                         self.update_server_info(ctx, Some(server_info));
                     }
-                    Err(err) => {
+                    Err(_err) => {
                         todo!();
                     }
                 }

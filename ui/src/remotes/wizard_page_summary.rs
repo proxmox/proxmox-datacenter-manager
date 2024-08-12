@@ -56,7 +56,7 @@ impl Component for PdmWizardPageNodes {
         Self { store, columns }
     }
 
-    fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {
+    fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
         let props = ctx.props();
         props.info.page_lock(props.server_info.is_none());
         if let Some(server_info) = &props.server_info {
@@ -105,7 +105,7 @@ fn columns() -> Vec<DataTableHeader<NodeUrl>> {
             .into(),
         DataTableColumn::new(tr!("Address"))
             .width("400px")
-            .render(move |item: &NodeUrl| {
+            .render(move |_item: &NodeUrl| {
                 html! {"ADDRESS/Fingerprint"}
             })
             .into(),

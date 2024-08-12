@@ -174,8 +174,7 @@ impl LoadableComponent for PbsRemoteConfigPanel {
         Some(toolbar.into())
     }
 
-    fn main_view(&self, ctx: &LoadableComponentContext<Self>) -> Html {
-        let link = ctx.link();
+    fn main_view(&self, _ctx: &LoadableComponentContext<Self>) -> Html {
         let columns = COLUMNS.with(Rc::clone);
         DataTable::new(columns, self.store.clone())
             .class("pwt-flex-fit")
