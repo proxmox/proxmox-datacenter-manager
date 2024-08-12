@@ -35,7 +35,7 @@ all: $(COMPILED_OUTPUT)
 dist:
 	mkdir dist
 
-dist/pdm.js dist/pdm_bg.wasm &:
+dist/pdm.js dist/pdm_bg.wasm &: $(shell find src -name '*.rs')
 	proxmox-wasm-builder build -n pdm --release
 
 dist/pdm_bundle.js: dist/pdm.js dist/pdm_bg.wasm
