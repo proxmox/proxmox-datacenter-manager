@@ -10,7 +10,9 @@ use pwt::widget::{Container, Panel, Row, SelectionView, SelectionViewRenderInfo}
 use proxmox_yew_comp::common_api_types::TaskListItem;
 use proxmox_yew_comp::{NotesView, XTermJs};
 
-use crate::{CertificatesPanel, RemoteConfigPanel, ServerAdministration, SystemConfiguration};
+use crate::{
+    AccessControl, CertificatesPanel, RemoteConfigPanel, ServerAdministration, SystemConfiguration,
+};
 
 /*
 use crate::{
@@ -139,8 +141,7 @@ impl Component for PdmMainMenu {
             tr!("Access Control"),
             "access",
             Some("fa fa-key"),
-            //|_| html! { <AccessControl /> },
-            |_| html! { "AccessControl" },
+            |_| AccessControl::new().into(),
         );
 
         register_view(

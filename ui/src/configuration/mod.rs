@@ -1,14 +1,15 @@
 use pwt::prelude::*;
-
 use pwt::state::NavigationContainer;
-use pwt::widget::{TabPanel, TabBarItem, MiniScrollMode};
+use pwt::widget::{MiniScrollMode, TabBarItem, TabPanel};
 
-use proxmox_yew_comp::configuration::{DnsPanel, NetworkView};
 use proxmox_yew_comp::configuration::TimePanel;
+use proxmox_yew_comp::configuration::{DnsPanel, NetworkView};
+
+mod access_control;
+pub use access_control::AccessControl;
 
 #[function_component(SystemConfiguration)]
 pub fn system_configuration() -> Html {
-
     let panel = TabPanel::new()
         .state_id("*SystemConfigurationState")
         .title(tr!("Configuration") + ": " + &tr!("System"))
@@ -37,7 +38,5 @@ pub fn system_configuration() -> Html {
             |_| html! { <TimePanel/> },
         );
 
-    NavigationContainer::new()
-        .with_child(panel)
-        .into()
+    NavigationContainer::new().with_child(panel).into()
 }

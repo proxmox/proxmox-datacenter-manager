@@ -41,8 +41,10 @@ proxmox-login = "0.1"
 proxmox-client = "0.3"
 
 pdm-api-types = "0.1"
+pdm-client = "0.1"
 
 [patch.crates-io]
 pdm-api-types = { path = "../lib/pdm-api-types" }
+pdm-client = { path = "../lib/pdm-client" }
 proxmox-yew-comp = { path = "../../proxmox-yew-comp" }
 pwt = { path = "../../proxmox-yew-widget-toolkit" }

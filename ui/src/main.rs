@@ -4,7 +4,7 @@ use gloo_timers::callback::Timeout;
 use yew::prelude::*;
 
 use pwt::prelude::*;
-use pwt::state::{Loader, PersistentState};
+use pwt::state::Loader;
 use pwt::widget::{Column, DesktopApp, Dialog};
 
 use proxmox_login::Authentication;
@@ -21,7 +21,7 @@ enum Msg {
     ConfirmSubscription,
     ShowSubscriptionAlert(String, Option<String>),
     Login(Authentication),
-    SaveFingerprint(String),
+    // SaveFingerprint(String), FIXME
     Logout,
     TaskChanged,
 }
@@ -134,15 +134,16 @@ impl Component for DatacenterManagerApp {
                     running_tasks.load();
                 }));
                 false
-            }
-            Msg::SaveFingerprint(fp) => {
-                PersistentState::<String>::with_location(
-                    "fingerprint",
-                    pwt::state::StorageLocation::Session,
-                )
-                .update(fp);
-                false
-            }
+            } /*
+              Msg::SaveFingerprint(fp) => {
+                  PersistentState::<String>::with_location(
+                      "fingerprint",
+                      pwt::state::StorageLocation::Session,
+                  )
+                  .update(fp);
+                  false
+              }
+              */
         }
     }
 
