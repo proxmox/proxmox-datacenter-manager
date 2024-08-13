@@ -7,7 +7,7 @@ use proxmox_router::{
     http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::api;
-use proxmox_section_config_typed::SectionConfigData;
+use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
@@ -139,8 +139,8 @@ pub fn update_remote(
     if let Some(v) = updater.nodes {
         entry.nodes = v;
     }
-    if let Some(v) = updater.userid {
-        entry.userid = v;
+    if let Some(v) = updater.authid {
+        entry.authid = v;
     }
     if let Some(v) = updater.token {
         entry.token = v;
@@ -195,5 +195,6 @@ pub async fn version(id: String) -> Result<pve_api_types::VersionResponse, Error
     let remote = get_remote(&remotes, &id)?;
     match remote.ty {
         RemoteType::Pve => Ok(pve::connect(remote)?.version().await?),
+        RemoteType::Pbs => Ok(crate::pbs_client::connect(remote)?.version().await?),
     }
 }

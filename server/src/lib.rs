@@ -5,6 +5,8 @@ pub mod api;
 pub mod auth;
 pub mod env;
 
+pub mod pbs_client;
+
 use anyhow::Error;
 use serde_json::Value;
 

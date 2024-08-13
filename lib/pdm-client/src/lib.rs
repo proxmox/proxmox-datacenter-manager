@@ -545,6 +545,14 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await?
             .nodata()
     }
+
+    pub async fn pbs_list_datastores(
+        &self,
+        remote: &str,
+    ) -> Result<Vec<pbs_api_types::DataStoreConfig>, Error> {
+        let path = format!("/api2/extjs/pbs/{remote}/datastores");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
 }
 
 /// Builder for remote migration parameters - common parameters.

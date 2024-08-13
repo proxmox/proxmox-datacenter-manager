@@ -4,8 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::property_string::PropertyString;
 use proxmox_schema::{api, ApiType, Schema, StringSchema, Updater};
+use proxmox_section_config::typed::ApiSectionDataEntry;
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
-use proxmox_section_config_typed::ApiSectionDataEntry;
+
+use crate::Authid;
 
 pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
     .format(&crate::PROXMOX_SAFE_ID_FORMAT)
@@ -40,6 +42,8 @@ pub struct NodeUrl {
 pub enum RemoteType {
     /// A Proxmox VE node.
     Pve,
+    /// A Proxmox Backup Server node.
+    Pbs,
 }
 
 serde_plain::derive_display_from_serialize!(RemoteType);
@@ -73,9 +77,9 @@ pub struct Remote {
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
     pub nodes: Vec<PropertyString<NodeUrl>>,
 
-    /// The userid used to access this cluster.
+    /// The auth id used to access this cluster.
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
-    pub userid: String,
+    pub authid: Authid,
 
     /// The access token's secret.
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
@@ -84,18 +88,21 @@ pub struct Remote {
 
 impl ApiSectionDataEntry for Remote {
     const INTERNALLY_TAGGED: Option<&'static str> = Some("type");
+    const SECION_CONFIG_USES_TYPE_KEY: bool = true;
 
     /// Get the `SectionConfig` configuration for this enum.
     fn section_config() -> &'static SectionConfig {
         static CONFIG: OnceLock<SectionConfig> = OnceLock::new();
 
         CONFIG.get_or_init(|| {
-            let mut this = SectionConfig::new(&REMOTE_ID_SCHEMA);
-            this.register_plugin(SectionConfigPlugin::new(
-                "pve".to_string(),
-                Some("id".to_string()),
-                Remote::API_SCHEMA.unwrap_object_schema(),
-            ));
+            let mut this = SectionConfig::new(&REMOTE_ID_SCHEMA).with_type_key("type");
+            for ty in ["pve", "pbs"] {
+                this.register_plugin(SectionConfigPlugin::new(
+                    ty.to_string(),
+                    Some("id".to_string()),
+                    Remote::API_SCHEMA.unwrap_object_schema(),
+                ));
+            }
             this
         })
     }
@@ -104,6 +111,7 @@ impl ApiSectionDataEntry for Remote {
     fn section_type(&self) -> &'static str {
         match self.ty {
             RemoteType::Pve => "pve",
+            RemoteType::Pbs => "pbs",
         }
     }
 }

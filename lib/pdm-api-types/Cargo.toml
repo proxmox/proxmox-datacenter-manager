@@ -25,5 +25,3 @@ proxmox-dns-api.workspace = true
 proxmox-time-api.workspace = true
 proxmox-time.workspace = true
 proxmox-uuid = { workspace = true, features = ["serde"] }
-
-proxmox-section-config-typed.workspace = true

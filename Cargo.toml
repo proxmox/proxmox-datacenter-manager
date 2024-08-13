@@ -18,8 +18,6 @@ resolver = "2"
 members = [
     "lib/pdm-buildcfg",
 
-    "lib/proxmox-section-config-typed",
-
     "server",
     "lib/pdm-api-types",
     "lib/pdm-client",
@@ -35,20 +33,23 @@ members = [
 proxmox-access-control = "0.2"
 proxmox-async = "0.4"
 proxmox-auth-api = "0.4"
+proxmox-client = "0.4"
+proxmox-daemon = "0.1"
 proxmox-http = { version = "0.9", features = [ "client", "http-helpers", "websocket" ] } # see below
+proxmox-human-byte = "0.1"
 proxmox-io = "1.0.1" # tools and client use "tokio" feature
 proxmox-lang = "1.1"
 proxmox-log = "0.2"
-#proxmox-metrics = "0.2"
-proxmox-daemon = "0.1"
+proxmox-login = "0.1.1"
 proxmox-rest-server = "0.7"
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
 proxmox-router = { version = "2.2.2", default-features = false }
-# everything but pbs-config and pbs-client ues "api-macro"
+# everything but pbs-config and pbs-client use "api-macro"
 proxmox-schema = "3.1.1"
-proxmox-section-config = "2.1"
+proxmox-section-config = "2.1.1"
 proxmox-serde = "0.1.1"
 proxmox-shared-memory = "0.3.0"
+proxmox-simple-config = "0.1"
 proxmox-sortable-macro = "0.1.2"
 proxmox-subscription = { version = "0.4", features = [ "api-types" ] }
 proxmox-sys = "0.6.0"
@@ -56,9 +57,6 @@ proxmox-systemd = "0.1"
 proxmox-tfa = { version = "5", features = [ "api-types" ], default-features = false }
 proxmox-time = "2"
 proxmox-uuid = "1"
-proxmox-login = "0.1.1"
-proxmox-client = "0.3"
-proxmox-simple-config = "0.1"
 
 # other proxmox crates
 proxmox-acme = "0.5"
@@ -77,6 +75,8 @@ proxmox-acme-api = "0.1"
 
 # API types for PVE (and later PMG?)
 pve-api-types = { path = "lib/proxmox-api-types/pve-api-types" }
+# API types for PBS
+pbs-api-types = { path = "lib/proxmox-backup/pbs-api-types" }
 
 # PDM workspace
 server = { path = "server" }
@@ -85,7 +85,6 @@ pdm-buildcfg = { path = "lib/pdm-buildcfg" }
 pdm-config = { path = "lib/pdm-config" }
 pdm-client = { path = "lib/pdm-client" }
 proxmox-fido2 = { path = "cli/proxmox-fido2" }
-proxmox-section-config-typed = { path = "lib/proxmox-section-config-typed" }
 
 # regular crates
 anyhow = "1.0"

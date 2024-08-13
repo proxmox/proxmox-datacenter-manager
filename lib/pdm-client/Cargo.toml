@@ -20,6 +20,7 @@ proxmox-client.workspace = true
 proxmox-tfa = { workspace = true, features = [ "types" ] }
 
 pve-api-types = { workspace = true, features = [ "client" ] }
+pbs-api-types.workspace = true
 
 [features]
 default = []

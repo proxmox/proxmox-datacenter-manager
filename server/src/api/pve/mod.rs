@@ -10,7 +10,7 @@ use proxmox_router::{
     http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::api;
-use proxmox_section_config_typed::SectionConfigData;
+use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::{Remote, RemoteType, REMOTE_ID_SCHEMA};
@@ -106,9 +106,10 @@ pub fn connect(remote: &Remote) -> Result<PveClient<Client>, Error> {
     let client = Client::with_options(uri, options, Default::default())?;
 
     client.set_authentication(proxmox_client::Token {
-        userid: remote.userid.clone(),
+        userid: remote.authid.to_string(),
         prefix: "PVEAPIToken".to_string(),
         value: remote.token.to_string(),
+        perl_compat: true,
     });
 
     Ok(PveClient(client))
@@ -613,9 +614,9 @@ pub async fn qemu_remote_migrate(
         .first()
         .ok_or_else(|| format_err!("no nodes configured for target cluster"))?;
     let mut target_endpoint = format!(
-        "host={host},apitoken=PVEAPIToken={userid}={secret}",
+        "host={host},apitoken=PVEAPIToken={authid}={secret}",
         host = target_node.hostname,
-        userid = target.userid,
+        authid = target.authid,
         secret = target.token,
     );
     if let Some(fp) = target_node.fingerprint.as_deref() {
@@ -928,9 +929,9 @@ pub async fn lxc_remote_migrate(
         .first()
         .ok_or_else(|| format_err!("no nodes configured for target cluster"))?;
     let mut target_endpoint = format!(
-        "host={host},apitoken=PVEAPIToken={userid}={secret}",
+        "host={host},apitoken=PVEAPIToken={authid}={secret}",
         host = target_node.hostname,
-        userid = target.userid,
+        authid = target.authid,
         secret = target.token,
     );
     if let Some(fp) = target_node.fingerprint.as_deref() {

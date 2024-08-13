@@ -31,5 +31,3 @@ proxmox-acme = { workspace = true, features = [ "async-client" ]}
 proxmox-acme-api.workspace = true
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
-
-proxmox-section-config-typed.workspace = true

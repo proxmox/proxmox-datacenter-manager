@@ -12,8 +12,8 @@ use proxmox_schema::api_types::DNS_NAME_OR_IP_SCHEMA;
 use proxmox_schema::{
     api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema, Updater,
 };
+use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
-use proxmox_section_config_typed::{ApiSectionDataEntry, SectionConfigData};
 
 use crate::env::Fingerprint;
 use crate::XDG;

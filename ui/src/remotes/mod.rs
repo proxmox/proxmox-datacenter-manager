@@ -243,10 +243,10 @@ thread_local! {
         DataTableColumn::new(tr!("AuthId"))
             .width("200px")
             .render(|item: &Remote| html!{
-                &item.userid
+                &item.authid
             })
             .sorter(|a: &Remote, b: &Remote| {
-                a.userid.cmp(&b.userid)
+                a.authid.cmp(&b.authid)
             })
             .into(),
 /*

@@ -47,8 +47,9 @@ async fn list_remotes() -> Result<(), Error> {
         for entry in entries {
             match entry.ty {
                 RemoteType::Pve => println!("Proxmox VE node {}:", entry.id),
+                RemoteType::Pbs => println!("Proxmox Backup Server node {}:", entry.id),
             }
-            println!("    userid: {}", entry.userid);
+            println!("    auth id: {}", entry.authid);
             println!("    token: {}", entry.token);
             if entry.nodes.len() == 1 {
                 println!("    node: {}", property_string::print(&*entry.nodes[0])?);

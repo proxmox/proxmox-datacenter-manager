@@ -53,7 +53,6 @@ proxmox-rest-server = { workspace = true, features = [ "templates" ] }
 proxmox-router = { workspace = true, features = [ "cli", "server"] }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-section-config.workspace = true
-proxmox-section-config-typed.workspace = true
 proxmox-serde = { workspace = true, features = [ "serde_json" ] }
 proxmox-shared-memory.workspace = true
 proxmox-sortable-macro.workspace = true
@@ -84,3 +83,4 @@ pdm-buildcfg.workspace = true
 pdm-config.workspace = true
 
 pve-api-types = { workspace = true, features = [ "client" ] }
+pbs-api-types.workspace = true

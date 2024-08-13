@@ -17,6 +17,7 @@ pub mod env;
 
 pub mod acl;
 pub mod config;
+pub mod pbs;
 pub mod pve;
 pub mod remotes;
 pub mod tags;
@@ -91,6 +92,7 @@ fn main_do() -> Result<(), Error> {
         )
         .insert("login", CliCommand::new(&API_METHOD_LOGIN))
         .insert("pve", pve::cli())
+        .insert("pbs", pbs::cli())
         .insert("remote", remotes::cli())
         .insert("user", user::cli())
         .insert("acl", acl::cli())
