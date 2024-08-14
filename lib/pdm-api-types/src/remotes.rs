@@ -51,6 +51,7 @@ serde_plain::derive_fromstr_from_deserialize!(RemoteType);
 
 #[api(
     properties: {
+        "id": { schema: REMOTE_ID_SCHEMA },
         "type": { type: RemoteType },
         "nodes": {
             type: Array,
