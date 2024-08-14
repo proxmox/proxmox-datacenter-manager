@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::pin::pin;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use anyhow::{bail, Context as _, Error};
 use futures::*;
@@ -26,6 +27,7 @@ use proxmox_auth_api::api::assemble_csrf_prevention_token;
 use server::auth;
 use server::auth::csrf::csrf_secret;
 use server::metric_collection;
+use server::task_utils;
 
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
 
@@ -316,25 +318,10 @@ fn start_task_scheduler() {
     });
 }
 
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-
-fn next_minute() -> Instant {
-    let now = SystemTime::now();
-    let epoch_now = match now.duration_since(UNIX_EPOCH) {
-        Ok(d) => d,
-        Err(err) => {
-            eprintln!("task scheduler: compute next minute alignment failed - {err}");
-            return Instant::now() + Duration::from_secs(60);
-        }
-    };
-    let epoch_next = Duration::from_secs((epoch_now.as_secs() / 60 + 1) * 60);
-    Instant::now() + epoch_next - epoch_now
-}
-
 async fn run_task_scheduler() {
     loop {
         // sleep first to align to next minute boundary for first round
-        let delay_target = next_minute();
+        let delay_target = task_utils::next_aligned_instant(60);
         tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
 
         match schedule_tasks().catch_unwind().await {

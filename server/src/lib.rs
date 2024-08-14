@@ -5,6 +5,7 @@ pub mod api;
 pub mod auth;
 pub mod env;
 pub mod metric_collection;
+pub mod task_utils;
 
 pub mod pbs_client;
 

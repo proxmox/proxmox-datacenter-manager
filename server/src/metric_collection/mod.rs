@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::pin::pin;
-use std::time::{Duration, Instant};
 
 use anyhow::Error;
 
@@ -10,10 +9,11 @@ use pdm_api_types::remotes::RemoteType;
 use pve_api_types::{ClusterMetricsData, ClusterMetricsDataType};
 
 use crate::api::pve;
+use crate::task_utils;
 
 mod rrd_cache;
 
-const COLLECTION_INTERVAL: Duration = Duration::from_secs(60);
+const COLLECTION_INTERVAL: u64 = 60;
 
 /// Initialize the RRD cache
 pub fn init() -> Result<(), Error> {
@@ -36,7 +36,8 @@ async fn metric_collection_task() -> Result<(), Error> {
     let mut most_recent_timestamps: HashMap<String, i64> = HashMap::new();
 
     loop {
-        let delay_target = Instant::now() + COLLECTION_INTERVAL;
+        let delay_target = task_utils::next_aligned_instant(COLLECTION_INTERVAL);
+        tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
 
         let (remotes, _) = pdm_config::remotes::config()?;
 
@@ -88,8 +89,6 @@ async fn metric_collection_task() -> Result<(), Error> {
                 Err(err) => log::error!("failed to collect metrics for {remote_name}: {err}"),
             }
         }
-
-        tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
     }
 }
 
