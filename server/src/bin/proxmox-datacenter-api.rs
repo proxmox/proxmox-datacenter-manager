@@ -25,6 +25,7 @@ use proxmox_auth_api::api::assemble_csrf_prevention_token;
 
 use server::auth;
 use server::auth::csrf::csrf_secret;
+use server::metric_collection;
 
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
 
@@ -134,6 +135,8 @@ async fn run(debug: bool) -> Result<(), Error> {
     auth::init(false);
 
     proxmox_acme_api::init(configdir!("/acme"), false)?;
+
+    metric_collection::init()?;
 
     let api_user = pdm_config::api_user()?;
     let mut command_sock = proxmox_daemon::command_socket::CommandSocket::new(api_user.gid);
@@ -285,6 +288,7 @@ async fn run(debug: bool) -> Result<(), Error> {
     });
 
     start_task_scheduler();
+    metric_collection::start_task();
 
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");

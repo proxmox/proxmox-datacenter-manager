@@ -20,6 +20,7 @@ libc.workspace = true
 log.workspace = true
 nix.workspace = true
 openssl.workspace = true
+once_cell.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = [ "fs", "io-util", "io-std", "macros", "net", "parking_lot", "process", "rt", "rt-multi-thread", "signal", "time" ] }
@@ -35,6 +36,7 @@ proxmox-lang.workspace = true
 proxmox-log.workspace = true
 proxmox-rest-server = { workspace = true, features = [ "templates" ] }
 proxmox-router = { workspace = true, features = [ "cli", "server"] }
+proxmox-rrd = { workspace = true, features = [ "api-types" ] }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-section-config.workspace = true
 proxmox-serde = { workspace = true, features = [ "serde_json" ] }
