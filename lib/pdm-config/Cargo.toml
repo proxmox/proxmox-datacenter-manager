@@ -8,7 +8,6 @@ description = "Configuration file management for PDM"
 [dependencies]
 anyhow.workspace = true
 hex.workspace = true
-lazy_static.workspace = true
 libc.workspace = true
 log.workspace = true
 nix.workspace = true

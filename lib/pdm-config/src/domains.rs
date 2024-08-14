@@ -1,7 +1,7 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use anyhow::Error;
-use lazy_static::lazy_static;
 
 use proxmox_schema::{ApiType, Schema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
@@ -9,9 +9,7 @@ use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlug
 use pdm_api_types::{ConfigDigest, OpenIdRealmConfig, REALM_ID_SCHEMA};
 use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
 
-lazy_static! {
-    pub static ref CONFIG: SectionConfig = init();
-}
+pub static CONFIG: LazyLock<SectionConfig> = LazyLock::new(init);
 
 fn init() -> SectionConfig {
     let obj_schema = match OpenIdRealmConfig::API_SCHEMA {
