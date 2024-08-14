@@ -7,26 +7,19 @@ description = "Configuration file management for PDM"
 
 [dependencies]
 anyhow.workspace = true
-hex.workspace = true
-libc.workspace = true
 log.workspace = true
 nix.workspace = true
 once_cell.workspace = true
 openssl.workspace = true
-regex.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 
 proxmox-config-digest = { workspace = true, features = [ "openssl" ] }
 proxmox-product-config.workspace = true
-proxmox-router = { workspace = true, default-features = false }
 proxmox-schema.workspace = true
 proxmox-section-config.workspace = true
 proxmox-shared-memory.workspace = true
 proxmox-simple-config.workspace = true
 proxmox-sys = { workspace = true, features = [ "acl", "crypt", "timer" ] }
-proxmox-time.workspace = true
-proxmox-acme = { workspace = true, features = [ "async-client" ]}
 proxmox-acme-api.workspace = true
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
