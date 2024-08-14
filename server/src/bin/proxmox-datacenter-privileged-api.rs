@@ -72,6 +72,13 @@ fn create_directories() -> Result<(), Error> {
     )?;
 
     pdm_config::setup::mkdir_perms(
+        pdm_buildcfg::PDM_STATE_DIR,
+        api_user.uid,
+        api_user.gid,
+        0o755,
+    )?;
+
+    pdm_config::setup::mkdir_perms(
         concat!(pdm_buildcfg::PDM_LOG_DIR_M!(), "/api"),
         api_user.uid,
         api_user.gid,
