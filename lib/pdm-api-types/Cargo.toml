@@ -9,7 +9,6 @@ description = "general API type helpers for PDM"
 anyhow.workspace = true
 const_format.workspace = true
 hex.workspace = true
-lazy_static.workspace = true
 percent-encoding.workspace = true
 regex.workspace = true
 serde.workspace = true
