@@ -13,6 +13,5 @@ pub fn next_aligned_instant(seconds: u64) -> Instant {
             return Instant::now() + Duration::from_secs(seconds);
         }
     };
-    let epoch_next = Duration::from_secs((epoch_now.as_secs() / seconds + 1) * seconds);
-    Instant::now() + epoch_next - epoch_now
+    Instant::now() + Duration::from_secs(seconds - epoch_now.as_secs().rem_euclid(seconds))
 }
