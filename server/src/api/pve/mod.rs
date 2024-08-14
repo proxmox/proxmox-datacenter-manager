@@ -21,6 +21,7 @@ use pdm_api_types::{
 use pve_api_types::client::PveClient;
 use pve_api_types::ClusterResourceKind;
 
+mod rrddata;
 pub mod tasks;
 
 pub const ROUTER: Router = Router::new().match_all("remote", &MAIN_ROUTER);
@@ -48,6 +49,7 @@ const LXC_VM_ROUTER: Router = Router::new()
 #[sortable]
 const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_LXC_GET_CONFIG)),
+    ("rrddata", &rrddata::LXC_RRD_ROUTER),
     ("start", &Router::new().post(&API_METHOD_LXC_START)),
     ("stop", &Router::new().post(&API_METHOD_LXC_STOP)),
     ("shutdown", &Router::new().post(&API_METHOD_LXC_SHUTDOWN)),
@@ -57,7 +59,16 @@ const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     ),
 ]);
 
-const NODES_ROUTER: Router = Router::new().get(&API_METHOD_LIST_NODES);
+const NODES_ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_NODES)
+    .match_all("node", &SINGLE_NODE_ROUTER);
+
+const SINGLE_NODE_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(SINGLE_NODE_SUBDIRS))
+    .subdirs(SINGLE_NODE_SUBDIRS);
+
+#[sortable]
+const SINGLE_NODE_SUBDIRS: SubdirMap = &sorted!([("rrddata", &rrddata::NODE_RRD_ROUTER),]);
 
 const QEMU_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_QEMU)
@@ -69,6 +80,7 @@ const QEMU_VM_ROUTER: Router = Router::new()
 #[sortable]
 const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_QEMU_GET_CONFIG)),
+    ("rrddata", &rrddata::QEMU_RRD_ROUTER),
     ("start", &Router::new().post(&API_METHOD_QEMU_START)),
     ("stop", &Router::new().post(&API_METHOD_QEMU_STOP)),
     ("shutdown", &Router::new().post(&API_METHOD_QEMU_SHUTDOWN)),

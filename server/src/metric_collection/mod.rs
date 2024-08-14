@@ -11,7 +11,7 @@ use pve_api_types::{ClusterMetricsData, ClusterMetricsDataType};
 use crate::api::pve;
 use crate::task_utils;
 
-mod rrd_cache;
+pub mod rrd_cache;
 
 const COLLECTION_INTERVAL: u64 = 60;
 
