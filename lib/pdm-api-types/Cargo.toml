@@ -8,8 +8,6 @@ description = "general API type helpers for PDM"
 [dependencies]
 anyhow.workspace = true
 const_format.workspace = true
-hex.workspace = true
-percent-encoding.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_plain.workspace = true
@@ -19,8 +17,5 @@ proxmox-lang.workspace = true
 proxmox-config-digest.workspace = true
 proxmox-schema = { workspace = true, features = ["api-macro"] }
 proxmox-section-config.workspace = true
-proxmox-serde.workspace = true
 proxmox-dns-api.workspace = true
-proxmox-time-api.workspace = true
 proxmox-time.workspace = true
-proxmox-uuid = { workspace = true, features = ["serde"] }
