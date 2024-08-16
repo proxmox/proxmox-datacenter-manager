@@ -25,6 +25,8 @@ tokio = { workspace = true, features = [ "time" ] }
 webauthn-rs.workspace = true
 xdg.workspace = true
 
+pbs-api-types.workspace = true
+
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-client.workspace = true

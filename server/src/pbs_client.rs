@@ -80,4 +80,32 @@ impl PbsClient {
         let path = "/api2/extjs/config/datastore";
         Ok(self.0.get(path).await?.expect_json()?.data)
     }
+
+    /// List a datastore's snapshots.
+    pub async fn list_snapshots(
+        &self,
+        datastore: &str,
+        namespace: Option<&str>,
+    ) -> Result<Vec<pbs_api_types::SnapshotListItem>, Error> {
+        let mut path = format!("/api2/extjs/admin/datastore/{datastore}/snapshots");
+        add_query_arg(&mut path, &mut '?', "ns", &namespace);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+}
+
+/// Add an optional string parameter to the query, and if it was added, change `separator` to `&`.
+fn add_query_arg<T>(query: &mut String, separator: &mut char, name: &str, value: &Option<T>)
+where
+    T: std::fmt::Display,
+{
+    if let Some(value) = value {
+        query.push(*separator);
+        *separator = '&';
+        query.push_str(name);
+        query.push('=');
+        query.extend(percent_encoding::percent_encode(
+            value.to_string().as_bytes(),
+            percent_encoding::NON_ALPHANUMERIC,
+        ));
+    }
 }

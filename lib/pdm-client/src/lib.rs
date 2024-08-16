@@ -550,7 +550,18 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         remote: &str,
     ) -> Result<Vec<pbs_api_types::DataStoreConfig>, Error> {
-        let path = format!("/api2/extjs/pbs/{remote}/datastores");
+        let path = format!("/api2/extjs/pbs/{remote}/datastore");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pbs_list_snapshots(
+        &self,
+        remote: &str,
+        store: &str,
+        namespace: Option<&str>,
+    ) -> Result<Vec<pbs_api_types::SnapshotListItem>, Error> {
+        let mut path = format!("/api2/extjs/pbs/{remote}/datastore/{store}/snapshots");
+        add_query_arg(&mut path, &mut '?', "ns", &namespace);
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 }
@@ -719,7 +730,7 @@ impl AddTfaEntry {
         }
     }
 }
-///
+
 /// Add an optional string parameter to the query, and if it was added, change `separator` to `&`.
 pub fn add_query_arg<T>(query: &mut String, separator: &mut char, name: &str, value: &Option<T>)
 where
