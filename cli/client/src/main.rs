@@ -108,6 +108,9 @@ fn main_do() -> Result<(), Error> {
     env.connect_args = rpcenv
         .take_global_option()
         .ok_or_else(|| format_err!("missing connect args"))?;
+    if let Err(err) = env.recall_current_server() {
+        eprintln!("error reading current server from cache: {err}");
+    }
     env.connect_args.finalize()?;
     env.format_args = rpcenv.take_global_option().unwrap_or_default();
 
@@ -115,7 +118,13 @@ fn main_do() -> Result<(), Error> {
         bail!("failed to initialize environment");
     }
 
-    invocation.call(&mut rpcenv)
+    invocation.call(&mut rpcenv)?;
+
+    if let Err(err) = self::env().remember_current_server() {
+        eprintln!("error setting current server: {err:?}");
+    }
+
+    Ok(())
 }
 
 #[api]

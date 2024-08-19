@@ -6,7 +6,7 @@ use std::io::{self, IsTerminal, Write};
 use anyhow::{bail, format_err, Context as _, Error};
 use http::Uri;
 use openssl::x509;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use proxmox_auth_api::types::Userid;
 use proxmox_client::TfaChallenge;
@@ -38,6 +38,14 @@ const USERID_CACHE_PATH: &str = xdg_path!("userid");
 const FINGERPRINT_CACHE_PATH: &str = xdg_path!("fingerprints");
 const CURRENT_SERVER_CACHE_PATH: &str = xdg_path!("current-server");
 
+#[derive(Deserialize, Serialize)]
+struct CurrentServer {
+    host: String,
+    user: Userid,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    port: Option<u16>,
+}
+
 pub struct Env {
     pub format_args: FormatArgs,
     pub connect_args: PdmConnectArgs,
@@ -63,6 +71,8 @@ impl Env {
         ))
     }
 
+    /// The pdm url with the `user@` part used for the `current-server` file in `~/.cache`.
+
     pub fn new() -> Result<Self, Error> {
         let mut this = Self {
             format_args: FormatArgs::default(),
@@ -75,52 +85,51 @@ impl Env {
             this.fingerprint_cache.load(&cache)?;
         }
 
-        if let Some(file) = XDG.find_cache_file(CURRENT_SERVER_CACHE_PATH) {
-            let server = std::fs::read_to_string(&file)?;
-            if let Err(err) = this.set_server(server.trim()) {
-                eprintln!("bad server in cache file ({file:?}): {err}");
-            }
-        }
-
         Ok(this)
     }
 
-    fn set_server(&mut self, server: &str) -> Result<(), Error> {
-        let uri: Uri = server.parse()?;
-        let parts = uri.into_parts();
-
-        if let Some(scheme) = parts.scheme {
-            if scheme == http::uri::Scheme::HTTP {
-                log::warn!("ignoring 'http://' scheme, using https instead");
-            } else if scheme != http::uri::Scheme::HTTPS {
-                bail!("invalid address scheme: '{scheme}'");
-            }
+    /// Recall from `~/.cache/current-server`, unless parameters have been set.
+    pub fn recall_current_server(&mut self) -> Result<(), Error> {
+        if self.connect_args.host.is_some()
+            || self.connect_args.user.is_some()
+            || self.connect_args.port.is_some()
+        {
+            return Ok(());
         }
 
-        if let Some(paq) = parts.path_and_query {
-            if !paq.path().is_empty() && paq.path() != "/" {
-                // TODO:
-                bail!("unsupported url (path currently ignored)");
-            }
-            if paq.query().is_some() {
-                bail!("unsupported url (should not contain a query)");
-            }
-        }
+        let Some(file) = XDG.find_cache_file(CURRENT_SERVER_CACHE_PATH) else {
+            return Ok(());
+        };
 
-        let authority = parts
-            .authority
-            .ok_or_else(|| format_err!("invalid url (missing authority): {server:?}"))?;
+        let data = match std::fs::read(&file) {
+            Ok(data) => data,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(err) => return Err(err.into()),
+        };
 
-        // authority doesn't actually give us proper access to its components -_-
-        let host = authority.host();
-        let user_at = authority.as_str().strip_suffix(host).unwrap();
-        let user = user_at
-            .strip_suffix('@')
-            .ok_or_else(|| format_err!("missing username in url"))?;
+        let data: CurrentServer = serde_json::from_slice(&data)?;
+        self.connect_args.host = Some(data.host);
+        self.connect_args.user = Some(data.user);
+        self.connect_args.port = data.port;
+        Ok(())
+    }
 
-        self.connect_args.host = Some(host.to_string());
-        self.connect_args.user = Some(user.parse().context("failed to parse previous user id")?);
+    pub fn remember_current_server(&self) -> Result<(), Error> {
+        let Some(host) = self.connect_args.host.clone() else {
+            return Ok(());
+        };
+        let Some(user) = self.connect_args.user.clone() else {
+            return Ok(());
+        };
 
+        let data = serde_json::to_string(&CurrentServer {
+            host,
+            user,
+            port: self.connect_args.port,
+        })?;
+
+        let path = XDG.place_cache_file(CURRENT_SERVER_CACHE_PATH)?;
+        std::fs::write(path, data.as_bytes())?;
         Ok(())
     }
 
