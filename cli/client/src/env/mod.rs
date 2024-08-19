@@ -71,8 +71,6 @@ impl Env {
         ))
     }
 
-    /// The pdm url with the `user@` part used for the `current-server` file in `~/.cache`.
-
     pub fn new() -> Result<Self, Error> {
         let mut this = Self {
             format_args: FormatArgs::default(),
