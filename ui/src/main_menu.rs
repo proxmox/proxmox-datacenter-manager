@@ -88,7 +88,6 @@ fn register_submenu(
 
 impl PdmMainMenu {
     async fn get_remote_list() -> Result<Vec<pdm_client::types::Remote>, Error> {
-        gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
         let mut list = crate::pdm_client().list_remotes().await?;
         list.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(list)
@@ -238,7 +237,7 @@ impl Component for PdmMainMenu {
                         move |_| match remote.ty {
                             RemoteType::Pve => html! { format!("PVE remote {}", remote.id) },
                             RemoteType::Pbs => {
-                                crate::pbs::SnapshotList::new(remote.id.clone()).into()
+                                crate::pbs::DatastoreMenu::new(remote.id.clone()).into()
                             }
                         }
                     },

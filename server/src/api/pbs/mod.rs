@@ -163,11 +163,13 @@ fn list_snapshots_raw(
             let body = hyper::Body::wrap_stream(tokio_stream::wrappers::ReceiverStream::new(recv));
             Ok(http::Response::builder()
                 .status(http::StatusCode::OK)
+                .header(http::header::CONTENT_TYPE, "application/json-seq")
                 .body(body)?)
         } else {
             let result = serde_json::to_vec(&snapshots)?;
             Ok(http::Response::builder()
                 .status(http::StatusCode::OK)
+                .header(http::header::CONTENT_TYPE, "application/json")
                 .body(hyper::Body::from(result))?)
         }
     })

@@ -16,6 +16,8 @@ serde_json = "1.0"
 wasm-bindgen-futures = "0.4"
 percent-encoding = "2.1"
 gloo-timers = "0.3"
+gloo-net = "0.4"
+web-sys = "0.3"
 
 pwt = "0.2"
 pwt-macros = "0.1"
@@ -25,10 +27,12 @@ proxmox-yew-comp = "0.1"
 proxmox-login = "0.1"
 
 pdm-api-types = "0.1"
+pbs-api-types = "0.1"
 pdm-client = "0.1"
 
 [patch.crates-io]
 pdm-api-types = { path = "../lib/pdm-api-types" }
+pbs-api-types = { path = "../lib/proxmox-backup/pbs-api-types" }
 pdm-client = { path = "../lib/pdm-client" }
 proxmox-yew-comp = { path = "../../proxmox-yew-comp" }
 pwt = { path = "../../proxmox-yew-widget-toolkit" }
