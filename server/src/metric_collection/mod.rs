@@ -39,7 +39,13 @@ async fn metric_collection_task() -> Result<(), Error> {
         let delay_target = task_utils::next_aligned_instant(COLLECTION_INTERVAL);
         tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
 
-        let (remotes, _) = pdm_config::remotes::config()?;
+        let remotes = match pdm_config::remotes::config() {
+            Ok((remotes, _)) => remotes,
+            Err(e) => {
+                log::error!("failed to collect metrics, could not read remotes.cfg: {e}");
+                continue;
+            }
+        };
 
         for (remote_name, remote) in &remotes.sections {
             let start_time = *most_recent_timestamps.get(remote_name).unwrap_or(&0);
