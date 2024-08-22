@@ -25,21 +25,22 @@ fn create_value_from_rrd(
     let mut last_resolution = None;
 
     for name in list {
-        let (start, reso, data) = match rrd_cache::extract_data(basedir, name, timeframe, mode)? {
-            Some(result) => result.into(),
-            None => continue,
-        };
+        let (start, resolution, data) =
+            match rrd_cache::extract_data(basedir, name, timeframe, mode)? {
+                Some(data) => data.into(),
+                None => continue,
+            };
 
         if let Some(expected_resolution) = last_resolution {
-            if reso != expected_resolution {
+            if resolution != expected_resolution {
                 bail!(
                     "got unexpected RRD resolution ({} != {})",
-                    reso,
+                    resolution,
                     expected_resolution
                 );
             }
         } else {
-            last_resolution = Some(reso);
+            last_resolution = Some(resolution);
         }
 
         let mut t = start;
@@ -49,7 +50,7 @@ fn create_value_from_rrd(
             if let Some(value) = value {
                 entry[*name] = value.into();
             }
-            t += reso;
+            t += resolution;
         }
     }
 
