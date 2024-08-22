@@ -5,8 +5,10 @@
 //! the PBS repo, which is huge and messy...
 
 use anyhow::{bail, format_err}; // don't import Error as default error in here
+use serde::Deserialize;
 
 use proxmox_client::{Error, HttpApiClient, TlsOptions};
+use proxmox_router::stream::JsonRecords;
 use proxmox_section_config::typed::SectionConfigData;
 
 use pdm_api_types::remotes::{Remote, RemoteType};
@@ -86,11 +88,40 @@ impl PbsClient {
         &self,
         datastore: &str,
         namespace: Option<&str>,
-    ) -> Result<Vec<pbs_api_types::SnapshotListItem>, Error> {
+    ) -> Result<JsonRecords<pbs_api_types::SnapshotListItem>, anyhow::Error> {
         let mut path = format!("/api2/extjs/admin/datastore/{datastore}/snapshots");
         add_query_arg(&mut path, &mut '?', "ns", &namespace);
-        Ok(self.0.get(&path).await?.expect_json()?.data)
+        let response = self
+            .0
+            .streaming_request(http::Method::GET, &path, None::<()>)
+            .await?;
+
+        let body = response
+            .body
+            .ok_or_else(|| Error::Other("missing response body"))?;
+
+        if response.status == 200 {
+            if response
+                .content_type
+                .is_some_and(|c| c.starts_with("application/json-seq"))
+            {
+                Ok(JsonRecords::from_body(body))
+            } else {
+                let response: JsonData<_> =
+                    serde_json::from_slice(&hyper::body::to_bytes(body).await?)?;
+                Ok(JsonRecords::from_vec(response.data))
+            }
+        } else {
+            let data = hyper::body::to_bytes(body).await?;
+            let error = String::from_utf8_lossy(&data).into_owned();
+            Err(anyhow::Error::msg(error))
+        }
     }
+}
+
+#[derive(Deserialize)]
+struct JsonData<T> {
+    data: T,
 }
 
 /// Add an optional string parameter to the query, and if it was added, change `separator` to `&`.

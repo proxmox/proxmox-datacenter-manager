@@ -14,6 +14,7 @@ serde.workspace = true
 serde_json.workspace = true
 
 proxmox-async.workspace = true
+proxmox-log.workspace = true
 proxmox-router = { workspace = true, features = [ "cli" ], default-features = false }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 

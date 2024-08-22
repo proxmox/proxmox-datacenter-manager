@@ -7,17 +7,21 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
+futures = "0.3"
 yew = { version = "0.21",  features = ["csr"] }
 yew-router = { version = "0.18" }
+js-sys = "0.3.69"
 log = "0.4.6"
 wasm-logger = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 wasm-bindgen-futures = "0.4"
+wasm-bindgen = "0.2.92"
 percent-encoding = "2.1"
 gloo-timers = "0.3"
 gloo-net = "0.4"
-web-sys = "0.3"
+gloo-utils = "0.2"
+web-sys = { version = "0.3", features = ["ReadableStreamDefaultReader"] }
 
 pwt = "0.2"
 pwt-macros = "0.1"
@@ -36,3 +40,49 @@ pbs-api-types = { path = "../lib/proxmox-backup/pbs-api-types" }
 pdm-client = { path = "../lib/pdm-client" }
 proxmox-yew-comp = { path = "../../proxmox-yew-comp" }
 pwt = { path = "../../proxmox-yew-widget-toolkit" }
+
+# proxmox-access-control = { path = "../../proxmox/proxmox-access-control" }
+# proxmox-acme-api = { path = "../../proxmox/proxmox-acme-api" }
+# proxmox-acme = { path = "../../proxmox/proxmox-acme" }
+# proxmox-api-macro = { path = "../../proxmox/proxmox-api-macro" }
+# proxmox-apt-api-types = { path = "../../proxmox/proxmox-apt-api-types" }
+# proxmox-apt = { path = "../../proxmox/proxmox-apt" }
+# proxmox-async = { path = "../../proxmox/proxmox-async" }
+# proxmox-auth-api = { path = "../../proxmox/proxmox-auth-api" }
+# proxmox-borrow = { path = "../../proxmox/proxmox-borrow" }
+# proxmox-client = { path = "../../proxmox/proxmox-client" }
+# proxmox-compression = { path = "../../proxmox/proxmox-compression" }
+# proxmox-config-digest = { path = "../../proxmox/proxmox-config-digest" }
+# proxmox-daemon = { path = "../../proxmox/proxmox-daemon" }
+# proxmox-dns-api = { path = "../../proxmox/proxmox-dns-api" }
+# proxmox-http-error = { path = "../../proxmox/proxmox-http-error" }
+# proxmox-http = { path = "../../proxmox/proxmox-http" }
+# proxmox-human-byte = { path = "../../proxmox/proxmox-human-byte" }
+# proxmox-io = { path = "../../proxmox/proxmox-io" }
+# proxmox-lang = { path = "../../proxmox/proxmox-lang" }
+# proxmox-ldap = { path = "../../proxmox/proxmox-ldap" }
+# proxmox-login = { path = "../../proxmox/proxmox-login" }
+# proxmox-log = { path = "../../proxmox/proxmox-log" }
+# proxmox-metrics = { path = "../../proxmox/proxmox-metrics" }
+# proxmox-network-api = { path = "../../proxmox/proxmox-network-api" }
+# proxmox-notify = { path = "../../proxmox/proxmox-notify" }
+# proxmox-openid = { path = "../../proxmox/proxmox-openid" }
+# proxmox-product-config = { path = "../../proxmox/proxmox-product-config" }
+# proxmox-rest-server = { path = "../../proxmox/proxmox-rest-server" }
+# proxmox-router = { path = "../../proxmox/proxmox-router" }
+# proxmox-rrd = { path = "../../proxmox/proxmox-rrd" }
+# proxmox-schema = { path = "../../proxmox/proxmox-schema" }
+# proxmox-section-config = { path = "../../proxmox/proxmox-section-config" }
+# proxmox-serde = { path = "../../proxmox/proxmox-serde" }
+# proxmox-shared-memory = { path = "../../proxmox/proxmox-shared-memory" }
+# proxmox-simple-config = { path = "../../proxmox/proxmox-simple-config" }
+# proxmox-sortable-macro = { path = "../../proxmox/proxmox-sortable-macro" }
+# proxmox-subscription = { path = "../../proxmox/proxmox-subscription" }
+# proxmox-syslog-api = { path = "../../proxmox/proxmox-syslog-api" }
+# proxmox-sys = { path = "../../proxmox/proxmox-sys" }
+# proxmox-systemd = { path = "../../proxmox/proxmox-systemd" }
+# proxmox-tfa = { path = "../../proxmox/proxmox-tfa" }
+# proxmox-time-api = { path = "../../proxmox/proxmox-time-api" }
+# proxmox-time = { path = "../../proxmox/proxmox-time" }
+# proxmox-uuid = { path = "../../proxmox/proxmox-uuid" }
+# proxmox-worker-task = { path = "../../proxmox/proxmox-worker-task" }

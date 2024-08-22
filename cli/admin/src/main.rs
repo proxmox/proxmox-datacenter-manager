@@ -4,7 +4,8 @@ mod remotes;
 
 fn main() {
     //pbs_tools::setup_libc_malloc_opts(); // TODO: move from PBS to proxmox-sys and uncomment
-    proxmox_router::cli::init_cli_logger("PDM_LOG", "info");
+    proxmox_log::init_cli_logger("PDM_LOG", proxmox_log::LevelFilter::INFO)
+        .expect("failed to set up logger");
 
     let cmd_def = CliCommandMap::new().insert("remote", remotes::cli());
 

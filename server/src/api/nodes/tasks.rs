@@ -51,7 +51,7 @@ fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
 }
 
 #[api(
-    streaming: true,
+    serializing: true,
     input: {
         properties: {
             node: {
