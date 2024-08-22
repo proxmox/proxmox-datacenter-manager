@@ -93,13 +93,16 @@ impl PdmMainMenu {
         Ok(list)
     }
 
-    fn poll_remote_list(ctx: &Context<Self>) {
-        ctx.link()
-            .send_future(async { Msg::RemoteList(Self::get_remote_list().await) })
+    fn poll_remote_list(ctx: &Context<Self>, first: bool) {
+        ctx.link().send_future(async move {
+            if !first {
+                gloo_timers::future::sleep(std::time::Duration::from_secs(5)).await;
+            }
+            Msg::RemoteList(Self::get_remote_list().await)
+        })
     }
 
     fn update_remotes(&mut self, ctx: &Context<Self>, result: MsgRemoteList) -> bool {
-        log::info!("update remotes");
         match result {
             Err(_) if self.remote_list.is_err() => false,
             Err(err) => {
@@ -107,7 +110,7 @@ impl PdmMainMenu {
                 true
             }
             Ok(list) => {
-                Self::poll_remote_list(ctx);
+                Self::poll_remote_list(ctx, false);
                 match &self.remote_list {
                     Err(_) => {
                         self.remote_list = Ok(list);
@@ -140,7 +143,7 @@ impl Component for PdmMainMenu {
     type Properties = MainMenu;
 
     fn create(ctx: &Context<Self>) -> Self {
-        Self::poll_remote_list(ctx);
+        Self::poll_remote_list(ctx, true);
         Self {
             active: Key::from("certificates"),
             menu_selection: Selection::new(),
