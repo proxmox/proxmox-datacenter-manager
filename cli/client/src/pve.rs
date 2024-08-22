@@ -8,6 +8,7 @@ use proxmox_router::cli::{
     format_and_print_result, format_and_print_result_full, CliCommand, CliCommandMap,
     CommandLineInterface, OutputFormat,
 };
+use proxmox_rrd::api_types::{RRDMode, RRDTimeFrame};
 use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
@@ -33,6 +34,15 @@ fn node_cli() -> CommandLineInterface {
         .insert(
             "list",
             CliCommand::new(&API_METHOD_LIST_NODES).arg_param(&["remote"]),
+        )
+        .insert(
+            "rrddata",
+            CliCommand::new(&API_METHOD_GET_NODE_RRD_DATA).arg_param(&[
+                "remote",
+                "node",
+                "mode",
+                "timeframe",
+            ]),
         )
         .into()
 }
@@ -64,6 +74,15 @@ fn qemu_cli() -> CommandLineInterface {
             CliCommand::new(&API_METHOD_REMOTE_MIGRATE_QEMU)
                 .arg_param(&["remote", "vmid", "target"]),
         )
+        .insert(
+            "rrddata",
+            CliCommand::new(&API_METHOD_GET_QEMU_RRD_DATA).arg_param(&[
+                "remote",
+                "vmid",
+                "mode",
+                "timeframe",
+            ]),
+        )
         .into()
 }
 
@@ -93,6 +112,15 @@ fn lxc_cli() -> CommandLineInterface {
             "remote-migrate",
             CliCommand::new(&API_METHOD_REMOTE_MIGRATE_LXC)
                 .arg_param(&["remote", "vmid", "target"]),
+        )
+        .insert(
+            "rrddata",
+            CliCommand::new(&API_METHOD_GET_LXC_RRD_DATA).arg_param(&[
+                "remote",
+                "vmid",
+                "mode",
+                "timeframe",
+            ]),
         )
         .into()
 }
@@ -134,6 +162,42 @@ async fn list_nodes(remote: String) -> Result<(), Error> {
         }
     } else {
         format_and_print_result(&entries, &output_format.to_string());
+    }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            mode: {
+                type: RRDMode
+            },
+            timeframe: {
+                type: RRDTimeFrame
+            }
+        }
+    }
+)]
+/// Return a PVE node's metric data.
+async fn get_node_rrd_data(
+    remote: String,
+    node: String,
+    mode: RRDMode,
+    timeframe: RRDTimeFrame,
+) -> Result<(), Error> {
+    let config = client()?
+        .pve_node_rrddata(&remote, &node, mode, timeframe)
+        .await?;
+
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
+        println!("{}", serde_json::to_string_pretty(&config)?);
+    } else {
+        format_and_print_result(&config, &output_format.to_string());
     }
     Ok(())
 }
@@ -445,6 +509,42 @@ async fn remote_migrate_qemu(
     input: {
         properties: {
             remote: { schema: REMOTE_ID_SCHEMA },
+            vmid: {
+                schema: VMID_SCHEMA,
+            },
+            mode: {
+                type: RRDMode
+            },
+            timeframe: {
+                type: RRDTimeFrame
+            }
+        }
+    }
+)]
+/// Return a VM's metric data.
+async fn get_qemu_rrd_data(
+    remote: String,
+    vmid: u32,
+    mode: RRDMode,
+    timeframe: RRDTimeFrame,
+) -> Result<(), Error> {
+    let config = client()?
+        .pve_qemu_rrddata(&remote, vmid, mode, timeframe)
+        .await?;
+
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
+        println!("{}", serde_json::to_string_pretty(&config)?);
+    } else {
+        format_and_print_result(&config, &output_format.to_string());
+    }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
             node: {
                 schema: NODE_SCHEMA,
                 optional: true,
@@ -693,6 +793,42 @@ async fn remote_migrate_lxc(
     let status = client.pve_wait_for_task(&upid).await?;
     println!("{status:#?}");
 
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            vmid: {
+                schema: VMID_SCHEMA,
+            },
+            cf: {
+                type: RRDMode
+            },
+            timeframe: {
+                type: RRDTimeFrame
+            }
+        }
+    }
+)]
+/// Return a CT's metric data.
+async fn get_lxc_rrd_data(
+    remote: String,
+    vmid: u32,
+    cf: RRDMode,
+    timeframe: RRDTimeFrame,
+) -> Result<(), Error> {
+    let config = client()?
+        .pve_lxc_rrddata(&remote, vmid, cf, timeframe)
+        .await?;
+
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
+        println!("{}", serde_json::to_string_pretty(&config)?);
+    } else {
+        format_and_print_result(&config, &output_format.to_string());
+    }
     Ok(())
 }
 

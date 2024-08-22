@@ -3,10 +3,12 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use pdm_api_types::rrddata::{LxcDataPoint, NodeDataPoint, QemuDataPoint};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use proxmox_client::{Error, HttpApiClient};
+use proxmox_rrd::api_types::{RRDMode, RRDTimeFrame};
 
 use types::*;
 /// For convenience we reexport all the api types the client uses.
@@ -256,6 +258,19 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
+    pub async fn pve_node_rrddata(
+        &self,
+        remote: &str,
+        node: &str,
+        mode: RRDMode,
+        timeframe: RRDTimeFrame,
+    ) -> Result<Vec<NodeDataPoint>, Error> {
+        let path = format!(
+            "/api2/extjs/pve/{remote}/nodes/{node}/rrddata?cf={mode}&timeframe={timeframe}"
+        );
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
     pub async fn pve_cluster_resources(
         &self,
         remote: &str,
@@ -365,6 +380,18 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.post(&path, &request).await?.expect_json()?.data)
     }
 
+    pub async fn pve_qemu_rrddata(
+        &self,
+        remote: &str,
+        vmid: u32,
+        mode: RRDMode,
+        timeframe: RRDTimeFrame,
+    ) -> Result<Vec<QemuDataPoint>, Error> {
+        let path =
+            format!("/api2/extjs/pve/{remote}/qemu/{vmid}/rrddata?cf={mode}&timeframe={timeframe}");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
     pub async fn pve_lxc_config(
         &self,
         remote: &str,
@@ -426,6 +453,18 @@ impl<T: HttpApiClient> PdmClient<T> {
             request["node"] = node.into();
         }
         Ok(self.0.post(&path, &request).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_lxc_rrddata(
+        &self,
+        remote: &str,
+        vmid: u32,
+        mode: RRDMode,
+        timeframe: RRDTimeFrame,
+    ) -> Result<Vec<LxcDataPoint>, Error> {
+        let path =
+            format!("/api2/extjs/pve/{remote}/lxc/{vmid}/rrddata?cf={mode}&timeframe={timeframe}");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn pve_list_tasks(
