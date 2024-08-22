@@ -33,11 +33,7 @@ fn create_value_from_rrd(
 
         if let Some(expected_resolution) = last_resolution {
             if resolution != expected_resolution {
-                bail!(
-                    "got unexpected RRD resolution ({} != {})",
-                    resolution,
-                    expected_resolution
-                );
+                bail!("got unexpected RRD resolution ({resolution} != {expected_resolution})",);
             }
         } else {
             last_resolution = Some(resolution);
