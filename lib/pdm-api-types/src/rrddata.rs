@@ -1,8 +1,8 @@
 use proxmox_schema::api;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[api]
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 /// Single point in time with all known data points for VMs.
 pub struct QemuDataPoint {
@@ -41,7 +41,7 @@ pub struct QemuDataPoint {
 }
 
 #[api]
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 /// Single point in time with all known data points for LXC containers.
 pub struct LxcDataPoint {
     /// Timestamp (UNIX epoch)
@@ -82,7 +82,7 @@ pub struct LxcDataPoint {
 }
 
 #[api]
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 /// Single point in time with all known data points for a PVE host.
 pub struct NodeDataPoint {
     /// Timestamp (UNIX epoch)
