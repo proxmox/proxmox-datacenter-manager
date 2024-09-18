@@ -1,3 +1,4 @@
+/*
 mod wizard_page_connect;
 use add_wizard::AddWizard;
 use wizard_page_connect::WizardPageConnect;
@@ -9,33 +10,39 @@ mod wizard_page_summary;
 pub use wizard_page_summary::WizardPageSummary;
 
 mod add_wizard;
+*/
 
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
 
-use anyhow::Error;
+use anyhow::{bail, Error};
+use pwt::widget::form::{Field, FormContext, InputType};
 use serde::{Deserialize, Serialize};
 
 //use proxmox_yew_comp::percent_encoding::percent_encode_component;
-
 use pdm_api_types::remotes::Remote;
+use proxmox_schema::{property_string::PropertyString, ApiType};
+use proxmox_yew_comp::SchemaValidation;
 
-//use pbs_api_types::{
-//    CERT_FINGERPRINT_SHA256_SCHEMA, DNS_NAME_OR_IP_SCHEMA, REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA,
-//};
+use pbs_api_types::{
+    CERT_FINGERPRINT_SHA256_SCHEMA, DNS_NAME_OR_IP_SCHEMA, REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA,
+};
 
 //use proxmox_schema::api_types::{CERT_FINGERPRINT_SHA256_SCHEMA, DNS_NAME_OR_IP_SCHEMA};
 
+use serde_json::Value;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::prelude::*;
 use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 //use pwt::widget::form::{delete_empty_values, Field, FormContext, InputType};
-use pwt::widget::{Button, Toolbar};
+use pwt::widget::{Button, InputPanel, Toolbar};
 
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use proxmox_yew_comp::{
+    EditWindow, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+};
 
 use pdm_api_types::remotes::{NodeUrl, RemoteType};
 
@@ -65,13 +72,36 @@ async fn delete_item(key: Key) -> Result<(), Error> {
     proxmox_yew_comp::http_delete(&url, None).await?;
     Ok(())
 }
+*/
 
 async fn create_item(form_ctx: FormContext) -> Result<(), Error> {
-    let data = form_ctx.get_submit_data();
+    let mut data = form_ctx.get_submit_data();
 
-    proxmox_yew_comp::http_post("/config/remote", Some(data)).await
+    data["type"] = "pve".into();
+    data["nodes"] = Value::Array(Vec::new());
+
+    let fingerprint = match data.as_object_mut().unwrap().remove("fingerprint") {
+        Some(Value::String(fingerprint)) => Some(fingerprint),
+        _ => None,
+    };
+
+    let hostname = match data.as_object_mut().unwrap().remove("server") {
+        Some(Value::String(server)) => server,
+        _ => bail!("missing server address"),
+    };
+
+    let mut remote: Remote = serde_json::from_value(data)?;
+
+    let node = NodeUrl {
+        hostname,
+        fingerprint,
+    };
+    remote.nodes = vec![PropertyString::new(node)];
+
+    proxmox_yew_comp::http_post("/remotes", Some(serde_json::to_value(remote).unwrap())).await
 }
 
+/*
 async fn update_item(form_ctx: FormContext) -> Result<(), Error> {
     let data = form_ctx.get_submit_data();
 
@@ -196,18 +226,49 @@ impl LoadableComponent for PbsRemoteConfigPanel {
     }
 }
 
+fn add_remote_input_panel(form_ctx: &FormContext) -> Html {
+    InputPanel::new()
+        .padding(4)
+        .with_field(tr!("Remote ID"), Field::new().name("id").required(true))
+        .with_right_field(
+            tr!("Fingerprint"),
+            Field::new()
+                .name("fingerprint")
+                .schema(&CERT_FINGERPRINT_SHA256_SCHEMA),
+        )
+        .with_field(
+            tr!("Server address"),
+            Field::new().name("server").required(true),
+        )
+        .with_field(
+            tr!("User/Token"),
+            Field::new()
+                .name("authid")
+                .schema(&pdm_api_types::Authid::API_SCHEMA)
+                .required(true),
+        )
+        .with_field(
+            tr!("Password/Secret"),
+            Field::new()
+                .name("token")
+                .input_type(InputType::Password)
+                .required(true),
+        )
+        .into()
+}
+
 impl PbsRemoteConfigPanel {
     fn create_add_dialog(&self, ctx: &LoadableComponentContext<Self>) -> Html {
+        /*
         AddWizard::new()
             .on_close(ctx.link().change_view_callback(|_| None))
             .into()
-        /*
+        */
         EditWindow::new(tr!("Add") + ": " + &tr!("Remote"))
             .renderer(add_remote_input_panel)
             .on_submit(create_item)
             .on_done(ctx.link().change_view_callback(|_| None))
             .into()
-            */
     }
 }
 

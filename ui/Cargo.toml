@@ -29,6 +29,7 @@ pwt-macros = "0.1"
 proxmox-yew-comp = "0.1"
 
 proxmox-login = "0.1"
+proxmox-schema = "3.2"
 
 pdm-api-types = "0.1"
 pbs-api-types = "0.1"
