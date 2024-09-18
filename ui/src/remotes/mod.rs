@@ -20,9 +20,9 @@ use anyhow::{bail, Error};
 use pwt::widget::form::{Field, FormContext, InputType};
 use serde::{Deserialize, Serialize};
 
-//use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use pdm_api_types::remotes::Remote;
 use proxmox_schema::{property_string::PropertyString, ApiType};
+use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use proxmox_yew_comp::SchemaValidation;
 
 use pbs_api_types::{
@@ -65,14 +65,13 @@ pub struct ConnectParams {
 async fn load_remotes() -> Result<Vec<Remote>, Error> {
     proxmox_yew_comp::http_get("/remotes", None).await
 }
-/*
+
 async fn delete_item(key: Key) -> Result<(), Error> {
     let id = key.to_string();
-    let url = format!("/config/remote/{}", percent_encode_component(&id));
+    let url = format!("/remotes/{}", percent_encode_component(&id));
     proxmox_yew_comp::http_delete(&url, None).await?;
     Ok(())
 }
-*/
 
 async fn create_item(form_ctx: FormContext) -> Result<(), Error> {
     let mut data = form_ctx.get_submit_data();
@@ -132,6 +131,7 @@ pub enum ViewState {
 
 pub enum Msg {
     SelectionChange,
+    RemoveItem,
 }
 
 pub struct PbsRemoteConfigPanel {
@@ -164,16 +164,28 @@ impl LoadableComponent for PbsRemoteConfigPanel {
         Self { store, selection }
     }
 
-    fn update(&mut self, _ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::SelectionChange => true,
+            Msg::RemoveItem => {
+                if let Some(key) = self.selection.selected_key() {
+                    let link = ctx.link().clone();
+                    wasm_bindgen_futures::spawn_local(async move {
+                        if let Err(err) = delete_item(key).await {
+                            link.show_error(tr!("Unable to delete item"), err, true);
+                        }
+                        link.send_reload();
+                    })
+                }
+                false
+            }
         }
     }
 
     fn toolbar(&self, ctx: &LoadableComponentContext<Self>) -> Option<Html> {
         let link = ctx.link();
 
-        let _disabled = self.selection.is_empty();
+        let disabled = self.selection.is_empty();
 
         let toolbar = Toolbar::new()
             .class("pwt-overflow-hidden")
@@ -188,12 +200,12 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                     .disabled(disabled)
                     .onclick(link.change_view_callback(|_| Some(ViewState::Edit))),
             )
+            */
             .with_child(
                 Button::new(tr!("Remove"))
                     .disabled(disabled)
                     .onclick(link.callback(|_| Msg::RemoveItem)),
             )
-            */
             .with_flex_spacer()
             .with_child({
                 let loading = ctx.loading();
