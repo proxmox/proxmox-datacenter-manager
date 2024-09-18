@@ -4,7 +4,7 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox_router::Router;
-use proxmox_rrd::api_types::{RRDMode, RRDTimeFrame};
+use proxmox_rrd_api_types::{RRDMode, RRDTimeFrame};
 use proxmox_schema::api;
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;

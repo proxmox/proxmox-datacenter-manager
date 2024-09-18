@@ -8,7 +8,7 @@ use proxmox_router::cli::{
     format_and_print_result, format_and_print_result_full, CliCommand, CliCommandMap,
     CommandLineInterface, OutputFormat,
 };
-use proxmox_rrd::api_types::{RRDMode, RRDTimeFrame};
+use proxmox_rrd_api_types::{RRDMode, RRDTimeFrame};
 use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use proxmox_client::{Error, HttpApiClient};
-use proxmox_rrd::api_types::{RRDMode, RRDTimeFrame};
+use proxmox_rrd_api_types::{RRDMode, RRDTimeFrame};
 
 use types::*;
 /// For convenience we reexport all the api types the client uses.

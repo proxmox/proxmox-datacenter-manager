@@ -9,9 +9,9 @@ use std::path::Path;
 use anyhow::{format_err, Error};
 use once_cell::sync::OnceCell;
 
-use proxmox_rrd::api_types::{RRDMode, RRDTimeFrame};
 use proxmox_rrd::rrd::{AggregationFn, Archive, DataSourceType, Database};
 use proxmox_rrd::Cache;
+use proxmox_rrd_api_types::{RRDMode, RRDTimeFrame};
 use proxmox_sys::fs::CreateOptions;
 
 use pdm_buildcfg::PDM_STATE_DIR_M;

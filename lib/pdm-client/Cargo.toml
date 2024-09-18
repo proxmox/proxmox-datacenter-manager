@@ -17,7 +17,7 @@ pdm-api-types.workspace = true
 
 proxmox-access-control.workspace = true
 proxmox-client.workspace = true
-proxmox-rrd = { workspace = true, features = [ "api-types"] }
+proxmox-rrd-api-types.workspace = true
 proxmox-tfa = { workspace = true, features = [ "types" ] }
 
 pve-api-types = { workspace = true, features = [ "client" ] }

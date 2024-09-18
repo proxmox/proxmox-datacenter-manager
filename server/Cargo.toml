@@ -39,7 +39,8 @@ proxmox-lang.workspace = true
 proxmox-log.workspace = true
 proxmox-rest-server = { workspace = true, features = [ "templates" ] }
 proxmox-router = { workspace = true, features = [ "cli", "server"] }
-proxmox-rrd = { workspace = true, features = [ "api-types" ] }
+proxmox-rrd.workspace = true
+proxmox-rrd-api-types.workspace = true
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-section-config.workspace = true
 proxmox-serde = { workspace = true, features = [ "serde_json" ] }

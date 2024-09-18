@@ -39,7 +39,7 @@ proxmox-fido2.workspace = true
 proxmox-log.workspace = true
 proxmox-login.workspace = true
 proxmox-router = { workspace = true, features = [ "cli" ], default-features = false }
-proxmox-rrd = { workspace = true, features = ["api-types"], default-features = false }
+proxmox-rrd-api-types.workspace = true
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-section-config.workspace = true
 proxmox-sys.workspace = true
