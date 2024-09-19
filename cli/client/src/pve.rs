@@ -8,7 +8,7 @@ use proxmox_router::cli::{
     format_and_print_result, format_and_print_result_full, CliCommand, CliCommandMap,
     CommandLineInterface, OutputFormat,
 };
-use proxmox_rrd_api_types::{RRDMode, RrdTimeframe};
+use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
@@ -174,7 +174,7 @@ async fn list_nodes(remote: String) -> Result<(), Error> {
                 schema: NODE_SCHEMA,
             },
             mode: {
-                type: RRDMode
+                type: RrdMode
             },
             timeframe: {
                 type: RrdTimeframe
@@ -186,7 +186,7 @@ async fn list_nodes(remote: String) -> Result<(), Error> {
 async fn get_node_rrd_data(
     remote: String,
     node: String,
-    mode: RRDMode,
+    mode: RrdMode,
     timeframe: RrdTimeframe,
 ) -> Result<(), Error> {
     let config = client()?
@@ -513,7 +513,7 @@ async fn remote_migrate_qemu(
                 schema: VMID_SCHEMA,
             },
             mode: {
-                type: RRDMode
+                type: RrdMode
             },
             timeframe: {
                 type: RrdTimeframe
@@ -525,7 +525,7 @@ async fn remote_migrate_qemu(
 async fn get_qemu_rrd_data(
     remote: String,
     vmid: u32,
-    mode: RRDMode,
+    mode: RrdMode,
     timeframe: RrdTimeframe,
 ) -> Result<(), Error> {
     let config = client()?
@@ -804,7 +804,7 @@ async fn remote_migrate_lxc(
                 schema: VMID_SCHEMA,
             },
             mode: {
-                type: RRDMode
+                type: RrdMode
             },
             timeframe: {
                 type: RrdTimeframe
@@ -816,7 +816,7 @@ async fn remote_migrate_lxc(
 async fn get_lxc_rrd_data(
     remote: String,
     vmid: u32,
-    mode: RRDMode,
+    mode: RrdMode,
     timeframe: RrdTimeframe,
 ) -> Result<(), Error> {
     let config = client()?

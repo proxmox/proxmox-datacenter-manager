@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use proxmox_client::{Error, HttpApiClient};
-use proxmox_rrd_api_types::{RRDMode, RrdTimeframe};
+use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 
 use types::*;
 /// For convenience we reexport all the api types the client uses.
@@ -262,7 +262,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         remote: &str,
         node: &str,
-        mode: RRDMode,
+        mode: RrdMode,
         timeframe: RrdTimeframe,
     ) -> Result<Vec<NodeDataPoint>, Error> {
         let path = format!(
@@ -384,7 +384,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         remote: &str,
         vmid: u32,
-        mode: RRDMode,
+        mode: RrdMode,
         timeframe: RrdTimeframe,
     ) -> Result<Vec<QemuDataPoint>, Error> {
         let path =
@@ -459,7 +459,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         remote: &str,
         vmid: u32,
-        mode: RRDMode,
+        mode: RrdMode,
         timeframe: RrdTimeframe,
     ) -> Result<Vec<LxcDataPoint>, Error> {
         let path =

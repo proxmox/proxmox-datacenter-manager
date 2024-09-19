@@ -11,7 +11,7 @@ use once_cell::sync::OnceCell;
 
 use proxmox_rrd::rrd::{AggregationFn, Archive, DataSourceType, Database};
 use proxmox_rrd::Cache;
-use proxmox_rrd_api_types::{RRDMode, RrdTimeframe};
+use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_sys::fs::CreateOptions;
 
 use pdm_buildcfg::PDM_STATE_DIR_M;
@@ -92,7 +92,7 @@ pub fn extract_data(
     basedir: &str,
     name: &str,
     timeframe: RrdTimeframe,
-    mode: RRDMode,
+    mode: RrdMode,
 ) -> Result<Option<proxmox_rrd::Entry>, Error> {
     let end = proxmox_time::epoch_f64() as u64;
 
@@ -106,8 +106,8 @@ pub fn extract_data(
     };
 
     let cf = match mode {
-        RRDMode::Max => AggregationFn::Maximum,
-        RRDMode::Average => AggregationFn::Average,
+        RrdMode::Max => AggregationFn::Maximum,
+        RrdMode::Average => AggregationFn::Average,
     };
 
     let rrd_cache = get_cache()?;

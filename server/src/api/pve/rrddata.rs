@@ -4,7 +4,7 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox_router::Router;
-use proxmox_rrd_api_types::{RRDMode, RrdTimeframe};
+use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_schema::api;
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
@@ -157,7 +157,7 @@ impl DataPoint for LxcDataPoint {
 fn create_datapoints_from_rrd<T: DataPoint>(
     basedir: &str,
     timeframe: RrdTimeframe,
-    mode: RRDMode,
+    mode: RrdMode,
 ) -> Result<Vec<T>, Error> {
     let mut timemap = BTreeMap::new();
     let mut last_resolution = None;
@@ -201,7 +201,7 @@ fn create_datapoints_from_rrd<T: DataPoint>(
                 type: RrdTimeframe,
             },
             cf: {
-                type: RRDMode,
+                type: RrdMode,
             },
         },
     },
@@ -211,7 +211,7 @@ fn get_qemu_rrd_data(
     remote: String,
     vmid: u32,
     timeframe: RrdTimeframe,
-    cf: RRDMode,
+    cf: RrdMode,
     _param: Value,
 ) -> Result<Vec<QemuDataPoint>, Error> {
     let base = format!("pve/{remote}/qemu/{vmid}");
@@ -228,7 +228,7 @@ fn get_qemu_rrd_data(
                 type: RrdTimeframe,
             },
             cf: {
-                type: RRDMode,
+                type: RrdMode,
             },
         },
     },
@@ -238,7 +238,7 @@ fn get_lxc_rrd_data(
     remote: String,
     vmid: u32,
     timeframe: RrdTimeframe,
-    cf: RRDMode,
+    cf: RrdMode,
     _param: Value,
 ) -> Result<Vec<LxcDataPoint>, Error> {
     let base = format!("pve/{remote}/lxc/{vmid}");
@@ -255,7 +255,7 @@ fn get_lxc_rrd_data(
                 type: RrdTimeframe,
             },
             cf: {
-                type: RRDMode,
+                type: RrdMode,
             },
         },
     },
@@ -265,7 +265,7 @@ fn get_node_rrd_data(
     remote: String,
     node: String,
     timeframe: RrdTimeframe,
-    cf: RRDMode,
+    cf: RrdMode,
     _param: Value,
 ) -> Result<Vec<NodeDataPoint>, Error> {
     let base = format!("pve/{remote}/node/{node}");
