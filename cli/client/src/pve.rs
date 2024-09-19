@@ -803,7 +803,7 @@ async fn remote_migrate_lxc(
             vmid: {
                 schema: VMID_SCHEMA,
             },
-            cf: {
+            mode: {
                 type: RRDMode
             },
             timeframe: {
@@ -816,11 +816,11 @@ async fn remote_migrate_lxc(
 async fn get_lxc_rrd_data(
     remote: String,
     vmid: u32,
-    cf: RRDMode,
+    mode: RRDMode,
     timeframe: RRDTimeFrame,
 ) -> Result<(), Error> {
     let config = client()?
-        .pve_lxc_rrddata(&remote, vmid, cf, timeframe)
+        .pve_lxc_rrddata(&remote, vmid, mode, timeframe)
         .await?;
 
     let output_format = env().format_args.output_format;
