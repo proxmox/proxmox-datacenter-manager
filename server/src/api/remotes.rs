@@ -27,7 +27,10 @@ const ITEM_ROUTER: Router = Router::new()
     .subdirs(SUBDIRS);
 
 #[sortable]
-const SUBDIRS: SubdirMap = &sorted!([("version", &Router::new().get(&API_METHOD_VERSION)),]);
+const SUBDIRS: SubdirMap = &sorted!([
+    ("config", &Router::new().get(&API_METHOD_REMOTE_CONFIG)),
+    ("version", &Router::new().get(&API_METHOD_VERSION)),
+]);
 
 pub fn get_remote<'a>(
     config: &'a SectionConfigData<Remote>,
@@ -197,4 +200,22 @@ pub async fn version(id: String) -> Result<pve_api_types::VersionResponse, Error
         RemoteType::Pve => Ok(pve::connect(remote)?.version().await?),
         RemoteType::Pbs => Ok(crate::pbs_client::connect(remote)?.version().await?),
     }
+}
+
+#[api(
+    input: {
+        properties: {
+            id: { schema: REMOTE_ID_SCHEMA },
+        },
+    },
+    returns: { type: Remote },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{id}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get the Remote Configuration
+pub fn remote_config(id: String) -> Result<Remote, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let remote = get_remote(&remotes, &id)?;
+    Ok(remote.clone())
 }
