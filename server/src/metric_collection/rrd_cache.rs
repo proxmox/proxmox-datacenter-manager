@@ -11,7 +11,7 @@ use once_cell::sync::OnceCell;
 
 use proxmox_rrd::rrd::{AggregationFn, Archive, DataSourceType, Database};
 use proxmox_rrd::Cache;
-use proxmox_rrd_api_types::{RRDMode, RRDTimeFrame};
+use proxmox_rrd_api_types::{RRDMode, RrdTimeframe};
 use proxmox_sys::fs::CreateOptions;
 
 use pdm_buildcfg::PDM_STATE_DIR_M;
@@ -91,18 +91,18 @@ fn create_callback(dst: DataSourceType) -> Database {
 pub fn extract_data(
     basedir: &str,
     name: &str,
-    timeframe: RRDTimeFrame,
+    timeframe: RrdTimeframe,
     mode: RRDMode,
 ) -> Result<Option<proxmox_rrd::Entry>, Error> {
     let end = proxmox_time::epoch_f64() as u64;
 
     let (start, resolution) = match timeframe {
-        RRDTimeFrame::Hour => (end - 3600, 60),
-        RRDTimeFrame::Day => (end - 3600 * 24, 60),
-        RRDTimeFrame::Week => (end - 3600 * 24 * 7, 30 * 60),
-        RRDTimeFrame::Month => (end - 3600 * 24 * 30, 30 * 60),
-        RRDTimeFrame::Year => (end - 3600 * 24 * 365, 6 * 60 * 60),
-        RRDTimeFrame::Decade => (end - 10 * 3600 * 24 * 366, 7 * 86400),
+        RrdTimeframe::Hour => (end - 3600, 60),
+        RrdTimeframe::Day => (end - 3600 * 24, 60),
+        RrdTimeframe::Week => (end - 3600 * 24 * 7, 30 * 60),
+        RrdTimeframe::Month => (end - 3600 * 24 * 30, 30 * 60),
+        RrdTimeframe::Year => (end - 3600 * 24 * 365, 6 * 60 * 60),
+        RrdTimeframe::Decade => (end - 10 * 3600 * 24 * 366, 7 * 86400),
     };
 
     let cf = match mode {

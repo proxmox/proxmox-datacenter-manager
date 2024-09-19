@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use proxmox_client::{Error, HttpApiClient};
-use proxmox_rrd_api_types::{RRDMode, RRDTimeFrame};
+use proxmox_rrd_api_types::{RRDMode, RrdTimeframe};
 
 use types::*;
 /// For convenience we reexport all the api types the client uses.
@@ -263,7 +263,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         node: &str,
         mode: RRDMode,
-        timeframe: RRDTimeFrame,
+        timeframe: RrdTimeframe,
     ) -> Result<Vec<NodeDataPoint>, Error> {
         let path = format!(
             "/api2/extjs/pve/{remote}/nodes/{node}/rrddata?cf={mode}&timeframe={timeframe}"
@@ -385,7 +385,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         vmid: u32,
         mode: RRDMode,
-        timeframe: RRDTimeFrame,
+        timeframe: RrdTimeframe,
     ) -> Result<Vec<QemuDataPoint>, Error> {
         let path =
             format!("/api2/extjs/pve/{remote}/qemu/{vmid}/rrddata?cf={mode}&timeframe={timeframe}");
@@ -460,7 +460,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         vmid: u32,
         mode: RRDMode,
-        timeframe: RRDTimeFrame,
+        timeframe: RrdTimeframe,
     ) -> Result<Vec<LxcDataPoint>, Error> {
         let path =
             format!("/api2/extjs/pve/{remote}/lxc/{vmid}/rrddata?cf={mode}&timeframe={timeframe}");

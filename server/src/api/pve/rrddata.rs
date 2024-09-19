@@ -4,7 +4,7 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox_router::Router;
-use proxmox_rrd_api_types::{RRDMode, RRDTimeFrame};
+use proxmox_rrd_api_types::{RRDMode, RrdTimeframe};
 use proxmox_schema::api;
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
@@ -156,7 +156,7 @@ impl DataPoint for LxcDataPoint {
 
 fn create_datapoints_from_rrd<T: DataPoint>(
     basedir: &str,
-    timeframe: RRDTimeFrame,
+    timeframe: RrdTimeframe,
     mode: RRDMode,
 ) -> Result<Vec<T>, Error> {
     let mut timemap = BTreeMap::new();
@@ -198,7 +198,7 @@ fn create_datapoints_from_rrd<T: DataPoint>(
             remote: { schema: REMOTE_ID_SCHEMA },
             vmid: { schema: VMID_SCHEMA },
             timeframe: {
-                type: RRDTimeFrame,
+                type: RrdTimeframe,
             },
             cf: {
                 type: RRDMode,
@@ -210,7 +210,7 @@ fn create_datapoints_from_rrd<T: DataPoint>(
 fn get_qemu_rrd_data(
     remote: String,
     vmid: u32,
-    timeframe: RRDTimeFrame,
+    timeframe: RrdTimeframe,
     cf: RRDMode,
     _param: Value,
 ) -> Result<Vec<QemuDataPoint>, Error> {
@@ -225,7 +225,7 @@ fn get_qemu_rrd_data(
             remote: { schema: REMOTE_ID_SCHEMA },
             vmid: { schema: VMID_SCHEMA },
             timeframe: {
-                type: RRDTimeFrame,
+                type: RrdTimeframe,
             },
             cf: {
                 type: RRDMode,
@@ -237,7 +237,7 @@ fn get_qemu_rrd_data(
 fn get_lxc_rrd_data(
     remote: String,
     vmid: u32,
-    timeframe: RRDTimeFrame,
+    timeframe: RrdTimeframe,
     cf: RRDMode,
     _param: Value,
 ) -> Result<Vec<LxcDataPoint>, Error> {
@@ -252,7 +252,7 @@ fn get_lxc_rrd_data(
             remote: { schema: REMOTE_ID_SCHEMA },
             node: { schema: NODE_SCHEMA },
             timeframe: {
-                type: RRDTimeFrame,
+                type: RrdTimeframe,
             },
             cf: {
                 type: RRDMode,
@@ -264,7 +264,7 @@ fn get_lxc_rrd_data(
 fn get_node_rrd_data(
     remote: String,
     node: String,
-    timeframe: RRDTimeFrame,
+    timeframe: RrdTimeframe,
     cf: RRDMode,
     _param: Value,
 ) -> Result<Vec<NodeDataPoint>, Error> {
