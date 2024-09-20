@@ -12,11 +12,14 @@ pub use wizard_page_summary::WizardPageSummary;
 mod add_wizard;
 */
 
+mod edit_remote;
+
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
 
 use anyhow::{bail, Error};
+use edit_remote::EditRemote;
 use pwt::widget::form::{Field, FormContext, InputType};
 use serde::{Deserialize, Serialize};
 
@@ -25,9 +28,7 @@ use proxmox_schema::{property_string::PropertyString, ApiType};
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use proxmox_yew_comp::SchemaValidation;
 
-use pbs_api_types::{
-    CERT_FINGERPRINT_SHA256_SCHEMA, DNS_NAME_OR_IP_SCHEMA, REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA,
-};
+use pbs_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
 //use proxmox_schema::api_types::{CERT_FINGERPRINT_SHA256_SCHEMA, DNS_NAME_OR_IP_SCHEMA};
 
@@ -126,7 +127,7 @@ impl RemoteConfigPanel {
 #[derive(PartialEq)]
 pub enum ViewState {
     Add,
-    //Edit,
+    Edit,
 }
 
 pub enum Msg {
@@ -137,6 +138,7 @@ pub enum Msg {
 pub struct PbsRemoteConfigPanel {
     store: Store<Remote>,
     selection: Selection,
+    remote_list_columns: Rc<Vec<DataTableHeader<Remote>>>,
 }
 
 impl LoadableComponent for PbsRemoteConfigPanel {
@@ -161,7 +163,13 @@ impl LoadableComponent for PbsRemoteConfigPanel {
 
         let selection = Selection::new().on_select(ctx.link().callback(|_| Msg::SelectionChange));
 
-        Self { store, selection }
+        let remote_list_columns = remote_list_columns();
+
+        Self {
+            store,
+            selection,
+            remote_list_columns,
+        }
     }
 
     fn update(&mut self, ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
@@ -193,14 +201,12 @@ impl LoadableComponent for PbsRemoteConfigPanel {
             .with_child({
                 Button::new(tr!("Add")).onclick(link.change_view_callback(|_| Some(ViewState::Add)))
             })
-            /*
             .with_spacer()
             .with_child(
                 Button::new(tr!("Edit"))
                     .disabled(disabled)
                     .onclick(link.change_view_callback(|_| Some(ViewState::Edit))),
             )
-            */
             .with_child(
                 Button::new(tr!("Remove"))
                     .disabled(disabled)
@@ -216,14 +222,15 @@ impl LoadableComponent for PbsRemoteConfigPanel {
         Some(toolbar.into())
     }
 
-    fn main_view(&self, _ctx: &LoadableComponentContext<Self>) -> Html {
-        let columns = COLUMNS.with(Rc::clone);
+    fn main_view(&self, ctx: &LoadableComponentContext<Self>) -> Html {
+        let columns = Rc::clone(&self.remote_list_columns);
+        let link = ctx.link();
         DataTable::new(columns, self.store.clone())
             .class("pwt-flex-fit")
             .selection(self.selection.clone())
-            //.on_row_dblclick(move |_: &mut _| {
-            //    link.change_view(Some(ViewState::Edit));
-            //})
+            .on_row_dblclick(move |_: &mut _| {
+                link.change_view(Some(ViewState::Edit));
+            })
             .into()
     }
 
@@ -234,11 +241,18 @@ impl LoadableComponent for PbsRemoteConfigPanel {
     ) -> Option<Html> {
         match view_state {
             ViewState::Add => Some(self.create_add_dialog(ctx)),
+            ViewState::Edit => {
+                if let Some(key) = self.selection.selected_key() {
+                    Some(self.create_edit_dialog(ctx, key))
+                } else {
+                    None
+                }
+            }
         }
     }
 }
 
-fn add_remote_input_panel(form_ctx: &FormContext) -> Html {
+fn add_remote_input_panel(_form_ctx: &FormContext) -> Html {
     InputPanel::new()
         .padding(4)
         .with_field(tr!("Remote ID"), Field::new().name("id").required(true))
@@ -282,6 +296,12 @@ impl PbsRemoteConfigPanel {
             .on_done(ctx.link().change_view_callback(|_| None))
             .into()
     }
+
+    fn create_edit_dialog(&self, ctx: &LoadableComponentContext<Self>, key: Key) -> Html {
+        EditRemote::new(&*key)
+            .on_done(ctx.link().change_view_callback(|_| None))
+            .into()
+    }
 }
 
 impl Into<VNode> for RemoteConfigPanel {
@@ -291,38 +311,37 @@ impl Into<VNode> for RemoteConfigPanel {
     }
 }
 
-thread_local! {
-    static COLUMNS: Rc<Vec<DataTableHeader<Remote>>> = Rc::new(vec![
+fn remote_list_columns() -> Rc<Vec<DataTableHeader<Remote>>> {
+    Rc::new(vec![
         DataTableColumn::new(tr!("Remote ID"))
             .width("200px")
-            .render(|item: &Remote| html!{
-                &item.id
+            .render(|item: &Remote| {
+                html! {
+                    &item.id
+                }
             })
-            .sorter(|a: &Remote, b: &Remote| {
-                a.id.cmp(&b.id)
-            })
+            .sorter(|a: &Remote, b: &Remote| a.id.cmp(&b.id))
             .sort_order(true)
             .into(),
-
-            DataTableColumn::new(tr!("Type"))
+        DataTableColumn::new(tr!("Type"))
             .width("50px")
-            .render(|item: &Remote| html!{
-                &item.ty
+            .render(|item: &Remote| {
+                html! {
+                    &item.ty
+                }
             })
-            .sorter(|a: &Remote, b: &Remote| {
-                a.ty.cmp(&b.ty)
-            })
+            .sorter(|a: &Remote, b: &Remote| a.ty.cmp(&b.ty))
             .into(),
         DataTableColumn::new(tr!("AuthId"))
             .width("200px")
-            .render(|item: &Remote| html!{
-                &item.authid
+            .render(|item: &Remote| {
+                html! {
+                    &item.authid
+                }
             })
-            .sorter(|a: &Remote, b: &Remote| {
-                a.authid.cmp(&b.authid)
-            })
+            .sorter(|a: &Remote, b: &Remote| a.authid.cmp(&b.authid))
             .into(),
-/*
+        /*
         DataTableColumn::new(tr!("Auth ID"))
             .width("200px")
             .render(|item: &Remote| html!{
@@ -347,5 +366,5 @@ thread_local! {
             })
             .into()
             */
-    ]);
+    ])
 }
