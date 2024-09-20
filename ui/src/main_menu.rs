@@ -238,7 +238,7 @@ impl Component for PdmMainMenu {
                     {
                         let remote = remote.clone();
                         move |_| match remote.ty {
-                            RemoteType::Pve => html! { format!("PVE remote {}", remote.id) },
+                            RemoteType::Pve => crate::pve::PveRemote::new(remote.id.clone()).into(),
                             RemoteType::Pbs => {
                                 crate::pbs::DatastoreMenu::new(remote.id.clone()).into()
                             }

@@ -30,6 +30,7 @@ proxmox-yew-comp = "0.1"
 
 proxmox-login = "0.1"
 proxmox-schema = "3.2"
+proxmox-rrd-api-types = "1"
 
 pdm-api-types = "0.1"
 pbs-api-types = "0.1"
@@ -72,6 +73,7 @@ pwt = { path = "../../proxmox-yew-widget-toolkit" }
 # proxmox-rest-server = { path = "../../proxmox/proxmox-rest-server" }
 # proxmox-router = { path = "../../proxmox/proxmox-router" }
 # proxmox-rrd = { path = "../../proxmox/proxmox-rrd" }
+# proxmox-rrd-api-types = { path = "../../proxmox/proxmox-rrd-api-types" }
 # proxmox-schema = { path = "../../proxmox/proxmox-schema" }
 # proxmox-section-config = { path = "../../proxmox/proxmox-section-config" }
 # proxmox-serde = { path = "../../proxmox/proxmox-serde" }
