@@ -3,6 +3,7 @@ use std::rc::Rc;
 use anyhow::Error;
 use yew::virtual_dom::{Key, VComp, VNode};
 
+use pwt::css::{Display, FlexFit};
 use pwt::prelude::*;
 use pwt::state::{Loader, Selection};
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
@@ -165,7 +166,7 @@ impl Component for PdmMainMenu {
         let scope = ctx.link().clone();
 
         let mut content = SelectionView::new()
-            .class("pwt-fit")
+            .class(FlexFit)
             .selection(self.menu_selection.clone());
 
         let mut menu = Menu::new();
@@ -187,7 +188,7 @@ impl Component for PdmMainMenu {
             Some("fa fa-sticky-note-o"),
             move |_| {
                 Panel::new()
-                    .class("pwt-flex-fit")
+                    .class(FlexFit)
                     .border(false)
                     .title(tr!("Notes"))
                     .with_child(NotesView::new())
@@ -291,10 +292,11 @@ impl Component for PdmMainMenu {
             }));
 
         Container::new()
-            .class("pwt-d-flex pwt-flex-fit")
+            .class(Display::Flex)
+            .class(FlexFit)
             .with_child(
                 Row::new()
-                    .class("pwt-flex-fit")
+                    .class(FlexFit)
                     .with_child(drawer)
                     .with_child(content),
             )
