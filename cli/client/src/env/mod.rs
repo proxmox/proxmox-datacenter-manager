@@ -473,11 +473,11 @@ fn finish_fido_auth(
 #[serde(rename_all = "lowercase")]
 pub enum UseColor {
     /// Never use colored output.
-    #[default]
     No,
     /// Force ANSI color output.
     Always,
     /// Automatically decide whether to use colored output.
+    #[default]
     Auto,
 }
 

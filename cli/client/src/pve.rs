@@ -1,5 +1,6 @@
 //! PVE node commands.
 
+use std::fmt;
 use std::time::Duration;
 
 use anyhow::{bail, format_err, Error};
@@ -238,6 +239,34 @@ async fn cluster_resources(
     Ok(())
 }
 
+struct FormatTagList<'a>(Vec<&'a str>);
+
+impl fmt::Display for FormatTagList<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut tag_sep = " [";
+        for tag in &self.0 {
+            let (color_owned, reset_owned);
+            let (mut color, mut reset) = ("", "");
+            if env().use_color() {
+                if let Some(rgb) = crate::tags::text_to_rgb(tag) {
+                    (color_owned, reset_owned) = (
+                        rgb.as_ansi().to_string(),
+                        crate::tags::TtyResetColor.to_string(),
+                    );
+                    color = &color_owned;
+                    reset = &reset_owned;
+                }
+            }
+            write!(f, "{tag_sep}{color}{tag}{reset}")?;
+            tag_sep = ", ";
+        }
+        if tag_sep == ", " {
+            f.write_str("]")?;
+        }
+        Ok(())
+    }
+}
+
 #[api(
     input: {
         properties: {
@@ -266,26 +295,7 @@ async fn list_qemu(remote: String, node: Option<String>) -> Result<(), Error> {
             if let Some(name) = &entry.name {
                 print!(" ({name})");
             }
-            let mut tag_sep = " [";
-            for tag in entry.tags() {
-                let (color_owned, reset_owned);
-                let (mut color, mut reset) = ("", "");
-                if env().use_color() {
-                    if let Some(rgb) = crate::tags::text_to_rgb(tag) {
-                        (color_owned, reset_owned) = (
-                            rgb.as_ansi().to_string(),
-                            crate::tags::TtyResetColor.to_string(),
-                        );
-                        color = &color_owned;
-                        reset = &reset_owned;
-                    }
-                }
-                print!("{tag_sep}{color}{tag}{reset}",);
-                tag_sep = ", ";
-            }
-            if tag_sep == ", " {
-                print!("]");
-            }
+            print!("{}", FormatTagList(entry.tags().collect()));
             println!();
         }
     } else {
@@ -565,7 +575,12 @@ async fn list_lxc(remote: String, node: Option<String>) -> Result<(), Error> {
 
         entries.sort_by(|a, b| a.vmid.cmp(&b.vmid));
         for entry in entries {
-            println!("{}: {}", entry.vmid, entry.status);
+            print!("{}: {}", entry.vmid, entry.status);
+            if let Some(name) = &entry.name {
+                print!(" ({name})");
+            }
+            print!("{}", FormatTagList(entry.tags().collect()));
+            println!();
         }
     } else {
         format_and_print_result(&entries, &output_format.to_string());
