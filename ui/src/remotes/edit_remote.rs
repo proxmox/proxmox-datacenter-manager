@@ -9,7 +9,7 @@ use yew::virtual_dom::{Key, VComp, VNode};
 use pwt::state::Store;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::form::{Field, FormContext, InputType};
-use pwt::widget::{Button, Column, InputPanel, Toolbar};
+use pwt::widget::{ActionIcon, Button, Column, InputPanel, Toolbar};
 use pwt::{css, prelude::*};
 
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
@@ -59,6 +59,7 @@ pub enum Msg {
     LoadNodes(Vec<NodeUrl>),
     UpdateHostname(usize, String),
     UpdateFingerprint(usize, String),
+    RemoveUrl(usize),
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -127,6 +128,17 @@ impl Component for PdmEditRemote {
                         item.data.fingerprint = Some(fingerprint);
                     }
                 }
+                true
+            }
+            Msg::RemoveUrl(index) => {
+                let data: Vec<NodeUrl> = self
+                    .nodes
+                    .read()
+                    .iter()
+                    .filter(move |item| item.index != index)
+                    .map(|item| item.data.clone())
+                    .collect();
+                self.set_nodes(data);
                 true
             }
         }
@@ -273,6 +285,16 @@ fn node_url_list_columns(link: Scope<PdmEditRemote>) -> Rc<Vec<DataTableHeader<I
                         .default(fingerprint.to_string())
                         .into()
                 }
+            })
+            .into(),
+        DataTableColumn::new("")
+            .width("40px")
+            .render(move |item: &IndexedNodeUrl| {
+                let index = item.index;
+                ActionIcon::new("fa fa-lg fa-trash-o")
+                    .tabindex(0)
+                    .on_activate(link.callback(move |_| Msg::RemoveUrl(index)))
+                    .into()
             })
             .into(),
     ])
