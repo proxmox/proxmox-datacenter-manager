@@ -1,8 +1,11 @@
 usr/sbin/proxmox-datacenter-manager-admin
 usr/libexec/proxmox/proxmox-datacenter-api
 usr/libexec/proxmox/proxmox-datacenter-privileged-api
-# more specific ones get pulled out in the client
-usr/share/zsh/vendor-completions
-usr/share/bash-completion/completions
+usr/share/zsh/vendor-completions/_proxmox-datacenter-api
+usr/share/zsh/vendor-completions/_proxmox-datacenter-manager-admin
+usr/share/zsh/vendor-completions/_proxmox-datacenter-privileged-api
+usr/share/bash-completion/completions/proxmox-datacenter-api.bc
+usr/share/bash-completion/completions/proxmox-datacenter-manager-admin.bc
+usr/share/bash-completion/completions/proxmox-datacenter-privileged-api.bc
 lib/systemd/system/proxmox-datacenter-api.service
 lib/systemd/system/proxmox-datacenter-privileged-api.service
