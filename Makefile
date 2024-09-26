@@ -71,6 +71,7 @@ install: $(COMPILED_BINS) $(SHELL_COMPLETION_FILES)
 	install -dm755 $(DESTDIR)$(ZSHCOMPDIR)
 	$(foreach i,$(ZSH_COMPLETIONS), \
 	    install -m644 $(COMPLETION_DIR)/$(i) $(DESTDIR)$(ZSHCOMPDIR)/ ;)
+	make -C services install
 
 $(COMPILED_BINS): .do-cargo-build
 .do-cargo-build:
@@ -91,7 +92,7 @@ cargo-build:
 $(BUILDDIR):
 	rm -rf $@ $@.tmp
 	mkdir $@.tmp
-	cp -a debian/ server/ cli/ lib/ docs/ Makefile Cargo.toml $@.tmp
+	cp -a debian/ server/ services/ cli/ lib/ docs/ Makefile Cargo.toml $@.tmp
 	echo "git clone git://git.proxmox.com/git/$(PACKAGE).git\\ngit checkout $$(git rev-parse HEAD)" \
 	    > $@.tmp/debian/SOURCE
 	mv $@.tmp $@

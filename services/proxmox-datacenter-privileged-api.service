@@ -1,0 +1,14 @@
+[Unit]
+Description=Proxmox Datacenter Manager privileged API daemon
+Wants=network-online.target
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/libexec/proxmox/proxmox-datacenter-privileged-api
+ExecReload=/bin/kill -HUP $MAINPID
+PIDFile=/run/proxmox-datacenter-manager/priv.pid
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

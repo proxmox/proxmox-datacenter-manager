@@ -4,3 +4,5 @@ usr/libexec/proxmox/proxmox-datacenter-privileged-api
 # more specific ones get pulled out in the client
 usr/share/zsh/vendor-completions
 usr/share/bash-completion/completions
+lib/systemd/system/proxmox-datacenter-api.service
+lib/systemd/system/proxmox-datacenter-privileged-api.service
