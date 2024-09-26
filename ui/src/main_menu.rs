@@ -3,7 +3,7 @@ use std::rc::Rc;
 use anyhow::Error;
 use yew::virtual_dom::{Key, VComp, VNode};
 
-use pwt::css::{Display, FlexFit};
+use pwt::css::{self, Display, FlexFit};
 use pwt::prelude::*;
 use pwt::state::{Loader, Selection};
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
@@ -283,6 +283,7 @@ impl Component for PdmMainMenu {
         let drawer = NavigationDrawer::new(menu)
             .aria_label("Datacenter Manager")
             .class("pwt-border-end")
+            .class(css::Flex::None)
             .router(true)
             .default_active(self.active.to_string())
             .selection(self.menu_selection.clone())
