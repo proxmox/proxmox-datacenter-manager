@@ -12,6 +12,9 @@ pub use wizard_page_summary::WizardPageSummary;
 mod add_wizard;
 */
 
+mod node_url_list;
+pub use node_url_list::NodeUrlList;
+
 mod edit_remote;
 
 use std::future::Future;
