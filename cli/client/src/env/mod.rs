@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::io::{self, IsTerminal, Write};
+use std::sync::OnceLock;
 
 use anyhow::{bail, format_err, Context as _, Error};
 use http::Uri;
@@ -37,6 +38,22 @@ const WEBAUTHN: u8 = 8;
 const USERID_CACHE_PATH: &str = xdg_path!("userid");
 const FINGERPRINT_CACHE_PATH: &str = xdg_path!("fingerprints");
 const CURRENT_SERVER_CACHE_PATH: &str = xdg_path!("current-server");
+
+/// Decide whether to print out an emoji into the terminal.
+pub fn emoji(which: &str) -> &str {
+    static USE_EMOJI: OnceLock<bool> = OnceLock::new();
+
+    let use_emoji = *USE_EMOJI.get_or_init(|| match std::env::var("TERM") {
+        Ok(var) => var != "dumb" && var != "linux",
+        Err(_) => true,
+    });
+
+    if use_emoji {
+        which
+    } else {
+        ""
+    }
+}
 
 #[derive(Deserialize, Serialize)]
 struct CurrentServer {
@@ -218,7 +235,8 @@ impl Env {
     ) -> Result<String, Error> {
         println!(
             "A second factor is required to authenticate as {:?} on {:?}",
-            userid, api_url
+            userid.as_str(),
+            api_url
         );
 
         #[rustfmt::skip]
@@ -406,7 +424,11 @@ fn perform_fido_auth(
 
         let mut pin = None;
         'with_pin: loop {
-            return match dev.assert(&mut assert, pin.as_deref()) {
+            print!("{}Please confirm presence on security token.", emoji("👆"));
+            std::io::stdout().flush()?;
+            let response = dev.assert(&mut assert, pin.as_deref());
+            println!();
+            return match response {
                 Ok(assert) => finish_fido_auth(assert, client_data_json, b64u_challenge),
                 Err(proxmox_fido2::Error::NoCredentials) => {
                     println!("Device did not contain the required credentials");

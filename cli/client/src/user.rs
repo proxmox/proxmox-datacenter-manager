@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use anyhow::{bail, format_err, Context as _, Error};
 
 use proxmox_access_control::types::User;
@@ -288,8 +290,8 @@ async fn add_tfa(
         .or_else(|| Some(env_userid.to_string()))
         .ok_or_else(|| format_err!("missing userid and no user logged in?"))?;
 
-    let password = if env_userid != "root@pam" && userid != env_userid.as_str() {
-        let password = proxmox_sys::linux::tty::read_password("Password: ")?;
+    let password = if env_userid != Userid::root_userid() {
+        let password = proxmox_sys::linux::tty::read_password("Confirm user password: ")?;
         Some(String::from_utf8(password)?)
     } else {
         None
@@ -371,8 +373,8 @@ async fn delete_tfa(userid: Option<String>, id: String) -> Result<(), Error> {
         .or_else(|| Some(env_userid.to_string()))
         .ok_or_else(|| format_err!("missing userid and no user logged in?"))?;
 
-    let password = if userid != env_userid.as_str() {
-        let password = proxmox_sys::linux::tty::read_password("Password: ")?;
+    let password = if env_userid != Userid::root_userid() {
+        let password = proxmox_sys::linux::tty::read_password("Confirm user password: ")?;
         Some(String::from_utf8(password)?)
     } else {
         None
@@ -437,19 +439,35 @@ fn perform_fido_creation(
                 continue 'device;
             };
 
+            let read_new_pin = || {
+                let user_pin = proxmox_sys::linux::tty::read_password(&format!(
+                    "{}fido2 pin: ",
+                    env::emoji("🔐")
+                ))?;
+                String::from_utf8(user_pin).map_err(|_| format_err!("invalid bytes in pin"))
+            };
             let mut pin = None;
+            if options.client_pin {
+                pin = Some(read_new_pin()?);
+            }
             'with_pin: loop {
-                match dev.make_cred(&mut cred, pin.as_deref()) {
+                if options.user_presence {
+                    print!(
+                        "{}Please confirm presence on security token.",
+                        env::emoji("👆")
+                    );
+                    let _ = std::io::stdout().flush();
+                }
+                let response = dev.make_cred(&mut cred, pin.as_deref());
+                println!();
+                match response {
                     Ok(cred) => {
                         return finish_fido_auth(cred, client_data_json, b64u_challenge, alg)
                     }
                     Err(proxmox_fido2::Error::UnsupportedAlgorithm) => continue 'algorithm,
                     Err(proxmox_fido2::Error::PinRequired) if pin.is_none() => {
-                        let user_pin = proxmox_sys::linux::tty::read_password("fido2 pin: ")?;
-                        pin = Some(
-                            String::from_utf8(user_pin)
-                                .map_err(|_| format_err!("invalid bytes in pin"))?,
-                        );
+                        eprintln!("PIN failure");
+                        pin = Some(read_new_pin()?);
                         continue 'with_pin;
                     }
                     Err(err) => return Err(err.into()),
