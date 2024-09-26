@@ -38,6 +38,10 @@ dist:
 dist/pdm.js dist/pdm_bg.wasm &: $(shell find src -name '*.rs')
 	proxmox-wasm-builder build -n pdm --release
 
+.PHONY: rebuild
+rebuild:
+	proxmox-wasm-builder build -n pdm --release
+
 dist/pdm_bundle.js: dist/pdm.js dist/pdm_bg.wasm
 	esbuild --bundle dist/pdm.js --format=esm >dist/pdm_bundle.js.tmp
 	mv dist/pdm_bundle.js.tmp dist/pdm_bundle.js
