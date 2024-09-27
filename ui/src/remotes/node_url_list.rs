@@ -26,9 +26,9 @@ use pbs_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
 use pwt_macros::{builder, widget};
 
-pub type PbsNodeUrlList = ManagedFieldMaster<PbsNodeUrlField>;
+pub type PdmNodeUrlList = ManagedFieldMaster<PdmNodeUrlField>;
 
-#[widget(comp=ManagedFieldMaster<PbsNodeUrlField>, @input)]
+#[widget(comp=ManagedFieldMaster<PdmNodeUrlField>, @input)]
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
 pub struct NodeUrlList {}
@@ -45,7 +45,7 @@ struct Entry {
 }
 
 #[doc(hidden)]
-pub struct PbsNodeUrlField {
+pub struct PdmNodeUrlField {
     store: Store<Entry>,
     columns: Rc<Vec<DataTableHeader<Entry>>>,
 }
@@ -57,7 +57,7 @@ pub enum Msg {
     RemoveUrl(usize),
 }
 
-impl PbsNodeUrlField {
+impl PdmNodeUrlField {
     fn set_nodes(&mut self, nodes: Vec<NodeUrl>) {
         self.store.set_data(
             nodes
@@ -80,7 +80,7 @@ impl PbsNodeUrlField {
     }
 }
 
-impl ManagedField for PbsNodeUrlField {
+impl ManagedField for PdmNodeUrlField {
     type Message = Msg;
     type Properties = NodeUrlList;
     type ValidateClosure = ();
@@ -200,7 +200,7 @@ impl ManagedField for PbsNodeUrlField {
     }
 }
 
-fn columns(ctx: &ManagedFieldContext<PbsNodeUrlField>) -> Rc<Vec<DataTableHeader<Entry>>> {
+fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader<Entry>>> {
     let link = ctx.link();
 
     Rc::new(vec![
