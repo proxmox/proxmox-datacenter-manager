@@ -24,14 +24,23 @@ use pve_api_types::ClusterResourceKind;
 mod rrddata;
 pub mod tasks;
 
-pub const ROUTER: Router = Router::new().match_all("remote", &MAIN_ROUTER);
-
-const MAIN_ROUTER: Router = Router::new()
+pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
     .subdirs(SUBDIRS);
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
+    ("remotes", &REMOTES_ROUTER),
+]);
+
+pub const REMOTES_ROUTER: Router = Router::new().match_all("remote", &MAIN_ROUTER);
+
+const MAIN_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(REMOTE_SUBDIRS))
+    .subdirs(REMOTE_SUBDIRS);
+
+#[sortable]
+const REMOTE_SUBDIRS: SubdirMap = &sorted!([
     ("lxc", &LXC_ROUTER),
     ("nodes", &NODES_ROUTER),
     ("qemu", &QEMU_ROUTER),

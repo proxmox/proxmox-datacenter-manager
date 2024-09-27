@@ -264,7 +264,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         remote: &str,
     ) -> Result<Vec<pve_api_types::ClusterNodeIndexResponse>, Error> {
-        let path = format!("/api2/extjs/pve/{remote}/nodes");
+        let path = format!("/api2/extjs/pve/remotes/{remote}/nodes");
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -276,7 +276,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         timeframe: RrdTimeframe,
     ) -> Result<Vec<NodeDataPoint>, Error> {
         let path = format!(
-            "/api2/extjs/pve/{remote}/nodes/{node}/rrddata?cf={mode}&timeframe={timeframe}"
+            "/api2/extjs/pve/remotes/{remote}/nodes/{node}/rrddata?cf={mode}&timeframe={timeframe}"
         );
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
@@ -286,7 +286,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         kind: Option<pve_api_types::ClusterResourceKind>,
     ) -> Result<Vec<pve_api_types::ClusterResource>, Error> {
-        let mut query = format!("/api2/extjs/pve/{remote}/resources");
+        let mut query = format!("/api2/extjs/pve/remotes/{remote}/resources");
         add_query_arg(&mut query, &mut '?', "kind", &kind);
         Ok(self.0.get(&query).await?.expect_json()?.data)
     }
@@ -296,7 +296,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         node: Option<&str>,
     ) -> Result<Vec<pve_api_types::VmEntry>, Error> {
-        let mut path = format!("/api2/extjs/pve/{remote}/qemu");
+        let mut path = format!("/api2/extjs/pve/remotes/{remote}/qemu");
         add_query_arg(&mut path, &mut '?', "node", &node);
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
@@ -306,7 +306,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         node: Option<&str>,
     ) -> Result<Vec<pve_api_types::VmEntry>, Error> {
-        let mut path = format!("/api2/extjs/pve/{remote}/lxc");
+        let mut path = format!("/api2/extjs/pve/remotes/{remote}/lxc");
         add_query_arg(&mut path, &mut '?', "node", &node);
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
@@ -319,7 +319,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         state: ConfigurationState,
         snapshot: Option<&str>,
     ) -> Result<pve_api_types::QemuConfig, Error> {
-        let mut path = format!("/api2/extjs/pve/{remote}/qemu/{vmid}/config");
+        let mut path = format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/config");
         let mut sep = '?';
         add_query_arg(&mut path, &mut sep, "state", &Some(&state));
         add_query_arg(&mut path, &mut sep, "node", &node);
@@ -335,7 +335,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         vmtype: &str,
         action: &str,
     ) -> Result<RemoteUpid, Error> {
-        let path = format!("/api2/extjs/pve/{remote}/{vmtype}/{vmid}/{action}");
+        let path = format!("/api2/extjs/pve/remotes/{remote}/{vmtype}/{vmid}/{action}");
         let mut request = json!({});
         if let Some(node) = node {
             request["node"] = node.into();
@@ -381,7 +381,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         target: String,
         params: RemoteMigrateQemu,
     ) -> Result<RemoteUpid, Error> {
-        let path = format!("/api2/extjs/pve/{remote}/qemu/{vmid}/remote-migrate");
+        let path = format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/remote-migrate");
         let mut request = serde_json::to_value(&params).expect("failed to build json string");
         request["target"] = target.into();
         if let Some(node) = node {
@@ -397,8 +397,9 @@ impl<T: HttpApiClient> PdmClient<T> {
         mode: RrdMode,
         timeframe: RrdTimeframe,
     ) -> Result<Vec<QemuDataPoint>, Error> {
-        let path =
-            format!("/api2/extjs/pve/{remote}/qemu/{vmid}/rrddata?cf={mode}&timeframe={timeframe}");
+        let path = format!(
+            "/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/rrddata?cf={mode}&timeframe={timeframe}"
+        );
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -410,7 +411,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         state: ConfigurationState,
         snapshot: Option<&str>,
     ) -> Result<pve_api_types::LxcConfig, Error> {
-        let mut path = format!("/api2/extjs/pve/{remote}/lxc/{vmid}/config");
+        let mut path = format!("/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/config");
         let mut sep = '?';
         add_query_arg(&mut path, &mut sep, "node", &node);
         add_query_arg(&mut path, &mut sep, "state", &Some(&state));
@@ -456,7 +457,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         target: String,
         params: RemoteMigrateLxc,
     ) -> Result<RemoteUpid, Error> {
-        let path = format!("/api2/extjs/pve/{remote}/lxc/{vmid}/remote-migrate");
+        let path = format!("/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/remote-migrate");
         let mut request = serde_json::to_value(&params).expect("failed to build json string");
         request["target"] = target.into();
         if let Some(node) = node {
@@ -472,8 +473,9 @@ impl<T: HttpApiClient> PdmClient<T> {
         mode: RrdMode,
         timeframe: RrdTimeframe,
     ) -> Result<Vec<LxcDataPoint>, Error> {
-        let path =
-            format!("/api2/extjs/pve/{remote}/lxc/{vmid}/rrddata?cf={mode}&timeframe={timeframe}");
+        let path = format!(
+            "/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/rrddata?cf={mode}&timeframe={timeframe}"
+        );
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -482,14 +484,14 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         node: Option<&str>,
     ) -> Result<Vec<pve_api_types::ListTasksResponse>, Error> {
-        let mut query = format!("/api2/extjs/pve/{remote}/tasks");
+        let mut query = format!("/api2/extjs/pve/remotes/{remote}/tasks");
         let mut sep = '?';
         pve_api_types::client::add_query_arg(&mut query, &mut sep, "node", &node);
         Ok(self.0.get(&query).await?.expect_json()?.data)
     }
 
     pub async fn pve_stop_task(&self, remote: &str, upid: &str) -> Result<(), Error> {
-        let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}");
+        let path = format!("/api2/extjs/pve/remotes/{remote}/tasks/{upid}");
         #[allow(clippy::unit_arg)]
         Ok(self.0.delete(&path).await?.expect_json()?.data)
     }
@@ -500,7 +502,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     ) -> Result<pve_api_types::TaskStatus, Error> {
         let remote = upid.remote();
         let upid = upid.to_string();
-        let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status");
+        let path = format!("/api2/extjs/pve/remotes/{remote}/tasks/{upid}/status");
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -510,7 +512,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     ) -> Result<pve_api_types::TaskStatus, Error> {
         let remote = upid.remote();
         let upid = upid.to_string();
-        let path = format!("/api2/extjs/pve/{remote}/tasks/{upid}/status?wait=1");
+        let path = format!("/api2/extjs/pve/remotes/{remote}/tasks/{upid}/status?wait=1");
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
