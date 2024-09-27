@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use pdm_api_types::rrddata::{LxcDataPoint, NodeDataPoint, QemuDataPoint};
+use pdm_api_types::BasicRealmInfo;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -82,6 +83,15 @@ impl<T: HttpApiClient> PdmClient<T> {
             &Some(include_api_tokens),
         );
         Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn list_realms(&self) -> Result<Vec<BasicRealmInfo>, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/access/domains")
+            .await?
+            .expect_json()?
+            .data)
     }
 
     pub async fn create_user(&self, config: &User, password: Option<&str>) -> Result<(), Error> {
