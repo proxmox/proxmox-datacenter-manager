@@ -68,7 +68,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
-    pub async fn read_user(&self, user: &str) -> Result<Vec<User>, Error> {
+    pub async fn read_user(&self, user: &str) -> Result<User, Error> {
         let path = format!("/api2/extjs/access/users/{user}");
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
