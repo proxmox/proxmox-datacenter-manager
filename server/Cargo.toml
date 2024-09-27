@@ -54,7 +54,7 @@ proxmox-uuid.workspace = true
 proxmox-apt = { workspace = true, features = [ "cache" ] }
 proxmox-apt-api-types.workspace = true
 
-proxmox-client.workspace = true
+proxmox-client = { workspace = true, features = [ "hyper-client"] }
 
 proxmox-config-digest = { workspace = true, features = [ "openssl" ] }
 proxmox-product-config.workspace = true
