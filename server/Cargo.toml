@@ -37,6 +37,7 @@ proxmox-daemon.workspace = true
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
 proxmox-lang.workspace = true
 proxmox-log.workspace = true
+proxmox-login.workspace = true
 proxmox-rest-server = { workspace = true, features = [ "templates" ] }
 proxmox-router = { workspace = true, features = [ "cli", "server"] }
 proxmox-rrd.workspace = true
