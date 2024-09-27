@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-use anyhow::Error;
 use yew::prelude::Component;
 use yew::prelude::Context as YewContext;
 use yew::prelude::Properties;
@@ -134,7 +133,7 @@ impl PveNodeRrdComp {
             .await
         {
             Ok(v) => PveNodeRrdMsg::Values(v),
-            Err(err) => PveNodeRrdMsg::Error,
+            Err(_err) => PveNodeRrdMsg::Error,
         }
     }
 }
@@ -168,8 +167,7 @@ impl Component for PveNodeRrdComp {
         }
     }
 
-    fn view(&self, ctx: &YewContext<Self>) -> Html {
-        let props = ctx.props();
+    fn view(&self, _ctx: &YewContext<Self>) -> Html {
         let mut graph = RRDGraph::new(Rc::clone(&self.time_data)).title("Stuff");
         if let Some(values) = self.cpu_data.clone() {
             graph = graph.serie0(Some(values));

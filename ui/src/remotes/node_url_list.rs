@@ -1,32 +1,27 @@
 use std::rc::Rc;
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 use serde_json::Value;
 
-use yew::html::{IntoEventCallback, Scope};
-use yew::virtual_dom::{Key, VComp, VNode};
+use yew::virtual_dom::Key;
 
 use pwt::state::Store;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::form::ManagedField;
-use pwt::widget::form::{
-    Field, FormContext, InputType, ManagedFieldContext, ManagedFieldMaster, ManagedFieldState,
-};
-use pwt::widget::{ActionIcon, Button, Column, InputPanel, Row, Toolbar};
+use pwt::widget::form::{Field, ManagedFieldContext, ManagedFieldMaster, ManagedFieldState};
+use pwt::widget::{ActionIcon, Button, Column, Row};
 use pwt::{css, prelude::*};
 
-use proxmox_yew_comp::percent_encoding::percent_encode_component;
-use proxmox_yew_comp::{EditWindow, SchemaValidation};
+use proxmox_yew_comp::SchemaValidation;
 
-use pdm_api_types::remotes::{NodeUrl, Remote};
+use pdm_api_types::remotes::NodeUrl;
 use proxmox_schema::property_string::PropertyString;
-use proxmox_schema::ApiType;
 
 use pbs_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
 use pwt_macros::{builder, widget};
 
-pub type PdmNodeUrlList = ManagedFieldMaster<PdmNodeUrlField>;
+//pub type PdmNodeUrlList = ManagedFieldMaster<PdmNodeUrlField>;
 
 #[widget(comp=ManagedFieldMaster<PdmNodeUrlField>, @input)]
 #[derive(Clone, PartialEq, Properties)]
@@ -85,7 +80,7 @@ impl ManagedField for PdmNodeUrlField {
     type Properties = NodeUrlList;
     type ValidateClosure = ();
 
-    fn validation_args(props: &Self::Properties) -> Self::ValidateClosure {
+    fn validation_args(_props: &Self::Properties) -> Self::ValidateClosure {
         ()
     }
 
@@ -94,7 +89,7 @@ impl ManagedField for PdmNodeUrlField {
         Ok(value.clone())
     }
 
-    fn setup(props: &Self::Properties) -> ManagedFieldState {
+    fn setup(_props: &Self::Properties) -> ManagedFieldState {
         let value = Value::Null;
         let default = Value::Null;
 

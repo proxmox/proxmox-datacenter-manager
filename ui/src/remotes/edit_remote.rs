@@ -1,25 +1,16 @@
 use std::rc::Rc;
 
-use anyhow::Error;
-use serde_json::Value;
+use yew::html::IntoEventCallback;
+use yew::virtual_dom::{VComp, VNode};
 
-use yew::html::{IntoEventCallback, Scope};
-use yew::virtual_dom::{Key, VComp, VNode};
-
-use pwt::state::Store;
-use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
+use pwt::prelude::*;
 use pwt::widget::form::{Field, FormContext, InputType};
-use pwt::widget::{ActionIcon, Button, Container, InputPanel, Toolbar};
-use pwt::{css, prelude::*};
+use pwt::widget::{Container, InputPanel};
 
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use proxmox_yew_comp::{EditWindow, SchemaValidation};
 
-use pdm_api_types::remotes::{NodeUrl, Remote};
-use proxmox_schema::property_string::PropertyString;
 use proxmox_schema::ApiType;
-
-use pbs_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
 use super::NodeUrlList;
 
@@ -49,7 +40,7 @@ impl Component for PdmEditRemote {
     type Message = ();
     type Properties = EditRemote;
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {}
     }
 
@@ -68,7 +59,7 @@ impl Component for PdmEditRemote {
                 move |form_ctx: FormContext| {
                     let url = url.clone();
                     async move {
-                        let mut data = form_ctx.get_submit_data();
+                        let data = form_ctx.get_submit_data();
                         proxmox_yew_comp::http_put(&url, Some(data)).await?;
                         Ok(())
                     }
