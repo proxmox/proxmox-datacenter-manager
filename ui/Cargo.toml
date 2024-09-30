@@ -26,7 +26,7 @@ web-sys = { version = "0.3", features = ["ReadableStreamDefaultReader"] }
 pwt = "0.3"
 pwt-macros = "0.1"
 
-proxmox-yew-comp = "0.1"
+proxmox-yew-comp = "0.2"
 
 proxmox-login = "0.1"
 proxmox-schema = "3.2"
