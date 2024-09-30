@@ -10,14 +10,21 @@ use pdm_api_types::PRIV_RESOURCE_AUDIT;
 
 use crate::pbs_client;
 
-pub const ROUTER: Router = Router::new().match_all("remote", &MAIN_ROUTER);
-
-const MAIN_ROUTER: Router = Router::new()
+pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
     .subdirs(SUBDIRS);
 
 #[sortable]
-const SUBDIRS: SubdirMap = &sorted!([("datastore", &DATASTORE_ROUTER)]);
+const SUBDIRS: SubdirMap = &sorted!([("remotes", &REMOTES_ROUTER)]);
+
+const REMOTES_ROUTER: Router = Router::new().match_all("remote", &MAIN_ROUTER);
+
+pub const MAIN_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(REMOTE_SUBDIRS))
+    .subdirs(REMOTE_SUBDIRS);
+
+#[sortable]
+const REMOTE_SUBDIRS: SubdirMap = &sorted!([("datastore", &DATASTORE_ROUTER)]);
 
 const DATASTORE_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_DATASTORES)

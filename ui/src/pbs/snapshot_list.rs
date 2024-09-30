@@ -142,7 +142,7 @@ async fn list_snapshots(
         .get_auth()
         .ok_or_else(|| format_err!("client not authenticated"))?;
 
-    let path = format!("/api2/json/pbs/{remote}/datastore/{datastore}/snapshots");
+    let path = format!("/api2/json/pbs/remotes/{remote}/datastore/{datastore}/snapshots");
     let response = gloo_net::http::Request::get(&path)
         .header("cache-control", "no-cache")
         .header("accept", "application/json-seq")

@@ -601,7 +601,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         remote: &str,
     ) -> Result<Vec<pbs_api_types::DataStoreConfig>, Error> {
-        let path = format!("/api2/extjs/pbs/{remote}/datastore");
+        let path = format!("/api2/extjs/pbs/remotes/{remote}/datastore");
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -611,7 +611,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         store: &str,
         namespace: Option<&str>,
     ) -> Result<Vec<pbs_api_types::SnapshotListItem>, Error> {
-        let mut path = format!("/api2/extjs/pbs/{remote}/datastore/{store}/snapshots");
+        let mut path = format!("/api2/extjs/pbs/remotes/{remote}/datastore/{store}/snapshots");
         add_query_arg(&mut path, &mut '?', "ns", &namespace);
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
