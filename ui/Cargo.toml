@@ -23,7 +23,7 @@ gloo-net = "0.4"
 gloo-utils = "0.2"
 web-sys = { version = "0.3", features = ["ReadableStreamDefaultReader"] }
 
-pwt = "0.2"
+pwt = "0.3"
 pwt-macros = "0.1"
 
 proxmox-yew-comp = "0.1"
