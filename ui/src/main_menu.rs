@@ -10,11 +10,13 @@ use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
 use pwt::widget::{Container, Panel, Row, SelectionView, SelectionViewRenderInfo};
 
 use proxmox_yew_comp::common_api_types::TaskListItem;
-use proxmox_yew_comp::{NotesView, UserPanel, XTermJs};
+use proxmox_yew_comp::{NotesView, XTermJs};
 
 use pdm_api_types::remotes::RemoteType;
 
-use crate::{CertificatesPanel, RemoteConfigPanel, ServerAdministration, SystemConfiguration};
+use crate::{
+    AccessControl, CertificatesPanel, RemoteConfigPanel, ServerAdministration, SystemConfiguration,
+};
 
 /*
 use crate::{
@@ -202,7 +204,7 @@ impl Component for PdmMainMenu {
             tr!("Access Control"),
             "access",
             Some("fa fa-key"),
-            |_| UserPanel::new().into(),
+            |_| html! {<AccessControl/>},
         );
 
         register_view(
