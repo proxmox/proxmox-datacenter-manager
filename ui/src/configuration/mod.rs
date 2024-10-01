@@ -5,9 +5,6 @@ use pwt::widget::{MiniScrollMode, TabBarItem, TabPanel};
 use proxmox_yew_comp::configuration::TimePanel;
 use proxmox_yew_comp::configuration::{DnsPanel, NetworkView};
 
-mod access_control;
-pub use access_control::AccessControl;
-
 #[function_component(SystemConfiguration)]
 pub fn system_configuration() -> Html {
     let panel = TabPanel::new()

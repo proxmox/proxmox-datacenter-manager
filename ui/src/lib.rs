@@ -6,7 +6,7 @@ mod certificates;
 pub use certificates::CertificatesPanel;
 
 mod configuration;
-pub use configuration::{AccessControl, SystemConfiguration};
+pub use configuration::SystemConfiguration;
 
 mod main_menu;
 pub use main_menu::MainMenu;
