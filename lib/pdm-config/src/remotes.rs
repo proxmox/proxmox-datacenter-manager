@@ -6,8 +6,10 @@ use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
 
 use pdm_api_types::remotes::Remote;
 
-pub const REMOTES_CFG_FILENAME: &str = "/etc/proxmox-datacenter-manager/remotes.cfg";
-pub const REMOTES_CFG_LOCKFILE: &str = "/etc/proxmox-datacenter-manager/.remotes.lock";
+use pdm_buildcfg::configdir;
+
+pub const REMOTES_CFG_FILENAME: &str = configdir!("/remotes.cfg");
+pub const REMOTES_CFG_LOCKFILE: &str = configdir!("/.remotes.lock");
 
 /// Get exclusive lock
 pub fn lock_config() -> Result<ApiLockGuard, Error> {

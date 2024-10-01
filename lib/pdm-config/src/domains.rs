@@ -9,6 +9,8 @@ use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlug
 use pdm_api_types::{ConfigDigest, OpenIdRealmConfig, REALM_ID_SCHEMA};
 use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
 
+use pdm_buildcfg::configdir;
+
 static CONFIG: LazyLock<SectionConfig> = LazyLock::new(init);
 
 fn init() -> SectionConfig {
@@ -28,8 +30,8 @@ fn init() -> SectionConfig {
     config
 }
 
-pub const DOMAINS_CFG_FILENAME: &str = "/etc/proxmox-datacenter-manager/access/domains.cfg";
-pub const DOMAINS_CFG_LOCKFILE: &str = "/etc/proxmox-datacenter-manager/access/.domains.lock";
+pub const DOMAINS_CFG_FILENAME: &str = configdir!("/access/domains.cfg");
+pub const DOMAINS_CFG_LOCKFILE: &str = configdir!("/access/.domains.lock");
 
 /// Get exclusive lock
 pub fn lock_config() -> Result<ApiLockGuard, Error> {
