@@ -4,11 +4,13 @@ use proxmox_sortable_macro::sortable;
 
 pub mod acme;
 pub mod certificate;
+pub mod notes;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("acme", &acme::ROUTER),
     ("certificate", &certificate::ROUTER),
+    ("notes", &notes::ROUTER),
 ]);
 
 pub const ROUTER: Router = Router::new()
