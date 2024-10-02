@@ -3,15 +3,14 @@
 use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
-use http::Uri;
 
 use proxmox_access_control::CachedUserInfo;
-use proxmox_client::{Client, TlsOptions};
+use proxmox_client::Client;
 use proxmox_router::{
     http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
+use proxmox_schema::api;
 use proxmox_schema::property_string::PropertyString;
-use proxmox_schema::{api, param_bail};
 use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 use proxmox_time::{epoch_i64, epoch_to_rfc2822};
@@ -117,74 +116,13 @@ pub fn get_remote<'a>(
     Ok(remote)
 }
 
-async fn connect_or_login<S: Into<String>>(
-    uri: &Uri,
-    fingerprint: Option<String>,
-    authid: &Authid,
-    token: S,
-) -> Result<PveClient<Client>, Error> {
-    let mut options = TlsOptions::default();
-    if let Some(fp) = &fingerprint {
-        options = TlsOptions::parse_fingerprint(fp)?;
-    }
-
-    let client = Client::with_options(uri.clone(), options, Default::default())?;
-
-    if authid.is_token() {
-        client.set_authentication(proxmox_client::Token {
-            userid: authid.to_string(),
-            prefix: "PVEAPIToken".to_string(),
-            value: token.into(),
-            perl_compat: true,
-        });
-    } else {
-        match client
-            .login(proxmox_login::Login::new(
-                uri.to_string(),
-                authid.to_string(),
-                token.into(),
-            ))
-            .await
-        {
-            Ok(Some(_)) => bail!("two factor auth not supported"),
-            Ok(None) => {}
-            Err(err) => match err {
-                // FIXME: check why Api with 401 is returned instead of an Authentication error
-                proxmox_client::Error::Api(code, _) if code.as_u16() == 401 => {
-                    bail!("authentication failed")
-                }
-                proxmox_client::Error::Authentication(_) => {
-                    bail!("authentication failed")
-                }
-                _ => return Err(err.into()),
-            },
-        }
-    }
-
+pub async fn connect_or_login(remote: &Remote) -> Result<PveClient<Client>, Error> {
+    let client = crate::connection::connect_or_login(remote).await?;
     Ok(PveClient(client))
 }
 
 pub fn connect(remote: &Remote) -> Result<PveClient<Client>, Error> {
-    let node = remote
-        .nodes
-        .first()
-        .ok_or_else(|| format_err!("no nodes configured for remote"))?;
-
-    let mut options = TlsOptions::default();
-    if let Some(fp) = &node.fingerprint {
-        options = TlsOptions::parse_fingerprint(fp)?;
-    }
-
-    let uri = format!("https://{}:8006", node.hostname).parse()?;
-    let client = Client::with_options(uri, options, Default::default())?;
-
-    client.set_authentication(proxmox_client::Token {
-        userid: remote.authid.to_string(),
-        prefix: "PVEAPIToken".to_string(),
-        value: remote.token.to_string(),
-        perl_compat: true,
-    });
-
+    let client = crate::connection::connect(remote)?;
     Ok(PveClient(client))
 }
 
@@ -1069,27 +1007,18 @@ pub async fn scan_remote_pve(
     password: String,
     create_token: bool,
 ) -> Result<Remote, Error> {
-    let authority = match hostname.parse::<http::uri::Authority>() {
-        Ok(auth) => {
-            if auth.port().is_none() {
-                format!("{}:8006", auth.host()).parse()?
-            } else {
-                auth
-            }
-        }
-        Err(_) => param_bail!("url", format_err!("invalid hostname/port")),
-    };
-    let url = match Uri::builder()
-        .scheme("https")
-        .authority(authority)
-        .path_and_query("/")
-        .build()
-    {
-        Ok(url) => url,
-        Err(_) => param_bail!("url", format_err!("invalid hostname/port")),
+    let mut remote = Remote {
+        ty: RemoteType::Pve,
+        id: String::new(),
+        nodes: vec![PropertyString::new(NodeUrl {
+            hostname,
+            fingerprint,
+        })],
+        authid: authid.clone(),
+        token: password,
     };
 
-    let client = connect_or_login(&url, fingerprint, &authid, &password)
+    let client = connect_or_login(&remote)
         .await
         .map_err(|err| format_err!("could not login: {err}"))?;
 
@@ -1110,13 +1039,7 @@ pub async fn scan_remote_pve(
         bail!("no node list returned");
     }
 
-    let mut remote = Remote {
-        ty: RemoteType::Pve,
-        id: String::new(),
-        nodes,
-        authid: authid.clone(),
-        token: String::new(),
-    };
+    remote.nodes = nodes;
 
     if let Ok(info) = client.cluster_config_join(None).await {
         if let Some(Some(name)) = info.totem.get("cluster_name").map(|name| name.as_str()) {

@@ -7,6 +7,7 @@ pub mod env;
 pub mod metric_collection;
 pub mod task_utils;
 
+pub mod connection;
 pub mod pbs_client;
 
 use anyhow::Error;

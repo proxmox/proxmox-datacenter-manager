@@ -4,10 +4,10 @@
 //! API calls. This is a more organized client than what we get via the `pdm-client` crate within
 //! the PBS repo, which is huge and messy...
 
-use anyhow::{bail, format_err}; // don't import Error as default error in here
+use anyhow::bail; // don't import Error as default error in here
 use serde::Deserialize;
 
-use proxmox_client::{Error, HttpApiClient, TlsOptions};
+use proxmox_client::{Error, HttpApiClient};
 use proxmox_router::stream::JsonRecords;
 use proxmox_section_config::typed::SectionConfigData;
 
@@ -24,27 +24,13 @@ pub fn get_remote<'a>(
     Ok(remote)
 }
 
+pub async fn connect_or_login(remote: &Remote) -> Result<PbsClient, anyhow::Error> {
+    let client = crate::connection::connect_or_login(remote).await?;
+    Ok(PbsClient(client))
+}
+
 pub fn connect(remote: &Remote) -> Result<PbsClient, anyhow::Error> {
-    let node = remote
-        .nodes
-        .first()
-        .ok_or_else(|| format_err!("no nodes configured for remote"))?;
-
-    let mut options = TlsOptions::default();
-    if let Some(fp) = &node.fingerprint {
-        options = TlsOptions::parse_fingerprint(fp)?;
-    }
-
-    let uri = format!("https://{}:8007", node.hostname).parse()?;
-    let client = proxmox_client::Client::with_options(uri, options, Default::default())?;
-
-    client.set_authentication(proxmox_client::Token {
-        userid: remote.authid.to_string(),
-        prefix: "PBSAPIToken".to_string(),
-        value: remote.token.to_string(),
-        perl_compat: false,
-    });
-
+    let client = crate::connection::connect(remote)?;
     Ok(PbsClient(client))
 }
 
