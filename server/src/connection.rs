@@ -1,4 +1,5 @@
 use anyhow::{bail, format_err, Error};
+use http::uri::Authority;
 
 use proxmox_client::{Client, TlsOptions};
 
@@ -23,12 +24,19 @@ fn prepare_connect_client(remote: &Remote) -> Result<ConnectInfo, Error> {
         options = TlsOptions::parse_fingerprint(fp)?;
     }
 
+    let host_port: Authority = node.hostname.parse()?;
+
     let (default_port, prefix, perl_compat, pve_compat) = match remote.ty {
         RemoteType::Pve => (8006, "PVEAPIToken".to_string(), true, true),
         RemoteType::Pbs => (8007, "PBSAPIToken".to_string(), false, false),
     };
 
-    let uri: http::uri::Uri = format!("https://{}:{}", node.hostname, default_port).parse()?;
+    let uri: http::uri::Uri = format!(
+        "https://{}:{}",
+        host_port.host(),
+        host_port.port_u16().unwrap_or(default_port)
+    )
+    .parse()?;
 
     let mut client =
         proxmox_client::Client::with_options(uri.clone(), options, Default::default())?;
