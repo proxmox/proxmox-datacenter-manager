@@ -9,6 +9,7 @@ use serde::Deserialize;
 
 use proxmox_client::{Error, HttpApiClient};
 use proxmox_router::stream::JsonRecords;
+use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
 
 use pdm_api_types::remotes::{Remote, RemoteType};
@@ -57,6 +58,32 @@ impl std::ops::DerefMut for PbsClient {
     }
 }
 
+#[api]
+/// Create token response.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateTokenResponse {
+    /// The token id.
+    pub tokenid: String,
+
+    /// API token value used for authentication.
+    pub value: String,
+}
+
+#[api]
+/// Create token parameters.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateToken {
+    /// The comment
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+    /// Enable the token
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enable: Option<bool>,
+    /// Set a token expiration
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expire: Option<i64>,
+}
+
 impl PbsClient {
     /// API version details, including some parts of the global datacenter config.
     pub async fn version(&self) -> Result<pve_api_types::VersionResponse, Error> {
@@ -102,6 +129,17 @@ impl PbsClient {
             let error = String::from_utf8_lossy(&data).into_owned();
             Err(anyhow::Error::msg(error))
         }
+    }
+
+    /// create a pbs token
+    pub async fn create_token(
+        &self,
+        userid: &str,
+        tokenid: &str,
+        params: CreateToken,
+    ) -> Result<CreateTokenResponse, Error> {
+        let path = format!("/api2/extjs/access/users/{userid}/token/{tokenid}");
+        Ok(self.0.post(&path, &params).await?.expect_json()?.data)
     }
 }
 
