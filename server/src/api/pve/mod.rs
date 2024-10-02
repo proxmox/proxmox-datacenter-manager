@@ -18,8 +18,9 @@ use proxmox_time::{epoch_i64, epoch_to_rfc2822};
 
 use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, REMOTE_ID_SCHEMA};
 use pdm_api_types::{
-    Authid, ConfigurationState, RemoteUpid, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE,
-    PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
+    Authid, ConfigurationState, RemoteUpid, HOST_PORT_FORMAT, NODE_SCHEMA, PRIV_RESOURCE_AUDIT,
+    PRIV_RESOURCE_DELETE, PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE, SNAPSHOT_NAME_SCHEMA,
+    VMID_SCHEMA,
 };
 use pve_api_types::client::PveClient;
 use pve_api_types::{ClusterResourceKind, CreateToken};
@@ -1033,9 +1034,10 @@ pub async fn lxc_remote_migrate(
 #[api(
     input: {
         properties: {
-            url: {
+            hostname: {
                 type: String,
-                description: "Hostname or URL of the target remote",
+                format: &HOST_PORT_FORMAT,
+                description: "Hostname (with optional port) of the target remote",
             },
             fingerprint: {
                 type: String,
@@ -1061,14 +1063,13 @@ pub async fn lxc_remote_migrate(
 )]
 /// Scans the given connection info for pve cluster information
 pub async fn scan_remote_pve(
-    url: String,
+    hostname: String,
     fingerprint: Option<String>,
     authid: Authid,
     password: String,
     create_token: bool,
 ) -> Result<Remote, Error> {
-    // FIXME: use better parser or regex?
-    let authority = match url.parse::<http::uri::Authority>() {
+    let authority = match hostname.parse::<http::uri::Authority>() {
         Ok(auth) => {
             if auth.port().is_none() {
                 format!("{}:8006", auth.host()).parse()?
@@ -1076,7 +1077,7 @@ pub async fn scan_remote_pve(
                 auth
             }
         }
-        Err(_) => param_bail!("url", format_err!("invalid url authority")),
+        Err(_) => param_bail!("url", format_err!("invalid hostname/port")),
     };
     let url = match Uri::builder()
         .scheme("https")
@@ -1085,7 +1086,7 @@ pub async fn scan_remote_pve(
         .build()
     {
         Ok(url) => url,
-        Err(_) => param_bail!("url", format_err!("invalid URL")),
+        Err(_) => param_bail!("url", format_err!("invalid hostname/port")),
     };
 
     let client = connect_or_login(&url, fingerprint, &authid, &password)
