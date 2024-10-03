@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use anyhow::Error;
-use yew::virtual_dom::{Key, VComp, VNode};
 use serde_json::json;
+use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::{self, Display, FlexFit};
 use pwt::prelude::*;
@@ -192,9 +192,15 @@ impl Component for PdmMainMenu {
                     .class(FlexFit)
                     .border(false)
                     .title(tr!("Notes"))
-                    .with_child(NotesView::new("/config/notes").on_submit(|notes: String| {
-                        proxmox_yew_comp::http_put("/config/notes", Some(json!({ "notes": notes })))
-                    }))
+                    .with_child(
+                        NotesView::new("/config/notes").on_submit(|notes| async move {
+                            proxmox_yew_comp::http_put(
+                                "/config/notes",
+                                Some(serde_json::to_value(&notes)?),
+                            )
+                            .await
+                        }),
+                    )
                     .into()
             },
         );
