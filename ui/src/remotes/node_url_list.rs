@@ -10,7 +10,7 @@ use pwt::state::Store;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::form::ManagedField;
 use pwt::widget::form::{Field, ManagedFieldContext, ManagedFieldMaster, ManagedFieldState};
-use pwt::widget::{ActionIcon, Button, Column, Container, Row};
+use pwt::widget::{ActionIcon, Button, Column, Container, Fa, Row};
 use pwt::{css, prelude::*};
 
 use proxmox_yew_comp::SchemaValidation;
@@ -169,26 +169,35 @@ impl ManagedField for PdmNodeUrlField {
             .border(true)
             .class(css::FlexFit);
 
-        let toolbar = Row::new().with_child(
-            Button::new(tr!("Add"))
-                .class(css::ColorScheme::Primary)
-                .icon_class("fa fa-plus-circle")
-                .onclick({
-                    let nodes = self.store.clone();
-                    move |_| {
-                        let mut nodes = nodes.write();
-                        let index = nodes.len();
+        let toolbar = Row::new()
+            .with_child(
+                Button::new(tr!("Add"))
+                    .class(css::ColorScheme::Primary)
+                    .icon_class("fa fa-plus-circle")
+                    .onclick({
+                        let nodes = self.store.clone();
+                        move |_| {
+                            let mut nodes = nodes.write();
+                            let index = nodes.len();
 
-                        nodes.push(Entry {
-                            index,
-                            data: NodeUrl {
-                                hostname: String::new(),
-                                fingerprint: None,
-                            },
-                        })
-                    }
-                }),
-        );
+                            nodes.push(Entry {
+                                index,
+                                data: NodeUrl {
+                                    hostname: String::new(),
+                                    fingerprint: None,
+                                },
+                            })
+                        }
+                    }),
+            )
+            .with_flex_spacer()
+            .with_optional_child(ctx.state().valid.clone().err().map(|err| {
+                Row::new()
+                    .class(css::AlignItems::Center)
+                    .gap(2)
+                    .with_child(Fa::new("exclamation-triangle").class(css::FontColor::Error))
+                    .with_child(err)
+            }));
 
         Column::new()
             .class(FlexFit)
