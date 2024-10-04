@@ -6,12 +6,14 @@ use yew::virtual_dom::VComp;
 use pwt::prelude::*;
 use pwt::widget::TabBarItem;
 
+use pdm_api_types::remotes::{Remote, RemoteType};
+
 use proxmox_yew_comp::{
     IntoSubmitValueCallback, SubmitValueCallback, Wizard, WizardPageRenderInfo,
 };
 use yew::virtual_dom::VNode;
 
-use super::{ServerInfo, WizardPageConnect, WizardPageNodes, WizardPageSummary};
+use super::{WizardPageConnect, WizardPageInfo, WizardPageNodes, WizardPageSummary};
 
 use pwt_macros::builder;
 
@@ -26,11 +28,13 @@ pub struct AddWizard {
     /// Dialog submit callback.
     #[prop_or_default]
     pub on_submit: Option<SubmitValueCallback>,
+
+    remote_type: RemoteType,
 }
 
 impl AddWizard {
-    pub fn new() -> Self {
-        yew::props!(Self {})
+    pub fn new(remote_type: RemoteType) -> Self {
+        yew::props!(Self { remote_type })
     }
 
     /// Set [Self::on_submit] callback
@@ -46,10 +50,10 @@ impl AddWizard {
 }
 
 pub enum Msg {
-    ServerChange(Option<ServerInfo>),
+    ServerChange(Option<Remote>),
 }
 pub struct AddWizardState {
-    server_info: Option<ServerInfo>,
+    server_info: Option<Remote>,
 }
 
 impl Component for AddWizardState {
@@ -71,23 +75,46 @@ impl Component for AddWizardState {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let props = ctx.props();
-        Wizard::new("Add Remote")
+        let remote_type = props.remote_type;
+
+        let mut wizard = Wizard::new("Add Remote")
+            .width(800)
             .tab_bar_style(pwt::widget::TabBarStyle::MaterialPrimary)
-            //.width(720)
-            //.height(300)
             .on_done(props.on_close.clone())
-            .with_page(TabBarItem::new().label(tr!("Address")), {
-                let link = ctx.link().clone();
-                move |p: &WizardPageRenderInfo| {
-                    WizardPageConnect::new(p.clone())
-                        .on_server_change(link.callback(Msg::ServerChange))
-                        .into()
-                }
-            })
-            .with_page(TabBarItem::new().label(tr!("Nodes")), {
+            .with_page(
+                TabBarItem::new()
+                    .key("connection")
+                    .label(if remote_type == RemoteType::Pve {
+                        tr!("Initial Connection")
+                    } else {
+                        tr!("Connection")
+                    }),
+                {
+                    let link = ctx.link().clone();
+                    move |p: &WizardPageRenderInfo| {
+                        WizardPageConnect::new(p.clone(), remote_type)
+                            .on_server_change(link.callback(Msg::ServerChange))
+                            .into()
+                    }
+                },
+            );
+
+        if remote_type == RemoteType::Pve {
+            wizard = wizard.with_page(TabBarItem::new().key("nodes").label(tr!("Connections")), {
                 let server_info = self.server_info.clone();
                 move |p: &WizardPageRenderInfo| {
                     WizardPageNodes::new(p.clone())
+                        .server_info(server_info.clone())
+                        .into()
+                }
+            });
+        }
+
+        wizard
+            .with_page(TabBarItem::new().key("info").label(tr!("Info")), {
+                let server_info = self.server_info.clone();
+                move |p: &WizardPageRenderInfo| {
+                    WizardPageInfo::new(p.clone())
                         .server_info(server_info.clone())
                         .into()
                 }
@@ -95,7 +122,7 @@ impl Component for AddWizardState {
             .with_page(TabBarItem::new().label(tr!("Summary")), {
                 let server_info = self.server_info.clone();
                 move |p: &WizardPageRenderInfo| {
-                    WizardPageSummary::new(p.clone())
+                    WizardPageSummary::new(p.clone(), remote_type)
                         .server_info(server_info.clone())
                         .into()
                 }

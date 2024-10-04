@@ -1,6 +1,6 @@
-/*
 mod wizard_page_connect;
 use add_wizard::AddWizard;
+use proxmox_schema::property_string::PropertyString;
 use wizard_page_connect::WizardPageConnect;
 
 mod wizard_page_nodes;
@@ -9,8 +9,10 @@ use wizard_page_nodes::WizardPageNodes;
 mod wizard_page_summary;
 pub use wizard_page_summary::WizardPageSummary;
 
+mod wizard_page_info;
+pub use wizard_page_info::WizardPageInfo;
+
 mod add_wizard;
-*/
 
 mod node_url_list;
 pub use node_url_list::NodeUrlList;
@@ -23,15 +25,13 @@ use std::rc::Rc;
 
 use anyhow::Error;
 use edit_remote::EditRemote;
-use pwt::widget::form::{Field, FormContext, InputType};
-use serde::{Deserialize, Serialize};
+//use pwt::widget::form::{Field, FormContext, InputType};
 
 use pdm_api_types::remotes::Remote;
-use proxmox_schema::{property_string::PropertyString, ApiType};
+//use proxmox_schema::{property_string::PropertyString, ApiType};
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
-use proxmox_yew_comp::SchemaValidation;
 
-use pbs_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
+//use pbs_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
 //use proxmox_schema::api_types::{CERT_FINGERPRINT_SHA256_SCHEMA, DNS_NAME_OR_IP_SCHEMA};
 
@@ -44,30 +44,14 @@ use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 //use pwt::widget::form::{delete_empty_values, Field, FormContext, InputType};
 use pwt::widget::{
     menu::{Menu, MenuButton, MenuItem},
-    Button, Column, InputPanel, Toolbar, Tooltip,
+    Button, Column, Toolbar, Tooltip,
 };
+//use pwt::widget::InputPanel;
 
-use proxmox_yew_comp::{
-    EditWindow, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
-};
+//use proxmox_yew_comp::EditWindow;
+use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 
 use pdm_api_types::remotes::{NodeUrl, RemoteType};
-
-/// Data returned by connect call.
-#[derive(Clone, PartialEq)]
-pub struct ServerInfo {
-    remote_type: RemoteType,
-    nodes: Vec<NodeUrl>,
-}
-
-#[derive(Deserialize, Serialize)]
-/// Parameters for connect call.
-pub struct ConnectParams {
-    server: String,
-    username: String,
-    password: String,
-    fingerprint: Option<String>,
-}
 
 async fn load_remotes() -> Result<Vec<Remote>, Error> {
     proxmox_yew_comp::http_get("/remotes", None).await
@@ -266,6 +250,7 @@ impl LoadableComponent for PbsRemoteConfigPanel {
     }
 }
 
+/*
 fn add_remote_input_panel(_form_ctx: &FormContext) -> Html {
     InputPanel::new()
         .padding(4)
@@ -296,6 +281,7 @@ fn add_remote_input_panel(_form_ctx: &FormContext) -> Html {
         )
         .into()
 }
+*/
 
 impl PbsRemoteConfigPanel {
     fn create_add_dialog(
@@ -303,16 +289,16 @@ impl PbsRemoteConfigPanel {
         ctx: &LoadableComponentContext<Self>,
         remote_type: RemoteType,
     ) -> Html {
-        /*
-        AddWizard::new()
+        AddWizard::new(remote_type)
             .on_close(ctx.link().change_view_callback(|_| None))
+            .on_submit(move |ctx| create_item(ctx, remote_type))
             .into()
-        */
-        EditWindow::new(tr!("Add") + ": " + &tr!("Remote"))
-            .renderer(add_remote_input_panel)
-            .on_submit(move |ctx: FormContext| create_item(ctx.get_submit_data(), remote_type))
-            .on_done(ctx.link().change_view_callback(|_| None))
-            .into()
+
+        // EditWindow::new(tr!("Add") + ": " + &tr!("Remote"))
+        //     .renderer(add_remote_input_panel)
+        //     .on_submit(move |ctx: FormContext| create_item(ctx.get_submit_data(), remote_type))
+        //     .on_done(ctx.link().change_view_callback(|_| None))
+        //     .into()
     }
 
     fn create_edit_dialog(&self, ctx: &LoadableComponentContext<Self>, key: Key) -> Html {

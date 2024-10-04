@@ -1,40 +1,64 @@
 use std::rc::Rc;
 
-use yew::html::IntoPropValue;
 use yew::virtual_dom::{Key, VComp, VNode};
 
+use pwt::css::FlexFit;
 use pwt::prelude::*;
 use pwt::state::Store;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
-use pwt::widget::{Column, Container};
+use pwt::widget::form::DisplayField;
+use pwt::widget::{Container, InputPanel};
 
 use proxmox_yew_comp::WizardPageRenderInfo;
 
-use pdm_api_types::remotes::NodeUrl;
+use proxmox_schema::property_string::PropertyString;
+
+use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType};
 
 use pwt_macros::builder;
-
-use super::ServerInfo;
 
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
 pub struct WizardPageSummary {
     info: WizardPageRenderInfo,
 
-    #[builder(IntoPropValue, into_prop_value)]
+    #[builder]
     #[prop_or_default]
-    server_info: Option<ServerInfo>,
+    server_info: Option<Remote>,
+
+    remote_type: RemoteType,
 }
 
 impl WizardPageSummary {
-    pub fn new(info: WizardPageRenderInfo) -> Self {
-        yew::props!(Self { info })
+    pub fn new(info: WizardPageRenderInfo, remote_type: RemoteType) -> Self {
+        yew::props!(Self { info, remote_type })
     }
 }
 
 pub struct PdmWizardPageSummary {
     store: Store<PropertyString<NodeUrl>>,
     columns: Rc<Vec<DataTableHeader<PropertyString<NodeUrl>>>>,
+}
+
+impl PdmWizardPageSummary {
+    fn set_data(&mut self, ctx: &Context<Self>) {
+        self.store.clear();
+        let props = ctx.props();
+
+        if let Some(Some(nodes)) = props.info.valid_data.get("nodes").map(|n| n.as_array()) {
+            let nodes = nodes
+                .into_iter()
+                .filter_map(|node| match serde_json::from_value(node.clone()) {
+                    Ok(value) => Some(value),
+                    Err(err) => {
+                        log::error!("could not deserialize: {err}");
+                        None
+                    }
+                })
+                .collect();
+            self.store.set_data(nodes);
+        }
+    }
 }
 
 impl Component for PdmWizardPageSummary {
@@ -47,40 +71,72 @@ impl Component for PdmWizardPageSummary {
             props.info.page_lock(true);
         }
 
-        let store = Store::with_extract_key(|item: &NodeUrl| Key::from(item.hostname.clone()));
-        if let Some(server_info) = &props.server_info {
-            store.write().set_data(server_info.nodes.clone());
-        }
-
+        let store = Store::with_extract_key(|item: &PropertyString<NodeUrl>| {
+            Key::from(item.hostname.clone())
+        });
         let columns = Rc::new(columns());
-        Self { store, columns }
+        let mut this = Self { store, columns };
+        this.set_data(ctx);
+        this
     }
 
     fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
         let props = ctx.props();
         props.info.page_lock(props.server_info.is_none());
-        if let Some(server_info) = &props.server_info {
-            self.store.write().set_data(server_info.nodes.clone());
-        } else {
-            props.info.form_ctx.write().reset_form();
-        }
+        self.set_data(ctx);
         true
     }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
-        Column::new()
-            .with_child(
-                Container::new()
-                    .padding(4)
-                    .border_bottom(true)
-                    .with_child(format!("A TEST TEXT")),
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let props = ctx.props();
+        let data = &props.info.valid_data;
+        let mut input = InputPanel::new()
+            .class(FlexFit)
+            .padding(4)
+            .with_field(
+                tr!("Remote ID"),
+                DisplayField::new(data["id"].as_str().unwrap_or_default().to_string())
+                    .key("remote-id"),
             )
-            .with_child(
-                DataTable::new(Rc::clone(&self.columns), self.store.clone())
-                    .class("pwt-flex-fit")
-                    .max_height(300),
+            .with_field(
+                tr!("Auth ID"),
+                DisplayField::new(data["authid"].as_str().unwrap_or_default().to_string())
+                    .key("auth-id"),
             )
-            .into()
+            .with_right_field(
+                tr!("Create Token"),
+                DisplayField::new(match data["create-token"].as_str() {
+                    Some(name) => format!("{} ({})", tr!("Yes"), name),
+                    None => tr!("No"),
+                })
+                .key("create-token-display"),
+            );
+
+        if props.remote_type == RemoteType::Pbs {
+            input = input.with_right_field(
+                tr!("Hostname"),
+                DisplayField::new(data["hostname"].as_str().unwrap_or_default().to_string())
+                    .key("hostname"),
+            );
+        } else {
+            input = input
+                .with_large_custom_child(
+                    Container::new()
+                        .key("nodes-title")
+                        .padding_top(4)
+                        .class("pwt-font-title-medium")
+                        .with_child(tr!("Connections")),
+                )
+                .with_large_custom_child(
+                    DataTable::new(Rc::clone(&self.columns), self.store.clone())
+                        .key("node-list")
+                        .border(true)
+                        .class(FlexFit)
+                        .max_height(300),
+                );
+        }
+
+        input.into()
     }
 }
 
