@@ -41,8 +41,29 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get("/api2/extjs/remotes").await?.expect_json()?.data)
     }
 
-    pub async fn add_remote(&self, remote: &Remote) -> Result<(), proxmox_client::Error> {
-        self.0.post("/api2/extjs/remotes", remote).await?.nodata()
+    pub async fn add_remote(
+        &self,
+        remote: &Remote,
+        create_token: Option<&str>,
+    ) -> Result<(), proxmox_client::Error> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "kebab-case")]
+        struct AddRemoteParams<'a> {
+            #[serde(flatten)]
+            remote: &'a Remote,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            create_token: Option<&'a str>,
+        }
+        self.0
+            .post(
+                "/api2/extjs/remotes",
+                &AddRemoteParams {
+                    remote,
+                    create_token,
+                },
+            )
+            .await?
+            .nodata()
     }
 
     pub async fn update_remote(
@@ -97,6 +118,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     pub async fn create_user(&self, config: &User, password: Option<&str>) -> Result<(), Error> {
         #[derive(Serialize)]
         struct CreateUser<'a> {
+            #[serde(skip_serializing_if = "Option::is_none")]
             password: Option<&'a str>,
             #[serde(flatten)]
             config: &'a User,
