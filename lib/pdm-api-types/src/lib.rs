@@ -3,9 +3,10 @@
 use std::fmt;
 
 use anyhow::{bail, Error};
+use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::api_types::SAFE_ID_REGEX;
+use proxmox_schema::api_types::{DNS_NAME_STR, IPRE_BRACKET_STR, PORT_REGEX_STR, SAFE_ID_REGEX};
 use proxmox_schema::{
     api, const_regex, ApiStringFormat, ApiType, ArraySchema, IntegerSchema, ReturnType, Schema,
     StringSchema, Updater,
@@ -87,6 +88,7 @@ const_regex! {
     pub OPENSSL_CIPHERS_REGEX = r"^[0-9A-Za-z_:, +!\-@=.]+$";
 
 
+    pub HOST_OPTIONAL_PORT_REGEX = concatcp!(r"^(?:", DNS_NAME_STR, "|", IPRE_BRACKET_STR, ")(?::", PORT_REGEX_STR ,")?$");
 
     pub SUBSCRIPTION_KEY_REGEX = concat!(r"^pbs(?:[cbsp])-[0-9a-f]{10}$");
 }
@@ -100,6 +102,8 @@ pub const HOSTNAME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HOSTNAME_
 pub const OPENSSL_CIPHERS_TLS_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&OPENSSL_CIPHERS_REGEX);
 pub const HOST_PORT_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HOST_PORT_REGEX);
+pub const HOST_OPTIONAL_PORT_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&HOST_OPTIONAL_PORT_REGEX);
 pub const HTTP_URL_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HTTP_URL_REGEX);
 
 pub const DAILY_DURATION_FORMAT: ApiStringFormat =

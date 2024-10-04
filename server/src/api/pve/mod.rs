@@ -16,9 +16,9 @@ use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, REMOTE_ID_SCHEMA};
 use pdm_api_types::{
-    Authid, ConfigurationState, RemoteUpid, HOST_PORT_FORMAT, NODE_SCHEMA, PRIV_RESOURCE_AUDIT,
-    PRIV_RESOURCE_DELETE, PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE, SNAPSHOT_NAME_SCHEMA,
-    VMID_SCHEMA,
+    Authid, ConfigurationState, RemoteUpid, HOST_OPTIONAL_PORT_FORMAT, NODE_SCHEMA,
+    PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE, PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE,
+    SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
 
 use pve_api_types::client::PveClient;
@@ -974,7 +974,7 @@ pub async fn lxc_remote_migrate(
         properties: {
             hostname: {
                 type: String,
-                format: &HOST_PORT_FORMAT,
+                format: &HOST_OPTIONAL_PORT_FORMAT,
                 description: "Hostname (with optional port) of the target remote",
             },
             fingerprint: {
