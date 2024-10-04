@@ -21,7 +21,7 @@ percent-encoding = "2.1"
 gloo-timers = "0.3"
 gloo-net = "0.4"
 gloo-utils = "0.2"
-web-sys = { version = "0.3", features = ["ReadableStreamDefaultReader"] }
+web-sys = { version = "0.3", features = ["Location"] }
 
 pwt = "0.3"
 pwt-macros = "0.1"

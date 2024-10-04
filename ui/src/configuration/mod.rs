@@ -1,11 +1,14 @@
 use pwt::prelude::*;
 use pwt::state::NavigationContainer;
-use pwt::widget::{MiniScrollMode, TabBarItem, TabPanel};
+use pwt::widget::{Column, MiniScrollMode, Panel, TabBarItem, TabPanel};
 
 use proxmox_yew_comp::configuration::TimePanel;
 use proxmox_yew_comp::configuration::{DnsPanel, NetworkView};
 use proxmox_yew_comp::tfa::TfaView;
 use proxmox_yew_comp::UserPanel;
+
+mod other;
+pub use other::OtherPanel;
 
 #[function_component(SystemConfiguration)]
 pub fn system_configuration() -> Html {
@@ -18,23 +21,16 @@ pub fn system_configuration() -> Html {
         .with_item_builder(
             TabBarItem::new()
                 .key("network")
-                .icon_class("fa fa-exchange")
-                .label(tr!("Network")),
-            |_| NetworkView::new().into(),
+                .label(tr!("Network") + "/" + &tr!("Time"))
+                .icon_class("fa fa-exchange"),
+            |_| html! { <NetworkTimePanel/> },
         )
         .with_item_builder(
             TabBarItem::new()
-                .key("dns")
-                .icon_class("fa fa-globe")
-                .label("DNS"),
-            |_| html! { <DnsPanel/> },
-        )
-        .with_item_builder(
-            TabBarItem::new()
-                .key("time")
-                .icon_class("fa fa-clock-o")
-                .label(tr!("Time")),
-            |_| html! { <TimePanel/> },
+                .key("other")
+                .label("Other")
+                .icon_class("fa fa-sliders"),
+            |_| html! { <OtherPanel/> },
         );
 
     NavigationContainer::new().with_child(panel).into()
@@ -64,4 +60,33 @@ pub fn access_control() -> Html {
         );
 
     NavigationContainer::new().with_child(panel).into()
+}
+
+#[function_component(NetworkTimePanel)]
+pub fn create_network_time_panel() -> Html {
+    Column::new()
+        .class("pwt-flex-fit")
+        .padding(2)
+        .gap(4)
+        .with_child(
+            Panel::new()
+                .border(true)
+                .title(tr!("Time"))
+                .with_child(html! { <TimePanel/> }),
+        )
+        .with_child(
+            Panel::new()
+                .border(true)
+                .title(tr!("DNS"))
+                .with_child(html! { <DnsPanel/> }),
+        )
+        .with_child(
+            Panel::new()
+                .min_height(200)
+                .class("pwt-flex-fit")
+                .border(true)
+                .title(tr!("Network Interfaces"))
+                .with_child(NetworkView::new()),
+        )
+        .into()
 }
