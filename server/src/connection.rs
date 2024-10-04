@@ -49,6 +49,10 @@ fn prepare_connect_client(remote: &Remote) -> Result<ConnectInfo, Error> {
     })
 }
 
+/// Constructs a [Client] for the given [Remote] for an API token
+///
+/// It does not actually opens a connection there, but prepares the client with the correct
+/// authentication information and settings for the [RemoteType]
 pub fn connect(remote: &Remote) -> Result<Client, anyhow::Error> {
     let ConnectInfo {
         client,
@@ -65,6 +69,15 @@ pub fn connect(remote: &Remote) -> Result<Client, anyhow::Error> {
     Ok(client)
 }
 
+/// Constructs a [Client] for the given [Remote] for an API token or user
+///
+/// In case the remote has a user configured (instead of an API token), it will connect and get a
+/// ticket, so that further connections are properly authenticated. Otherwise it behaves
+/// identically as [connect].
+///
+/// This is intended for API calls that accept a user in addition to tokens.
+///
+/// Note: currently does not support two factor authentication.
 pub async fn connect_or_login(remote: &Remote) -> Result<Client, anyhow::Error> {
     if remote.authid.is_token() {
         connect(remote)
