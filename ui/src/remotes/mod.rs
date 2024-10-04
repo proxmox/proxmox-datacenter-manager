@@ -42,7 +42,7 @@ use pwt::prelude::*;
 use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 //use pwt::widget::form::{delete_empty_values, Field, FormContext, InputType};
-use pwt::widget::{Button, InputPanel, Toolbar};
+use pwt::widget::{Button, Column, InputPanel, Toolbar, Tooltip};
 
 use proxmox_yew_comp::{
     EditWindow, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
@@ -343,6 +343,30 @@ fn remote_list_columns() -> Rc<Vec<DataTableHeader<Remote>>> {
                 }
             })
             .sorter(|a: &Remote, b: &Remote| a.authid.cmp(&b.authid))
+            .into(),
+        DataTableColumn::new(tr!("Nodes"))
+            .flex(1)
+            .render(|item: &Remote| {
+                if item.nodes.is_empty() {
+                    html! {tr!("None")}
+                } else {
+                    let nodes = item
+                        .nodes
+                        .iter()
+                        .map(|n| n.hostname.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let mut tip = Column::new();
+                    tip.add_children(item.nodes.iter().map(|n| {
+                        let text = match n.fingerprint.clone() {
+                            Some(fp) => format!("{} ({fp})", n.hostname),
+                            None => n.hostname.to_string(),
+                        };
+                        html! {<div>{text}</div>}
+                    }));
+                    Tooltip::new(nodes).rich_tip(tip).into()
+                }
+            })
             .into(),
         /*
         DataTableColumn::new(tr!("Auth ID"))
