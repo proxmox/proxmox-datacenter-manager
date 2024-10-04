@@ -5,11 +5,12 @@ use serde_json::Value;
 
 use yew::virtual_dom::Key;
 
+use pwt::css::FlexFit;
 use pwt::state::Store;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::form::ManagedField;
 use pwt::widget::form::{Field, ManagedFieldContext, ManagedFieldMaster, ManagedFieldState};
-use pwt::widget::{ActionIcon, Button, Column, Row};
+use pwt::widget::{ActionIcon, Button, Column, Container, Row};
 use pwt::{css, prelude::*};
 
 use proxmox_yew_comp::SchemaValidation;
@@ -26,6 +27,9 @@ use pwt_macros::{builder, widget};
 #[widget(comp=ManagedFieldMaster<PdmNodeUrlField>, @input)]
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
+/// A grid field to hold a list of hostname,fingerprint pairs for e.g. [Remote]
+///
+/// Note: std_props are applied on the grid only, not the toolbar.
 pub struct NodeUrlList {}
 
 impl NodeUrlList {
@@ -160,7 +164,7 @@ impl ManagedField for PdmNodeUrlField {
         }
     }
 
-    fn view(&self, _ctx: &pwt::widget::form::ManagedFieldContext<Self>) -> Html {
+    fn view(&self, ctx: &pwt::widget::form::ManagedFieldContext<Self>) -> Html {
         let table = DataTable::new(self.columns.clone(), self.store.clone())
             .border(true)
             .class(css::FlexFit);
@@ -187,9 +191,13 @@ impl ManagedField for PdmNodeUrlField {
         );
 
         Column::new()
-            .height(200)
+            .class(FlexFit)
             .gap(2)
-            .with_child(table)
+            .with_child(
+                Container::from_widget_props(ctx.props().std_props.clone(), None)
+                    .class(FlexFit)
+                    .with_child(table),
+            )
             .with_child(toolbar)
             .into()
     }
