@@ -985,7 +985,7 @@ pub async fn lxc_remote_migrate(
             "authid": {
                 type: Authid,
             },
-            "password": {
+            "token": {
                 type: String,
                 description: "The token secret or the user password.",
             },
@@ -997,7 +997,7 @@ pub async fn scan_remote_pve(
     hostname: String,
     fingerprint: Option<String>,
     authid: Authid,
-    password: String,
+    token: String,
 ) -> Result<Remote, Error> {
     let mut remote = Remote {
         ty: RemoteType::Pve,
@@ -1007,7 +1007,7 @@ pub async fn scan_remote_pve(
             fingerprint,
         })],
         authid: authid.clone(),
-        token: password,
+        token,
     };
 
     let client = connect_or_login(&remote)
