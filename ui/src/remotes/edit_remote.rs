@@ -3,6 +3,7 @@ use std::rc::Rc;
 use yew::html::IntoEventCallback;
 use yew::virtual_dom::{VComp, VNode};
 
+use pwt::css::FlexFit;
 use pwt::prelude::*;
 use pwt::widget::form::{Field, FormContext, InputType};
 use pwt::widget::{Container, InputPanel};
@@ -47,6 +48,7 @@ impl Component for PdmEditRemote {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let props = ctx.props();
         EditWindow::new(tr!("Edit") + ": " + &tr!("Remote"))
+            .width(800)
             .min_height(400)
             .on_done(props.on_done.clone())
             .loader(format!(
@@ -71,8 +73,9 @@ impl Component for PdmEditRemote {
 
 fn edit_remote_input_panel(_form_ctx: &FormContext) -> Html {
     InputPanel::new()
-        .class("pwt-w-100")
+        .class(FlexFit)
         .padding(4)
+        .width("auto")
         .with_field(tr!("Remote ID"), Field::new().name("id").required(true))
         .with_field(
             tr!("User/Token"),
