@@ -93,8 +93,8 @@ impl Into<VNode> for WizardPageSummary {
 
 fn columns() -> Vec<DataTableHeader<PropertyString<NodeUrl>>> {
     vec![
-        DataTableColumn::new(tr!("Node"))
-            .width("200px")
+        DataTableColumn::new(tr!("Hostname/Address"))
+            .flex(1)
             .render(|item: &PropertyString<NodeUrl>| {
                 html! {
                     item.hostname.clone()
@@ -105,10 +105,10 @@ fn columns() -> Vec<DataTableHeader<PropertyString<NodeUrl>>> {
             })
             .sort_order(true)
             .into(),
-        DataTableColumn::new(tr!("Address"))
-            .width("400px")
-            .render(move |_item: &PropertyString<NodeUrl>| {
-                html! {"ADDRESS/Fingerprint"}
+        DataTableColumn::new(tr!("Fingerprint"))
+            .flex(2)
+            .render(move |item: &PropertyString<NodeUrl>| {
+                item.fingerprint.as_deref().unwrap_or_default().into()
             })
             .into(),
     ]
