@@ -327,7 +327,7 @@ fn remote_list_columns() -> Rc<Vec<DataTableHeader<Remote>>> {
             .sort_order(true)
             .into(),
         DataTableColumn::new(tr!("Type"))
-            .width("50px")
+            .width("60px")
             .render(|item: &Remote| {
                 html! {
                     &item.ty
