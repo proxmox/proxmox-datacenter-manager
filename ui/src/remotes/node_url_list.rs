@@ -30,7 +30,12 @@ use pwt_macros::{builder, widget};
 /// A grid field to hold a list of hostname,fingerprint pairs for e.g. [Remote]
 ///
 /// Note: std_props are applied on the grid only, not the toolbar.
-pub struct NodeUrlList {}
+pub struct NodeUrlList {
+    /// Default value.
+    #[builder]
+    #[prop_or_default]
+    pub default: Vec<PropertyString<NodeUrl>>,
+}
 
 impl NodeUrlList {
     pub fn new() -> Self {
@@ -96,9 +101,13 @@ impl ManagedField for PdmNodeUrlField {
         Ok(value.clone())
     }
 
-    fn setup(_props: &Self::Properties) -> ManagedFieldState {
+    fn setup(props: &Self::Properties) -> ManagedFieldState {
         let value = Value::Null;
-        let default = Value::Null;
+        let default = props
+            .default
+            .iter()
+            .filter_map(|n| serde_json::to_value(n).ok())
+            .collect();
 
         let valid = Ok(());
 
@@ -115,12 +124,23 @@ impl ManagedField for PdmNodeUrlField {
         let store = Store::with_extract_key(|entry: &Entry| Key::from(entry.index))
             .on_change(ctx.link().callback(|_| Msg::DataChange));
         let columns = columns(ctx);
-
-        Self { store, columns }
+        let mut this = Self { store, columns };
+        this.set_nodes(
+            ctx.props()
+                .default
+                .clone()
+                .into_iter()
+                .map(|n| n.into_inner())
+                .collect(),
+        );
+        this
     }
+
     fn value_changed(&mut self, ctx: &ManagedFieldContext<Self>) {
-        let state = ctx.state();
-        self.sync_from_value(state.value.clone());
+        match ctx.state().value {
+            Value::Null => self.sync_from_value(ctx.state().default.clone()),
+            _ => self.sync_from_value(ctx.state().value.clone()),
+        }
     }
 
     fn update(&mut self, ctx: &ManagedFieldContext<Self>, msg: Self::Message) -> bool {
