@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use anyhow::Error;
+use anyhow::{bail, Error};
 use serde_json::Value;
 
 use yew::virtual_dom::Key;
@@ -82,14 +82,17 @@ impl PdmNodeUrlField {
 impl ManagedField for PdmNodeUrlField {
     type Message = Msg;
     type Properties = NodeUrlList;
-    type ValidateClosure = ();
+    type ValidateClosure = bool;
 
-    fn validation_args(_props: &Self::Properties) -> Self::ValidateClosure {
-        ()
+    fn validation_args(props: &Self::Properties) -> Self::ValidateClosure {
+        props.input_props.required
     }
 
-    fn validator(_props: &Self::ValidateClosure, value: &Value) -> Result<Value, Error> {
-        serde_json::from_value::<Vec<PropertyString<NodeUrl>>>(value.clone())?;
+    fn validator(required: &Self::ValidateClosure, value: &Value) -> Result<Value, Error> {
+        let data = serde_json::from_value::<Vec<PropertyString<NodeUrl>>>(value.clone())?;
+        if data.is_empty() && *required {
+            bail!("at least one entry required!")
+        }
         Ok(value.clone())
     }
 
