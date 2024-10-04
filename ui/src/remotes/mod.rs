@@ -21,7 +21,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 use edit_remote::EditRemote;
 use pwt::widget::form::{Field, FormContext, InputType};
 use serde::{Deserialize, Serialize};
@@ -42,7 +42,10 @@ use pwt::prelude::*;
 use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 //use pwt::widget::form::{delete_empty_values, Field, FormContext, InputType};
-use pwt::widget::{Button, Column, InputPanel, Toolbar, Tooltip};
+use pwt::widget::{
+    menu::{Menu, MenuButton, MenuItem},
+    Button, Column, InputPanel, Toolbar, Tooltip,
+};
 
 use proxmox_yew_comp::{
     EditWindow, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
@@ -77,31 +80,26 @@ async fn delete_item(key: Key) -> Result<(), Error> {
     Ok(())
 }
 
-async fn create_item(form_ctx: FormContext) -> Result<(), Error> {
-    let mut data = form_ctx.get_submit_data();
+async fn create_item(mut data: Value, remote_type: RemoteType) -> Result<(), Error> {
+    if data.get("nodes").is_none() {
+        let nodes = vec![PropertyString::new(NodeUrl {
+            hostname: data["hostname"].as_str().unwrap_or_default().to_string(),
+            fingerprint: data["fingerprint"].as_str().map(|fp| fp.to_string()),
+        })];
+        data["nodes"] = serde_json::to_value(nodes)?;
+    }
+    data["type"] = match remote_type {
+        RemoteType::Pve => "pve",
+        RemoteType::Pbs => "pbs",
+    }
+    .into();
 
-    data["type"] = "pve".into();
-    data["nodes"] = Value::Array(Vec::new());
+    let remote: Remote = serde_json::from_value(data.clone())?;
 
-    let fingerprint = match data.as_object_mut().unwrap().remove("fingerprint") {
-        Some(Value::String(fingerprint)) => Some(fingerprint),
-        _ => None,
-    };
+    let mut params = serde_json::to_value(remote)?;
+    params["create-token"] = data["create-token"].clone();
 
-    let hostname = match data.as_object_mut().unwrap().remove("server") {
-        Some(Value::String(server)) => server,
-        _ => bail!("missing server address"),
-    };
-
-    let mut remote: Remote = serde_json::from_value(data)?;
-
-    let node = NodeUrl {
-        hostname,
-        fingerprint,
-    };
-    remote.nodes = vec![PropertyString::new(node)];
-
-    proxmox_yew_comp::http_post("/remotes", Some(serde_json::to_value(remote).unwrap())).await
+    proxmox_yew_comp::http_post("/remotes", Some(params)).await
 }
 
 /*
@@ -129,7 +127,7 @@ impl RemoteConfigPanel {
 
 #[derive(PartialEq)]
 pub enum ViewState {
-    Add,
+    Add(RemoteType),
     Edit,
 }
 
@@ -202,7 +200,23 @@ impl LoadableComponent for PbsRemoteConfigPanel {
             .class("pwt-overflow-hidden")
             .class("pwt-border-bottom")
             .with_child({
-                Button::new(tr!("Add")).onclick(link.change_view_callback(|_| Some(ViewState::Add)))
+                MenuButton::new(tr!("Add")).show_arrow(true).menu(
+                    Menu::new()
+                        .with_item(
+                            MenuItem::new("Proxmox VE")
+                                .icon_class("fa fa-building")
+                                .on_select(link.change_view_callback(|_| {
+                                    Some(ViewState::Add(RemoteType::Pve))
+                                })),
+                        )
+                        .with_item(
+                            MenuItem::new("Proxmox Backup Server")
+                                .icon_class("fa fa-floppy-o")
+                                .on_select(link.change_view_callback(|_| {
+                                    Some(ViewState::Add(RemoteType::Pbs))
+                                })),
+                        ),
+                )
             })
             .with_spacer()
             .with_child(
@@ -243,14 +257,11 @@ impl LoadableComponent for PbsRemoteConfigPanel {
         view_state: &Self::ViewState,
     ) -> Option<Html> {
         match view_state {
-            ViewState::Add => Some(self.create_add_dialog(ctx)),
-            ViewState::Edit => {
-                if let Some(key) = self.selection.selected_key() {
-                    Some(self.create_edit_dialog(ctx, key))
-                } else {
-                    None
-                }
-            }
+            ViewState::Add(ty) => Some(self.create_add_dialog(ctx, *ty)),
+            ViewState::Edit => self
+                .selection
+                .selected_key()
+                .map(|key| self.create_edit_dialog(ctx, key)),
         }
     }
 }
@@ -287,7 +298,11 @@ fn add_remote_input_panel(_form_ctx: &FormContext) -> Html {
 }
 
 impl PbsRemoteConfigPanel {
-    fn create_add_dialog(&self, ctx: &LoadableComponentContext<Self>) -> Html {
+    fn create_add_dialog(
+        &self,
+        ctx: &LoadableComponentContext<Self>,
+        remote_type: RemoteType,
+    ) -> Html {
         /*
         AddWizard::new()
             .on_close(ctx.link().change_view_callback(|_| None))
@@ -295,7 +310,7 @@ impl PbsRemoteConfigPanel {
         */
         EditWindow::new(tr!("Add") + ": " + &tr!("Remote"))
             .renderer(add_remote_input_panel)
-            .on_submit(create_item)
+            .on_submit(move |ctx: FormContext| create_item(ctx.get_submit_data(), remote_type))
             .on_done(ctx.link().change_view_callback(|_| None))
             .into()
     }
