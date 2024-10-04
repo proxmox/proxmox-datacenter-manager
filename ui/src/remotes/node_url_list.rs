@@ -210,7 +210,7 @@ fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader
                         // .submit(false)
                         .on_change(link.callback(move |value| Msg::UpdateHostname(index, value)))
                         .required(true)
-                        .default(item.data.hostname.clone())
+                        .value(item.data.hostname.clone())
                         .into()
                 }
             })
@@ -232,7 +232,7 @@ fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader
                         //.submit(false)
                         .schema(&CERT_FINGERPRINT_SHA256_SCHEMA)
                         .on_change(link.callback(move |value| Msg::UpdateFingerprint(index, value)))
-                        .default(fingerprint.to_string())
+                        .value(fingerprint.to_string())
                         .into()
                 }
             })
