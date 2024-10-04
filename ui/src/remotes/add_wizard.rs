@@ -6,7 +6,9 @@ use yew::virtual_dom::VComp;
 use pwt::prelude::*;
 use pwt::widget::TabBarItem;
 
-use proxmox_yew_comp::{Wizard, WizardPageRenderInfo};
+use proxmox_yew_comp::{
+    IntoSubmitValueCallback, SubmitValueCallback, Wizard, WizardPageRenderInfo,
+};
 use yew::virtual_dom::VNode;
 
 use super::{ServerInfo, WizardPageConnect, WizardPageNodes, WizardPageSummary};
@@ -20,11 +22,26 @@ pub struct AddWizard {
     #[builder_cb(IntoEventCallback, into_event_callback, ())]
     #[prop_or_default]
     pub on_close: Option<Callback<()>>,
+
+    /// Dialog submit callback.
+    #[prop_or_default]
+    pub on_submit: Option<SubmitValueCallback>,
 }
 
 impl AddWizard {
     pub fn new() -> Self {
         yew::props!(Self {})
+    }
+
+    /// Set [Self::on_submit] callback
+    pub fn set_on_submit(&mut self, on_submit: impl IntoSubmitValueCallback) {
+        self.on_submit = on_submit.into_submit_value_callback();
+    }
+
+    /// Builder style method to set [Self::on_submit] callback
+    pub fn on_submit(mut self, on_submit: impl IntoSubmitValueCallback) -> Self {
+        self.set_on_submit(on_submit);
+        self
     }
 }
 
@@ -83,6 +100,7 @@ impl Component for AddWizardState {
                         .into()
                 }
             })
+            .on_submit(props.on_submit.clone())
             .into()
     }
 }
