@@ -8,6 +8,7 @@ use anyhow::{bail, format_err, Error};
 use nix::sys::stat::Mode;
 
 use proxmox_access_control::types::User;
+use proxmox_config_digest::ConfigDigest;
 use proxmox_product_config::{open_api_lockfile, ApiLockGuard};
 use proxmox_sys::error::SysError;
 use proxmox_sys::fs::CreateOptions;
@@ -45,9 +46,9 @@ pub fn read() -> Result<TfaConfig, Error> {
     Ok(serde_json::from_reader(io::BufReader::new(file))?)
 }
 
-pub(crate) fn webauthn_config_digest(config: &WebauthnConfig) -> Result<[u8; 32], Error> {
+pub(crate) fn webauthn_config_digest(config: &WebauthnConfig) -> Result<ConfigDigest, Error> {
     let digest_data = proxmox_serde::json::to_canonical_json(&serde_json::to_value(config)?)?;
-    Ok(openssl::sha::sha256(&digest_data))
+    Ok(ConfigDigest::from_slice(&digest_data))
 }
 
 /// Get the webauthn config with a digest.
@@ -55,7 +56,7 @@ pub(crate) fn webauthn_config_digest(config: &WebauthnConfig) -> Result<[u8; 32]
 /// This is meant only for configuration updates, which currently only means webauthn updates.
 /// Since this is meant to be done only once (since changes will lock out users), this should be
 /// used rarely, since the digest calculation is currently a bit more involved.
-pub fn webauthn_config() -> Result<Option<(WebauthnConfig, [u8; 32])>, Error> {
+pub fn webauthn_config() -> Result<Option<(WebauthnConfig, ConfigDigest)>, Error> {
     Ok(match read()?.webauthn {
         Some(wa) => {
             let digest = webauthn_config_digest(&wa)?;
