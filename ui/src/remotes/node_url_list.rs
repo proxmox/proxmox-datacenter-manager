@@ -200,14 +200,12 @@ fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader
 
     Rc::new(vec![
         DataTableColumn::new(tr!("Hostname"))
-            .width("200px")
+            .flex(1)
             .render({
                 let link = link.clone();
                 move |item: &Entry| {
                     let index = item.index;
                     Field::new()
-                        //.name(format!("__field_{index}_hostname__"))
-                        // .submit(false)
                         .on_change(link.callback(move |value| Msg::UpdateHostname(index, value)))
                         .required(true)
                         .value(item.data.hostname.clone())
@@ -218,7 +216,7 @@ fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader
             .sort_order(None)
             .into(),
         DataTableColumn::new(tr!("Fingerprint"))
-            .width("400px")
+            .flex(2)
             .render({
                 let link = link.clone();
                 move |item: &Entry| {
@@ -228,8 +226,6 @@ fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader
                         None => "",
                     };
                     Field::new()
-                        //.name(format!("__field_{index}_fingerprint__"))
-                        //.submit(false)
                         .schema(&CERT_FINGERPRINT_SHA256_SCHEMA)
                         .on_change(link.callback(move |value| Msg::UpdateFingerprint(index, value)))
                         .value(fingerprint.to_string())
@@ -238,7 +234,7 @@ fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader
             })
             .into(),
         DataTableColumn::new("")
-            .width("40px")
+            .width("50px")
             .render(move |item: &Entry| {
                 let index = item.index;
                 ActionIcon::new("fa fa-lg fa-trash-o")
