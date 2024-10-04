@@ -32,12 +32,12 @@ impl WizardPageSummary {
     }
 }
 
-pub struct PdmWizardPageNodes {
-    store: Store<NodeUrl>,
-    columns: Rc<Vec<DataTableHeader<NodeUrl>>>,
+pub struct PdmWizardPageSummary {
+    store: Store<PropertyString<NodeUrl>>,
+    columns: Rc<Vec<DataTableHeader<PropertyString<NodeUrl>>>>,
 }
 
-impl Component for PdmWizardPageNodes {
+impl Component for PdmWizardPageSummary {
     type Message = ();
     type Properties = WizardPageSummary;
 
@@ -86,26 +86,28 @@ impl Component for PdmWizardPageNodes {
 
 impl Into<VNode> for WizardPageSummary {
     fn into(self) -> VNode {
-        let comp = VComp::new::<PdmWizardPageNodes>(Rc::new(self), None);
+        let comp = VComp::new::<PdmWizardPageSummary>(Rc::new(self), None);
         VNode::from(comp)
     }
 }
 
-fn columns() -> Vec<DataTableHeader<NodeUrl>> {
+fn columns() -> Vec<DataTableHeader<PropertyString<NodeUrl>>> {
     vec![
         DataTableColumn::new(tr!("Node"))
             .width("200px")
-            .render(|item: &NodeUrl| {
+            .render(|item: &PropertyString<NodeUrl>| {
                 html! {
                     item.hostname.clone()
                 }
             })
-            .sorter(|a: &NodeUrl, b: &NodeUrl| a.hostname.cmp(&b.hostname))
+            .sorter(|a: &PropertyString<NodeUrl>, b: &PropertyString<NodeUrl>| {
+                a.hostname.cmp(&b.hostname)
+            })
             .sort_order(true)
             .into(),
         DataTableColumn::new(tr!("Address"))
             .width("400px")
-            .render(move |_item: &NodeUrl| {
+            .render(move |_item: &PropertyString<NodeUrl>| {
                 html! {"ADDRESS/Fingerprint"}
             })
             .into(),
