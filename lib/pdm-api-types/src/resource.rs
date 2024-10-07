@@ -190,12 +190,3 @@ pub struct RemoteResources {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resources: Vec<Resource>,
 }
-
-#[api]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-/// Parameters for the resources API call
-pub struct GetResourcesParams {
-    /// Maximum age of cached remote resources
-    pub max_age: Option<u64>,
-}

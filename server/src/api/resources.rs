@@ -6,10 +6,10 @@ use anyhow::Error;
 use pbs_api_types::{DataStoreStatusListItem, NodeStatus};
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
-    GetResourcesParams, PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource,
-    PveQemuResource, PveStorageResource, RemoteResources, Resource,
+    PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource, PveQemuResource,
+    PveStorageResource, RemoteResources, Resource,
 };
-use proxmox_router::{Permission, Router, RpcEnvironment};
+use proxmox_router::{Router, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
 use pve_api_types::{ClusterResource, ClusterResourceType};
@@ -20,20 +20,17 @@ use super::pve;
 
 pub const ROUTER: Router = Router::new().get(&API_METHOD_GET_RESOURCES);
 
-// TODO: What is a sensible default max-age?
-
-/// Default if max-age is not provided
-const DEFAULT_MAX_AGE: u64 = 30;
-
 #[api(
     // FIXME:: What permissions do we need?
     //access: { permission: &Permission::Anybody, },
     input: {
         properties: {
-            params: {
-                type: GetResourcesParams,
-                flatten: true,
-            }
+            "max-age": {
+                description: "Maximum age of cached remote resources.",
+                // TODO: What is a sensible default max-age?
+                default: 30,
+                optional: true,
+            },
         }
     },
     returns: {
@@ -47,11 +44,9 @@ const DEFAULT_MAX_AGE: u64 = 30;
 /// List all resources from remote nodes.
 pub async fn get_resources(
     _rpcenv: &mut dyn RpcEnvironment,
-    params: GetResourcesParams,
+    max_age: u64,
 ) -> Result<Vec<RemoteResources>, Error> {
     let (remotes_config, _) = pdm_config::remotes::config()?;
-
-    let max_age = params.max_age.unwrap_or(DEFAULT_MAX_AGE);
 
     let mut join_handles = Vec::new();
 
