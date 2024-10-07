@@ -10,9 +10,6 @@ repository = "https://git.proxmox.com/?p=proxmox-datacenter-manager.git"
 
 exclude = [ "build" ]
 
-[profile.release]
-codegen-units = 1 # release-buiĺd takes really long otherwise (rustc v1.70 -> 41m, v1.76 -> 12m)
-
 [workspace]
 resolver = "2"
 members = [
