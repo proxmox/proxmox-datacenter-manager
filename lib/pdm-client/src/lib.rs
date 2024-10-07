@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use pdm_api_types::resource::RemoteResources;
 use pdm_api_types::rrddata::{LxcDataPoint, NodeDataPoint, QemuDataPoint};
 use pdm_api_types::BasicRealmInfo;
 use serde::{Deserialize, Serialize};
@@ -635,6 +636,12 @@ impl<T: HttpApiClient> PdmClient<T> {
     ) -> Result<Vec<pbs_api_types::SnapshotListItem>, Error> {
         let mut path = format!("/api2/extjs/pbs/remotes/{remote}/datastore/{store}/snapshots");
         add_query_arg(&mut path, &mut '?', "ns", &namespace);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn resources(&self, max_age: Option<u64>) -> Result<Vec<RemoteResources>, Error> {
+        let mut path = "/api2/extjs/resources".to_string();
+        add_query_arg(&mut path, &mut '?', "max-age", &max_age);
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 }
