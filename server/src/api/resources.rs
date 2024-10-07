@@ -26,10 +26,8 @@ pub const ROUTER: Router = Router::new().get(&API_METHOD_GET_RESOURCES);
 const DEFAULT_MAX_AGE: u64 = 30;
 
 #[api(
-    access: {
-        // FIXME:: What permissions do we need?
-        permission: &Permission::Anybody,
-    },
+    // FIXME:: What permissions do we need?
+    //access: { permission: &Permission::Anybody, },
     input: {
         properties: {
             params: {
