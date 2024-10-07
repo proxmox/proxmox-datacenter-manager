@@ -141,6 +141,29 @@ impl PbsClient {
         let path = format!("/api2/extjs/access/users/{userid}/token/{tokenid}");
         Ok(self.0.post(&path, &params).await?.expect_json()?.data)
     }
+
+    /// Return the status the Proxmox Backup Server instance
+    pub async fn node_status(&self) -> Result<pbs_api_types::NodeStatus, Error> {
+        let path = "/api2/extjs/nodes/localhost/status";
+        Ok(self.0.get(path).await?.expect_json()?.data)
+    }
+
+    /// Return the datastore status
+    pub async fn datastore_status(
+        &self,
+        datastore: &str,
+    ) -> Result<pbs_api_types::DataStoreStatus, Error> {
+        let path = format!("/api2/extjs/admin/datastore/{datastore}/status");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    /// Return datastore usages and estimates
+    pub async fn datastore_usage(
+        &self,
+    ) -> Result<Vec<pbs_api_types::DataStoreStatusListItem>, Error> {
+        let path = "/api2/extjs/status/datastore-usage";
+        Ok(self.0.get(path).await?.expect_json()?.data)
+    }
 }
 
 #[derive(Deserialize)]
