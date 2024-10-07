@@ -20,6 +20,7 @@ pub mod config;
 pub mod pbs;
 pub mod pve;
 pub mod remotes;
+pub mod resources;
 pub mod tags;
 pub mod time;
 pub mod user;
@@ -91,12 +92,13 @@ fn main_do() -> Result<(), Error> {
         .global_option(
             GlobalOptions::of::<config::FormatArgs>().completion_cb("color", env::complete_color),
         )
-        .insert("login", CliCommand::new(&API_METHOD_LOGIN))
-        .insert("pve", pve::cli())
-        .insert("pbs", pbs::cli())
-        .insert("remote", remotes::cli())
-        .insert("user", user::cli())
         .insert("acl", acl::cli())
+        .insert("login", CliCommand::new(&API_METHOD_LOGIN))
+        .insert("pbs", pbs::cli())
+        .insert("pve", pve::cli())
+        .insert("remote", remotes::cli())
+        .insert("resources", resources::cli())
+        .insert("user", user::cli())
         .insert_help()
         .build();
 
