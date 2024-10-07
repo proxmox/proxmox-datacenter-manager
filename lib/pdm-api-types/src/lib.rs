@@ -81,6 +81,8 @@ pub use openid::*;
 
 pub mod remotes;
 
+pub mod resource;
+
 pub mod rrddata;
 
 const_regex! {

@@ -13,6 +13,7 @@ pub mod nodes;
 pub mod pbs;
 pub mod pve;
 pub mod remotes;
+pub mod resources;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
@@ -22,6 +23,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("pve", &pve::ROUTER),
     ("pbs", &pbs::ROUTER),
     ("remotes", &remotes::ROUTER),
+    ("resources", &resources::ROUTER),
     ("nodes", &nodes::ROUTER),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
 ]);
