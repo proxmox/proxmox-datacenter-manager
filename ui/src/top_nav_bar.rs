@@ -13,8 +13,8 @@ use pwt::state::{Loader, Theme, ThemeObserver};
 use pwt::widget::{Row, ThemeModeSelector};
 
 use proxmox_yew_comp::common_api_types::TaskListItem;
-use proxmox_yew_comp::{http_get, HelpButton, LanguageDialog, ThemeDialog, TaskViewer};
 use proxmox_yew_comp::RunningTasksButton;
+use proxmox_yew_comp::{http_get, HelpButton, LanguageDialog, TaskViewer, ThemeDialog};
 
 use pwt_macros::builder;
 
@@ -198,8 +198,8 @@ impl Component for PdmTopNavBar {
                 .on_close(ctx.link().callback(|_| Msg::ChangeView(None)))
                 .into(),
             ViewState::ThemeDialog => ThemeDialog::new()
-                    .on_close(ctx.link().callback(|_| Msg::ChangeView(None)))
-                    .into(),
+                .on_close(ctx.link().callback(|_| Msg::ChangeView(None)))
+                .into(),
             ViewState::OpenTask((task_id, _endtime)) => TaskViewer::new(task_id)
                 .on_close(ctx.link().callback(|_| Msg::ChangeView(None)))
                 .into(),

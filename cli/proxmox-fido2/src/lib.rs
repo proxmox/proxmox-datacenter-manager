@@ -506,7 +506,11 @@ impl FidoDev {
         (self.lib.fido_dev_is_fido2)(self.dev) != 0
     }
 
-    pub fn make_cred<'a>(&self, cred: &'a mut FidoCred, pin: Option<&str>) -> Result<FidoCredSigned<'a>, Error> {
+    pub fn make_cred<'a>(
+        &self,
+        cred: &'a mut FidoCred,
+        pin: Option<&str>,
+    ) -> Result<FidoCredSigned<'a>, Error> {
         let pin_cstr;
         let pin = match pin {
             Some(pin) => {
@@ -525,7 +529,11 @@ impl FidoDev {
         Ok(FidoCredSigned(cred))
     }
 
-    pub fn assert<'a>(&self, assert: &'a mut FidoAssert, pin: Option<&str>) -> Result<FidoAssertSigned<'a>, Error> {
+    pub fn assert<'a>(
+        &self,
+        assert: &'a mut FidoAssert,
+        pin: Option<&str>,
+    ) -> Result<FidoAssertSigned<'a>, Error> {
         let pin_cstr;
         let pin = match pin {
             Some(pin) => {
@@ -926,7 +934,6 @@ impl FidoAssert {
         Ok(self)
     }
 }
-
 
 pub struct FidoAssertSigned<'a>(&'a FidoAssert);
 

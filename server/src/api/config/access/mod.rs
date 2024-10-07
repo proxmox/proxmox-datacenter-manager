@@ -5,9 +5,7 @@ use proxmox_sortable_macro::sortable;
 pub mod tfa;
 
 #[sortable]
-const SUBDIRS: SubdirMap = &sorted!([
-    ("tfa", &tfa::ROUTER),
-]);
+const SUBDIRS: SubdirMap = &sorted!([("tfa", &tfa::ROUTER),]);
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
