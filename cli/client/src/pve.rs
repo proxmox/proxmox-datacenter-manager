@@ -13,7 +13,8 @@ use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
-use pdm_api_types::{RemoteUpid, NODE_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA};
+use pdm_api_types::{RemoteUpid, CIDR_FORMAT, NODE_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA};
+use pve_api_types::StartQemuMigrationType;
 
 use crate::{client, env};
 
@@ -71,6 +72,10 @@ fn qemu_cli() -> CommandLineInterface {
             CliCommand::new(&API_METHOD_STOP_QEMU).arg_param(&["remote", "vmid"]),
         )
         .insert(
+            "migrate",
+            CliCommand::new(&API_METHOD_MIGRATE_QEMU).arg_param(&["remote", "vmid", "target"]),
+        )
+        .insert(
             "remote-migrate",
             CliCommand::new(&API_METHOD_REMOTE_MIGRATE_QEMU)
                 .arg_param(&["remote", "vmid", "target"]),
@@ -108,6 +113,10 @@ fn lxc_cli() -> CommandLineInterface {
         .insert(
             "stop",
             CliCommand::new(&API_METHOD_STOP_LXC).arg_param(&["remote", "vmid"]),
+        )
+        .insert(
+            "migrate",
+            CliCommand::new(&API_METHOD_MIGRATE_LXC).arg_param(&["remote", "vmid", "target"]),
         )
         .insert(
             "remote-migrate",
@@ -434,6 +443,109 @@ async fn stop_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<()
             },
             vmid: { schema: VMID_SCHEMA },
             target: { schema: REMOTE_ID_SCHEMA },
+            bwlimit: {
+                description: "Override I/O bandwidth limit (in KiB/s).",
+                optional: true,
+            },
+            online: {
+                type: bool,
+                description: "Perform an online migration if the vm is running.",
+                optional: true,
+            },
+            force: {
+                type: bool,
+                description: "Perform an online migration if the vm is running.",
+                optional: true,
+            },
+            "with-local-disks": {
+                description: "Enable live storage migration for local disks.",
+                optional: true,
+            },
+            "migration-network": {
+                description: "CIDR of the (sub) network that is used for migration.",
+                type: String,
+                format: &CIDR_FORMAT,
+                optional: true,
+            },
+            "migration-type": {
+                type: StartQemuMigrationType,
+                optional: true,
+            },
+            "map-storage": {
+                type: Array,
+                optional: true,
+                description: "Mapping of source storages to ones on the target cluster.",
+                items: {
+                    type: String,
+                    description: "Map a source storage to a target storage.",
+                    type_text: "FROM:TO,...",
+                },
+            },
+        }
+    }
+)]
+#[allow(clippy::too_many_arguments)]
+/// Migrate a VM to a different node of the same cluster.
+async fn migrate_qemu(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    target: String,
+    bwlimit: Option<u64>,
+    online: Option<bool>,
+    force: Option<bool>,
+    with_local_disks: Option<bool>,
+    migration_network: Option<String>,
+    migration_type: Option<StartQemuMigrationType>,
+    map_storage: Option<Vec<String>>,
+) -> Result<(), Error> {
+    let mut params = pdm_client::MigrateQemu::new();
+    if let Some(bwlimit) = bwlimit {
+        params = params.bwlimit(bwlimit);
+    }
+    if let Some(online) = online {
+        params = params.online(online);
+    }
+    if let Some(force) = force {
+        params = params.force(force);
+    }
+    if let Some(with_local_disks) = with_local_disks {
+        params = params.with_local_disks(with_local_disks);
+    }
+    if let Some(migration_network) = migration_network {
+        params = params.migration_network(migration_network);
+    }
+    if let Some(migration_type) = migration_type {
+        params = params.migration_type(migration_type);
+    }
+    for mapping in map_storage.into_iter().flatten() {
+        let pos = mapping
+            .find(':')
+            .ok_or_else(|| format_err!("missing ':' in storage mapping {mapping:?}"))?;
+        params = params.map_storage(&mapping[..pos], &mapping[(pos + 1)..]);
+    }
+
+    let client = client()?;
+    let upid = client
+        .pve_qemu_migrate(&remote, node.as_deref(), vmid, target, params)
+        .await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            target: { schema: REMOTE_ID_SCHEMA },
             delete: {
                 description: "Delete the original VM and related data after successful migration.",
                 optional: true,
@@ -699,6 +811,88 @@ async fn shutdown_lxc(remote: String, node: Option<String>, vmid: u32) -> Result
 async fn stop_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client.pve_lxc_stop(&remote, node.as_deref(), vmid).await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            target: { schema: REMOTE_ID_SCHEMA },
+            bwlimit: {
+                description: "Override I/O bandwidth limit (in KiB/s).",
+                optional: true,
+            },
+            online: {
+                type: bool,
+                description: "Perform an online migration if the vm is running.",
+                optional: true,
+            },
+            restart: {
+                description: "Perform a restart-migration.",
+                optional: true,
+                default: false,
+            },
+            "map-storage": {
+                type: Array,
+                optional: true,
+                description: "Mapping of source storages to ones on the target cluster.",
+                items: {
+                    type: String,
+                    description: "Map a source storage to a target storage.",
+                    type_text: "FROM:TO,...",
+                },
+            },
+            timeout: {
+                description: "Add a shutdown timeout for the restart-migration.",
+                optional: true,
+            },
+        }
+    }
+)]
+#[allow(clippy::too_many_arguments)]
+/// Migrate a container to a different node in the same cluster.
+async fn migrate_lxc(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    target: String,
+    bwlimit: Option<u64>,
+    online: Option<bool>,
+    restart: bool,
+    map_storage: Option<Vec<String>>,
+    timeout: Option<u64>,
+) -> Result<(), Error> {
+    let mut params = pdm_client::MigrateLxc::new();
+    if let Some(bwlimit) = bwlimit {
+        params = params.bwlimit(bwlimit);
+    }
+    if let Some(online) = online {
+        params = params.online(online);
+    }
+    if restart {
+        params = params.restart(true, timeout.map(Duration::from_secs));
+    }
+    for mapping in map_storage.into_iter().flatten() {
+        let pos = mapping
+            .find(':')
+            .ok_or_else(|| format_err!("missing ':' in storage mapping {mapping:?}"))?;
+        params = params.map_storage(&mapping[..pos], &mapping[(pos + 1)..]);
+    }
+
+    let client = client()?;
+    let upid = client
+        .pve_lxc_migrate(&remote, node.as_deref(), vmid, target, params)
+        .await?;
     println!("upid: {upid}");
     let status = client.pve_wait_for_task(&upid).await?;
     println!("{status:#?}");
