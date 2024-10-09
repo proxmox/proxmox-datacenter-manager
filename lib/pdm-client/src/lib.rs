@@ -6,6 +6,7 @@ use std::time::Duration;
 use pdm_api_types::resource::RemoteResources;
 use pdm_api_types::rrddata::{LxcDataPoint, NodeDataPoint, QemuDataPoint};
 use pdm_api_types::BasicRealmInfo;
+use pve_api_types::StartQemuMigrationType;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -396,6 +397,23 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await
     }
 
+    pub async fn pve_qemu_migrate(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        target: String,
+        params: MigrateQemu,
+    ) -> Result<RemoteUpid, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/migrate");
+        let mut request = serde_json::to_value(&params).expect("failed to build json string");
+        request["target"] = target.into();
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        Ok(self.0.post(&path, &request).await?.expect_json()?.data)
+    }
+
     pub async fn pve_qemu_remote_migrate(
         &self,
         remote: &str,
@@ -470,6 +488,23 @@ impl<T: HttpApiClient> PdmClient<T> {
     ) -> Result<RemoteUpid, Error> {
         self.pve_change_guest_status(remote, node, vmid, "lxc", "stop")
             .await
+    }
+
+    pub async fn pve_lxc_migrate(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        target: String,
+        params: MigrateLxc,
+    ) -> Result<RemoteUpid, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/migrate");
+        let mut request = serde_json::to_value(&params).expect("failed to build json string");
+        request["target"] = target.into();
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        Ok(self.0.post(&path, &request).await?.expect_json()?.data)
     }
 
     pub async fn pve_lxc_remote_migrate(
@@ -643,6 +678,135 @@ impl<T: HttpApiClient> PdmClient<T> {
         let mut path = "/api2/extjs/resources".to_string();
         add_query_arg(&mut path, &mut '?', "max-age", &max_age);
         Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+}
+
+/// Builder for migration parameters.
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct MigrateQemu {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bwlimit: Option<u64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    force: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    migration_network: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    migration_type: Option<StartQemuMigrationType>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    online: Option<bool>,
+
+    #[serde(rename = "target-storage", serialize_with = "stringify_target_mapping")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    target_storage: HashMap<String, String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    with_local_disks: Option<bool>,
+}
+
+impl MigrateQemu {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn bwlimit(mut self, limit: u64) -> Self {
+        self.bwlimit = Some(limit);
+        self
+    }
+
+    pub fn force(mut self, force: bool) -> Self {
+        self.force = Some(force);
+        self
+    }
+
+    pub fn map_storage<S, T>(mut self, from: S, to: T) -> Self
+    where
+        S: Into<String>,
+        T: Into<String>,
+    {
+        self.target_storage.insert(from.into(), to.into());
+        self
+    }
+
+    pub fn online(mut self, online: bool) -> Self {
+        self.online = Some(online);
+        self
+    }
+
+    pub fn with_local_disks(mut self, with_local_disks: bool) -> Self {
+        self.with_local_disks = Some(with_local_disks);
+        self
+    }
+
+    pub fn migration_network(mut self, migration_network: String) -> Self {
+        self.migration_network = Some(migration_network);
+        self
+    }
+
+    pub fn migration_type(mut self, migration_type: StartQemuMigrationType) -> Self {
+        self.migration_type = Some(migration_type);
+        self
+    }
+}
+
+/// Builder for migration parameters.
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct MigrateLxc {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bwlimit: Option<u64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    online: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    restart: Option<bool>,
+
+    #[serde(rename = "target-storage", serialize_with = "stringify_target_mapping")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    target_storage: HashMap<String, String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timeout: Option<i64>,
+}
+
+impl MigrateLxc {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn bwlimit(mut self, limit: u64) -> Self {
+        self.bwlimit = Some(limit);
+        self
+    }
+
+    pub fn online(mut self, online: bool) -> Self {
+        self.online = Some(online);
+        self
+    }
+
+    pub fn restart(mut self, restart: bool, timeout: Option<Duration>) -> Self {
+        self.restart = Some(restart);
+        self.timeout = timeout.map(|t| t.as_secs() as i64);
+        self
+    }
+
+    pub fn map_storage<S, T>(mut self, from: S, to: T) -> Self
+    where
+        S: Into<String>,
+        T: Into<String>,
+    {
+        self.target_storage.insert(from.into(), to.into());
+        self
+    }
+
+    pub fn timeout(mut self, timeout: i64) -> Self {
+        self.timeout = Some(timeout);
+        self
     }
 }
 
