@@ -16,13 +16,13 @@ use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, REMOTE_ID_SCHEMA};
 use pdm_api_types::{
-    Authid, ConfigurationState, RemoteUpid, HOST_OPTIONAL_PORT_FORMAT, NODE_SCHEMA,
+    Authid, ConfigurationState, RemoteUpid, CIDR_FORMAT, HOST_OPTIONAL_PORT_FORMAT, NODE_SCHEMA,
     PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE, PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE,
     SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
 
 use pve_api_types::client::PveClient;
-use pve_api_types::ClusterResourceKind;
+use pve_api_types::{ClusterResourceKind, StartQemuMigrationType};
 
 mod rrddata;
 pub mod tasks;
@@ -66,6 +66,7 @@ const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     ("start", &Router::new().post(&API_METHOD_LXC_START)),
     ("stop", &Router::new().post(&API_METHOD_LXC_STOP)),
     ("shutdown", &Router::new().post(&API_METHOD_LXC_SHUTDOWN)),
+    ("migrate", &Router::new().post(&API_METHOD_LXC_MIGRATE)),
     (
         "remote-migrate",
         &Router::new().post(&API_METHOD_LXC_REMOTE_MIGRATE)
@@ -97,6 +98,7 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
     ("start", &Router::new().post(&API_METHOD_QEMU_START)),
     ("stop", &Router::new().post(&API_METHOD_QEMU_STOP)),
     ("shutdown", &Router::new().post(&API_METHOD_QEMU_SHUTDOWN)),
+    ("migrate", &Router::new().post(&API_METHOD_QEMU_MIGRATE)),
     (
         "remote-migrate",
         &Router::new().post(&API_METHOD_QEMU_REMOTE_MIGRATE)
@@ -511,6 +513,97 @@ fn check_guest_delete_perms(
     input: {
         properties: {
             remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            target: { schema: NODE_SCHEMA },
+            vmid: { schema: VMID_SCHEMA },
+            online: {
+                type: bool,
+                description: "Perform an online migration if the vm is running.",
+                optional: true,
+            },
+            "target-storage": {
+                description: "Mapping of source storages to target storages.",
+                optional: true,
+            },
+            bwlimit: {
+                description: "Override I/O bandwidth limit (in KiB/s).",
+                optional: true,
+            },
+            "migration-network": {
+                description: "CIDR of the (sub) network that is used for migration.",
+                type: String,
+                format: &CIDR_FORMAT,
+                optional: true,
+            },
+            "migration-type": {
+                type: StartQemuMigrationType,
+                optional: true,
+            },
+            force: {
+                description: "Allow to migrate VMs with local devices.",
+                optional: true,
+                default: false,
+            },
+            "with-local-disks": {
+                description: "Enable live storage migration for local disks.",
+                optional: true,
+            },
+        },
+    },
+    returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::And(&[
+            &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
+        ]),
+    },
+)]
+/// Perform an in-cluster migration of a VM.
+#[allow(clippy::too_many_arguments)]
+pub async fn qemu_migrate(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    bwlimit: Option<u64>,
+    force: Option<bool>,
+    migration_network: Option<String>,
+    migration_type: Option<StartQemuMigrationType>,
+    online: Option<bool>,
+    target: String,
+    target_storage: Option<String>,
+    with_local_disks: Option<bool>,
+) -> Result<RemoteUpid, Error> {
+    log::info!("in-cluster migration requested for remote {remote:?} vm {vmid} to node {target:?}");
+
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let pve = connect_to_remote(&remotes, &remote)?;
+
+    let node = find_node_for_vm(node, vmid, &pve).await?;
+
+    if node == target {
+        bail!("refusing migration to the same node");
+    }
+
+    let params = pve_api_types::MigrateQemu {
+        bwlimit,
+        force,
+        migration_network,
+        migration_type,
+        online,
+        target,
+        targetstorage: target_storage,
+        with_local_disks,
+    };
+    let upid = pve.migrate_qemu(&node, vmid, params).await?;
+    (remote, upid.to_string()).try_into()
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
             target: { schema: REMOTE_ID_SCHEMA },
             node: {
                 schema: NODE_SCHEMA,
@@ -759,6 +852,85 @@ pub async fn lxc_shutdown(
         .shutdown_lxc_async(&node, vmid, Default::default())
         .await?;
 
+    (remote, upid.to_string()).try_into()
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            target: { schema: NODE_SCHEMA },
+            vmid: { schema: VMID_SCHEMA },
+            online: {
+                type: bool,
+                description: "Attempt an online migration if the container is running.",
+                optional: true,
+            },
+            restart: {
+                type: bool,
+                description: "Perform a restart-migration if the container is running.",
+                optional: true,
+            },
+            "target-storage": {
+                description: "Mapping of source storages to target storages.",
+                optional: true,
+            },
+            bwlimit: {
+                description: "Override I/O bandwidth limit (in KiB/s).",
+                optional: true,
+            },
+            timeout: {
+                description: "Shutdown timeout for restart-migrations.",
+                optional: true,
+            },
+        },
+    },
+    returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::And(&[
+            &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
+        ]),
+    },
+)]
+/// Perform an in-cluster migration of a VM.
+#[allow(clippy::too_many_arguments)]
+pub async fn lxc_migrate(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    bwlimit: Option<u64>,
+    restart: Option<bool>,
+    online: Option<bool>,
+    target: String,
+    target_storage: Option<String>,
+    timeout: Option<i64>,
+) -> Result<RemoteUpid, Error> {
+    let bwlimit = bwlimit.map(|n| n as f64);
+
+    log::info!("in-cluster migration requested for remote {remote:?} ct {vmid} to node {target:?}");
+
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let pve = connect_to_remote(&remotes, &remote)?;
+
+    let node = find_node_for_vm(node, vmid, &pve).await?;
+
+    if node == target {
+        bail!("refusing migration to the same node");
+    }
+
+    let params = pve_api_types::MigrateLxc {
+        bwlimit,
+        online,
+        restart,
+        target,
+        target_storage,
+        timeout,
+    };
+    let upid = pve.migrate_lxc(&node, vmid, params).await?;
     (remote, upid.to_string()).try_into()
 }
 
