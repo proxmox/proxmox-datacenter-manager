@@ -327,6 +327,24 @@ pub async fn list_lxc(
         .collect())
 }
 
+async fn find_node_for_vm(
+    node: Option<String>,
+    vmid: u32,
+    pve: &PveClient<Client>,
+) -> Result<String, Error> {
+    // FIXME: The pve client should cache the resources
+    Ok(match node {
+        Some(node) => node,
+        None => pve
+            .cluster_resources(Some(ClusterResourceKind::Vm))
+            .await?
+            .into_iter()
+            .find(|entry| entry.vmid == Some(vmid))
+            .and_then(|entry| entry.node)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
+    })
+}
+
 #[api(
     input: {
         properties: {
@@ -361,17 +379,7 @@ pub async fn qemu_get_config(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    // FIXME: The pve client should cache the resources and provide
-    let node = match node {
-        Some(node) => node,
-        None => pve
-            .cluster_resources(Some(ClusterResourceKind::Vm))
-            .await?
-            .into_iter()
-            .find(|entry| entry.vmid == Some(vmid))
-            .and_then(|entry| entry.node)
-            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
-    };
+    let node = find_node_for_vm(node, vmid, &pve).await?;
 
     Ok(pve
         .qemu_get_config(&node, vmid, state.current(), snapshot)
@@ -404,17 +412,7 @@ pub async fn qemu_start(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    // FIXME: The pve client should cache the resources and provide
-    let node = match node {
-        Some(node) => node,
-        None => pve
-            .cluster_resources(Some(ClusterResourceKind::Vm))
-            .await?
-            .into_iter()
-            .find(|entry| entry.vmid == Some(vmid))
-            .and_then(|entry| entry.node)
-            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
-    };
+    let node = find_node_for_vm(node, vmid, &pve).await?;
 
     let upid = pve
         .start_qemu_async(&node, vmid, Default::default())
@@ -449,17 +447,7 @@ pub async fn qemu_stop(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    // FIXME: The pve client should cache the resources and provide
-    let node = match node {
-        Some(node) => node,
-        None => pve
-            .cluster_resources(Some(ClusterResourceKind::Vm))
-            .await?
-            .into_iter()
-            .find(|entry| entry.vmid == Some(vmid))
-            .and_then(|entry| entry.node)
-            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
-    };
+    let node = find_node_for_vm(node, vmid, &pve).await?;
 
     let upid = pve.stop_qemu_async(&node, vmid, Default::default()).await?;
 
@@ -492,17 +480,7 @@ pub async fn qemu_shutdown(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    // FIXME: The pve client should cache the resources and provide
-    let node = match node {
-        Some(node) => node,
-        None => pve
-            .cluster_resources(Some(ClusterResourceKind::Vm))
-            .await?
-            .into_iter()
-            .find(|entry| entry.vmid == Some(vmid))
-            .and_then(|entry| entry.node)
-            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
-    };
+    let node = find_node_for_vm(node, vmid, &pve).await?;
 
     let upid = pve
         .shutdown_qemu_async(&node, vmid, Default::default())
@@ -605,17 +583,7 @@ pub async fn qemu_remote_migrate(
     let target = get_remote(&remotes, &target)?;
     let source_conn = connect_to_remote(&remotes, &source)?;
 
-    // FIXME: Cache resources call.
-    let node = match node {
-        Some(node) => node,
-        None => source_conn
-            .cluster_resources(Some(ClusterResourceKind::Vm))
-            .await?
-            .into_iter()
-            .find(|entry| entry.vmid == Some(vmid))
-            .and_then(|entry| entry.node)
-            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
-    };
+    let node = find_node_for_vm(node, vmid, &source_conn).await?;
 
     // FIXME: For now we'll only try with the first node but we should probably try others, too, in
     // case some are offline?
@@ -686,17 +654,7 @@ pub async fn lxc_get_config(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    // FIXME: The pve client should cache the resources and provide
-    let node = match node {
-        Some(node) => node,
-        None => pve
-            .cluster_resources(Some(ClusterResourceKind::Vm))
-            .await?
-            .into_iter()
-            .find(|entry| entry.vmid == Some(vmid))
-            .and_then(|entry| entry.node)
-            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
-    };
+    let node = find_node_for_vm(node, vmid, &pve).await?;
 
     Ok(pve
         .lxc_get_config(&node, vmid, state.current(), snapshot)
@@ -729,17 +687,7 @@ pub async fn lxc_start(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    // FIXME: The pve client should cache the resources and provide
-    let node = match node {
-        Some(node) => node,
-        None => pve
-            .cluster_resources(Some(ClusterResourceKind::Vm))
-            .await?
-            .into_iter()
-            .find(|entry| entry.vmid == Some(vmid))
-            .and_then(|entry| entry.node)
-            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
-    };
+    let node = find_node_for_vm(node, vmid, &pve).await?;
 
     let upid = pve.start_lxc_async(&node, vmid, Default::default()).await?;
 
@@ -772,17 +720,7 @@ pub async fn lxc_stop(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    // FIXME: The pve client should cache the resources and provide
-    let node = match node {
-        Some(node) => node,
-        None => pve
-            .cluster_resources(Some(ClusterResourceKind::Vm))
-            .await?
-            .into_iter()
-            .find(|entry| entry.vmid == Some(vmid))
-            .and_then(|entry| entry.node)
-            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
-    };
+    let node = find_node_for_vm(node, vmid, &pve).await?;
 
     let upid = pve.stop_lxc_async(&node, vmid, Default::default()).await?;
 
@@ -815,17 +753,7 @@ pub async fn lxc_shutdown(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    // FIXME: The pve client should cache the resources and provide
-    let node = match node {
-        Some(node) => node,
-        None => pve
-            .cluster_resources(Some(ClusterResourceKind::Vm))
-            .await?
-            .into_iter()
-            .find(|entry| entry.vmid == Some(vmid))
-            .and_then(|entry| entry.node)
-            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
-    };
+    let node = find_node_for_vm(node, vmid, &pve).await?;
 
     let upid = pve
         .shutdown_lxc_async(&node, vmid, Default::default())
@@ -920,17 +848,7 @@ pub async fn lxc_remote_migrate(
     let target = get_remote(&remotes, &target)?;
     let source_conn = connect_to_remote(&remotes, &source)?;
 
-    // FIXME: Cache resources call.
-    let node = match node {
-        Some(node) => node,
-        None => source_conn
-            .cluster_resources(Some(ClusterResourceKind::Vm))
-            .await?
-            .into_iter()
-            .find(|entry| entry.vmid == Some(vmid))
-            .and_then(|entry| entry.node)
-            .ok_or_else(|| http_err!(NOT_FOUND, "no such vmid"))?,
-    };
+    let node = find_node_for_vm(node, vmid, &source_conn).await?;
 
     // FIXME: For now we'll only try with the first node but we should probably try others, too, in
     // case some are offline?
