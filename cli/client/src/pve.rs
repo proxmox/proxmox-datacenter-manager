@@ -146,7 +146,7 @@ fn task_cli() -> CommandLineInterface {
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// List all the nodes of a pve cluster.
 async fn list_nodes(remote: String) -> Result<(), Error> {
     let mut entries = client()?.pve_list_nodes(&remote).await?;
 
@@ -214,7 +214,7 @@ async fn get_node_rrd_data(
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// Query the cluster resources.
 async fn cluster_resources(
     remote: String,
     kind: Option<pve_api_types::ClusterResourceKind>,
@@ -278,7 +278,7 @@ impl fmt::Display for FormatTagList<'_> {
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// List the QEMU VMs of a cluster.
 async fn list_qemu(remote: String, node: Option<String>) -> Result<(), Error> {
     let mut entries = client()?.pve_list_qemu(&remote, node.as_deref()).await?;
 
@@ -324,7 +324,7 @@ async fn list_qemu(remote: String, node: Option<String>) -> Result<(), Error> {
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// Query the configuration of a VM.
 async fn get_qemu_config(
     remote: String,
     node: Option<String>,
@@ -363,7 +363,7 @@ async fn get_qemu_config(
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// Start a VM.
 async fn start_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client
@@ -388,7 +388,7 @@ async fn start_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<(
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// Shutdown a VM.
 async fn shutdown_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client
@@ -413,7 +413,7 @@ async fn shutdown_qemu(remote: String, node: Option<String>, vmid: u32) -> Resul
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// Stop a VM abruptly.
 async fn stop_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client.pve_qemu_stop(&remote, node.as_deref(), vmid).await?;
@@ -469,7 +469,7 @@ async fn stop_qemu(remote: String, node: Option<String>, vmid: u32) -> Result<()
     }
 )]
 #[allow(clippy::too_many_arguments)]
-/// List all the remotes this instance is managing.
+/// Migrate a VM to a different cluster.
 async fn remote_migrate_qemu(
     remote: String,
     node: Option<String>,
@@ -562,7 +562,7 @@ async fn get_qemu_rrd_data(
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// List the LXC containers of a cluster.
 async fn list_lxc(remote: String, node: Option<String>) -> Result<(), Error> {
     let mut entries = client()?.pve_list_lxc(&remote, node.as_deref()).await?;
 
@@ -608,7 +608,7 @@ async fn list_lxc(remote: String, node: Option<String>) -> Result<(), Error> {
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// Query the configuration of a container.
 async fn get_lxc_config(
     remote: String,
     node: Option<String>,
@@ -647,7 +647,7 @@ async fn get_lxc_config(
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// Start a container.
 async fn start_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client.pve_lxc_start(&remote, node.as_deref(), vmid).await?;
@@ -670,7 +670,7 @@ async fn start_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<()
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// Shutdown a container.
 async fn shutdown_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client
@@ -695,7 +695,7 @@ async fn shutdown_lxc(remote: String, node: Option<String>, vmid: u32) -> Result
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// Stop a container abruptly.
 async fn stop_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
     let client = client()?;
     let upid = client.pve_lxc_stop(&remote, node.as_deref(), vmid).await?;
@@ -760,7 +760,7 @@ async fn stop_lxc(remote: String, node: Option<String>, vmid: u32) -> Result<(),
     }
 )]
 #[allow(clippy::too_many_arguments)]
-/// List all the remotes this instance is managing.
+/// Migrate a container to a different cluster.
 async fn remote_migrate_lxc(
     remote: String,
     node: Option<String>,
@@ -858,7 +858,7 @@ async fn get_lxc_rrd_data(
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// List the tasks of a cluster.
 async fn list_tasks(remote: String, node: Option<String>) -> Result<(), Error> {
     const TASK_LIST_SCHEMA: Schema =
         ArraySchema::new("task list", &pve_api_types::ListTasksResponse::API_SCHEMA).schema();
@@ -885,7 +885,7 @@ async fn list_tasks(remote: String, node: Option<String>) -> Result<(), Error> {
         }
     }
 )]
-/// List all the remotes this instance is managing.
+/// Query the status of a task.
 async fn task_status(remote: String, upid: RemoteUpid) -> Result<(), Error> {
     if remote != upid.remote() {
         bail!("mismatching remote in upid");
