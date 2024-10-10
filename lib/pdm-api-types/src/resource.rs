@@ -11,7 +11,7 @@ use super::remotes::REMOTE_ID_SCHEMA;
         description: "Resource ID",
     },
 )]
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
 pub enum Resource {
@@ -24,7 +24,7 @@ pub enum Resource {
 }
 
 #[api]
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 /// QEMU VM resource on a PVE remote
 pub struct PveQemuResource {
@@ -57,7 +57,7 @@ pub struct PveQemuResource {
 }
 
 #[api]
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 /// LXC container resource on a PVE remote
 pub struct PveLxcResource {
@@ -90,7 +90,7 @@ pub struct PveLxcResource {
 }
 
 #[api]
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 /// Node resource in a PVE cluster
 pub struct PveNodeResource {
@@ -113,7 +113,7 @@ pub struct PveNodeResource {
 }
 
 #[api]
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 /// Storge resource in a PVE remote
 pub struct PveStorageResource {
@@ -132,7 +132,7 @@ pub struct PveStorageResource {
 }
 
 #[api]
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 /// PBS node remote resource
 pub struct PbsNodeResource {
@@ -151,7 +151,7 @@ pub struct PbsNodeResource {
 }
 
 #[api]
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 /// PBS datastore resource
 pub struct PbsDatastoreResource {
@@ -176,7 +176,7 @@ pub struct PbsDatastoreResource {
         }
      },
 )]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Resource API response
 pub struct RemoteResources {
     /// Remote name
