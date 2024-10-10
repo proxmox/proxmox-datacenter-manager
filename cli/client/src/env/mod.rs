@@ -39,16 +39,19 @@ const USERID_CACHE_PATH: &str = xdg_path!("userid");
 const FINGERPRINT_CACHE_PATH: &str = xdg_path!("fingerprints");
 const CURRENT_SERVER_CACHE_PATH: &str = xdg_path!("current-server");
 
-/// Decide whether to print out an emoji into the terminal.
-pub fn emoji(which: &str) -> &str {
+/// Check whether we want "fancy" output.
+pub fn use_emoji() -> bool {
     static USE_EMOJI: OnceLock<bool> = OnceLock::new();
 
-    let use_emoji = *USE_EMOJI.get_or_init(|| match std::env::var("TERM") {
+    *USE_EMOJI.get_or_init(|| match std::env::var("TERM") {
         Ok(var) => var != "dumb" && var != "linux",
         Err(_) => true,
-    });
+    })
+}
 
-    if use_emoji {
+/// Decide whether to print out an emoji into the terminal.
+pub fn emoji(which: &str) -> &str {
+    if use_emoji() {
         which
     } else {
         ""
