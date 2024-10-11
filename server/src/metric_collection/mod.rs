@@ -58,18 +58,13 @@ async fn metric_collection_task() -> Result<(), Error> {
                         let client = pve::connect_to_remote(&remotes, remote_name)?;
                         let metrics = client
                             .cluster_metrics_export(Some(true), Some(false), Some(start_time))
-                            .await;
-
-                        let mut data = metrics?.data;
-                        // Sort by timestamp: We want to ensure that we
-                        // store older data points first.
-                        data.sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
+                            .await?;
 
                         // Involves some blocking file IO
                         tokio::task::spawn_blocking(move || {
                             let mut most_recent_timestamp = 0;
 
-                            for data_point in data {
+                            for data_point in metrics.data {
                                 most_recent_timestamp =
                                     most_recent_timestamp.max(data_point.timestamp);
                                 store_metric_pve(&remote_name_clone, &data_point);
