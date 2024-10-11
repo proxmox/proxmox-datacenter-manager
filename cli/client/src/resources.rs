@@ -132,7 +132,7 @@ impl fmt::Display for PrintResource<resource::PveNodeResource> {
         let resource::PveNodeResource {
             ref node,
             cpu,
-            maxcpu,
+            maxcpu: _,
             mem,
             maxmem,
             ..
@@ -140,7 +140,7 @@ impl fmt::Display for PrintResource<resource::PveNodeResource> {
         write!(
             f,
             "    node {node} cpu: {cpu}, mem: {mem} ({memcur} of {memmax})",
-            cpu = FractionAsBar(cpu / maxcpu),
+            cpu = FractionAsBar(cpu),
             mem = FractionAsBar(mem as f64 / maxmem as f64),
             memcur = HumanByte::new_binary(mem as f64),
             memmax = HumanByte::new_binary(maxmem as f64),
@@ -152,7 +152,7 @@ impl fmt::Display for PrintResource<resource::PbsNodeResource> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let resource::PbsNodeResource {
             cpu,
-            maxcpu,
+            maxcpu: _,
             ref id,
             mem,
             maxmem,
@@ -162,7 +162,7 @@ impl fmt::Display for PrintResource<resource::PbsNodeResource> {
         write!(
             f,
             "        cpu: {cpu}, mem: {mem} ({memcur} of {memmax})",
-            cpu = FractionAsBar(cpu / maxcpu),
+            cpu = FractionAsBar(cpu),
             mem = FractionAsBar(mem as f64 / maxmem as f64),
             memcur = HumanByte::new_binary(mem as f64),
             memmax = HumanByte::new_binary(maxmem as f64),
