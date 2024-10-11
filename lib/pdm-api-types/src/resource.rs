@@ -23,6 +23,47 @@ pub enum Resource {
     PbsDatastore(PbsDatastoreResource),
 }
 
+impl Resource {
+    /// Returns the local ID, not a globally unique one, e.g.
+    /// `qemu/<vmid>`
+    pub fn id(&self) -> String {
+        match self {
+            Resource::PveStorage(r) => format!("storage/{}", r.storage),
+            Resource::PveQemu(r) => format!("qemu/{}", r.vmid),
+            Resource::PveLxc(r) => format!("lxc/{}", r.vmid),
+            Resource::PveNode(r) => format!("node/{}", r.node),
+            Resource::PbsNode(r) => format!("node/{}", r.name),
+            Resource::PbsDatastore(r) => r.name.clone(),
+        }
+    }
+
+    /// Returns the PDM global ID for the resource, e.g.
+    /// `remote/<remote-id>/guest/<vmid>`
+    pub fn global_id(&self) -> &str {
+        match self {
+            Resource::PveStorage(r) => r.id.as_str(),
+            Resource::PveQemu(r) => r.id.as_str(),
+            Resource::PveLxc(r) => r.id.as_str(),
+            Resource::PveNode(r) => r.id.as_str(),
+            Resource::PbsNode(r) => r.id.as_str(),
+            Resource::PbsDatastore(r) => r.id.as_str(),
+        }
+    }
+
+    /// Returns the "name" of the resource, e.g. the guest name for VMs/Containers or
+    /// the hostname for nodes
+    pub fn name(&self) -> &str {
+        match self {
+            Resource::PveStorage(r) => r.storage.as_str(),
+            Resource::PveQemu(r) => r.name.as_str(),
+            Resource::PveLxc(r) => r.name.as_str(),
+            Resource::PveNode(r) => r.node.as_str(),
+            Resource::PbsNode(r) => r.name.as_str(),
+            Resource::PbsDatastore(r) => r.name.as_str(),
+        }
+    }
+}
+
 #[api]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
