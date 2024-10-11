@@ -1,6 +1,4 @@
-use std::collections::BTreeMap;
-
-use anyhow::{bail, Error};
+use anyhow::Error;
 use serde_json::Value;
 
 use proxmox_router::Router;
@@ -11,16 +9,7 @@ use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use pdm_api_types::rrddata::{LxcDataPoint, NodeDataPoint, QemuDataPoint};
 use pdm_api_types::{NODE_SCHEMA, VMID_SCHEMA};
 
-use crate::metric_collection::rrd_cache;
-
-trait DataPoint {
-    /// Create a new  data point with a given timestamp
-    fn new(time: u64) -> Self;
-    /// Returns the names of the underlying (stringly typed) fields in the RRD
-    fn fields() -> &'static [&'static str];
-    /// Set a member by its field identifier
-    fn set_field(&mut self, name: &str, value: f64);
-}
+use crate::api::rrd_common::{self, DataPoint};
 
 impl DataPoint for NodeDataPoint {
     fn new(time: u64) -> Self {
@@ -154,44 +143,6 @@ impl DataPoint for LxcDataPoint {
     }
 }
 
-fn create_datapoints_from_rrd<T: DataPoint>(
-    basedir: &str,
-    timeframe: RrdTimeframe,
-    mode: RrdMode,
-) -> Result<Vec<T>, Error> {
-    let mut timemap = BTreeMap::new();
-    let mut last_resolution = None;
-
-    for name in T::fields() {
-        let (start, resolution, data) =
-            match rrd_cache::extract_data(basedir, name, timeframe, mode)? {
-                Some(data) => data.into(),
-                None => continue,
-            };
-
-        if let Some(expected_resolution) = last_resolution {
-            if resolution != expected_resolution {
-                bail!("got unexpected RRD resolution ({resolution} != {expected_resolution})",);
-            }
-        } else {
-            last_resolution = Some(resolution);
-        }
-
-        let mut t = start;
-
-        for value in data {
-            let entry = timemap.entry(t).or_insert_with(|| T::new(t));
-            if let Some(value) = value {
-                entry.set_field(name, value);
-            }
-
-            t += resolution;
-        }
-    }
-
-    Ok(timemap.into_values().collect())
-}
-
 #[api(
     input: {
         properties: {
@@ -216,7 +167,7 @@ fn get_qemu_rrd_data(
 ) -> Result<Vec<QemuDataPoint>, Error> {
     let base = format!("pve/{remote}/qemu/{vmid}");
 
-    create_datapoints_from_rrd(&base, timeframe, cf)
+    rrd_common::create_datapoints_from_rrd(&base, timeframe, cf)
 }
 
 #[api(
@@ -243,7 +194,7 @@ fn get_lxc_rrd_data(
 ) -> Result<Vec<LxcDataPoint>, Error> {
     let base = format!("pve/{remote}/lxc/{vmid}");
 
-    create_datapoints_from_rrd(&base, timeframe, cf)
+    rrd_common::create_datapoints_from_rrd(&base, timeframe, cf)
 }
 
 #[api(
@@ -270,7 +221,7 @@ fn get_node_rrd_data(
 ) -> Result<Vec<NodeDataPoint>, Error> {
     let base = format!("pve/{remote}/node/{node}");
 
-    create_datapoints_from_rrd(&base, timeframe, cf)
+    rrd_common::create_datapoints_from_rrd(&base, timeframe, cf)
 }
 pub const QEMU_RRD_ROUTER: Router = Router::new().get(&API_METHOD_GET_QEMU_RRD_DATA);
 pub const LXC_RRD_ROUTER: Router = Router::new().get(&API_METHOD_GET_LXC_RRD_DATA);

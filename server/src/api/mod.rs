@@ -14,6 +14,7 @@ pub mod pbs;
 pub mod pve;
 pub mod remotes;
 pub mod resources;
+mod rrd_common;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
