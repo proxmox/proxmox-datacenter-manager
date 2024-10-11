@@ -164,6 +164,20 @@ impl PbsClient {
         let path = "/api2/extjs/status/datastore-usage";
         Ok(self.0.get(path).await?.expect_json()?.data)
     }
+
+    /// Return backup server metrics.
+    pub async fn metrics(
+        &self,
+        history: Option<bool>,
+        start_time: Option<i64>,
+    ) -> Result<pbs_api_types::Metrics, Error> {
+        let mut path = "/api2/extjs/status/metrics".to_string();
+        let mut sep = '?';
+        add_query_arg(&mut path, &mut sep, "history", &history);
+        add_query_arg(&mut path, &mut sep, "start-time", &start_time);
+
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
 }
 
 #[derive(Deserialize)]
