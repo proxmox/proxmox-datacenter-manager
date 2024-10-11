@@ -6,7 +6,9 @@
 # export PDM_USERNAME="root@pam"
 # export PDM_PASSWORD="<password>"
 # export PDM_URL="https://172.30.0.4:8443"
-# ./visualize_rrd.py pve/<remote>/qemu/100 cpu_current mem_used
+#
+# ./visualize_rrd.py pve/remotes/<remote>/qemu/100 cpu-current
+# ./visualize_rrd.py pbs/remotes/<remote>/datastore/<store> disk-used
 # ```
 
 import os
