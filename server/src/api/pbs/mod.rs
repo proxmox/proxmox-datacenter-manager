@@ -10,6 +10,8 @@ use pdm_api_types::PRIV_RESOURCE_AUDIT;
 
 use crate::pbs_client;
 
+mod rrddata;
+
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
     .subdirs(SUBDIRS);
@@ -24,7 +26,10 @@ pub const MAIN_ROUTER: Router = Router::new()
     .subdirs(REMOTE_SUBDIRS);
 
 #[sortable]
-const REMOTE_SUBDIRS: SubdirMap = &sorted!([("datastore", &DATASTORE_ROUTER)]);
+const REMOTE_SUBDIRS: SubdirMap = &sorted!([
+    ("rrddata", &rrddata::PBS_NODE_RRD_ROUTER),
+    ("datastore", &DATASTORE_ROUTER)
+]);
 
 const DATASTORE_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_DATASTORES)
@@ -35,10 +40,13 @@ const DATASTORE_ITEM_ROUTER: Router = Router::new()
     .subdirs(DATASTORE_ITEM_SUBDIRS);
 
 #[sortable]
-const DATASTORE_ITEM_SUBDIRS: SubdirMap = &sorted!([(
-    "snapshots",
-    &Router::new().get(&API_METHOD_LIST_SNAPSHOTS_2)
-),]);
+const DATASTORE_ITEM_SUBDIRS: SubdirMap = &sorted!([
+    ("rrddata", &rrddata::PBS_DATASTORE_RRD_ROUTER),
+    (
+        "snapshots",
+        &Router::new().get(&API_METHOD_LIST_SNAPSHOTS_2)
+    ),
+]);
 
 #[api(
     input: {
