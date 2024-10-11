@@ -42,6 +42,7 @@ pub struct QemuDataPoint {
 
 #[api]
 #[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
 /// Single point in time with all known data points for LXC containers.
 pub struct LxcDataPoint {
     /// Timestamp (UNIX epoch)
@@ -83,6 +84,7 @@ pub struct LxcDataPoint {
 
 #[api]
 #[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
 /// Single point in time with all known data points for a PVE host.
 pub struct NodeDataPoint {
     /// Timestamp (UNIX epoch)
@@ -136,6 +138,7 @@ pub struct NodeDataPoint {
 
 #[api]
 #[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
 /// Single point in time with all known data points for a Proxmox Backup Server host.
 pub struct PbsNodeDataPoint {
     /// Timestamp (UNIX epoch)
@@ -192,6 +195,7 @@ pub struct PbsNodeDataPoint {
 
 #[api]
 #[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
 /// Single point in time with all known data points for a Proxmox Backup Server datasstore
 pub struct PbsDatastoreDataPoint {
     /// Timestamp (UNIX epoch)
