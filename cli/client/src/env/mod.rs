@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 use std::io::{self, IsTerminal, Write};
-use std::sync::OnceLock;
+use std::os::fd::AsRawFd;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
 
 use anyhow::{bail, format_err, Context as _, Error};
 use http::Uri;
@@ -538,5 +540,73 @@ impl UseColor {
             Self::Always => true,
             Self::Auto => std::io::stdout().is_terminal(),
         }
+    }
+}
+
+/// Terminal size.
+#[derive(Clone)]
+pub struct WinSize {
+    pub rows: u32,
+    pub cols: u32,
+}
+
+impl WinSize {
+    /// Get the (cached) current tty size (if attached to a tty).
+    pub fn get() -> Option<Self> {
+        use nix::fcntl::OFlag;
+        use nix::sys::stat::Mode;
+
+        static NO_TTY: AtomicBool = AtomicBool::new(false);
+        static WIN_SIZE: Mutex<Option<WinSize>> = Mutex::new(None);
+
+        if NO_TTY.load(Ordering::Relaxed) {
+            return None;
+        }
+
+        let mut win_size = WIN_SIZE.lock().unwrap();
+        if let Some(size) = win_size.clone() {
+            return Some(size);
+        }
+
+        let Ok(fd) = proxmox_sys::fd::open(
+            c"/dev/tty",
+            OFlag::O_CLOEXEC | OFlag::O_RDONLY,
+            Mode::empty(),
+        ) else {
+            NO_TTY.store(true, Ordering::Relaxed);
+            return None;
+        };
+
+        nix::ioctl_read_bad!(tiocgwinsz, libc::TIOCGWINSZ, libc::winsize);
+        let mut data = libc::winsize {
+            ws_row: 0,
+            ws_col: 0,
+            ws_xpixel: 0,
+            ws_ypixel: 0,
+        };
+        match unsafe { tiocgwinsz(fd.as_raw_fd(), &mut data) } {
+            Ok(_) => {
+                let res = Some(Self {
+                    rows: u32::from(data.ws_row),
+                    cols: u32::from(data.ws_col),
+                });
+                *win_size = res.clone();
+                res
+            }
+            Err(err) => {
+                log::error!("failed to query tty size: {err:?}");
+                None
+            }
+        }
+    }
+
+    /// Convenience function to just query the columns.
+    pub fn cols() -> Option<u32> {
+        Self::get().map(|s| s.cols)
+    }
+
+    /// Convenience function to just query the rows.
+    pub fn rows() -> Option<u32> {
+        Self::get().map(|s| s.rows)
     }
 }

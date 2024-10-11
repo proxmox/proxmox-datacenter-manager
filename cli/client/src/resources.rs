@@ -92,7 +92,10 @@ impl fmt::Display for PrintResource<resource::PveStorageResource> {
             "{right}    storage {storage:?} on {node} ({status}) usage: {} of {}",
             HumanByte::new_binary(disk as f64),
             HumanByte::new_binary(maxdisk as f64),
-            right = Position(90, FractionAsBlock(disk as f64 / maxdisk as f64))
+            right = IfWide(
+                100,
+                Position(90, FractionAsBlock(disk as f64 / maxdisk as f64))
+            )
         )?;
         Ok(())
     }
@@ -181,7 +184,10 @@ impl fmt::Display for PrintResource<resource::PbsDatastoreResource> {
             "{right}    Datastore {id} usage: {} of {}",
             HumanByte::new_binary(disk as f64),
             HumanByte::new_binary(maxdisk as f64),
-            right = Position(90, FractionAsBlock(disk as f64 / maxdisk as f64)),
+            right = IfWide(
+                100,
+                Position(90, FractionAsBlock(disk as f64 / maxdisk as f64))
+            ),
         )
     }
 }
@@ -192,6 +198,7 @@ fn color_for_fraction(fraction: f64) -> &'static str {
     const COLOR_LOW: &str = "\x1b[37m";
     const COLOR_MID: &str = "\x1b[97m";
     const COLOR_HI: &str = "\x1b[31m";
+
     match fraction {
         f if f > 0.9 => COLOR_HI,
         f if f > 0.3 => COLOR_MID,
@@ -242,7 +249,7 @@ impl<'a, T: fmt::Display> Formatted<'a, T> {
 
 impl<'a, T: fmt::Display> fmt::Display for Formatted<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if use_emoji() {
+        if env().use_color() {
             write!(f, "{}{}{}", self.format, self.content, COLOR_RESET)
         } else {
             fmt::Display::fmt(&self.content, f)
@@ -280,9 +287,13 @@ struct FractionAsBlock(f64);
 
 impl fmt::Display for FractionAsBlock {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Since we use "black" as a background color and many terminal color schemes make this
+        // the same as the background color, let's also add an "end" of the bar:
+        let block_end = if use_emoji() { "▏" } else { "" };
+
         write!(
             f,
-            "{} {}",
+            "{} {}{block_end}",
             Formatted::new(
                 color_for_fraction(self.0),
                 format_args!("{:5.1}%", self.0 * 100.),
@@ -322,4 +333,20 @@ where
     };
 
     Formatted::new(color, content)
+}
+
+/// Only render text if the terminal has a minimum length.
+pub struct IfWide<T>(u32, T);
+
+impl<T> fmt::Display for IfWide<T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if env::WinSize::cols().is_some_and(|s| s >= self.0) {
+            fmt::Display::fmt(&self.1, f)
+        } else {
+            Ok(())
+        }
+    }
 }
