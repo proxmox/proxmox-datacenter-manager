@@ -237,3 +237,61 @@ pub struct RemoteResources {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resources: Vec<Resource>,
 }
+
+#[api]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+/// Amount of guests in certain states
+pub struct GuestStatusCount {
+    /// Amount of running guests
+    pub running: u64,
+    /// Amount of stopped guests (excl. templates)
+    pub stopped: u64,
+    /// Amount of guests that are templates
+    pub template: u64,
+    /// Amount of guests with an unknown status
+    pub unknown: u64,
+}
+
+#[api]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+/// Amount of nodes in certain states
+pub struct NodeStatusCount {
+    /// Amount of online nodes
+    pub online: u64,
+    /// Amount of offline nodes
+    pub offline: u64,
+    /// Amount of nodes with an unknown status
+    pub unknown: u64,
+}
+
+#[api]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+/// Amount of storages in certain states
+pub struct StorageStatusCount {
+    /// Amount of available storages
+    pub available: u64,
+    /// Amount of storages with an unknown
+    pub unknown: u64,
+}
+
+#[api]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+/// Describes the status of seen resources
+pub struct ResourcesStatus {
+    /// Amount of configured remotes
+    pub remotes: u64,
+    /// Amount of remotes that returned an error during querying
+    pub failed_remotes: u64,
+    /// Status of PVE nodes
+    pub pve_nodes: NodeStatusCount,
+    /// Status of QEMU Guests
+    pub qemu: GuestStatusCount,
+    /// Status of LXC Guests
+    pub lxc: GuestStatusCount,
+    /// Status of storage status
+    pub storages: StorageStatusCount,
+    /// Status of PBS Nodes
+    pub pbs_nodes: NodeStatusCount,
+    /// Status of PBS Datastores
+    pub pbs_datastores: StorageStatusCount,
+}
