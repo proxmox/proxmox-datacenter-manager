@@ -40,6 +40,10 @@ const SUBDIRS: SubdirMap = &sorted!([
                 default: 30,
                 optional: true,
             },
+            "search": {
+                description: "Search term to filter for, uses special syntax e.g. <TODO>",
+                optional: true,
+            },
         }
     },
     returns: {
@@ -52,8 +56,9 @@ const SUBDIRS: SubdirMap = &sorted!([
 )]
 /// List all resources from remote nodes.
 pub async fn get_resources(
-    _rpcenv: &mut dyn RpcEnvironment,
     max_age: u64,
+    search: Option<String>,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<RemoteResources>, Error> {
     let (remotes_config, _) = pdm_config::remotes::config()?;
 
@@ -85,6 +90,19 @@ pub async fn get_resources(
         remote_resources.push(handle.await?);
     }
 
+    if let Some(search) = search {
+        // FIXME implement more complex filter syntax
+        remote_resources.retain_mut(|res| {
+            if res.remote.contains(&search) {
+                true
+            } else {
+                res.resources
+                    .retain(|res| res.id().contains(&search) || res.name().contains(&search));
+                !res.resources.is_empty()
+            }
+        });
+    }
+
     Ok(remote_resources)
 }
 
@@ -114,7 +132,7 @@ pub async fn get_status(
     max_age: u64,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ResourcesStatus, Error> {
-    let remotes = get_resources(rpcenv, max_age).await?;
+    let remotes = get_resources(max_age, None, rpcenv).await?;
     let mut counts = ResourcesStatus::default();
     for remote in remotes {
         if remote.error.is_some() {
