@@ -18,6 +18,8 @@ use proxmox_yew_comp::{http_get, HelpButton, LanguageDialog, TaskViewer, ThemeDi
 
 use pwt_macros::builder;
 
+use crate::widget::SearchBox;
+
 #[derive(Deserialize)]
 pub struct VersionInfo {
     version: String,
@@ -222,6 +224,7 @@ impl Component for PdmTopNavBar {
                 };
                 Container::from_tag("span").padding_x(4).with_child(text)
             })
+            .with_child(SearchBox::new())
             .with_flex_spacer()
             .with_child(button_group)
             .with_optional_child(dialog)

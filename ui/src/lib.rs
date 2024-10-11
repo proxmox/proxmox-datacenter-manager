@@ -20,6 +20,8 @@ pub use top_nav_bar::TopNavBar;
 mod dashboard;
 pub use dashboard::Dashboard;
 
+mod widget;
+
 pub mod pbs;
 pub mod pve;
 

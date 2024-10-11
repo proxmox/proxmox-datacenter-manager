@@ -11,7 +11,7 @@ use super::remotes::REMOTE_ID_SCHEMA;
         description: "Resource ID",
     },
 )]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
 pub enum Resource {
@@ -65,7 +65,7 @@ impl Resource {
 }
 
 #[api]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// QEMU VM resource on a PVE remote
 pub struct PveQemuResource {
@@ -98,7 +98,7 @@ pub struct PveQemuResource {
 }
 
 #[api]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// LXC container resource on a PVE remote
 pub struct PveLxcResource {
@@ -131,7 +131,7 @@ pub struct PveLxcResource {
 }
 
 #[api]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Node resource in a PVE cluster
 pub struct PveNodeResource {
@@ -156,7 +156,7 @@ pub struct PveNodeResource {
 }
 
 #[api]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Storge resource in a PVE remote
 pub struct PveStorageResource {
@@ -175,7 +175,7 @@ pub struct PveStorageResource {
 }
 
 #[api]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// PBS node remote resource
 pub struct PbsNodeResource {
@@ -196,7 +196,7 @@ pub struct PbsNodeResource {
 }
 
 #[api]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// PBS datastore resource
 pub struct PbsDatastoreResource {
