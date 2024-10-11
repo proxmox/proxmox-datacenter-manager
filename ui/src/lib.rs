@@ -17,6 +17,9 @@ pub use remotes::RemoteConfigPanel;
 mod top_nav_bar;
 pub use top_nav_bar::TopNavBar;
 
+mod dashboard;
+pub use dashboard::Dashboard;
+
 pub mod pbs;
 pub mod pve;
 
