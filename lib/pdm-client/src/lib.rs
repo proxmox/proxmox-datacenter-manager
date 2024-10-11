@@ -675,7 +675,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     }
 
     pub async fn resources(&self, max_age: Option<u64>) -> Result<Vec<RemoteResources>, Error> {
-        let mut path = "/api2/extjs/resources".to_string();
+        let mut path = "/api2/extjs/resources/list".to_string();
         add_query_arg(&mut path, &mut '?', "max-age", &max_age);
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }

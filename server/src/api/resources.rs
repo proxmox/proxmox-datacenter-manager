@@ -7,18 +7,27 @@ use pbs_api_types::{DataStoreStatusListItem, NodeStatus};
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
     PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource, PveQemuResource,
-    PveStorageResource, RemoteResources, Resource,
+    PveStorageResource, RemoteResources, Resource, ResourcesStatus,
 };
-use proxmox_router::{Router, RpcEnvironment};
+use proxmox_router::{list_subdirs_api_method, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
+use proxmox_sortable_macro::sortable;
 use pve_api_types::{ClusterResource, ClusterResourceType};
 
 use crate::pbs_client;
 
 use super::pve;
 
-pub const ROUTER: Router = Router::new().get(&API_METHOD_GET_RESOURCES);
+pub const ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(SUBDIRS))
+    .subdirs(SUBDIRS);
+
+#[sortable]
+const SUBDIRS: SubdirMap = &sorted!([
+    ("list", &Router::new().get(&API_METHOD_GET_RESOURCES)),
+    ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
+]);
 
 #[api(
     // FIXME:: What permissions do we need?
@@ -77,6 +86,73 @@ pub async fn get_resources(
     }
 
     Ok(remote_resources)
+}
+
+#[api(
+    // FIXME:: What permissions do we need?
+    //access: { permission: &Permission::Anybody, },
+    input: {
+        properties: {
+            "max-age": {
+                description: "Maximum age of cached remote resources.",
+                // TODO: What is a sensible default max-age?
+                default: 30,
+                optional: true,
+            },
+        }
+    },
+    returns: {
+        description: "Array of resources, grouped by remote",
+        type: Array,
+        items: {
+            type: RemoteResources,
+        }
+    },
+)]
+/// Return the amount of configured/seen resources by type
+pub async fn get_status(
+    max_age: u64,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<ResourcesStatus, Error> {
+    let remotes = get_resources(rpcenv, max_age).await?;
+    let mut counts = ResourcesStatus::default();
+    for remote in remotes {
+        if remote.error.is_some() {
+            counts.failed_remotes += 1;
+        } else {
+            counts.remotes += 1;
+        }
+        for resource in remote.resources {
+            match resource {
+                Resource::PveStorage(r) => match r.status.as_str() {
+                    "available" => counts.storages.available += 1,
+                    _ => counts.storages.unknown += 1,
+                },
+                Resource::PveQemu(r) => match r.status.as_str() {
+                    "running" => counts.qemu.running += 1,
+                    // FIXME: handle templates
+                    "stopped" => counts.qemu.stopped += 1,
+                    _ => counts.qemu.unknown += 1,
+                },
+                Resource::PveLxc(r) => match r.status.as_str() {
+                    "running" => counts.lxc.running += 1,
+                    // FIXME: handle templates
+                    "stopped" => counts.lxc.stopped += 1,
+                    _ => counts.lxc.unknown += 1,
+                },
+                Resource::PveNode(r) => match r.status.as_str() {
+                    "online" => counts.pve_nodes.online += 1,
+                    "offline" => counts.pve_nodes.offline += 1,
+                    _ => counts.pve_nodes.unknown += 1,
+                },
+                // FIXME better status for pbs/datastores
+                Resource::PbsNode(_) => counts.pbs_nodes.online += 1,
+                Resource::PbsDatastore(_) => counts.pbs_datastores.available += 1,
+            }
+        }
+    }
+
+    Ok(counts)
 }
 
 #[derive(Clone)]
