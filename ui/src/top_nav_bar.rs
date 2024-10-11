@@ -10,7 +10,7 @@ use yew::html::{IntoEventCallback, IntoPropValue};
 use yew::virtual_dom::{VComp, VNode};
 
 use pwt::state::{Loader, Theme, ThemeObserver};
-use pwt::widget::{Row, ThemeModeSelector};
+use pwt::widget::{Container, Row, ThemeModeSelector};
 
 use proxmox_yew_comp::common_api_types::TaskListItem;
 use proxmox_yew_comp::RunningTasksButton;
@@ -220,7 +220,7 @@ impl Component for PdmTopNavBar {
                 } else {
                     "Datacenter Manager".into()
                 };
-                html! { <span class="pwt-px-4 pwt-flex-fill">{text}</span> }
+                Container::from_tag("span").padding_x(4).with_child(text)
             })
             .with_flex_spacer()
             .with_child(button_group)
