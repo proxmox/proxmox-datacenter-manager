@@ -192,6 +192,27 @@ impl Component for PdmMainMenu {
             config_submenu,
         );
 
+        let mut admin_submenu = Menu::new();
+
+        register_view(
+            &mut admin_submenu,
+            &mut content,
+            tr!("Shell"),
+            "shell",
+            Some("fa fa-terminal"),
+            |_| XTermJs::new().into(),
+        );
+
+        register_submenu(
+            &mut menu,
+            &mut content,
+            tr!("Administration"),
+            "administration",
+            Some("fa fa-wrench"),
+            |_| html! { <ServerAdministration/> },
+            admin_submenu,
+        );
+
         let mut remote_submenu = Menu::new();
 
         for remote in self.remote_list.iter() {
@@ -219,27 +240,6 @@ impl Component for PdmMainMenu {
             Some("fa fa-server"),
             |_| RemoteConfigPanel::new().into(),
             remote_submenu,
-        );
-
-        let mut admin_submenu = Menu::new();
-
-        register_view(
-            &mut admin_submenu,
-            &mut content,
-            tr!("Shell"),
-            "shell",
-            Some("fa fa-terminal"),
-            |_| XTermJs::new().into(),
-        );
-
-        register_submenu(
-            &mut menu,
-            &mut content,
-            tr!("Administration"),
-            "administration",
-            Some("fa fa-wrench"),
-            |_| html! { <ServerAdministration/> },
-            admin_submenu,
         );
 
         let drawer = NavigationDrawer::new(menu)
