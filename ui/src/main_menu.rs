@@ -99,7 +99,7 @@ impl Component for PdmMainMenu {
             .context(ctx.link().callback(Msg::RemoteListChanged))
             .unwrap_throw();
         Self {
-            active: Key::from("certificates"),
+            active: Key::from("dashboard"),
             menu_selection: Selection::new(),
             remote_list,
             _remote_list_observer,
