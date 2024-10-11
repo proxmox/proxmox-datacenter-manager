@@ -210,6 +210,7 @@ fn map_pve_resource(remote: &str, resource: ClusterResource) -> Option<Resource>
             maxmem: resource.maxmem.unwrap_or_default() as u64,
             node: resource.node.unwrap_or_default(),
             uptime: resource.uptime.unwrap_or_default() as u64,
+            status: resource.status.unwrap_or_default(),
         })),
         ClusterResourceType::Lxc => Some(Resource::PveLxc(PveLxcResource {
             cpu: resource.cpu.unwrap_or_default(),
