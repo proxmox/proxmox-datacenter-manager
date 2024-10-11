@@ -1,3 +1,4 @@
+use anyhow::Error;
 use gloo_timers::callback::Timeout;
 //use pbs::utils::init_task_descr_table_pbs;
 //use pbs_api_types::NodeStatus;
@@ -15,7 +16,9 @@ use proxmox_yew_comp::{
 };
 
 //use pbs::MainMenu;
-use pdm::{MainMenu, TopNavBar};
+use pdm::{MainMenu, RemoteList, TopNavBar};
+
+type MsgRemoteList = Result<Vec<pdm_client::types::Remote>, Error>;
 
 enum Msg {
     ConfirmSubscription,
@@ -24,6 +27,7 @@ enum Msg {
     // SaveFingerprint(String), FIXME
     Logout,
     TaskChanged,
+    RemoteList(MsgRemoteList),
 }
 
 struct DatacenterManagerApp {
@@ -33,6 +37,7 @@ struct DatacenterManagerApp {
     show_subscription_alert: Option<(String, Option<String>)>,
     running_tasks: Loader<Vec<TaskListItem>>,
     running_tasks_timeout: Option<Timeout>,
+    remote_list: MsgRemoteList,
 }
 
 async fn check_subscription() -> Msg {
@@ -71,7 +76,59 @@ impl DatacenterManagerApp {
                 proxmox_yew_comp::http_set_auth(info.clone());
             }
             //ctx.link().send_future_batch(get_fingerprint());
+            //
+            Self::poll_remote_list(ctx, true);
         }
+    }
+
+    fn update_remotes(&mut self, ctx: &Context<Self>, result: MsgRemoteList) -> bool {
+        match result {
+            Err(_) if self.remote_list.is_err() => false,
+            Err(err) => {
+                self.remote_list = Err(err);
+                true
+            }
+            Ok(list) => {
+                Self::poll_remote_list(ctx, false);
+                match &self.remote_list {
+                    Err(_) => {
+                        self.remote_list = Ok(list);
+                        true
+                    }
+                    Ok(old) if list.len() != old.len() => {
+                        self.remote_list = Ok(list);
+                        true
+                    }
+                    Ok(old) => {
+                        if old
+                            .iter()
+                            .zip(list.iter())
+                            .any(|(a, b)| a.id != b.id || a.ty != b.ty)
+                        {
+                            self.remote_list = Ok(list);
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn poll_remote_list(ctx: &Context<Self>, first: bool) {
+        ctx.link().send_future(async move {
+            if !first {
+                gloo_timers::future::sleep(std::time::Duration::from_secs(5)).await;
+            }
+            Msg::RemoteList(Self::get_remote_list().await)
+        })
+    }
+
+    async fn get_remote_list() -> Result<Vec<pdm_client::types::Remote>, Error> {
+        let mut list = pdm::pdm_client().list_remotes().await?;
+        list.sort_by(|a, b| a.id.cmp(&b.id));
+        Ok(list)
     }
 }
 
@@ -98,6 +155,7 @@ impl Component for DatacenterManagerApp {
             show_subscription_alert: None,
             running_tasks,
             running_tasks_timeout: None,
+            remote_list: Ok(Vec::new()),
         };
 
         this.on_login(ctx, false);
@@ -135,15 +193,16 @@ impl Component for DatacenterManagerApp {
                 }));
                 false
             } /*
-              Msg::SaveFingerprint(fp) => {
-                  PersistentState::<String>::with_location(
-                      "fingerprint",
-                      pwt::state::StorageLocation::Session,
-                  )
-                  .update(fp);
-                  false
-              }
-              */
+            Msg::SaveFingerprint(fp) => {
+            PersistentState::<String>::with_location(
+            "fingerprint",
+            pwt::state::StorageLocation::Session,
+            )
+            .update(fp);
+            false
+            }
+             */
+            Msg::RemoteList(remotes) => self.update_remotes(ctx, remotes),
         }
     }
 
@@ -154,6 +213,11 @@ impl Component for DatacenterManagerApp {
                 .url(url.clone().map(|s| s.to_string()))
                 .on_close(ctx.link().callback(|_| Msg::ConfirmSubscription))
         });
+
+        let remote_list = match &self.remote_list {
+            Ok(list) => list.clone(),
+            Err(_) => Vec::new(),
+        };
 
         let body = Column::new()
             .class("pwt-viewport")
@@ -174,7 +238,12 @@ impl Component for DatacenterManagerApp {
             })
             .with_optional_child(subscription_alert);
 
-        DesktopApp::new(body).into()
+        let context = RemoteList::from(remote_list);
+
+        DesktopApp::new(
+            html! {<ContextProvider<RemoteList> {context}>{body}</ContextProvider<RemoteList>>},
+        )
+        .into()
     }
 }
 

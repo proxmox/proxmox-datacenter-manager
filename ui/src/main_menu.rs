@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
-use anyhow::Error;
-use serde_json::json;
+use wasm_bindgen::UnwrapThrowExt;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::{self, Display, FlexFit};
@@ -16,7 +15,8 @@ use proxmox_yew_comp::{NotesView, XTermJs};
 use pdm_api_types::remotes::RemoteType;
 
 use crate::{
-    AccessControl, CertificatesPanel, RemoteConfigPanel, ServerAdministration, SystemConfiguration,
+    AccessControl, CertificatesPanel, RemoteConfigPanel, RemoteList, ServerAdministration,
+    SystemConfiguration,
 };
 
 /*
@@ -41,17 +41,16 @@ impl MainMenu {
     }
 }
 
-type MsgRemoteList = Result<Vec<pdm_client::types::Remote>, Error>;
-
 pub enum Msg {
     Select(Key),
-    RemoteList(MsgRemoteList),
+    RemoteListChanged(RemoteList),
 }
 
 pub struct PdmMainMenu {
     active: Key,
     menu_selection: Selection,
-    remote_list: Result<Vec<pdm_client::types::Remote>, Error>,
+    remote_list: RemoteList,
+    _remote_list_observer: ContextHandle<RemoteList>,
 }
 
 fn register_view(
@@ -88,78 +87,36 @@ fn register_submenu(
     );
 }
 
-impl PdmMainMenu {
-    async fn get_remote_list() -> Result<Vec<pdm_client::types::Remote>, Error> {
-        let mut list = crate::pdm_client().list_remotes().await?;
-        list.sort_by(|a, b| a.id.cmp(&b.id));
-        Ok(list)
-    }
-
-    fn poll_remote_list(ctx: &Context<Self>, first: bool) {
-        ctx.link().send_future(async move {
-            if !first {
-                gloo_timers::future::sleep(std::time::Duration::from_secs(5)).await;
-            }
-            Msg::RemoteList(Self::get_remote_list().await)
-        })
-    }
-
-    fn update_remotes(&mut self, ctx: &Context<Self>, result: MsgRemoteList) -> bool {
-        match result {
-            Err(_) if self.remote_list.is_err() => false,
-            Err(err) => {
-                self.remote_list = Err(err);
-                true
-            }
-            Ok(list) => {
-                Self::poll_remote_list(ctx, false);
-                match &self.remote_list {
-                    Err(_) => {
-                        self.remote_list = Ok(list);
-                        true
-                    }
-                    Ok(old) if list.len() != old.len() => {
-                        self.remote_list = Ok(list);
-                        true
-                    }
-                    Ok(old) => {
-                        if old
-                            .iter()
-                            .zip(list.iter())
-                            .any(|(a, b)| a.id != b.id || a.ty != b.ty)
-                        {
-                            self.remote_list = Ok(list);
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+impl PdmMainMenu {}
 
 impl Component for PdmMainMenu {
     type Message = Msg;
     type Properties = MainMenu;
 
     fn create(ctx: &Context<Self>) -> Self {
-        Self::poll_remote_list(ctx, true);
+        let (remote_list, _remote_list_observer) = ctx
+            .link()
+            .context(ctx.link().callback(Msg::RemoteListChanged))
+            .unwrap_throw();
         Self {
             active: Key::from("certificates"),
             menu_selection: Selection::new(),
-            remote_list: Ok(Vec::new()),
+            remote_list,
+            _remote_list_observer,
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::Select(key) => {
                 self.active = key;
                 true
             }
-            Msg::RemoteList(remotes) => self.update_remotes(ctx, remotes),
+            Msg::RemoteListChanged(remote_list) => {
+                let changed = self.remote_list != remote_list;
+                self.remote_list = remote_list;
+                changed
+            }
         }
     }
 
@@ -237,25 +194,21 @@ impl Component for PdmMainMenu {
 
         let mut remote_submenu = Menu::new();
 
-        if let Ok(list) = &self.remote_list {
-            for remote in list {
-                register_view(
-                    &mut remote_submenu,
-                    &mut content,
-                    &remote.id,
-                    &format!("remote-{}", remote.id),
-                    Some("fa fa-server"),
-                    {
-                        let remote = remote.clone();
-                        move |_| match remote.ty {
-                            RemoteType::Pve => crate::pve::PveRemote::new(remote.id.clone()).into(),
-                            RemoteType::Pbs => {
-                                crate::pbs::DatastoreMenu::new(remote.id.clone()).into()
-                            }
-                        }
-                    },
-                );
-            }
+        for remote in self.remote_list.iter() {
+            register_view(
+                &mut remote_submenu,
+                &mut content,
+                &remote.id,
+                &format!("remote-{}", remote.id),
+                Some("fa fa-server"),
+                {
+                    let remote = remote.clone();
+                    move |_| match remote.ty {
+                        RemoteType::Pve => crate::pve::PveRemote::new(remote.id.clone()).into(),
+                        RemoteType::Pbs => crate::pbs::DatastoreMenu::new(remote.id.clone()).into(),
+                    }
+                },
+            );
         }
 
         register_submenu(
