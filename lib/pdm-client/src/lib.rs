@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use pdm_api_types::resource::RemoteResources;
-use pdm_api_types::rrddata::{LxcDataPoint, NodeDataPoint, QemuDataPoint};
+use pdm_api_types::rrddata::{
+    LxcDataPoint, NodeDataPoint, PbsDatastoreDataPoint, PbsNodeDataPoint, QemuDataPoint,
+};
 use pdm_api_types::BasicRealmInfo;
 use pve_api_types::StartQemuMigrationType;
 use serde::{Deserialize, Serialize};
@@ -671,6 +673,29 @@ impl<T: HttpApiClient> PdmClient<T> {
     ) -> Result<Vec<pbs_api_types::SnapshotListItem>, Error> {
         let mut path = format!("/api2/extjs/pbs/remotes/{remote}/datastore/{store}/snapshots");
         add_query_arg(&mut path, &mut '?', "ns", &namespace);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pbs_node_rrddata(
+        &self,
+        remote: &str,
+        mode: RrdMode,
+        timeframe: RrdTimeframe,
+    ) -> Result<Vec<PbsNodeDataPoint>, Error> {
+        let path =
+            format!("/api2/extjs/pbs/remotes/{remote}/rrddata?cf={mode}&timeframe={timeframe}");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pbs_datastore_rrddata(
+        &self,
+        remote: &str,
+        store: &str,
+        mode: RrdMode,
+        timeframe: RrdTimeframe,
+    ) -> Result<Vec<PbsDatastoreDataPoint>, Error> {
+        let path =
+            format!("/api2/extjs/pbs/remotes/{remote}/datastore/{store}/rrddata?cf={mode}&timeframe={timeframe}");
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 

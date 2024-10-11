@@ -2,9 +2,11 @@
 
 use anyhow::Error;
 
+use pbs_api_types::DATASTORE_SCHEMA;
 use proxmox_router::cli::{
     format_and_print_result, CliCommand, CliCommandMap, CommandLineInterface, OutputFormat,
 };
+use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_schema::api;
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
@@ -15,6 +17,7 @@ pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
         .insert("datastore", datastore_cli())
         .insert("snapshot", snapshot_cli())
+        .insert("node", node_cli())
         .into()
 }
 
@@ -24,6 +27,15 @@ fn datastore_cli() -> CommandLineInterface {
             "list",
             CliCommand::new(&API_METHOD_LIST_DATASTORES).arg_param(&["remote"]),
         )
+        .insert(
+            "rrddata",
+            CliCommand::new(&API_METHOD_GET_PBS_DATASTORE_RRD_DATA).arg_param(&[
+                "remote",
+                "datastore",
+                "mode",
+                "timeframe",
+            ]),
+        )
         .into()
 }
 
@@ -32,6 +44,19 @@ fn snapshot_cli() -> CommandLineInterface {
         .insert(
             "list",
             CliCommand::new(&API_METHOD_LIST_SNAPSHOTS).arg_param(&["remote", "datastore"]),
+        )
+        .into()
+}
+
+fn node_cli() -> CommandLineInterface {
+    CliCommandMap::new()
+        .insert(
+            "rrddata",
+            CliCommand::new(&API_METHOD_GET_PBS_NODE_RRD_DATA).arg_param(&[
+                "remote",
+                "mode",
+                "timeframe",
+            ]),
         )
         .into()
 }
@@ -109,6 +134,76 @@ async fn list_snapshots(
         }
     } else {
         format_and_print_result(&entries, &output_format.to_string());
+    }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: {
+                schema: REMOTE_ID_SCHEMA
+            },
+            mode: {
+                type: RrdMode
+            },
+            timeframe: {
+                type: RrdTimeframe
+            }
+        }
+    }
+)]
+/// Return a PBS node's metric data.
+async fn get_pbs_node_rrd_data(
+    remote: String,
+    mode: RrdMode,
+    timeframe: RrdTimeframe,
+) -> Result<(), Error> {
+    let config = client()?.pbs_node_rrddata(&remote, mode, timeframe).await?;
+
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
+        println!("{}", serde_json::to_string_pretty(&config)?);
+    } else {
+        format_and_print_result(&config, &output_format.to_string());
+    }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: {
+                schema: REMOTE_ID_SCHEMA
+            },
+            datastore: {
+                schema: DATASTORE_SCHEMA,
+            },
+            mode: {
+                type: RrdMode
+            },
+            timeframe: {
+                type: RrdTimeframe
+            }
+        }
+    }
+)]
+/// Return a PBS datastore's metric data.
+async fn get_pbs_datastore_rrd_data(
+    remote: String,
+    datastore: String,
+    mode: RrdMode,
+    timeframe: RrdTimeframe,
+) -> Result<(), Error> {
+    let config = client()?
+        .pbs_datastore_rrddata(&remote, &datastore, mode, timeframe)
+        .await?;
+
+    let output_format = env().format_args.output_format;
+    if output_format == OutputFormat::Text {
+        println!("{}", serde_json::to_string_pretty(&config)?);
+    } else {
+        format_and_print_result(&config, &output_format.to_string());
     }
     Ok(())
 }
