@@ -265,6 +265,7 @@ fn map_pbs_node_status(remote: &str, status: NodeStatus) -> Resource {
         maxcpu: status.cpuinfo.cpus as f64,
         // TODO: Right now there is no API to get the actual node name, as it seems
         id: format!("remote/{remote}/node/localhost"),
+        name: "localhost".into(),
         mem: status.memory.used,
         maxmem: status.memory.total,
         uptime: status.uptime,
@@ -274,6 +275,7 @@ fn map_pbs_node_status(remote: &str, status: NodeStatus) -> Resource {
 fn map_pbs_datastore_status(remote: &str, status: DataStoreStatusListItem) -> Resource {
     Resource::PbsDatastore(PbsDatastoreResource {
         id: format!("remote/{remote}/datastore/{}", status.store),
+        name: status.store,
         maxdisk: status.total.unwrap_or_default(),
         disk: status.used.unwrap_or_default(),
     })

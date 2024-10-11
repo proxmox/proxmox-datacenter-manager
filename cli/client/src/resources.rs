@@ -153,12 +153,12 @@ impl fmt::Display for PrintResource<resource::PbsNodeResource> {
         let resource::PbsNodeResource {
             cpu,
             maxcpu: _,
-            ref id,
+            ref name,
             mem,
             maxmem,
             ..
         } = self.0;
-        writeln!(f, "    Node {id}")?;
+        writeln!(f, "    Node {name}")?;
         write!(
             f,
             "        cpu: {cpu}, mem: {mem} ({memcur} of {memmax})",
@@ -174,14 +174,15 @@ impl fmt::Display for PrintResource<resource::PbsNodeResource> {
 impl fmt::Display for PrintResource<resource::PbsDatastoreResource> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let resource::PbsDatastoreResource {
-            ref id,
+            ref name,
             maxdisk,
             disk,
+            ..
         } = self.0;
 
         write!(
             f,
-            "{right}    Datastore {id} usage: {} of {}",
+            "{right}    Datastore {name} usage: {} of {}",
             HumanByte::new_binary(disk as f64),
             HumanByte::new_binary(maxdisk as f64),
             right = IfWide(

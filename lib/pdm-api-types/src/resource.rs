@@ -146,6 +146,8 @@ pub struct PbsNodeResource {
     pub mem: u64,
     /// System memory
     pub maxmem: u64,
+    /// Node name
+    pub name: String,
     /// Uptime
     pub uptime: u64,
 }
@@ -161,6 +163,8 @@ pub struct PbsDatastoreResource {
     pub maxdisk: u64,
     /// Use space
     pub disk: u64,
+    /// Datastore name
+    pub name: String,
 }
 
 #[api(
