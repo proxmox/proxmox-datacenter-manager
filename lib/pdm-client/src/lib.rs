@@ -694,8 +694,10 @@ impl<T: HttpApiClient> PdmClient<T> {
         mode: RrdMode,
         timeframe: RrdTimeframe,
     ) -> Result<Vec<PbsDatastoreDataPoint>, Error> {
-        let path =
-            format!("/api2/extjs/pbs/remotes/{remote}/datastore/{store}/rrddata?cf={mode}&timeframe={timeframe}");
+        let mut path = format!("/api2/extjs/pbs/remotes/{remote}/datastore/{store}/rrddata");
+        let mut sep = '?';
+        add_query_arg(&mut path, &mut sep, "cf", &Some(mode));
+        add_query_arg(&mut path, &mut sep, "timeframe", &Some(timeframe));
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
