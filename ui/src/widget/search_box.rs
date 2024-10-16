@@ -99,7 +99,14 @@ impl Component for PdmSearchBox {
             .search_only(true)
             .style("position", "absolute")
             .style("z-index", "100")
-            .style("display", if self.focus { "" } else { "none" })
+            .style(
+                "display",
+                if self.focus && !self.search_term.is_empty() {
+                    ""
+                } else {
+                    "none"
+                },
+            )
             .border(true)
             .width(CssLength::Fraction(0.5))
             .height(400)
