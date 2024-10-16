@@ -18,7 +18,7 @@ use pwt::{
 };
 use pwt_macros::{builder, widget};
 
-use proxmox_yew_comp::http_get;
+use proxmox_yew_comp::{http_get, GuestState, Status, StorageState};
 
 use pdm_api_types::resource::{RemoteResources, Resource};
 
@@ -240,11 +240,7 @@ impl Component for PdmResourceTree {
                             .border_top(true)
                             .padding(4)
                             .gap(2)
-                            .with_child(
-                                Fa::new("exclamation-triangle")
-                                    .class(FontColor::Error)
-                                    .large(),
-                            )
+                            .with_child(Status::Error.to_fa_icon().large())
                             .with_child(err.to_string())
                     })),
             )
@@ -307,49 +303,45 @@ fn columns(
             .justify("center")
             .render(|item: &PdmTreeEntry| match item {
                 PdmTreeEntry::Root => html! {},
-                PdmTreeEntry::Resource(_, resource) => {
-                    let (icon, color) = match &resource {
-                        Resource::PveStorage(r) => {
-                            if r.status == "available" {
-                                ("check-circle", FontColor::Success)
-                            } else {
-                                ("times-circle", FontColor::Error)
-                            }
-                        }
-                        Resource::PveQemu(r) => match r.status.as_str() {
-                            "running" => ("play", FontColor::Success),
-                            "stopped" => ("stop", FontColor::InverseSurface),
-                            _ => ("question-circle", FontColor::Surface),
-                        },
-                        Resource::PveLxc(r) => match r.status.as_str() {
-                            "running" => ("play", FontColor::Success),
-                            "stopped" => ("stop", FontColor::InverseSurface),
-                            _ => ("question-circle", FontColor::Surface),
-                        },
-                        Resource::PveNode(r) => {
-                            if r.uptime > 0 {
-                                ("check-circle", FontColor::Success)
-                            } else {
-                                ("times-circle", FontColor::Error)
-                            }
-                        }
-                        Resource::PbsNode(r) => {
-                            if r.uptime > 0 {
-                                ("check-circle", FontColor::Success)
-                            } else {
-                                ("times-circle", FontColor::Error)
-                            }
-                        }
-                        Resource::PbsDatastore(_) => ("", FontColor::Primary),
-                    };
-                    Fa::new(icon).class(color).into()
+                PdmTreeEntry::Resource(_, resource) => match &resource {
+                    Resource::PveStorage(r) => match r.status.as_str() {
+                        "available" => StorageState::Available,
+                        "unavailable" => StorageState::Unavailable,
+                        _ => StorageState::Unknown,
+                    }
+                    .to_fa_icon(),
+                    Resource::PveQemu(r) => match r.status.as_str() {
+                        "running" => GuestState::Running,
+                        "stopped" => GuestState::Stopped,
+                        _ => GuestState::Unknown,
+                    }
+                    .to_fa_icon(),
+                    Resource::PveLxc(r) => match r.status.as_str() {
+                        "running" => GuestState::Running,
+                        "stopped" => GuestState::Stopped,
+                        _ => GuestState::Unknown,
+                    }
+                    .to_fa_icon(),
+                    Resource::PveNode(r) => if r.uptime > 0 {
+                        Status::Success
+                    } else {
+                        Status::Error
+                    }
+                    .to_fa_icon(),
+                    Resource::PbsNode(r) => if r.uptime > 0 {
+                        Status::Success
+                    } else {
+                        Status::Error
+                    }
+                    .to_fa_icon(),
+                    Resource::PbsDatastore(_) => Fa::new(""),
                 }
+                .into(),
                 PdmTreeEntry::Remote(_, error) => match error {
-                    Some(_) => Fa::new("triangle-exclamation")
-                        .class(FontColor::Error)
-                        .into(),
-                    None => Fa::new("check-circle").class(FontColor::Success).into(),
-                },
+                    Some(_) => Status::Error.to_fa_icon(),
+                    None => Status::Success.to_fa_icon(),
+                }
+                .into(),
             })
             .into(),
         DataTableColumn::new("")
