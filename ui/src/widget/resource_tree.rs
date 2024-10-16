@@ -13,7 +13,7 @@ use pwt::{
     state::{Selection, TreeStore},
     widget::{
         data_table::{DataTable, DataTableColumn, DataTableHeader},
-        ActionIcon, Column, Fa, Mask, Panel, Row,
+        ActionIcon, Column, Fa, Mask, Panel, Row, Tooltip,
     },
 };
 use pwt_macros::{builder, widget};
@@ -338,10 +338,11 @@ fn columns(
                 }
                 .into(),
                 PdmTreeEntry::Remote(_, error) => match error {
-                    Some(_) => Status::Error.to_fa_icon(),
-                    None => Status::Success.to_fa_icon(),
-                }
-                .into(),
+                    Some(err) => Tooltip::new(Status::Error.to_fa_icon())
+                        .tip(err.to_string())
+                        .into(),
+                    None => Status::Success.to_fa_icon().into(),
+                },
             })
             .into(),
         DataTableColumn::new("")
