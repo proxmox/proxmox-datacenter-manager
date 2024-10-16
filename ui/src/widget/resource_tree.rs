@@ -206,7 +206,6 @@ impl Component for PdmResourceTree {
             self.store.clone(),
         )
         .selection(self.selection.clone())
-        .header_focusable(false)
         .class(FlexFit)
         .hover(true)
         .borderless(true);
