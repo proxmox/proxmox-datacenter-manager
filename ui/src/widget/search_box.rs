@@ -115,6 +115,8 @@ impl Component for PdmSearchBox {
         Container::new()
             .onfocusin(self.focus_tracker.get_focus_callback(true))
             .onfocusout(self.focus_tracker.get_focus_callback(false))
+            .flex(2.0)
+            .min_width(230) // placeholder text
             .with_child(
                 Field::new()
                     .placeholder(tr!("Search (Ctrl+Space / Ctrl+Shift+F)"))

@@ -224,6 +224,7 @@ impl Component for PdmTopNavBar {
                 };
                 Container::from_tag("span").padding_x(4).with_child(text)
             })
+            .with_flex_spacer()
             .with_child(SearchBox::new())
             .with_flex_spacer()
             .with_child(button_group)
