@@ -110,7 +110,7 @@ impl Component for PdmSearchBox {
             .onfocusout(self.focus_tracker.get_focus_callback(false))
             .with_child(
                 Field::new()
-                    .placeholder(tr!("Search"))
+                    .placeholder(tr!("Search (Ctrl+Space / Ctrl+Shift+F)"))
                     .node_ref(self.search_field_ref.clone())
                     .on_input(ctx.link().callback(Msg::ChangeTerm)),
             )
