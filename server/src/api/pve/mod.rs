@@ -128,7 +128,7 @@ pub fn connect(remote: &Remote) -> Result<PveClient<Client>, Error> {
     Ok(PveClient(client))
 }
 
-pub fn connect_to_remote(
+fn connect_to_remote(
     config: &SectionConfigData<Remote>,
     id: &str,
 ) -> Result<PveClient<Client>, Error> {

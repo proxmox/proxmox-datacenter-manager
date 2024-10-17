@@ -55,7 +55,7 @@ async fn metric_collection_task() -> Result<(), Error> {
             let res = async {
                 let most_recent_timestamp = match remote.ty {
                     RemoteType::Pve => {
-                        let client = pve::connect_to_remote(&remotes, remote_name)?;
+                        let client = pve::connect(&remote)?;
                         let metrics = client
                             .cluster_metrics_export(Some(true), Some(false), Some(start_time))
                             .await?;
@@ -75,7 +75,7 @@ async fn metric_collection_task() -> Result<(), Error> {
                         .await
                     }
                     RemoteType::Pbs => {
-                        let client = pbs_client::connect_to_remote(&remotes, remote_name)?;
+                        let client = pbs_client::connect(&remote)?;
                         let metrics = client.metrics(Some(true), Some(start_time)).await?;
 
                         // Involves some blocking file IO

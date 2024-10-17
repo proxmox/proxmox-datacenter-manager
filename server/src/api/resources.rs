@@ -11,7 +11,6 @@ use pdm_api_types::resource::{
 };
 use proxmox_router::{list_subdirs_api_method, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
-use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 use pve_api_types::{ClusterResource, ClusterResourceType};
 
@@ -64,16 +63,12 @@ pub async fn get_resources(
 
     let mut join_handles = Vec::new();
 
-    for name in remotes_config.keys() {
-        let remotes = remotes_config.clone();
-        let remote_name = name.to_owned();
-
+    for (remote_name, remote) in remotes_config {
         let handle = tokio::spawn(async move {
-            let (resources, error) =
-                match get_resources_for_remote(remotes, &remote_name, max_age).await {
-                    Ok(resources) => (resources, None),
-                    Err(error) => (Vec::new(), Some(error.to_string())),
-                };
+            let (resources, error) = match get_resources_for_remote(remote, max_age).await {
+                Ok(resources) => (resources, None),
+                Err(error) => (Vec::new(), Some(error.to_string())),
+            };
 
             RemoteResources {
                 remote: remote_name,
@@ -186,20 +181,15 @@ static CACHE: LazyLock<RwLock<HashMap<String, CachedResources>>> =
 ///
 /// If recent enough cached data is available, it is returned
 /// instead of calling out to the remote.
-async fn get_resources_for_remote(
-    remotes: SectionConfigData<Remote>,
-    remote_name: &str,
-    max_age: u64,
-) -> Result<Vec<Resource>, Error> {
-    if let Some(cached_resource) = get_cached_resources(remote_name, max_age) {
+async fn get_resources_for_remote(remote: Remote, max_age: u64) -> Result<Vec<Resource>, Error> {
+    let remote_name = remote.id.to_owned();
+    if let Some(cached_resource) = get_cached_resources(&remote_name, max_age) {
         Ok(cached_resource.resources)
     } else {
-        fetch_remote_resource(&remotes, remote_name)
-            .await
-            .inspect(|resources| {
-                let now = proxmox_time::epoch_i64();
-                update_cached_resources(remote_name, resources, now);
-            })
+        fetch_remote_resource(remote).await.inspect(|resources| {
+            let now = proxmox_time::epoch_i64();
+            update_cached_resources(&remote_name, resources, now);
+        })
     }
 }
 
@@ -254,35 +244,29 @@ fn update_cached_resources(remote: &str, resources: &[Resource], now: i64) {
 }
 
 /// Fetch remote resources and map to pdm-native data types.
-async fn fetch_remote_resource(
-    remotes: &SectionConfigData<Remote>,
-    remote_name: &str,
-) -> Result<Vec<Resource>, Error> {
+async fn fetch_remote_resource(remote: Remote) -> Result<Vec<Resource>, Error> {
     let mut resources = Vec::new();
-
-    let remote = remotes
-        .get(remote_name)
-        .expect("must not fail, remote name comes from iterating the same data structure");
+    let remote_name = remote.id.to_owned();
 
     match remote.ty {
         RemoteType::Pve => {
-            let client = pve::connect_to_remote(remotes, remote_name)?;
+            let client = pve::connect(&remote)?;
 
             let cluster_resources = client.cluster_resources(None).await?;
 
             for resource in cluster_resources {
-                if let Some(r) = map_pve_resource(remote_name, resource) {
+                if let Some(r) = map_pve_resource(&remote_name, resource) {
                     resources.push(r);
                 }
             }
         }
         RemoteType::Pbs => {
-            let client = pbs_client::connect_to_remote(remotes, remote_name)?;
+            let client = pbs_client::connect(&remote)?;
             let status = client.node_status().await?;
-            resources.push(map_pbs_node_status(remote_name, status));
+            resources.push(map_pbs_node_status(&remote_name, status));
 
             for datastore_usage in client.datastore_usage().await? {
-                resources.push(map_pbs_datastore_status(remote_name, datastore_usage));
+                resources.push(map_pbs_datastore_status(&remote_name, datastore_usage));
             }
         }
     }
