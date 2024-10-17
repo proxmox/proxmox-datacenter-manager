@@ -13,7 +13,7 @@ use pwt::{
     state::{Selection, TreeStore},
     widget::{
         data_table::{DataTable, DataTableColumn, DataTableHeader},
-        ActionIcon, Column, Fa, Mask, Panel, Row, Tooltip,
+        ActionIcon, Column, Fa, Panel, Progress, Row, Tooltip,
     },
 };
 use pwt_macros::{builder, widget};
@@ -224,7 +224,8 @@ impl Component for PdmResourceTree {
                 Column::new()
                     .class(FlexFit)
                     // FIXME: use streaming with some kind of indicator instead of a loadmask
-                    .with_child(Mask::new(table).class(FlexFit).visible(self.loading))
+                    .with_child(table)
+                    .with_optional_child(self.loading.then_some(Progress::new()))
                     .with_optional_child(
                         (!has_data && !self.loading).then_some(
                             Row::new()
