@@ -62,8 +62,7 @@ impl Component for PdmEditRemote {
                     let url = url.clone();
                     async move {
                         let data = form_ctx.get_submit_data();
-                        proxmox_yew_comp::http_put(&url, Some(data)).await?;
-                        Ok(())
+                        proxmox_yew_comp::http_put(&url, Some(data)).await
                     }
                 }
             })
