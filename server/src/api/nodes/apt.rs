@@ -101,8 +101,7 @@ pub fn apt_update_database(
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread("aptupdate", None, auth_id, to_stdout, move |_worker| {
-        // fixme: read_and_update_proxy_config()?;
-
+        read_and_update_proxy_config()?;
         proxmox_apt::update_database(
             pdm_buildcfg::APT_PKG_STATE_FN,
             &options,
