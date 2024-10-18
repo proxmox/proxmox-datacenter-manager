@@ -5,6 +5,7 @@ pub use pdm_buildcfg::{BACKUP_GROUP_NAME, BACKUP_USER_NAME};
 
 pub mod certificate_config;
 pub mod domains;
+pub mod node;
 pub mod remotes;
 pub mod setup;
 
