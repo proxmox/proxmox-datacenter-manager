@@ -38,6 +38,7 @@ struct DatacenterManagerApp {
     running_tasks: Loader<Vec<TaskListItem>>,
     running_tasks_timeout: Option<Timeout>,
     remote_list: MsgRemoteList,
+    remote_list_timeout: Option<Timeout>,
 }
 
 async fn check_subscription() -> Msg {
@@ -67,7 +68,7 @@ async fn get_fingerprint() -> Option<Msg> {
 }
 */
 impl DatacenterManagerApp {
-    fn on_login(&self, ctx: &Context<Self>, fresh_login: bool) {
+    fn on_login(&mut self, ctx: &Context<Self>, fresh_login: bool) {
         if let Some(info) = &self.login_info {
             self.running_tasks.load();
             if fresh_login {
@@ -77,7 +78,7 @@ impl DatacenterManagerApp {
             }
             //ctx.link().send_future_batch(get_fingerprint());
             //
-            Self::poll_remote_list(ctx, true);
+            self.remote_list_timeout = Self::poll_remote_list(ctx, true);
         }
     }
 
@@ -89,7 +90,7 @@ impl DatacenterManagerApp {
                 true
             }
             Ok(list) => {
-                Self::poll_remote_list(ctx, false);
+                self.remote_list_timeout = Self::poll_remote_list(ctx, false);
                 match &self.remote_list {
                     Err(_) => {
                         self.remote_list = Ok(list);
@@ -116,13 +117,12 @@ impl DatacenterManagerApp {
         }
     }
 
-    fn poll_remote_list(ctx: &Context<Self>, first: bool) {
-        ctx.link().send_future(async move {
-            if !first {
-                gloo_timers::future::sleep(std::time::Duration::from_secs(5)).await;
-            }
-            Msg::RemoteList(Self::get_remote_list().await)
-        })
+    fn poll_remote_list(ctx: &Context<Self>, first: bool) -> Option<Timeout> {
+        let link = ctx.link().clone();
+        let timeout = Timeout::new(if first { 0 } else { 5_000 }, move || {
+            link.send_future(async move { Msg::RemoteList(Self::get_remote_list().await) })
+        });
+        Some(timeout)
     }
 
     async fn get_remote_list() -> Result<Vec<pdm_client::types::Remote>, Error> {
@@ -148,7 +148,7 @@ impl Component for DatacenterManagerApp {
 
         let login_info = authentication_from_cookie(&proxmox_yew_comp::ExistingProduct::PDM);
 
-        let this = Self {
+        let mut this = Self {
             _auth_observer,
             login_info,
             subscription_confirmed: false,
@@ -156,6 +156,7 @@ impl Component for DatacenterManagerApp {
             running_tasks,
             running_tasks_timeout: None,
             remote_list: Ok(Vec::new()),
+            remote_list_timeout: None,
         };
 
         this.on_login(ctx, false);
@@ -175,6 +176,7 @@ impl Component for DatacenterManagerApp {
             }
             Msg::Logout => {
                 //log::info!("CLEAR COOKIE");
+                self.remote_list_timeout = None;
                 proxmox_yew_comp::http_clear_auth();
                 self.login_info = None;
                 self.running_tasks_timeout = None;
