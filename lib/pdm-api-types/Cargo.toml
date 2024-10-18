@@ -8,6 +8,7 @@ description = "general API type helpers for PDM"
 [dependencies]
 anyhow.workspace = true
 const_format.workspace = true
+http.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_plain.workspace = true
