@@ -16,6 +16,9 @@ use proxmox_time::parse_daily_duration;
 mod acl;
 pub use acl::*;
 
+mod node_config;
+pub use node_config::*;
+
 mod proxy;
 pub use proxy::HTTP_PROXY_SCHEMA;
 
