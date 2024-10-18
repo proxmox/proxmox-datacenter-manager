@@ -5,6 +5,7 @@ use proxmox_sortable_macro::sortable;
 
 pub mod apt;
 pub mod certificates;
+pub mod config;
 pub mod dns;
 pub mod journal;
 pub mod network;
@@ -38,6 +39,7 @@ pub const ITEM_ROUTER: Router = Router::new()
 pub const SUBDIRS: SubdirMap = &sorted!([
     ("apt", &apt::ROUTER),
     ("certificates", &certificates::ROUTER),
+    ("config", &config::ROUTER),
     ("dns", &dns::ROUTER),
     ("journal", &journal::ROUTER),
     ("network", &network::ROUTER),

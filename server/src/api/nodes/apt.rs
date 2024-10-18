@@ -1,17 +1,18 @@
-use anyhow::Error;
+use anyhow::{bail, Error};
 use serde_json::Value;
 
+use proxmox_apt_api_types::{
+    APTChangeRepositoryOptions, APTGetChangelogOptions, APTRepositoriesResult, APTRepositoryHandle,
+    APTUpdateInfo, APTUpdateOptions,
+};
+use proxmox_http::ProxyConfig;
 use proxmox_rest_server::WorkerTask;
 use proxmox_router::{
     list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
 };
 use proxmox_schema::api;
 use proxmox_schema::api_types::NODE_SCHEMA;
-
-use proxmox_apt_api_types::{
-    APTChangeRepositoryOptions, APTGetChangelogOptions, APTRepositoriesResult, APTRepositoryHandle,
-    APTUpdateInfo, APTUpdateOptions,
-};
+use proxmox_sys::fs::{replace_file, CreateOptions};
 
 use proxmox_config_digest::ConfigDigest;
 
@@ -44,7 +45,6 @@ fn apt_update_available(_param: Value) -> Result<Vec<APTUpdateInfo>, Error> {
     proxmox_apt::list_available_apt_update(pdm_buildcfg::APT_PKG_STATE_FN)
 }
 
-/*
 pub fn update_apt_proxy_config(proxy_config: Option<&ProxyConfig>) -> Result<(), Error> {
     const PROXY_CFG_FN: &str = "/etc/apt/apt.conf.d/76pveproxy"; // use same file as PVE
 
@@ -62,8 +62,8 @@ pub fn update_apt_proxy_config(proxy_config: Option<&ProxyConfig>) -> Result<(),
 }
 
 fn read_and_update_proxy_config() -> Result<Option<ProxyConfig>, Error> {
-    let proxy_config = if let Ok((node_config, _digest)) = node::config() {
-        node_config.http_proxy()
+    let proxy_config = if let Ok((node_config, _digest)) = pdm_config::node::config() {
+        pdm_config::node::get_http_proxy_config(&node_config)
     } else {
         None
     };
@@ -71,7 +71,6 @@ fn read_and_update_proxy_config() -> Result<Option<ProxyConfig>, Error> {
 
     Ok(proxy_config)
 }
-*/
 
 #[api(
     protected: true,
