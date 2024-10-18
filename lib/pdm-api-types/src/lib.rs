@@ -142,6 +142,12 @@ pub const SNAPSHOT_NAME_SCHEMA: Schema = StringSchema::new("The name of the snap
     .max_length(40)
     .schema();
 
+pub const EMAIL_SCHEMA: Schema = StringSchema::new("E-Mail Address.")
+    .format(&SINGLE_LINE_COMMENT_FORMAT)
+    .min_length(2)
+    .max_length(64)
+    .schema();
+
 // Complex type definitions
 
 #[api()]
