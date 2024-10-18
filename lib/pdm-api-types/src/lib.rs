@@ -19,6 +19,9 @@ pub use acl::*;
 mod proxy;
 pub use proxy::HTTP_PROXY_SCHEMA;
 
+mod translation;
+pub use translation::Translation;
+
 pub use proxmox_auth_api::types::{Authid, Userid};
 pub use proxmox_auth_api::types::{Realm, RealmRef};
 pub use proxmox_auth_api::types::{Tokenname, TokennameRef};
