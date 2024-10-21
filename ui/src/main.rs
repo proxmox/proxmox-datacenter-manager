@@ -221,16 +221,19 @@ impl Component for DatacenterManagerApp {
             Err(_) => Vec::new(),
         };
 
+        let username = self.login_info.as_ref().map(|info| info.userid.to_owned());
         let body = Column::new()
             .class("pwt-viewport")
             .with_child(
                 TopNavBar::new(self.running_tasks.clone())
-                    .username(self.login_info.as_ref().map(|info| info.userid.to_owned()))
+                    .username(username.clone())
                     .on_logout(ctx.link().callback(|_| Msg::Logout)),
             )
             .with_child({
                 let main_view: Html = if self.login_info.is_some() {
-                    MainMenu::new(self.running_tasks.clone()).into()
+                    MainMenu::new(self.running_tasks.clone())
+                        .username(username.clone())
+                        .into()
                 } else {
                     Dialog::new(tr!("Proxmox Datacenter Manager Login"))
                         .with_child(LoginPanel::new().on_login(on_login))

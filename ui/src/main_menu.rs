@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use html::IntoPropValue;
 use wasm_bindgen::UnwrapThrowExt;
 use yew::virtual_dom::{Key, VComp, VNode};
 
@@ -30,9 +31,16 @@ use crate::certificates::CertificatesPanel;
 
 */
 
+use pwt_macros::builder;
+
 #[derive(Clone, PartialEq, Properties)]
+#[builder]
 pub struct MainMenu {
     running_tasks: Loader<Vec<TaskListItem>>,
+
+    #[builder(IntoPropValue, into_prop_value)]
+    #[prop_or_default]
+    pub username: Option<String>,
 }
 
 impl MainMenu {
@@ -203,13 +211,18 @@ impl Component for PdmMainMenu {
             |_| XTermJs::new().into(),
         );
 
+        let username = ctx.props().username.clone();
         register_submenu(
             &mut menu,
             &mut content,
             tr!("Administration"),
             "administration",
             Some("fa fa-wrench"),
-            |_| html! { <ServerAdministration/> },
+            move |_| {
+                ServerAdministration::new()
+                    .username(username.clone())
+                    .into()
+            },
             admin_submenu,
         );
 
