@@ -6,9 +6,9 @@ use yew::html::IntoEventCallback;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::{AlignItems, FlexFit, FontColor};
-use pwt::prelude::*;
 use pwt::widget::form::{Field, FormContext, FormContextObserver, InputType};
 use pwt::widget::{Button, Column, Fa, InputPanel, Mask, Row};
+use pwt::{prelude::*, AsyncPool};
 
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
 
@@ -96,6 +96,7 @@ pub struct PdmWizardPageConnect {
     form_valid: bool,
     loading: bool,
     last_error: Option<Error>,
+    async_pool: AsyncPool,
 }
 
 impl PdmWizardPageConnect {
@@ -128,6 +129,7 @@ impl Component for PdmWizardPageConnect {
             form_valid: false,
             loading: false,
             last_error: None,
+            async_pool: AsyncPool::new(),
         }
     }
 
@@ -153,7 +155,7 @@ impl Component for PdmWizardPageConnect {
                 self.last_error = None;
 
                 let remote_type = props.remote_type;
-                wasm_bindgen_futures::spawn_local(async move {
+                self.async_pool.spawn(async move {
                     let result = connect(form_ctx, remote_type).await;
                     link.send_message(Msg::ConnectResult(result));
                 });
