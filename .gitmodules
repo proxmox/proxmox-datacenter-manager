@@ -1,6 +1,6 @@
 [submodule "proxmox-api-types"]
 	path = lib/proxmox-api-types
-	url = ../proxmox-api-types
+	url = ../../rust/proxmox-api-types
 [submodule "ui/pwt-assets"]
 	path = ui/pwt-assets
 	url = gitolite3@proxdev.maurer-it.com:yew/proxmox-yew-widget-toolkit-assets
