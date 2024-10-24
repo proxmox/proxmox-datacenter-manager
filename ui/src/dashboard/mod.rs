@@ -12,6 +12,7 @@ use pwt::{
     css::{AlignItems, FlexFit, FlexWrap, JustifyContent},
     prelude::*,
     widget::{Column, Container, Fa, Panel, Row},
+    AsyncPool,
 };
 
 use pdm_api_types::resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus};
@@ -48,6 +49,7 @@ pub struct PdmDashboard {
     loading: bool,
     remote_list: RemoteList,
     _context_listener: ContextHandle<RemoteList>,
+    async_pool: AsyncPool,
 }
 
 impl PdmDashboard {
@@ -158,7 +160,10 @@ impl Component for PdmDashboard {
     fn create(ctx: &yew::Context<Self>) -> Self {
         let link = ctx.link().clone();
         let max_age = ctx.props().max_age_seconds;
-        wasm_bindgen_futures::spawn_local(async move {
+
+        let async_pool = AsyncPool::new();
+
+        async_pool.spawn(async move {
             let result = http_get("/resources/status", Some(json!({"max-age": max_age}))).await;
             link.send_message(Msg::LoadingFinished(result));
         });
@@ -173,6 +178,7 @@ impl Component for PdmDashboard {
             loading: true,
             remote_list,
             _context_listener,
+            async_pool,
         }
     }
 
