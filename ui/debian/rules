@@ -23,6 +23,9 @@ override_dh_auto_configure:
 	@perl -ne 'if (/^version\s*=\s*"(\d+(?:\.\d+)+)"/) { my $$v_cargo = $$1; my $$v_deb = "$(DEB_VERSION_UPSTREAM)"; \
 	    die "ERROR: d/changelog <-> Cargo.toml version mismatch: $$v_cargo != $$v_deb\n" if $$v_cargo ne $$v_deb; exit(0); }' Cargo.toml
 	$(CARGO) prepare-debian $(CURDIR)/debian/cargo_registry --link-from-system
+	# patch cargo_home config to use lld with wasm, otherwise the build fails
+	echo "\n[target.wasm32-unknown-unknown]" >> debian/cargo_home/config.toml
+	cat debian/cargo_home/config.toml | sed "s/linker=[^']\+/linker=rust-lld/" | grep "^rustflags = " >> debian/cargo_home/config.toml
 	dh_auto_configure
 
 override_dh_strip:

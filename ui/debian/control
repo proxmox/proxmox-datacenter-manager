@@ -6,6 +6,7 @@ Build-Depends: cargo:native,
                dh-cargo (>= 25),
                proxmox-wasm-builder,
                rust-grass,
+               rust-llvm,
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.6.1
 Vcs-Git: git://git.proxmox.com/git/proxmox-datacenter-manager.git
