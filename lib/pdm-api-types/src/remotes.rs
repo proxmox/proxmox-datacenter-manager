@@ -37,6 +37,7 @@ pub struct NodeUrl {
 }
 
 #[api]
+/// The type of a remote entry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, Ord, PartialOrd)]
 #[serde(rename_all = "lowercase")]
 pub enum RemoteType {

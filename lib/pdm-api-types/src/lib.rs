@@ -215,7 +215,8 @@ pub enum NodePowerCommand {
     Shutdown,
 }
 
-#[api()]
+#[api]
+/// The state of a task.
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TaskStateType {
