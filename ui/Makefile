@@ -71,7 +71,7 @@ install: $(COMPILED_OUTPUT) index.hbs
 $(BUILDDIR):
 	rm -rf $@ $@.tmp
 	mkdir $@.tmp
-	cp -a debian/ src/ pwt-assets/ index.hbs Makefile Cargo.toml $@.tmp
+	cp -a debian/ src/ pwt-assets/ images/ index.hbs Makefile Cargo.toml $@.tmp
 	echo "git clone git://git.proxmox.com/git/$(PACKAGE).git\\ngit checkout $$(git rev-parse HEAD)" \
 	    > $@.tmp/debian/SOURCE
 	mv $@.tmp $@
