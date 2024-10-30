@@ -49,6 +49,8 @@ pub fn init() -> Result<&'static Cache, Error> {
         create_callback,
     )?;
 
+    cache.apply_journal()?;
+
     RRD_CACHE
         .set(cache)
         .map_err(|_| format_err!("RRD cache already initialized!"))?;

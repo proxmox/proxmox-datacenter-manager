@@ -19,7 +19,6 @@ const COLLECTION_INTERVAL: u64 = 60;
 /// Initialize the RRD cache
 pub fn init() -> Result<(), Error> {
     rrd_cache::init()?;
-    rrd_cache::sync_journal();
 
     Ok(())
 }
