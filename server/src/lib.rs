@@ -11,6 +11,9 @@ pub mod task_utils;
 pub mod connection;
 pub mod pbs_client;
 
+#[cfg(remote_config = "faked")]
+pub mod test_support;
+
 use anyhow::Error;
 use serde_json::Value;
 

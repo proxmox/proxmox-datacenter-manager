@@ -72,3 +72,7 @@ pdm-config.workspace = true
 
 pve-api-types = { workspace = true, features = [ "client" ] }
 pbs-api-types.workspace = true
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(remote_config, values("faked"))']
