@@ -47,6 +47,7 @@ proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-section-config.workspace = true
 proxmox-serde = { workspace = true, features = [ "serde_json" ] }
 proxmox-sortable-macro.workspace = true
+proxmox-subscription = { workspace = true, features = [ "api-types", "impl" ] }
 proxmox-sys = { workspace = true, features = [ "timer" ] }
 proxmox-systemd.workspace = true
 proxmox-tfa = { workspace = true, features = [ "api" ] }
