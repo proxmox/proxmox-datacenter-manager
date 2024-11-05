@@ -9,8 +9,7 @@ use proxmox_rrd::rrd::DataSourceType;
 use pdm_api_types::remotes::RemoteType;
 use pve_api_types::{ClusterMetricsData, ClusterMetricsDataType};
 
-use crate::api::pve;
-use crate::{pbs_client, task_utils};
+use crate::{connection, task_utils};
 
 pub mod rrd_cache;
 
@@ -54,12 +53,12 @@ async fn metric_collection_task() -> Result<(), Error> {
             let res = async {
                 let most_recent_timestamp = match remote.ty {
                     RemoteType::Pve => {
-                        let client = pve::connect(&remote)?;
+                        let client = connection::make_pve_client(remote)?;
                         let metrics = client
                             .cluster_metrics_export(Some(true), Some(false), Some(start_time))
                             .await?;
 
-                        // Involves some blocking file IO
+                        //// Involves some blocking file IO
                         tokio::task::spawn_blocking(move || {
                             let mut most_recent_timestamp = 0;
 
@@ -74,7 +73,7 @@ async fn metric_collection_task() -> Result<(), Error> {
                         .await
                     }
                     RemoteType::Pbs => {
-                        let client = pbs_client::connect(&remote)?;
+                        let client = connection::make_pbs_client(&remote)?;
                         let metrics = client.metrics(Some(true), Some(start_time)).await?;
 
                         // Involves some blocking file IO

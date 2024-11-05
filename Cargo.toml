@@ -88,6 +88,7 @@ proxmox-fido2 = { path = "cli/proxmox-fido2" }
 # regular crates
 anyhow = "1.0"
 async-stream = "0.3"
+async-trait = "0.1"
 base64 = "0.13"
 bitflags = "2.4"
 const_format = "0.2"

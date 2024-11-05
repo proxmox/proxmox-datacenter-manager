@@ -49,6 +49,8 @@ fn main() -> Result<(), Error> {
         }
     }
 
+    server::context::init()?;
+
     proxmox_async::runtime::main(run())
 }
 

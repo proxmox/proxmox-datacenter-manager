@@ -14,9 +14,7 @@ use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 use pve_api_types::{ClusterResource, ClusterResourceType};
 
-use crate::pbs_client;
-
-use super::pve;
+use crate::connection;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -250,7 +248,7 @@ async fn fetch_remote_resource(remote: Remote) -> Result<Vec<Resource>, Error> {
 
     match remote.ty {
         RemoteType::Pve => {
-            let client = pve::connect(&remote)?;
+            let client = connection::make_pve_client(&remote)?;
 
             let cluster_resources = client.cluster_resources(None).await?;
 
@@ -261,7 +259,8 @@ async fn fetch_remote_resource(remote: Remote) -> Result<Vec<Resource>, Error> {
             }
         }
         RemoteType::Pbs => {
-            let client = pbs_client::connect(&remote)?;
+            let client = connection::make_pbs_client(&remote)?;
+
             let status = client.node_status().await?;
             resources.push(map_pbs_node_status(&remote_name, status));
 

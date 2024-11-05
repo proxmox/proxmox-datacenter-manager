@@ -17,7 +17,7 @@ use proxmox_time::{epoch_i64, epoch_to_rfc2822};
 use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
 use pdm_api_types::{Authid, ConfigDigest, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY};
 
-use crate::pbs_client;
+use crate::{connection, pbs_client};
 
 use super::pve;
 
@@ -72,7 +72,6 @@ pub fn list_remotes(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<Remote>, Erro
     let top_level_allowed = 0 != user_info.lookup_privs(&auth_id, &["resource"]);
 
     let (remotes, digest) = pdm_config::remotes::config()?;
-
     rpcenv["digest"] = digest.to_hex().into();
 
     Ok(remotes
@@ -266,8 +265,8 @@ pub async fn version(id: String) -> Result<pve_api_types::VersionResponse, Error
 
     let remote = get_remote(&remotes, &id)?;
     match remote.ty {
-        RemoteType::Pve => Ok(pve::connect(remote)?.version().await?),
-        RemoteType::Pbs => Ok(crate::pbs_client::connect(remote)?.version().await?),
+        RemoteType::Pve => Ok(connection::make_pve_client(remote)?.version().await?),
+        RemoteType::Pbs => Ok(connection::make_pbs_client(remote)?.version().await?),
     }
 }
 

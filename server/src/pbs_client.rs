@@ -25,20 +25,18 @@ pub fn get_remote<'a>(
     Ok(remote)
 }
 
-pub async fn connect_or_login(remote: &Remote) -> Result<PbsClient, anyhow::Error> {
-    let client = crate::connection::connect_or_login(remote).await?;
-    Ok(PbsClient(client))
+pub async fn connect_or_login(remote: &Remote) -> Result<Box<PbsClient>, anyhow::Error> {
+    crate::connection::make_pbs_client_and_login(remote).await
 }
 
-pub fn connect(remote: &Remote) -> Result<PbsClient, anyhow::Error> {
-    let client = crate::connection::connect(remote)?;
-    Ok(PbsClient(client))
+pub fn connect(remote: &Remote) -> Result<Box<PbsClient>, anyhow::Error> {
+    crate::connection::make_pbs_client(remote)
 }
 
 pub fn connect_to_remote(
     config: &SectionConfigData<Remote>,
     id: &str,
-) -> Result<PbsClient, anyhow::Error> {
+) -> Result<Box<PbsClient>, anyhow::Error> {
     connect(get_remote(config, id)?)
 }
 

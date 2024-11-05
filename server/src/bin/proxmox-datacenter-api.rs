@@ -53,6 +53,7 @@ fn main() -> Result<(), Error> {
     }
 
     proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
+    server::context::init()?;
 
     proxmox_async::runtime::main(run(debug))
 }

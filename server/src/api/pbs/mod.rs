@@ -8,7 +8,10 @@ use proxmox_sortable_macro::sortable;
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use pdm_api_types::PRIV_RESOURCE_AUDIT;
 
-use crate::pbs_client;
+use crate::{
+    connection,
+    pbs_client::{self, get_remote},
+};
 
 mod rrddata;
 
@@ -96,7 +99,8 @@ async fn list_snapshots_2(
 ) -> Result<proxmox_router::Stream, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
     Ok(async_stream::try_stream! {
-        let mut snapshots = pbs_client::connect_to_remote(&remotes, &remote)?
+        let remote = get_remote(&remotes, &remote)?;
+        let mut snapshots = connection::make_pbs_client(remote)?
             .list_snapshots(&datastore, ns.as_deref())
             .await?;
         while let Some(elem) = snapshots.next().await {

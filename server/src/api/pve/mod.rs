@@ -5,7 +5,6 @@ use std::sync::Arc;
 use anyhow::{bail, format_err, Error};
 
 use proxmox_access_control::CachedUserInfo;
-use proxmox_client::Client;
 use proxmox_router::{
     http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
@@ -23,6 +22,8 @@ use pdm_api_types::{
 
 use pve_api_types::client::PveClient;
 use pve_api_types::{ClusterResourceKind, StartQemuMigrationType};
+
+use crate::connection;
 
 mod rrddata;
 pub mod tasks;
@@ -118,20 +119,18 @@ pub fn get_remote<'a>(
     Ok(remote)
 }
 
-pub async fn connect_or_login(remote: &Remote) -> Result<PveClient<Client>, Error> {
-    let client = crate::connection::connect_or_login(remote).await?;
-    Ok(PveClient(client))
+pub async fn connect_or_login(remote: &Remote) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
+    connection::make_pve_client_and_login(remote).await
 }
 
-pub fn connect(remote: &Remote) -> Result<PveClient<Client>, Error> {
-    let client = crate::connection::connect(remote)?;
-    Ok(PveClient(client))
+pub fn connect(remote: &Remote) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
+    connection::make_pve_client(remote)
 }
 
 fn connect_to_remote(
     config: &SectionConfigData<Remote>,
     id: &str,
-) -> Result<PveClient<Client>, Error> {
+) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
     connect(get_remote(config, id)?)
 }
 
@@ -332,7 +331,7 @@ pub async fn list_lxc(
 async fn find_node_for_vm(
     node: Option<String>,
     vmid: u32,
-    pve: &PveClient<Client>,
+    pve: &(dyn PveClient + Send + Sync),
 ) -> Result<String, Error> {
     // FIXME: The pve client should cache the resources
     Ok(match node {
@@ -381,7 +380,7 @@ pub async fn qemu_get_config(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    let node = find_node_for_vm(node, vmid, &pve).await?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
     Ok(pve
         .qemu_get_config(&node, vmid, state.current(), snapshot)
@@ -414,7 +413,7 @@ pub async fn qemu_start(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    let node = find_node_for_vm(node, vmid, &pve).await?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
     let upid = pve
         .start_qemu_async(&node, vmid, Default::default())
@@ -449,7 +448,7 @@ pub async fn qemu_stop(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    let node = find_node_for_vm(node, vmid, &pve).await?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
     let upid = pve.stop_qemu_async(&node, vmid, Default::default()).await?;
 
@@ -482,7 +481,7 @@ pub async fn qemu_shutdown(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    let node = find_node_for_vm(node, vmid, &pve).await?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
     let upid = pve
         .shutdown_qemu_async(&node, vmid, Default::default())
@@ -580,7 +579,7 @@ pub async fn qemu_migrate(
     let (remotes, _) = pdm_config::remotes::config()?;
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    let node = find_node_for_vm(node, vmid, &pve).await?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
     if node == target {
         bail!("refusing migration to the same node");
@@ -676,7 +675,7 @@ pub async fn qemu_remote_migrate(
     let target = get_remote(&remotes, &target)?;
     let source_conn = connect_to_remote(&remotes, &source)?;
 
-    let node = find_node_for_vm(node, vmid, &source_conn).await?;
+    let node = find_node_for_vm(node, vmid, source_conn.as_ref()).await?;
 
     // FIXME: For now we'll only try with the first node but we should probably try others, too, in
     // case some are offline?
@@ -747,7 +746,7 @@ pub async fn lxc_get_config(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    let node = find_node_for_vm(node, vmid, &pve).await?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
     Ok(pve
         .lxc_get_config(&node, vmid, state.current(), snapshot)
@@ -780,7 +779,7 @@ pub async fn lxc_start(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    let node = find_node_for_vm(node, vmid, &pve).await?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
     let upid = pve.start_lxc_async(&node, vmid, Default::default()).await?;
 
@@ -813,7 +812,7 @@ pub async fn lxc_stop(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    let node = find_node_for_vm(node, vmid, &pve).await?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
     let upid = pve.stop_lxc_async(&node, vmid, Default::default()).await?;
 
@@ -846,7 +845,7 @@ pub async fn lxc_shutdown(
 
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    let node = find_node_for_vm(node, vmid, &pve).await?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
     let upid = pve
         .shutdown_lxc_async(&node, vmid, Default::default())
@@ -916,7 +915,7 @@ pub async fn lxc_migrate(
     let (remotes, _) = pdm_config::remotes::config()?;
     let pve = connect_to_remote(&remotes, &remote)?;
 
-    let node = find_node_for_vm(node, vmid, &pve).await?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
     if node == target {
         bail!("refusing migration to the same node");
@@ -1020,7 +1019,7 @@ pub async fn lxc_remote_migrate(
     let target = get_remote(&remotes, &target)?;
     let source_conn = connect_to_remote(&remotes, &source)?;
 
-    let node = find_node_for_vm(node, vmid, &source_conn).await?;
+    let node = find_node_for_vm(node, vmid, source_conn.as_ref()).await?;
 
     // FIXME: For now we'll only try with the first node but we should probably try others, too, in
     // case some are offline?
