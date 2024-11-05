@@ -176,6 +176,16 @@ impl PbsClient {
 
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
+
+    /// Return PBS subscription info.
+    pub async fn get_subscription(&self) -> Result<proxmox_subscription::SubscriptionInfo, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/nodes/localhost/subscription")
+            .await?
+            .expect_json()?
+            .data)
+    }
 }
 
 #[derive(Deserialize)]
