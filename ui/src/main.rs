@@ -6,7 +6,7 @@ use yew::prelude::*;
 
 use pwt::prelude::*;
 use pwt::state::Loader;
-use pwt::widget::{Column, DesktopApp, Dialog};
+use pwt::widget::{Column, DesktopApp, Dialog, Mask};
 
 use proxmox_login::Authentication;
 use proxmox_yew_comp::common_api_types::TaskListItem;
@@ -17,12 +17,13 @@ use proxmox_yew_comp::{
 
 //use pbs::MainMenu;
 use pdm::{MainMenu, RemoteList, TopNavBar};
+use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 
 type MsgRemoteList = Result<Vec<pdm_client::types::Remote>, Error>;
 
 enum Msg {
     ConfirmSubscription,
-    ShowSubscriptionAlert(String, Option<String>),
+    ShowSubscriptionAlert,
     Login(Authentication),
     // SaveFingerprint(String), FIXME
     Logout,
@@ -34,7 +35,7 @@ struct DatacenterManagerApp {
     _auth_observer: AuthObserver,
     login_info: Option<Authentication>,
     subscription_confirmed: bool,
-    show_subscription_alert: Option<(String, Option<String>)>,
+    show_subscription_alert: Option<bool>,
     running_tasks: Loader<Vec<TaskListItem>>,
     running_tasks_timeout: Option<Timeout>,
     remote_list: MsgRemoteList,
@@ -42,20 +43,19 @@ struct DatacenterManagerApp {
 }
 
 async fn check_subscription() -> Msg {
-    let data: Result<serde_json::Value, _> = http_get("/nodes/localhost/subscription", None).await;
+    let data: Result<Vec<RemoteSubscriptions>, _> = http_get("/resources/subscription", None).await;
 
-    let (status, url) = match &data {
-        Ok(data) => (
-            data["status"].as_str().unwrap_or("unknown").to_string(),
-            data["url"].as_str().map(|s| s.to_string()),
-        ),
-        Err(_) => ("unknown".into(), None),
+    let show_alert = match data {
+        Ok(list) => list
+            .into_iter()
+            .any(|info| info.state == RemoteSubscriptionState::None),
+        Err(_) => false,
     };
 
-    if status == "new" || status == "active" {
-        Msg::ConfirmSubscription
+    if show_alert {
+        Msg::ShowSubscriptionAlert
     } else {
-        Msg::ShowSubscriptionAlert(status, url)
+        Msg::ConfirmSubscription
     }
 }
 
@@ -72,8 +72,13 @@ impl DatacenterManagerApp {
         if let Some(info) = &self.login_info {
             self.running_tasks.load();
             if fresh_login {
-                ctx.link().send_future(check_subscription());
+                if self.subscription_confirmed {
+                    ctx.link().send_message(Msg::ConfirmSubscription);
+                } else {
+                    ctx.link().send_future(check_subscription());
+                }
             } else {
+                ctx.link().send_message(Msg::ConfirmSubscription);
                 proxmox_yew_comp::http_set_auth(info.clone());
             }
             //ctx.link().send_future_batch(get_fingerprint());
@@ -167,11 +172,11 @@ impl Component for DatacenterManagerApp {
         match msg {
             Msg::ConfirmSubscription => {
                 self.subscription_confirmed = true;
-                self.show_subscription_alert = None;
+                self.show_subscription_alert = Some(false);
                 true
             }
-            Msg::ShowSubscriptionAlert(status, url) => {
-                self.show_subscription_alert = Some((status, url));
+            Msg::ShowSubscriptionAlert => {
+                self.show_subscription_alert = Some(true);
                 true
             }
             Msg::Logout => {
@@ -180,6 +185,7 @@ impl Component for DatacenterManagerApp {
                 proxmox_yew_comp::http_clear_auth();
                 self.login_info = None;
                 self.running_tasks_timeout = None;
+                self.show_subscription_alert = None;
                 true
             }
             Msg::Login(info) => {
@@ -210,10 +216,12 @@ impl Component for DatacenterManagerApp {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let on_login = ctx.link().callback(|info| Msg::Login(info));
-        let subscription_alert = self.show_subscription_alert.as_ref().map(|(status, url)| {
-            SubscriptionAlert::new(status.to_string())
-                .url(url.clone().map(|s| s.to_string()))
-                .on_close(ctx.link().callback(|_| Msg::ConfirmSubscription))
+        let loading = self.login_info.is_some() && self.show_subscription_alert.is_none();
+        let subscription_alert = self.show_subscription_alert.and_then(|show| {
+            (self.login_info.is_some() && show).then_some(
+                SubscriptionAlert::new("notfound".to_string())
+                    .on_close(ctx.link().callback(|_| Msg::ConfirmSubscription)),
+            )
         });
 
         let remote_list = match &self.remote_list {
@@ -230,13 +238,15 @@ impl Component for DatacenterManagerApp {
                     .on_logout(ctx.link().callback(|_| Msg::Logout)),
             )
             .with_child({
-                let main_view: Html = if self.login_info.is_some() {
+                let main_view: Html = if self.login_info.is_some() && !loading {
                     MainMenu::new(self.running_tasks.clone())
                         .username(username.clone())
                         .into()
                 } else {
                     Dialog::new(tr!("Proxmox Datacenter Manager Login"))
-                        .with_child(LoginPanel::new().on_login(on_login))
+                        .with_child(
+                            Mask::new(LoginPanel::new().on_login(on_login)).visible(loading),
+                        )
                         .into()
                 };
                 main_view
