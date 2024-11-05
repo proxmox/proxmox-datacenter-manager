@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::sync::{LazyLock, RwLock};
 
 use anyhow::Error;
+use futures::future::join_all;
+use futures::FutureExt;
 
 use pbs_api_types::{DataStoreStatusListItem, NodeStatus};
 use pdm_api_types::remotes::{Remote, RemoteType};
@@ -9,9 +11,15 @@ use pdm_api_types::resource::{
     PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource, PveQemuResource,
     PveStorageResource, RemoteResources, Resource, ResourcesStatus,
 };
-use proxmox_router::{list_subdirs_api_method, Router, RpcEnvironment, SubdirMap};
+use pdm_api_types::subscription::{
+    NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
+};
+use pdm_api_types::PRIV_RESOURCE_AUDIT;
+use proxmox_access_control::CachedUserInfo;
+use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
+use proxmox_subscription::SubscriptionStatus;
 use pve_api_types::{ClusterResource, ClusterResourceType};
 
 use crate::connection;
@@ -24,6 +32,10 @@ pub const ROUTER: Router = Router::new()
 const SUBDIRS: SubdirMap = &sorted!([
     ("list", &Router::new().get(&API_METHOD_GET_RESOURCES)),
     ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
+    (
+        "subscription",
+        &Router::new().get(&API_METHOD_GET_SUBSCRIPTION_STATUS)
+    ),
 ]);
 
 #[api(
@@ -164,6 +176,258 @@ pub async fn get_status(
     }
 
     Ok(counts)
+}
+
+#[api(
+    access: { permission: &Permission::Anybody, },
+    input: {
+        properties: {
+            "max-age": {
+                description: "Maximum age (in seconds) of cached remote subscription state.",
+                // long default to not query it too often
+                default: 24*60*60,
+                optional: true,
+            },
+            // FIXME: which privileges should be necessary for returning the keys?
+            verbose: {
+                type: bool,
+                optional: true,
+                default: false,
+                description: "If true, includes subscription information per node (with enough privileges)",
+            },
+        },
+    },
+    returns: {
+        description: "Subscription state for each remote.",
+        type: Array,
+        items: {
+            type: RemoteSubscriptions,
+        }
+    },
+)]
+/// Returns the subscription status of the remotes
+pub async fn get_subscription_status(
+    max_age: u64,
+    verbose: bool,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<RemoteSubscriptions>, Error> {
+    let (remotes_config, _) = pdm_config::remotes::config()?;
+
+    let mut futures = Vec::new();
+
+    let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+    let allow_all = user_info
+        .check_privs(&auth_id, &["resources"], PRIV_RESOURCE_AUDIT, false)
+        .is_ok();
+
+    let check_priv = |remote_name: &str| -> bool {
+        user_info
+            .check_privs(
+                &auth_id,
+                &["resources", remote_name],
+                PRIV_RESOURCE_AUDIT,
+                false,
+            )
+            .is_err()
+    };
+
+    for (remote_name, remote) in remotes_config {
+        if !allow_all && !check_priv(&remote_name) {
+            continue;
+        }
+
+        let future = async move {
+            let (node_status, error) =
+                match get_subscription_info_for_remote(&remote, max_age).await {
+                    Ok(node_status) => (Some(node_status), None),
+                    Err(error) => (None, Some(error.to_string())),
+                };
+
+            let mut state = RemoteSubscriptionState::Unknown;
+
+            if let Some(node_status) = &node_status {
+                state = map_node_subscription_list_to_state(node_status);
+            }
+
+            RemoteSubscriptions {
+                remote: remote_name,
+                error,
+                state,
+                node_status: if verbose { node_status } else { None },
+            }
+        };
+
+        futures.push(future);
+    }
+
+    Ok(join_all(futures).await)
+}
+
+#[derive(Clone)]
+struct CachedSubscriptionState {
+    node_info: HashMap<String, Option<NodeSubscriptionInfo>>,
+    timestamp: i64,
+}
+
+static SUBSCRIPTION_CACHE: LazyLock<RwLock<HashMap<String, CachedSubscriptionState>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+
+/// Get the subscription state for a given remote.
+///
+/// If recent enough cached data is available, it is returned
+/// instead of calling out to the remote.
+async fn get_subscription_info_for_remote(
+    remote: &Remote,
+    max_age: u64,
+) -> Result<HashMap<String, Option<NodeSubscriptionInfo>>, Error> {
+    if let Some(cached_subscription) = get_cached_subscription_info(&remote.id, max_age) {
+        Ok(cached_subscription.node_info)
+    } else {
+        let node_info = fetch_remote_subscription_info(remote).await?;
+        let now = proxmox_time::epoch_i64();
+        update_cached_subscription_info(&remote.id, &node_info, now);
+        Ok(node_info)
+    }
+}
+
+fn get_cached_subscription_info(remote: &str, max_age: u64) -> Option<CachedSubscriptionState> {
+    let cache = SUBSCRIPTION_CACHE
+        .read()
+        .expect("subscription mutex poisoned");
+
+    if let Some(cached_subscription) = cache.get(remote) {
+        let now = proxmox_time::epoch_i64();
+        let diff = now - cached_subscription.timestamp;
+
+        if diff > max_age as i64 || diff < 0 {
+            // value is too old or from the future
+            None
+        } else {
+            Some(cached_subscription.clone())
+        }
+    } else {
+        None
+    }
+}
+
+/// Update cached subscription data.
+///
+/// If the cache already contains more recent data we don't insert the passed resources.
+fn update_cached_subscription_info(
+    remote: &str,
+    node_info: &HashMap<String, Option<NodeSubscriptionInfo>>,
+    now: i64,
+) {
+    // there is no good way to recover from this, so panicking should be fine
+    let mut cache = SUBSCRIPTION_CACHE
+        .write()
+        .expect("subscription mutex poisoned");
+
+    if let Some(cached_resource) = cache.get(remote) {
+        // skip updating if the data is new enough
+        if cached_resource.timestamp >= now {
+            return;
+        }
+    }
+
+    cache.insert(
+        remote.into(),
+        CachedSubscriptionState {
+            node_info: node_info.clone(),
+            timestamp: now,
+        },
+    );
+}
+
+/// Maps a list of node subscription infos into a single [`RemoteSubscriptionState`]
+///
+/// Unavailable subscription infos should be represented as `None`
+fn map_node_subscription_list_to_state(
+    infos: &HashMap<String, Option<NodeSubscriptionInfo>>,
+) -> RemoteSubscriptionState {
+    let levels: Vec<SubscriptionLevel> = infos
+        .values()
+        .map(|info| match info {
+            Some(info) => match info.status {
+                SubscriptionStatus::New | SubscriptionStatus::Active => info.level,
+                _ => SubscriptionLevel::None,
+            },
+            None => SubscriptionLevel::Unknown,
+        })
+        .collect();
+
+    let minimum = levels
+        .iter()
+        .min()
+        .copied()
+        .unwrap_or(SubscriptionLevel::Unknown);
+    let mixed = levels.iter().any(|level| *level != minimum);
+
+    match (minimum, mixed) {
+        (SubscriptionLevel::None, _) => RemoteSubscriptionState::None,
+        (SubscriptionLevel::Unknown, false) => RemoteSubscriptionState::Mixed,
+        // treat unknown + active as active
+        (SubscriptionLevel::Unknown, true) => RemoteSubscriptionState::Active,
+        (_, true) => RemoteSubscriptionState::Mixed,
+        (_, false) => RemoteSubscriptionState::Active,
+    }
+}
+
+/// Fetch remote resources and map to pdm-native data types.
+async fn fetch_remote_subscription_info(
+    remote: &Remote,
+) -> Result<HashMap<String, Option<NodeSubscriptionInfo>>, Error> {
+    let mut list = HashMap::new();
+    match remote.ty {
+        RemoteType::Pve => {
+            let client = connection::make_pve_client(&remote)?;
+
+            let nodes = client.list_nodes().await?;
+            let mut futures = Vec::with_capacity(nodes.len());
+            for node in nodes.iter() {
+                let future = client.get_subscription(&node.node).map(|res| res.ok());
+                futures.push(async move { (node.node.clone(), future.await) });
+            }
+
+            for (node_name, remote_info) in join_all(futures).await {
+                list.insert(
+                    node_name,
+                    remote_info.map(|info| {
+                        let status = serde_json::to_value(info.status)
+                            .map(|status| serde_json::from_value(status).unwrap_or_default())
+                            .unwrap_or_default();
+                        NodeSubscriptionInfo {
+                            status,
+                            sockets: info.sockets,
+                            key: info.key,
+                            level: info
+                                .level
+                                .and_then(|level| level.parse().ok())
+                                .unwrap_or_default(),
+                        }
+                    }),
+                );
+            }
+        }
+        RemoteType::Pbs => {
+            let client = connection::make_pbs_client(&remote)?;
+
+            let info = client.get_subscription().await.ok().map(|info| {
+                let level = SubscriptionLevel::from_key(info.key.as_deref());
+                NodeSubscriptionInfo {
+                    status: info.status,
+                    sockets: None,
+                    key: info.key,
+                    level,
+                }
+            });
+
+            list.insert("localhost".to_string(), info);
+        }
+    };
+
+    Ok(list)
 }
 
 #[derive(Clone)]
