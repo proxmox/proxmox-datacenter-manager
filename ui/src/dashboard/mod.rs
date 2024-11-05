@@ -19,6 +19,9 @@ use pdm_api_types::resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus
 
 use crate::RemoteList;
 
+mod subscription_info;
+pub use subscription_info::SubscriptionInfo;
+
 #[derive(Properties, PartialEq)]
 pub struct Dashboard {
     #[prop_or(60)]
@@ -310,7 +313,8 @@ impl Component for PdmDashboard {
                                     ),
                                 )
                         }),
-                ),
+                )
+                .with_child(SubscriptionInfo::new()),
         );
 
         content.into()
