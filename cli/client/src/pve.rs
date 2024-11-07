@@ -257,10 +257,10 @@ impl fmt::Display for FormatTagList<'_> {
             let (color_owned, reset_owned);
             let (mut color, mut reset) = ("", "");
             if env().use_color() {
-                if let Some(rgb) = crate::tags::text_to_rgb(tag) {
+                if let Some(rgb) = pdm_ui_shared::colors::text_to_rgb(tag) {
                     (color_owned, reset_owned) = (
                         rgb.as_ansi().to_string(),
-                        crate::tags::TtyResetColor.to_string(),
+                        pdm_ui_shared::colors::TtyResetColor.to_string(),
                     );
                     color = &color_owned;
                     reset = &reset_owned;

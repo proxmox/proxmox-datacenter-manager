@@ -1,0 +1,11 @@
+[package]
+name = "pdm-ui-shared"
+description = "Proxmox Datacenter Manager shared ui modules"
+homepage = "https://www.proxmox.com"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

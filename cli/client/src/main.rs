@@ -21,7 +21,6 @@ pub mod pbs;
 pub mod pve;
 pub mod remotes;
 pub mod resources;
-pub mod tags;
 pub mod time;
 pub mod user;
 

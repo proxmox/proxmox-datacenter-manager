@@ -19,6 +19,7 @@ members = [
     "lib/pdm-api-types",
     "lib/pdm-client",
     "lib/pdm-config",
+    "lib/pdm-ui-shared",
 
     "cli/client",
     "cli/admin",
@@ -83,6 +84,7 @@ pdm-api-types = { path = "lib/pdm-api-types" }
 pdm-buildcfg = { path = "lib/pdm-buildcfg" }
 pdm-config = { path = "lib/pdm-config" }
 pdm-client = { path = "lib/pdm-client" }
+pdm-ui-shared = { path = "lib/pdm-ui-shared" }
 proxmox-fido2 = { path = "cli/proxmox-fido2" }
 
 # regular crates

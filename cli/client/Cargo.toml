@@ -31,6 +31,7 @@ pbs-api-types.workspace = true
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-client.workspace = true
+pdm-ui-shared.workspace = true
 
 proxmox-access-control.workspace = true
 proxmox-async.workspace = true
