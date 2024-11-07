@@ -64,7 +64,17 @@ impl Resource {
     }
 }
 
-#[api]
+#[api(
+    properties: {
+        tags: {
+            type: Array,
+            items: {
+                description: "A tag",
+                type: String,
+            }
+        }
+    }
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// QEMU VM resource on a PVE remote
@@ -91,13 +101,29 @@ pub struct PveQemuResource {
     pub pool: String,
     /// Current status
     pub status: String,
+    /// Tags
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Is template
+    pub template: bool,
     /// Guest uptime
     pub uptime: u64,
     /// VMID
     pub vmid: u32,
 }
 
-#[api]
+#[api(
+    properties: {
+        tags: {
+            type: Array,
+            items: {
+                description: "A tag",
+                type: String,
+            }
+        }
+    }
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// LXC container resource on a PVE remote
@@ -124,6 +150,12 @@ pub struct PveLxcResource {
     pub pool: String,
     /// Current status
     pub status: String,
+    /// Tags
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Is template
+    pub template: bool,
     /// Guest uptime
     pub uptime: u64,
     /// VMID

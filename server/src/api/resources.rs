@@ -568,6 +568,16 @@ fn map_pve_resource(remote: &str, resource: ClusterResource) -> Option<Resource>
             node: resource.node.unwrap_or_default(),
             pool: resource.pool.unwrap_or_default(),
             status: resource.status.unwrap_or_default(),
+            tags: resource
+                .tags
+                .map(|tags| {
+                    tags.as_str()
+                        .split(&[';', ',', ' '])
+                        .filter_map(|s| (!s.is_empty()).then_some(s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            template: resource.template.unwrap_or_default(),
             uptime: resource.uptime.unwrap_or_default() as u64,
             vmid: resource.vmid.unwrap_or_default(),
         })),
@@ -586,6 +596,16 @@ fn map_pve_resource(remote: &str, resource: ClusterResource) -> Option<Resource>
             node: resource.node.unwrap_or_default(),
             pool: resource.pool.unwrap_or_default(),
             status: resource.status.unwrap_or_default(),
+            tags: resource
+                .tags
+                .map(|tags| {
+                    tags.as_str()
+                        .split(&[';', ',', ' '])
+                        .filter_map(|s| (!s.is_empty()).then_some(s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            template: resource.template.unwrap_or_default(),
             uptime: resource.uptime.unwrap_or_default() as u64,
             vmid: resource.vmid.unwrap_or_default(),
         })),
