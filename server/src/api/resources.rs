@@ -537,9 +537,9 @@ async fn fetch_remote_resource(remote: Remote) -> Result<Vec<Resource>, Error> {
     Ok(resources)
 }
 
-fn map_pve_resource(remote: &str, resource: ClusterResource) -> Option<Resource> {
+pub(super) fn map_pve_node(remote: &str, resource: ClusterResource) -> Option<PveNodeResource> {
     match resource.ty {
-        ClusterResourceType::Node => Some(Resource::PveNode(PveNodeResource {
+        ClusterResourceType::Node => Some(PveNodeResource {
             cgroup_mode: resource.cgroup_mode.unwrap_or_default(),
             cpu: resource.cpu.unwrap_or_default(),
             maxcpu: resource.maxcpu.unwrap_or_default(),
@@ -552,8 +552,14 @@ fn map_pve_resource(remote: &str, resource: ClusterResource) -> Option<Resource>
             node: resource.node.unwrap_or_default(),
             uptime: resource.uptime.unwrap_or_default() as u64,
             status: resource.status.unwrap_or_default(),
-        })),
-        ClusterResourceType::Lxc => Some(Resource::PveLxc(PveLxcResource {
+        }),
+        _ => None,
+    }
+}
+
+pub(super) fn map_pve_lxc(remote: &str, resource: ClusterResource) -> Option<PveLxcResource> {
+    match resource.ty {
+        ClusterResourceType::Lxc => Some(PveLxcResource {
             cpu: resource.cpu.unwrap_or_default(),
             maxcpu: resource.maxcpu.unwrap_or_default(),
             disk: resource.disk.unwrap_or_default(),
@@ -580,8 +586,14 @@ fn map_pve_resource(remote: &str, resource: ClusterResource) -> Option<Resource>
             template: resource.template.unwrap_or_default(),
             uptime: resource.uptime.unwrap_or_default() as u64,
             vmid: resource.vmid.unwrap_or_default(),
-        })),
-        ClusterResourceType::Qemu => Some(Resource::PveQemu(PveQemuResource {
+        }),
+        _ => None,
+    }
+}
+
+pub(super) fn map_pve_qemu(remote: &str, resource: ClusterResource) -> Option<PveQemuResource> {
+    match resource.ty {
+        ClusterResourceType::Qemu => Some(PveQemuResource {
             cpu: resource.cpu.unwrap_or_default(),
             maxcpu: resource.maxcpu.unwrap_or_default(),
             disk: resource.disk.unwrap_or_default(),
@@ -608,15 +620,34 @@ fn map_pve_resource(remote: &str, resource: ClusterResource) -> Option<Resource>
             template: resource.template.unwrap_or_default(),
             uptime: resource.uptime.unwrap_or_default() as u64,
             vmid: resource.vmid.unwrap_or_default(),
-        })),
-        ClusterResourceType::Storage => Some(Resource::PveStorage(PveStorageResource {
+        }),
+        _ => None,
+    }
+}
+
+pub(super) fn map_pve_storage(
+    remote: &str,
+    resource: ClusterResource,
+) -> Option<PveStorageResource> {
+    match resource.ty {
+        ClusterResourceType::Storage => Some(PveStorageResource {
             disk: resource.disk.unwrap_or_default(),
             maxdisk: resource.maxdisk.unwrap_or_default(),
             id: format!("remote/{remote}/{}", &resource.id),
             storage: resource.storage.unwrap_or_default(),
             node: resource.node.unwrap_or_default(),
             status: resource.status.unwrap_or_default(),
-        })),
+        }),
+        _ => None,
+    }
+}
+
+fn map_pve_resource(remote: &str, resource: ClusterResource) -> Option<Resource> {
+    match resource.ty {
+        ClusterResourceType::Node => map_pve_node(remote, resource).map(Resource::PveNode),
+        ClusterResourceType::Lxc => map_pve_lxc(remote, resource).map(Resource::PveLxc),
+        ClusterResourceType::Qemu => map_pve_qemu(remote, resource).map(Resource::PveQemu),
+        ClusterResourceType::Storage => map_pve_storage(remote, resource).map(Resource::PveStorage),
         _ => None,
     }
 }

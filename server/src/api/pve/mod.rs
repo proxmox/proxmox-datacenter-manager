@@ -14,6 +14,7 @@ use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, REMOTE_ID_SCHEMA};
+use pdm_api_types::resource::PveResource;
 use pdm_api_types::{
     Authid, ConfigurationState, RemoteUpid, CIDR_FORMAT, HOST_OPTIONAL_PORT_FORMAT, NODE_SCHEMA,
     PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE, PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE,
@@ -21,7 +22,9 @@ use pdm_api_types::{
 };
 
 use pve_api_types::client::PveClient;
-use pve_api_types::{ClusterResourceKind, StartQemuMigrationType};
+use pve_api_types::{ClusterResourceKind, ClusterResourceType, StartQemuMigrationType};
+
+use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage};
 
 use crate::connection;
 
@@ -174,7 +177,7 @@ pub async fn list_nodes(
     returns: {
         type: Array,
         description: "List all the resources in a PVE cluster.",
-        items: { type: pve_api_types::ClusterResource },
+        items: { type: PveResource },
     },
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
@@ -187,12 +190,26 @@ pub async fn list_nodes(
 pub async fn cluster_resources(
     remote: String,
     kind: Option<ClusterResourceKind>,
-) -> Result<Vec<pve_api_types::ClusterResource>, Error> {
+) -> Result<Vec<PveResource>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
-    Ok(connect_to_remote(&remotes, &remote)?
+    let cluster_resources = connect_to_remote(&remotes, &remote)?
         .cluster_resources(kind)
-        .await?)
+        .await?
+        .into_iter()
+        .filter_map(|r| map_pve_resource(&remote, r));
+
+    Ok(cluster_resources.collect())
+}
+
+fn map_pve_resource(remote: &str, resource: pve_api_types::ClusterResource) -> Option<PveResource> {
+    match resource.ty {
+        ClusterResourceType::Node => map_pve_node(remote, resource).map(PveResource::Node),
+        ClusterResourceType::Lxc => map_pve_lxc(remote, resource).map(PveResource::Lxc),
+        ClusterResourceType::Qemu => map_pve_qemu(remote, resource).map(PveResource::Qemu),
+        ClusterResourceType::Storage => map_pve_storage(remote, resource).map(PveResource::Storage),
+        _ => None,
+    }
 }
 
 /// Common permission checks between listing qemu & lxc guests.

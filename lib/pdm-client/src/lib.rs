@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use pdm_api_types::resource::RemoteResources;
+use pdm_api_types::resource::{PveResource, RemoteResources};
 use pdm_api_types::rrddata::{
     LxcDataPoint, NodeDataPoint, PbsDatastoreDataPoint, PbsNodeDataPoint, QemuDataPoint,
 };
@@ -311,7 +311,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         remote: &str,
         kind: Option<pve_api_types::ClusterResourceKind>,
-    ) -> Result<Vec<pve_api_types::ClusterResource>, Error> {
+    ) -> Result<Vec<PveResource>, Error> {
         let mut query = format!("/api2/extjs/pve/remotes/{remote}/resources");
         add_query_arg(&mut query, &mut '?', "kind", &kind);
         Ok(self.0.get(&query).await?.expect_json()?.data)

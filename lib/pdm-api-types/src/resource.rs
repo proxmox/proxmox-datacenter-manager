@@ -65,6 +65,23 @@ impl Resource {
 }
 
 #[api(
+    "id-property": "id",
+    "id-schema": {
+        type: String,
+        description: "Resource ID",
+    },
+)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+#[serde(tag = "type")]
+pub enum PveResource {
+    Storage(PveStorageResource),
+    Qemu(PveQemuResource),
+    Lxc(PveLxcResource),
+    Node(PveNodeResource),
+}
+
+#[api(
     properties: {
         tags: {
             type: Array,
