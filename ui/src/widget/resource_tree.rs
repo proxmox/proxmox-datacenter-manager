@@ -13,12 +13,12 @@ use pwt::{
     state::{Selection, TreeStore},
     widget::{
         data_table::{DataTable, DataTableColumn, DataTableHeader},
-        ActionIcon, Column, Fa, Panel, Progress, Row, Tooltip,
+        ActionIcon, Column, Container, Fa, Panel, Progress, Row, Tooltip,
     },
 };
 use pwt_macros::{builder, widget};
 
-use proxmox_yew_comp::{http_get, GuestState, Status, StorageState};
+use proxmox_yew_comp::{http_get, Status};
 
 use pdm_api_types::resource::{RemoteResources, Resource};
 
@@ -251,21 +251,6 @@ impl Component for PdmResourceTree {
     }
 }
 
-fn get_type_and_icon(item: &PdmTreeEntry) -> (&'static str, &'static str) {
-    match item {
-        PdmTreeEntry::Root => ("root", ""),
-        PdmTreeEntry::Resource(_, resource) => match resource {
-            Resource::PveStorage(_) => ("pve-storage", "database"),
-            Resource::PveQemu(_) => ("qemu", "desktop"),
-            Resource::PveLxc(_) => ("lxc", "cubes"),
-            Resource::PveNode(_) => ("pve", "building"),
-            Resource::PbsNode(_) => ("pbs", "building"),
-            Resource::PbsDatastore(_) => ("pbs-datastore", "database"),
-        },
-        PdmTreeEntry::Remote(_, _) => ("remote", "server"),
-    }
-}
-
 fn find_remote<'a>(list: &'a RemoteList, id: &str) -> Option<&'a pdm_client::types::Remote> {
     list.iter().find(|remote| remote.id == id)
 }
@@ -280,72 +265,79 @@ fn columns(
             .tree_column(store)
             .flex(1)
             .render(|item: &PdmTreeEntry| {
-                let (_, icon) = get_type_and_icon(item);
-                let icon = Fa::new(icon).class("fa-fw").padding_end(2);
-
-                let text = match item {
-                    PdmTreeEntry::Root => String::from("root"),
-                    PdmTreeEntry::Resource(_, resource) => resource.id(),
-                    PdmTreeEntry::Remote(remote, _) => remote.clone(),
+                let (icon, text, tooltip) = match item {
+                    PdmTreeEntry::Root => (
+                        Container::new().with_child(Fa::new("server").fixed_width()),
+                        String::from("root"),
+                        None,
+                    ),
+                    PdmTreeEntry::Resource(_, resource) => match resource {
+                        Resource::PveNode(r) => (
+                            crate::pve::utils::render_node_status_icon(r),
+                            r.node.to_string(),
+                            None,
+                        ),
+                        Resource::PveQemu(r) => (
+                            crate::pve::utils::render_qemu_status_icon(r),
+                            crate::pve::utils::render_qemu_name(r, true),
+                            None,
+                        ),
+                        Resource::PveLxc(r) => (
+                            crate::pve::utils::render_lxc_status_icon(r),
+                            crate::pve::utils::render_lxc_name(r, true),
+                            None,
+                        ),
+                        Resource::PveStorage(r) => (
+                            crate::pve::utils::render_storage_status_icon(r),
+                            r.storage.to_string(),
+                            None,
+                        ),
+                        Resource::PbsNode(r) => (
+                            Container::new().with_child(Fa::new("building-o").fixed_width()),
+                            r.name.to_string(),
+                            None,
+                        ),
+                        Resource::PbsDatastore(r) => (
+                            Container::new().with_child(Fa::new("floppy-o").fixed_width()),
+                            r.name.to_string(),
+                            None,
+                        ),
+                    },
+                    PdmTreeEntry::Remote(remote, err) => (
+                        Container::new()
+                            .class("pdm-type-icon")
+                            .with_child(Fa::new("server").fixed_width())
+                            .with_optional_child(
+                                err.is_some().then_some(
+                                    Status::Error
+                                        .to_fa_icon()
+                                        .fixed_width()
+                                        .class("status-icon"),
+                                ),
+                            ),
+                        remote.clone(),
+                        err.as_ref().map(|err| err.to_string()),
+                    ),
                 };
-                html! {<>{icon}{text}</>}
+                Tooltip::new(Row::new().gap(4).with_child(icon).with_child(text))
+                    .tip(tooltip)
+                    .into()
             })
             .into(),
-        DataTableColumn::new(tr!("Name"))
+        DataTableColumn::new(tr!("Node"))
             .flex(2)
             .render(|item: &PdmTreeEntry| {
                 match item {
                     PdmTreeEntry::Root => "",
-                    PdmTreeEntry::Resource(_, resource) => resource.name(),
-                    PdmTreeEntry::Remote(remote, _) => remote,
+                    PdmTreeEntry::Resource(_, resource) => match resource {
+                        Resource::PveStorage(r) => &r.node,
+                        Resource::PveQemu(r) => &r.node,
+                        Resource::PveLxc(r) => &r.node,
+                        _ => "",
+                    },
+                    PdmTreeEntry::Remote(_, _) => "",
                 }
                 .into()
-            })
-            .into(),
-        DataTableColumn::new(tr!("Status"))
-            .justify("center")
-            .render(|item: &PdmTreeEntry| match item {
-                PdmTreeEntry::Root => html! {},
-                PdmTreeEntry::Resource(_, resource) => match &resource {
-                    Resource::PveStorage(r) => match r.status.as_str() {
-                        "available" => StorageState::Available,
-                        "unavailable" => StorageState::Unavailable,
-                        _ => StorageState::Unknown,
-                    }
-                    .to_fa_icon(),
-                    Resource::PveQemu(r) => match r.status.as_str() {
-                        "running" => GuestState::Running,
-                        "stopped" => GuestState::Stopped,
-                        _ => GuestState::Unknown,
-                    }
-                    .to_fa_icon(),
-                    Resource::PveLxc(r) => match r.status.as_str() {
-                        "running" => GuestState::Running,
-                        "stopped" => GuestState::Stopped,
-                        _ => GuestState::Unknown,
-                    }
-                    .to_fa_icon(),
-                    Resource::PveNode(r) => if r.uptime > 0 {
-                        Status::Success
-                    } else {
-                        Status::Error
-                    }
-                    .to_fa_icon(),
-                    Resource::PbsNode(r) => if r.uptime > 0 {
-                        Status::Success
-                    } else {
-                        Status::Error
-                    }
-                    .to_fa_icon(),
-                    Resource::PbsDatastore(_) => Fa::new(""),
-                }
-                .into(),
-                PdmTreeEntry::Remote(_, error) => match error {
-                    Some(err) => Tooltip::new(Status::Error.to_fa_icon())
-                        .tip(err.to_string())
-                        .into(),
-                    None => Status::Success.to_fa_icon().into(),
-                },
             })
             .into(),
         DataTableColumn::new("")

@@ -34,11 +34,15 @@ proxmox-rrd-api-types = "1"
 
 pdm-api-types = "0.1"
 pbs-api-types = "0.1"
+pdm-ui-shared = "0.1"
+
 pdm-client = "0.1"
 
 [patch.crates-io]
 pdm-api-types = { path = "../lib/pdm-api-types" }
 pbs-api-types = { path = "../lib/proxmox-backup/pbs-api-types" }
+pdm-ui-shared = { path = "../lib/pdm-ui-shared" }
+
 pdm-client = { path = "../lib/pdm-client" }
 proxmox-yew-comp = { path = "../../proxmox-yew-comp" }
 pwt = { path = "../../proxmox-yew-widget-toolkit" }

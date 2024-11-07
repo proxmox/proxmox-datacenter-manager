@@ -1,0 +1,25 @@
+// FIXME: better handling of status icons background?
+
+.pdm-type-icon {
+    position: relative;
+
+    .status-icon {
+        background-color: var(--pwt-color-background);
+        position: absolute;
+        right: -8px;
+        bottom: 0px;
+        font-size: 80%;
+    }
+}
+
+.pve-guest-icon {
+    position: relative;
+
+    .status-icon {
+        background-color: var(--pwt-color-background);
+        position: absolute;
+        right: -6px;
+        bottom: 1px;
+        font-size: 80%;
+    }
+}

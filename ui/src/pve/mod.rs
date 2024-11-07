@@ -11,6 +11,8 @@ use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_yew_comp::{RRDGraph, Series};
 use pwt::props::{ContainerBuilder, CssBorderBuilder, CssPaddingBuilder, WidgetBuilder};
 
+pub mod utils;
+
 #[derive(Debug, Eq, PartialEq, Properties)]
 pub struct PveRemote {
     remote: String,
