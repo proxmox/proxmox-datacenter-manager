@@ -11,6 +11,10 @@ use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_yew_comp::{RRDGraph, Series};
 use pwt::props::{ContainerBuilder, CssBorderBuilder, CssPaddingBuilder, WidgetBuilder};
 
+pub mod lxc;
+pub mod node;
+pub mod qemu;
+pub mod remote;
 pub mod utils;
 
 #[derive(Debug, Eq, PartialEq, Properties)]
