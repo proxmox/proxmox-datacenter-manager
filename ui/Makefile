@@ -46,7 +46,7 @@ dist/pdm_bundle.js: dist/pdm.js dist/pdm_bg.wasm
 	esbuild --bundle dist/pdm.js --format=esm >dist/pdm_bundle.js.tmp
 	mv dist/pdm_bundle.js.tmp dist/pdm_bundle.js
 
-dist/%.css: pwt-assets/scss/%.scss | dist
+dist/%.css: css/%.scss | dist
 	rust-grass $< $@
 
 install: $(COMPILED_OUTPUT) index.hbs
