@@ -23,3 +23,11 @@
         font-size: 80%;
     }
 }
+
+.pve-tags {
+    text-overflow: ellipsis;
+    .pve-tag {
+        border-radius: var(--pwt-button-corner-shape);
+        @include padding-level(2, "inline");
+    }
+}
