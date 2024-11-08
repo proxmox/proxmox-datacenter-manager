@@ -5,7 +5,7 @@ use yew::virtual_dom::{VComp, VNode};
 
 use pwt::css::FlexFit;
 use pwt::prelude::*;
-use pwt::widget::form::{Field, FormContext, InputType};
+use pwt::widget::form::{DisplayField, Field, FormContext, InputType};
 use pwt::widget::{Container, InputPanel};
 
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
@@ -55,7 +55,10 @@ impl Component for PdmEditRemote {
                 "/remotes/{}/config",
                 percent_encode_component(&props.remote_id)
             ))
-            .renderer(edit_remote_input_panel)
+            .renderer({
+                let remote_id = props.remote_id.clone();
+                move |form_ctx| edit_remote_input_panel(form_ctx, &remote_id)
+            })
             .on_submit({
                 let url = format!("/remotes/{}", percent_encode_component(&props.remote_id));
                 move |form_ctx: FormContext| {
@@ -70,12 +73,12 @@ impl Component for PdmEditRemote {
     }
 }
 
-fn edit_remote_input_panel(_form_ctx: &FormContext) -> Html {
+fn edit_remote_input_panel(_form_ctx: &FormContext, remote_id: &str) -> Html {
     InputPanel::new()
         .class(FlexFit)
         .padding(4)
         .width("auto")
-        .with_field(tr!("Remote ID"), Field::new().name("id").required(true))
+        .with_field(tr!("Remote ID"), DisplayField::new(remote_id.to_string()))
         .with_field(
             tr!("User/Token"),
             Field::new()
