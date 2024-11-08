@@ -6,11 +6,10 @@ use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::{self, Display, FlexFit};
 use pwt::prelude::*;
-use pwt::state::{Loader, Selection};
+use pwt::state::Selection;
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
 use pwt::widget::{Container, Panel, Row, SelectionView, SelectionViewRenderInfo};
 
-use proxmox_yew_comp::common_api_types::TaskListItem;
 use proxmox_yew_comp::{NotesView, XTermJs};
 
 use pdm_api_types::remotes::RemoteType;
@@ -36,16 +35,14 @@ use pwt_macros::builder;
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
 pub struct MainMenu {
-    running_tasks: Loader<Vec<TaskListItem>>,
-
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
     pub username: Option<String>,
 }
 
 impl MainMenu {
-    pub fn new(running_tasks: Loader<Vec<TaskListItem>>) -> Self {
-        yew::props!(Self { running_tasks })
+    pub fn new() -> Self {
+        yew::props!(Self {})
     }
 }
 

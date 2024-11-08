@@ -239,9 +239,7 @@ impl Component for DatacenterManagerApp {
             )
             .with_child({
                 let main_view: Html = if self.login_info.is_some() && !loading {
-                    MainMenu::new(self.running_tasks.clone())
-                        .username(username.clone())
-                        .into()
+                    MainMenu::new().username(username.clone()).into()
                 } else {
                     Dialog::new(tr!("Proxmox Datacenter Manager Login"))
                         .with_child(
