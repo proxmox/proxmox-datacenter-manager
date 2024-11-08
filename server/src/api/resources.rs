@@ -448,10 +448,10 @@ async fn get_resources_for_remote(remote: Remote, max_age: u64) -> Result<Vec<Re
     if let Some(cached_resource) = get_cached_resources(&remote_name, max_age) {
         Ok(cached_resource.resources)
     } else {
-        fetch_remote_resource(remote).await.inspect(|resources| {
-            let now = proxmox_time::epoch_i64();
-            update_cached_resources(&remote_name, resources, now);
-        })
+        let resources = fetch_remote_resource(remote).await?;
+        let now = proxmox_time::epoch_i64();
+        update_cached_resources(&remote_name, &resources, now);
+        Ok(resources)
     }
 }
 
@@ -483,26 +483,19 @@ fn update_cached_resources(remote: &str, resources: &[Resource], now: i64) {
     let mut cache = CACHE.write().expect("mutex poisoned");
 
     if let Some(cached_resource) = cache.get(remote) {
-        // There *could* be a more recent value in the cache already, e.g.
-        // if we had to wait for the lock too long.
-        if cached_resource.timestamp < now {
-            cache.insert(
-                remote.into(),
-                CachedResources {
-                    timestamp: now,
-                    resources: resources.into(),
-                },
-            );
+        // skip updating if existing data is newer
+        if cached_resource.timestamp >= now {
+            return;
         }
-    } else {
-        cache.insert(
-            remote.into(),
-            CachedResources {
-                timestamp: now,
-                resources: resources.into(),
-            },
-        );
     }
+
+    cache.insert(
+        remote.into(),
+        CachedResources {
+            timestamp: now,
+            resources: resources.into(),
+        },
+    );
 }
 
 /// Fetch remote resources and map to pdm-native data types.
