@@ -122,7 +122,7 @@ thread_local! {
     static COLUMNS: Rc<Vec<DataTableHeader<SnapshotListItem>>> = {
         Rc::new(
         vec![DataTableColumn::new(tr!("Backup Dir"))
-            .width("200px")
+            .flex(1)
             .render(|item: &SnapshotListItem| html! { &item.backup.to_string() })
             .sorter(|a: &SnapshotListItem, b: &SnapshotListItem| a.backup.cmp(&b.backup))
             .sort_order(true)

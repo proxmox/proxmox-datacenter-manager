@@ -9,7 +9,7 @@ use yew::Html;
 use yew::Properties;
 
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
-use pwt::css::Flex;
+use pwt::css::FlexFit;
 use pwt::props::{ContainerBuilder, WidgetBuilder};
 use pwt::state::{NavigationContainer, Selection, Store};
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
@@ -98,7 +98,9 @@ impl LoadableComponent for PbsDatastoreMenu {
         let scope = ctx.link().clone();
         let props = ctx.props();
 
-        let mut content = SelectionView::new().selection(self.selection.clone());
+        let mut content = SelectionView::new()
+            .class(FlexFit)
+            .selection(self.selection.clone());
 
         let mut menu = Menu::new();
 
@@ -131,7 +133,7 @@ impl LoadableComponent for PbsDatastoreMenu {
         NavigationContainer::new()
             .with_child(
                 SplitPane::new()
-                    .class(Flex::Fill)
+                    .class(FlexFit)
                     .with_child(Pane::new(drawer).size(None))
                     .with_child(Pane::new(content).flex(1)),
             )
