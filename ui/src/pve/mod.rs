@@ -94,6 +94,7 @@ pub enum Msg {
 }
 
 pub struct PveRemoteComp {
+    columns: Rc<Vec<DataTableHeader<PveTreeNode>>>,
     nodes: Vec<String>,
     store: TreeStore<PveTreeNode>,
     view_selection: Selection,
@@ -123,6 +124,7 @@ impl LoadableComponent for PveRemoteComp {
             .task_base_url(format!("/pve/remotes/{}/tasks", ctx.props().remote));
 
         Self {
+            columns: columns(ctx, store.clone()),
             nodes: Vec::new(),
             loaded: false,
             store,
@@ -334,7 +336,7 @@ impl LoadableComponent for PveRemoteComp {
             }
         };
 
-        let nav = DataTable::new(columns(ctx, self.store.clone()), self.store.clone())
+        let nav = DataTable::new(Rc::clone(&self.columns), self.store.clone())
             .selection(self.view_selection.clone())
             .striped(false)
             .borderless(true)
