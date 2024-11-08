@@ -44,7 +44,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     input: {
         properties: {
             "max-age": {
-                description: "Maximum age of cached remote resources.",
+                description: "Maximum age (in seconds) of cached remote resources.",
                 // TODO: What is a sensible default max-age?
                 default: 30,
                 optional: true,
@@ -117,7 +117,7 @@ pub async fn get_resources(
     input: {
         properties: {
             "max-age": {
-                description: "Maximum age of cached remote resources.",
+                description: "Maximum age (in seconds) of cached remote resources.",
                 // TODO: What is a sensible default max-age?
                 default: 30,
                 optional: true,
