@@ -52,7 +52,7 @@ pub struct PdmDashboard {
     loading: bool,
     remote_list: RemoteList,
     _context_listener: ContextHandle<RemoteList>,
-    async_pool: AsyncPool,
+    _async_pool: AsyncPool,
 }
 
 impl PdmDashboard {
@@ -181,7 +181,7 @@ impl Component for PdmDashboard {
             loading: true,
             remote_list,
             _context_listener,
-            async_pool,
+            _async_pool: async_pool,
         }
     }
 
