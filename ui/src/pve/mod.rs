@@ -2,12 +2,15 @@ use core::convert::From;
 use std::rc::Rc;
 
 use gloo_utils::window;
+use web_sys::Url;
 use yew::{
     prelude::Html,
     virtual_dom::{Key, VComp, VNode},
 };
 
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use proxmox_yew_comp::{
+    LoadableComponent, LoadableComponentContext, LoadableComponentLink, LoadableComponentMaster,
+};
 use pwt::css::{AlignItems, ColorScheme, FlexFit, JustifyContent};
 use pwt::props::{ContainerBuilder, CssBorderBuilder, ExtractPrimaryKey, WidgetBuilder};
 use pwt::state::{KeyedSlabTree, Selection, TreeStore};
@@ -124,8 +127,23 @@ impl LoadableComponent for PveRemoteComp {
         link.task_base_url(format!("/pve/remotes/{}/tasks", ctx.props().remote));
         link.repeated_load(3000);
 
+        let remote = get_remote(link.yew_link(), &ctx.props().remote);
+        let remote_base_url = remote.and_then(|remote| {
+            remote.nodes.first().and_then(|node| {
+                let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
+                if let Ok(url) = url {
+                    if url.port() == "" {
+                        url.set_port("8006");
+                    }
+                    Some(url)
+                } else {
+                    None
+                }
+            })
+        });
+
         Self {
-            columns: columns(ctx, store.clone()),
+            columns: columns(link, store.clone(), remote_base_url.clone()),
             nodes: Vec::new(),
             loaded: false,
             store,
@@ -449,34 +467,17 @@ fn create_empty_node(node_id: String) -> PveTreeNode {
 }
 
 fn columns(
-    ctx: &LoadableComponentContext<PveRemoteComp>,
+    link: LoadableComponentLink<PveRemoteComp>,
     store: TreeStore<PveTreeNode>,
+    remote_base_url: Option<Url>,
 ) -> Rc<Vec<DataTableHeader<PveTreeNode>>> {
-    let link = ctx.link().clone();
-    let remote = get_remote(link.yew_link(), &ctx.props().remote);
-    let base_url = remote.and_then(|remote| {
-        remote.nodes.first().and_then(|node| {
-            let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
-            if let Ok(url) = url {
-                if url.port() == "" {
-                    url.set_port("8006");
-                }
-                Some(url)
-            } else {
-                None
-            }
-        })
-    });
-
-    let last_err = ctx.last_load_errors().is_some();
-
     Rc::new(vec![
         DataTableColumn::new("Type/ID")
             .flex(1)
             .tree_column(store)
             .render(move |entry: &PveTreeNode| {
                 let el = match entry {
-                    PveTreeNode::Root(false) if !last_err => Row::new()
+                    PveTreeNode::Root(false) => Row::new()
                         .class(AlignItems::Center)
                         .gap(4)
                         .with_child(Container::from_tag("i").class("pwt-loading-icon"))
@@ -558,7 +559,7 @@ fn columns(
                             })
                             .class(ColorScheme::Success)
                     }))
-                    .with_optional_child(base_url.clone().map(|url| {
+                    .with_optional_child(remote_base_url.clone().map(|url| {
                         ActionIcon::new("fa fa-chevron-right").on_activate(move |()| {
                             url.set_hash(&format!("v1::={local_id}"));
                             let _ = window().open_with_url(&url.href());
