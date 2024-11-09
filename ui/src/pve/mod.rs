@@ -114,14 +114,15 @@ impl LoadableComponent for PveRemoteComp {
         let store = TreeStore::new();
         store.write().update_root_tree(tree);
 
+        let link = ctx.link();
+
         let view_selection = Selection::new().on_select(
-            ctx.link()
-                .callback(|selection: Selection| Msg::SelectedView(selection.selected_key())),
+            link.callback(|selection: Selection| Msg::SelectedView(selection.selected_key())),
         );
         view_selection.select(Key::from("__root__"));
 
-        ctx.link()
-            .task_base_url(format!("/pve/remotes/{}/tasks", ctx.props().remote));
+        link.task_base_url(format!("/pve/remotes/{}/tasks", ctx.props().remote));
+        link.repeated_load(3000);
 
         Self {
             columns: columns(ctx, store.clone()),
