@@ -88,38 +88,28 @@ impl DatacenterManagerApp {
     }
 
     fn update_remotes(&mut self, ctx: &Context<Self>, result: MsgRemoteList) -> bool {
-        match result {
-            Err(_) if self.remote_list.is_err() => false,
+        let changed = match result {
             Err(err) => {
                 self.remote_list = Err(err);
                 true
             }
-            Ok(list) => {
-                self.remote_list_timeout = Self::poll_remote_list(ctx, false);
-                match &self.remote_list {
-                    Err(_) => {
+            Ok(list) => match &self.remote_list {
+                Err(_) => {
+                    self.remote_list = Ok(list);
+                    true
+                }
+                Ok(old) => {
+                    if old != &list {
                         self.remote_list = Ok(list);
                         true
-                    }
-                    Ok(old) if list.len() != old.len() => {
-                        self.remote_list = Ok(list);
-                        true
-                    }
-                    Ok(old) => {
-                        if old
-                            .iter()
-                            .zip(list.iter())
-                            .any(|(a, b)| a.id != b.id || a.ty != b.ty)
-                        {
-                            self.remote_list = Ok(list);
-                            true
-                        } else {
-                            false
-                        }
+                    } else {
+                        false
                     }
                 }
-            }
-        }
+            },
+        };
+        self.remote_list_timeout = Self::poll_remote_list(ctx, false);
+        changed
     }
 
     fn poll_remote_list(ctx: &Context<Self>, first: bool) -> Option<Timeout> {
