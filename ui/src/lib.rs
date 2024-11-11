@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 mod administration;
 
 pub use administration::ServerAdministration;
@@ -29,8 +31,8 @@ pub fn pdm_client() -> pdm_client::PdmClient<std::rc::Rc<proxmox_yew_comp::HttpC
     pdm_client::PdmClient(proxmox_yew_comp::CLIENT.with(|c| std::rc::Rc::clone(&c.borrow())))
 }
 
-#[derive(Clone, Default, PartialEq)]
-pub struct RemoteList(Vec<pdm_client::types::Remote>);
+#[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct RemoteList(pub Vec<pdm_client::types::Remote>);
 
 impl From<Vec<pdm_client::types::Remote>> for RemoteList {
     fn from(value: Vec<pdm_client::types::Remote>) -> Self {

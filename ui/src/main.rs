@@ -5,7 +5,7 @@ use gloo_timers::callback::Timeout;
 use yew::prelude::*;
 
 use pwt::prelude::*;
-use pwt::state::Loader;
+use pwt::state::{Loader, PersistentState};
 use pwt::widget::{Column, DesktopApp, Dialog, Mask};
 
 use proxmox_login::Authentication;
@@ -19,7 +19,7 @@ use proxmox_yew_comp::{
 use pdm::{MainMenu, RemoteList, TopNavBar};
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 
-type MsgRemoteList = Result<Vec<pdm_client::types::Remote>, Error>;
+type MsgRemoteList = Result<RemoteList, Error>;
 
 enum Msg {
     ConfirmSubscription,
@@ -38,7 +38,8 @@ struct DatacenterManagerApp {
     show_subscription_alert: Option<bool>,
     running_tasks: Loader<Vec<TaskListItem>>,
     running_tasks_timeout: Option<Timeout>,
-    remote_list: MsgRemoteList,
+    remote_list: PersistentState<RemoteList>,
+    remote_list_error: Option<String>,
     remote_list_timeout: Option<Timeout>,
 }
 
@@ -88,28 +89,19 @@ impl DatacenterManagerApp {
     }
 
     fn update_remotes(&mut self, ctx: &Context<Self>, result: MsgRemoteList) -> bool {
-        let changed = match result {
+        self.remote_list_timeout = Self::poll_remote_list(ctx, false);
+        match result {
             Err(err) => {
-                self.remote_list = Err(err);
+                self.remote_list_error = Some(err.to_string());
+                // do not touch remote_list data
                 true
             }
-            Ok(list) => match &self.remote_list {
-                Err(_) => {
-                    self.remote_list = Ok(list);
-                    true
-                }
-                Ok(old) => {
-                    if old != &list {
-                        self.remote_list = Ok(list);
-                        true
-                    } else {
-                        false
-                    }
-                }
-            },
-        };
-        self.remote_list_timeout = Self::poll_remote_list(ctx, false);
-        changed
+            Ok(list) => {
+                self.remote_list_error = None;
+                self.remote_list.update(list);
+                true
+            }
+        }
     }
 
     fn poll_remote_list(ctx: &Context<Self>, first: bool) -> Option<Timeout> {
@@ -120,10 +112,10 @@ impl DatacenterManagerApp {
         Some(timeout)
     }
 
-    async fn get_remote_list() -> Result<Vec<pdm_client::types::Remote>, Error> {
+    async fn get_remote_list() -> Result<RemoteList, Error> {
         let mut list = pdm::pdm_client().list_remotes().await?;
         list.sort_by(|a, b| a.id.cmp(&b.id));
-        Ok(list)
+        Ok(RemoteList(list))
     }
 }
 
@@ -150,7 +142,8 @@ impl Component for DatacenterManagerApp {
             show_subscription_alert: None,
             running_tasks,
             running_tasks_timeout: None,
-            remote_list: Ok(Vec::new()),
+            remote_list: PersistentState::new("PdmRemoteList"),
+            remote_list_error: None,
             remote_list_timeout: None,
         };
 
@@ -214,11 +207,6 @@ impl Component for DatacenterManagerApp {
             )
         });
 
-        let remote_list = match &self.remote_list {
-            Ok(list) => list.clone(),
-            Err(_) => Vec::new(),
-        };
-
         let username = self.login_info.as_ref().map(|info| info.userid.to_owned());
         let body = Column::new()
             .class("pwt-viewport")
@@ -241,7 +229,7 @@ impl Component for DatacenterManagerApp {
             })
             .with_optional_child(subscription_alert);
 
-        let context = RemoteList::from(remote_list);
+        let context = self.remote_list.clone();
 
         DesktopApp::new(
             html! {<ContextProvider<RemoteList> {context}>{body}</ContextProvider<RemoteList>>},
