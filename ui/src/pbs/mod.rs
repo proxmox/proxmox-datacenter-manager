@@ -130,7 +130,7 @@ impl LoadableComponent for PbsDatastoreMenu {
             .aria_label("PBS Datastore Menu")
             .class("pwt-border-end")
             .router(true)
-            .default_active(self.active.to_string())
+            // .default_active(self.active.to_string())
             .selection(self.selection.clone())
             .on_select(Callback::from(move |id: Option<Key>| {
                 let id = id.unwrap_or_else(|| Key::from(""));
