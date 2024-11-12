@@ -38,6 +38,13 @@ pub struct MainMenu {
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
     pub username: Option<AttrValue>,
+
+    /// If set, add a loading indicator to the remote menu.
+    ///
+    /// Just to indicate that the remote list may not be up to date.
+    #[builder(IntoPropValue, into_prop_value)]
+    #[prop_or_default]
+    pub remote_list_loading: bool,
 }
 
 impl MainMenu {
@@ -127,6 +134,7 @@ impl Component for PdmMainMenu {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let scope = ctx.link().clone();
+        let props = ctx.props();
 
         let mut content = SelectionView::new()
             .class(FlexFit)
@@ -247,7 +255,11 @@ impl Component for PdmMainMenu {
             &mut content,
             tr!("Remotes"),
             "remotes",
-            Some("fa fa-server"),
+            Some(if props.remote_list_loading {
+                "fa fa-fw pwt-loading-icon"
+            } else {
+                "fa fa-server"
+            }),
             |_| RemoteConfigPanel::new().into(),
             remote_submenu,
         );
