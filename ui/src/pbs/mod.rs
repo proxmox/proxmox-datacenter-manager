@@ -11,7 +11,7 @@ use yew::Properties;
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 use pwt::css::FlexFit;
 use pwt::props::{ContainerBuilder, WidgetBuilder};
-use pwt::state::{NavigationContainer, Selection};
+use pwt::state::{NavigationContainer, PersistentState, Selection};
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
 use pwt::widget::{Pane, SplitPane};
 use pwt::widget::{SelectionView, SelectionViewRenderInfo};
@@ -40,7 +40,7 @@ impl Into<VNode> for DatastoreMenu {
 }
 
 pub struct PbsDatastoreMenu {
-    store: Vec<DataStoreConfig>,
+    datastore_list: PersistentState<Vec<DataStoreConfig>>,
     active: Key,
     selection: Selection,
 }
@@ -73,11 +73,12 @@ impl LoadableComponent for PbsDatastoreMenu {
     }
 
     fn create(ctx: &LoadableComponentContext<Self>) -> Self {
+        let props = ctx.props();
         let link = ctx.link();
         link.repeated_load(3000);
 
         Self {
-            store: Vec::new(),
+            datastore_list: PersistentState::new(&format!("PdmPbsDatastoreList-{}", props.remote)),
             selection: Selection::new(),
             active: Key::from(""),
         }
@@ -90,7 +91,7 @@ impl LoadableComponent for PbsDatastoreMenu {
                 true
             }
             Msg::UpdateDatastoreList(list) => {
-                self.store = list;
+                self.datastore_list.update(list);
                 true
             }
         }
@@ -110,7 +111,7 @@ impl LoadableComponent for PbsDatastoreMenu {
 
         let mut menu = Menu::new();
 
-        for datastore in self.store.iter() {
+        for datastore in self.datastore_list.iter() {
             register_view(
                 &mut menu,
                 &mut content,
