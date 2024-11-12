@@ -22,7 +22,7 @@ use proxmox_yew_comp::{AptPackageManager, AptRepositories, ExistingProduct, Sysl
 pub struct ServerAdministration {
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
-    pub username: Option<String>,
+    pub username: Option<AttrValue>,
 }
 
 impl ServerAdministration {

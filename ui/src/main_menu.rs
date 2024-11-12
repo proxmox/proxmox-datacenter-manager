@@ -37,7 +37,7 @@ use pwt_macros::builder;
 pub struct MainMenu {
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
-    pub username: Option<String>,
+    pub username: Option<AttrValue>,
 }
 
 impl MainMenu {
