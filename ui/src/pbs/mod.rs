@@ -11,7 +11,7 @@ use yew::Properties;
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 use pwt::css::FlexFit;
 use pwt::props::{ContainerBuilder, WidgetBuilder};
-use pwt::state::{NavigationContainer, Selection, Store};
+use pwt::state::{NavigationContainer, Selection};
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
 use pwt::widget::{Pane, SplitPane};
 use pwt::widget::{SelectionView, SelectionViewRenderInfo};
@@ -40,13 +40,14 @@ impl Into<VNode> for DatastoreMenu {
 }
 
 pub struct PbsDatastoreMenu {
-    store: Store<DataStoreConfig>,
+    store: Vec<DataStoreConfig>,
     active: Key,
     selection: Selection,
 }
 
 pub enum Msg {
     Select(Key),
+    UpdateDatastoreList(Vec<DataStoreConfig>),
 }
 
 #[derive(PartialEq)]
@@ -62,20 +63,18 @@ impl LoadableComponent for PbsDatastoreMenu {
         ctx: &LoadableComponentContext<Self>,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
         let remote = ctx.props().remote.clone();
-        let store = self.store.clone();
+        let link = ctx.link();
         Box::pin(async move {
-            let data = crate::pdm_client().pbs_list_datastores(&remote).await?;
-            store.write().set_data(data);
+            let mut data = crate::pdm_client().pbs_list_datastores(&remote).await?;
+            data.sort_by(|a, b| a.name.cmp(&b.name));
+            link.send_message(Msg::UpdateDatastoreList(data));
             Ok(())
         })
     }
 
     fn create(_ctx: &LoadableComponentContext<Self>) -> Self {
-        let store =
-            Store::with_extract_key(|record: &DataStoreConfig| Key::from(record.name.clone()));
-
         Self {
-            store,
+            store: Vec::new(),
             selection: Selection::new(),
             active: Key::from(""),
         }
@@ -85,6 +84,10 @@ impl LoadableComponent for PbsDatastoreMenu {
         match msg {
             Msg::Select(key) => {
                 self.active = key;
+                true
+            }
+            Msg::UpdateDatastoreList(list) => {
+                self.store = list;
                 true
             }
         }
@@ -104,7 +107,7 @@ impl LoadableComponent for PbsDatastoreMenu {
 
         let mut menu = Menu::new();
 
-        for datastore in self.store.read().data() {
+        for datastore in self.store.iter() {
             register_view(
                 &mut menu,
                 &mut content,
