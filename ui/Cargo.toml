@@ -26,7 +26,7 @@ web-sys = { version = "0.3", features = ["Location"] }
 pwt = "0.3"
 pwt-macros = "0.1"
 
-proxmox-yew-comp = "0.2"
+proxmox-yew-comp = { version = "0.2", features = ["apt", "dns", "network", "rrd"] }
 
 proxmox-client = "0.5"
 proxmox-human-byte = "0.1.3"
