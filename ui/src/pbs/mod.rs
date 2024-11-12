@@ -72,7 +72,10 @@ impl LoadableComponent for PbsDatastoreMenu {
         })
     }
 
-    fn create(_ctx: &LoadableComponentContext<Self>) -> Self {
+    fn create(ctx: &LoadableComponentContext<Self>) -> Self {
+        let link = ctx.link();
+        link.repeated_load(3000);
+
         Self {
             store: Vec::new(),
             selection: Selection::new(),
