@@ -1,12 +1,14 @@
 use std::rc::Rc;
 
+use serde::{Deserialize, Serialize};
+
 use html::IntoPropValue;
 use wasm_bindgen::UnwrapThrowExt;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::{self, Display, FlexFit};
 use pwt::prelude::*;
-use pwt::state::Selection;
+use pwt::state::{PersistentState, Selection};
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
 use pwt::widget::{Container, Panel, Row, SelectionView, SelectionViewRenderInfo};
 
@@ -58,10 +60,16 @@ pub enum Msg {
     RemoteListChanged(RemoteList),
 }
 
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+struct RemoteListCacheEntry {
+    ty: RemoteType,
+    id: String,
+}
+
 pub struct PdmMainMenu {
     active: Key,
     menu_selection: Selection,
-    remote_list: RemoteList,
+    remote_list_cache: PersistentState<Vec<RemoteListCacheEntry>>,
     _remote_list_observer: ContextHandle<RemoteList>,
 }
 
@@ -106,14 +114,14 @@ impl Component for PdmMainMenu {
     type Properties = MainMenu;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (remote_list, _remote_list_observer) = ctx
+        let (_remote_list, _remote_list_observer) = ctx
             .link()
             .context(ctx.link().callback(Msg::RemoteListChanged))
             .unwrap_throw();
         Self {
             active: Key::from("dashboard"),
             menu_selection: Selection::new(),
-            remote_list,
+            remote_list_cache: PersistentState::new("PdmRemoteListCache"),
             _remote_list_observer,
         }
     }
@@ -125,9 +133,20 @@ impl Component for PdmMainMenu {
                 true
             }
             Msg::RemoteListChanged(remote_list) => {
-                let changed = self.remote_list != remote_list;
-                self.remote_list = remote_list;
-                changed
+                let remote_list_cache: Vec<RemoteListCacheEntry> = remote_list
+                    .into_iter()
+                    .map(|item| RemoteListCacheEntry {
+                        id: item.id.clone(),
+                        ty: item.ty,
+                    })
+                    .collect();
+
+                if *self.remote_list_cache != remote_list_cache {
+                    self.remote_list_cache.update(remote_list_cache);
+                    true
+                } else {
+                    false
+                }
             }
         }
     }
@@ -233,7 +252,7 @@ impl Component for PdmMainMenu {
 
         let mut remote_submenu = Menu::new();
 
-        for remote in self.remote_list.iter() {
+        for remote in self.remote_list_cache.iter() {
             register_view(
                 &mut remote_submenu,
                 &mut content,

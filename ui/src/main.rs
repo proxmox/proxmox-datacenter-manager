@@ -5,7 +5,7 @@ use gloo_timers::callback::Timeout;
 use yew::prelude::*;
 
 use pwt::prelude::*;
-use pwt::state::{Loader, PersistentState};
+use pwt::state::Loader;
 use pwt::widget::{Column, DesktopApp, Dialog, Mask};
 
 use proxmox_login::Authentication;
@@ -38,7 +38,7 @@ struct DatacenterManagerApp {
     show_subscription_alert: Option<bool>,
     running_tasks: Loader<Vec<TaskListItem>>,
     running_tasks_timeout: Option<Timeout>,
-    remote_list: PersistentState<RemoteList>,
+    remote_list: RemoteList,
     remote_list_error: Option<String>,
     remote_list_timeout: Option<Timeout>,
 }
@@ -98,7 +98,7 @@ impl DatacenterManagerApp {
             }
             Ok(list) => {
                 self.remote_list_error = None;
-                self.remote_list.update(list);
+                self.remote_list = list;
                 true
             }
         }
@@ -142,7 +142,7 @@ impl Component for DatacenterManagerApp {
             show_subscription_alert: None,
             running_tasks,
             running_tasks_timeout: None,
-            remote_list: PersistentState::new("PdmRemoteList"),
+            remote_list: Vec::new().into(),
             remote_list_error: None,
             remote_list_timeout: None,
         };
