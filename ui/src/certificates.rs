@@ -1,4 +1,5 @@
 use pwt::prelude::*;
+use pwt::props::StorageLocation;
 use pwt::state::NavigationContainer;
 use pwt::widget::{MiniScrollMode, TabBarItem, TabPanel};
 
@@ -9,7 +10,7 @@ use proxmox_yew_comp::acme::{
 #[function_component(CertificatesPanel)]
 pub fn certificates_panel() -> Html {
     let panel = TabPanel::new()
-        .state_id("*CertificatesState")
+        .state_id(StorageLocation::session("CertificatesState"))
         .class("pwt-flex-fit")
         .title("Certificates")
         .router(true)

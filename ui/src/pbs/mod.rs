@@ -78,7 +78,7 @@ impl LoadableComponent for PbsDatastoreMenu {
         link.repeated_load(3000);
 
         Self {
-            datastore_list: PersistentState::new(&format!("PdmPbsDatastoreList-{}", props.remote)),
+            datastore_list: PersistentState::new(format!("PdmPbsDatastoreList-{}", props.remote)),
             selection: Selection::new(),
             active: Key::from(""),
         }

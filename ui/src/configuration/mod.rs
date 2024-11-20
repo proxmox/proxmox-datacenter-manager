@@ -1,4 +1,5 @@
 use pwt::prelude::*;
+use pwt::props::StorageLocation;
 use pwt::state::NavigationContainer;
 use pwt::widget::{Column, MiniScrollMode, Panel, TabBarItem, TabPanel};
 
@@ -13,7 +14,7 @@ pub use other::OtherPanel;
 #[function_component(SystemConfiguration)]
 pub fn system_configuration() -> Html {
     let panel = TabPanel::new()
-        .state_id("*SystemConfigurationState")
+        .state_id(StorageLocation::session("SystemConfigurationState"))
         .title(tr!("Configuration") + ": " + &tr!("System"))
         .class("pwt-flex-fit")
         .router(true)
@@ -39,7 +40,7 @@ pub fn system_configuration() -> Html {
 #[function_component(AccessControl)]
 pub fn access_control() -> Html {
     let panel = TabPanel::new()
-        .state_id("*AccessControlState")
+        .state_id(StorageLocation::session("AccessControlState"))
         .title(tr!("Configuration") + ": " + &tr!("Access Control"))
         .class("pwt-flex-fit")
         .router(true)

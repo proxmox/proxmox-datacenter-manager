@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use html::IntoPropValue;
 use pwt::prelude::*;
+use pwt::props::StorageLocation;
 use yew::virtual_dom::{VComp, VNode};
 
 use pwt::state::NavigationContainer;
@@ -45,7 +46,7 @@ impl Component for PdmServerAdministration {
         let enable_upgrade = ctx.props().username.as_deref() == Some("root@pam");
 
         let panel = TabPanel::new()
-            .state_id("*ServerAdministrationState")
+            .state_id(StorageLocation::session("ServerAdministrationState"))
             .class("pwt-flex-fill pwt-overflow-auto")
             .title("Server Administration")
             .router(true)
