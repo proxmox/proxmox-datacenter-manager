@@ -133,8 +133,8 @@ pub trait ClientFactory {
 
     /// Create a new API client for PVE remotes.
     ///
-    /// In case the remote has a user configured (instead of an API token), it will connect and get a
-    /// ticket, so that further connections are properly authenticated. Otherwise it behaves
+    /// In case the remote has a user configured (instead of an API token), it will connect and get
+    /// a ticket, so that further connections are properly authenticated. Otherwise it behaves
     /// identically as [`make_pve_client`].
     ///
     /// This is intended for API calls that accept a user in addition to tokens.
@@ -147,8 +147,8 @@ pub trait ClientFactory {
 
     /// Create a new API client for PBS remotes.
     ///
-    /// In case the remote has a user configured (instead of an API token), it will connect and get a
-    /// ticket, so that further connections are properly authenticated. Otherwise it behaves
+    /// In case the remote has a user configured (instead of an API token), it will connect and get
+    /// a ticket, so that further connections are properly authenticated. Otherwise it behaves
     /// identically as [`make_pbs_client`].
     ///
     /// This is intended for API calls that accept a user in addition to tokens.
