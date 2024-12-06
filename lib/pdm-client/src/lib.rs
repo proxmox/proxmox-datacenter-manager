@@ -22,6 +22,8 @@ pub mod types {
 
     pub use pdm_api_types::remotes::Remote;
     pub use pdm_api_types::{AclListItem, Authid, ConfigurationState, RemoteUpid};
+
+    pub use pve_api_types::{IsRunning, LxcStatus, QemuStatus};
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -350,6 +352,30 @@ impl<T: HttpApiClient> PdmClient<T> {
         add_query_arg(&mut path, &mut sep, "state", &Some(&state));
         add_query_arg(&mut path, &mut sep, "node", &node);
         add_query_arg(&mut path, &mut sep, "snapshot", &snapshot);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_qemu_status(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+    ) -> Result<pve_api_types::QemuStatus, Error> {
+        let mut path = format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/status");
+        let mut sep = '?';
+        add_query_arg(&mut path, &mut sep, "node", &node);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_lxc_status(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+    ) -> Result<pve_api_types::LxcStatus, Error> {
+        let mut path = format!("/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/status");
+        let mut sep = '?';
+        add_query_arg(&mut path, &mut sep, "node", &node);
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
