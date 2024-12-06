@@ -25,6 +25,8 @@ pub mod types {
 
     pub use pve_api_types::{ListNetworksType, NetworkInterface, NetworkInterfaceType};
 
+    pub use pve_api_types::{StorageContent, StorageInfo};
+
     pub use pve_api_types::{IsRunning, LxcStatus, QemuStatus};
 }
 
@@ -744,6 +746,30 @@ impl<T: HttpApiClient> PdmClient<T> {
         let mut path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/network");
         let mut sep = '?';
         add_query_arg(&mut path, &mut sep, "interface-type", &interface_type);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_list_storages(
+        &self,
+        remote: &str,
+        node: &str,
+        content: Option<Vec<StorageContent>>,
+        enabled: Option<bool>,
+        format: Option<bool>,
+        storage: Option<String>,
+        target: Option<String>,
+    ) -> Result<Vec<StorageInfo>, Error> {
+        let mut path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/storage");
+        let mut sep = '?';
+        add_query_arg(&mut path, &mut sep, "enabled", &enabled);
+        add_query_arg(&mut path, &mut sep, "format", &format);
+        add_query_arg(&mut path, &mut sep, "storage", &storage);
+        add_query_arg(&mut path, &mut sep, "target", &target);
+        if let Some(content) = content {
+            for ty in content {
+                add_query_arg(&mut path, &mut sep, "content", &Some(ty));
+            }
+        }
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 }
