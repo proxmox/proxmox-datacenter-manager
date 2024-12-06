@@ -1,7 +1,12 @@
+use anyhow::Error;
 use pdm_api_types::resource::{
     PveLxcResource, PveNodeResource, PveQemuResource, PveStorageResource,
 };
-use pdm_client::types::Remote;
+use pdm_client::types::{
+    LxcConfig, LxcConfigMp, LxcConfigRootfs, LxcConfigUnused, PveQmIde, QemuConfig, QemuConfigSata,
+    QemuConfigScsi, QemuConfigUnused, QemuConfigVirtio, Remote,
+};
+use proxmox_schema::ApiType;
 use proxmox_yew_comp::{GuestState, NodeState, StorageState};
 use pwt::{
     css::Opacity,
@@ -126,4 +131,132 @@ pub fn render_guest_tags(tags: &[String]) -> Row {
         );
     }
     row
+}
+
+/// Represents a drive of a QEMU guest
+pub enum PveDriveQemu {
+    Sata(QemuConfigSata),
+    Scsi(QemuConfigScsi),
+    Ide(PveQmIde),
+    Virtio(QemuConfigVirtio),
+    Unused(QemuConfigUnused),
+}
+
+impl PveDriveQemu {
+    /// Returns the file of the drive, regardless of bus
+    pub fn get_file(&self) -> &str {
+        match self {
+            PveDriveQemu::Sata(QemuConfigSata { file, .. })
+            | PveDriveQemu::Scsi(QemuConfigScsi { file, .. })
+            | PveDriveQemu::Ide(PveQmIde { file, .. })
+            | PveDriveQemu::Virtio(QemuConfigVirtio { file, .. })
+            | PveDriveQemu::Unused(QemuConfigUnused { file, .. }) => file,
+        }
+    }
+}
+
+// note: uses to_value so we can iterate over the keys
+// unwrap is ok here, since we know that those are structs and strings
+/// Iterates over every drive from the config
+pub fn foreach_drive_qemu<F>(config: &QemuConfig, mut f: F) -> Result<(), Error>
+where
+    F: FnMut(&str, PveDriveQemu),
+{
+    let ide = serde_json::to_value(&config.ide)?;
+    for (key, value) in ide.as_object().unwrap() {
+        let value = serde_json::from_value(
+            PveQmIde::API_SCHEMA.parse_property_string(value.as_str().unwrap())?,
+        )?;
+
+        f(key, PveDriveQemu::Ide(value))
+    }
+
+    let sata = serde_json::to_value(&config.sata)?;
+    for (key, value) in sata.as_object().unwrap() {
+        let value = serde_json::from_value(
+            QemuConfigSata::API_SCHEMA.parse_property_string(value.as_str().unwrap())?,
+        )?;
+
+        f(key, PveDriveQemu::Sata(value))
+    }
+
+    let scsi = serde_json::to_value(&config.scsi)?;
+    for (key, value) in scsi.as_object().unwrap() {
+        let value = serde_json::from_value(
+            QemuConfigScsi::API_SCHEMA.parse_property_string(value.as_str().unwrap())?,
+        )?;
+
+        f(key, PveDriveQemu::Scsi(value))
+    }
+
+    let virtio = serde_json::to_value(&config.virtio)?;
+    for (key, value) in virtio.as_object().unwrap() {
+        let value = serde_json::from_value(
+            QemuConfigVirtio::API_SCHEMA.parse_property_string(value.as_str().unwrap())?,
+        )?;
+
+        f(key, PveDriveQemu::Virtio(value))
+    }
+
+    let unused = serde_json::to_value(&config.unused)?;
+    for (key, value) in unused.as_object().unwrap() {
+        let value = serde_json::from_value(
+            QemuConfigUnused::API_SCHEMA.parse_property_string(value.as_str().unwrap())?,
+        )?;
+
+        f(key, PveDriveQemu::Unused(value))
+    }
+
+    Ok(())
+}
+
+/// Represents a drive from an LXC config
+pub enum PveDriveLxc {
+    RootFs(LxcConfigRootfs),
+    Mp(LxcConfigMp),
+    Unused(LxcConfigUnused),
+}
+
+impl PveDriveLxc {
+    /// Returns the volume of the drive, regardless of type
+    pub fn get_volume(&self) -> &str {
+        match self {
+            PveDriveLxc::RootFs(LxcConfigRootfs { volume, .. })
+            | PveDriveLxc::Mp(LxcConfigMp { volume, .. })
+            | PveDriveLxc::Unused(LxcConfigUnused { volume }) => volume,
+        }
+    }
+}
+
+/// Iterates over every drive from the config
+pub fn foreach_drive_lxc<F>(config: &LxcConfig, mut f: F) -> Result<(), Error>
+where
+    F: FnMut(&str, PveDriveLxc),
+{
+    if let Some(rootfs) = &config.rootfs {
+        let value =
+            serde_json::from_value(LxcConfigRootfs::API_SCHEMA.parse_property_string(&rootfs)?)?;
+
+        f("rootfs", PveDriveLxc::RootFs(value))
+    }
+
+    let mp = serde_json::to_value(&config.mp)?;
+    for (key, value) in mp.as_object().unwrap() {
+        let value = serde_json::from_value(
+            LxcConfigMp::API_SCHEMA.parse_property_string(value.as_str().unwrap())?,
+        )?;
+
+        f(key, PveDriveLxc::Mp(value))
+    }
+
+    let unused = serde_json::to_value(&config.unused)?;
+    for (key, value) in unused.as_object().unwrap() {
+        let value = serde_json::from_value(
+            LxcConfigUnused::API_SCHEMA.parse_property_string(value.as_str().unwrap())?,
+        )?;
+
+        f(key, PveDriveLxc::Unused(value))
+    }
+
+    Ok(())
 }
