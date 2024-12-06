@@ -69,6 +69,7 @@ const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_LXC_GET_CONFIG)),
     ("rrddata", &rrddata::LXC_RRD_ROUTER),
     ("start", &Router::new().post(&API_METHOD_LXC_START)),
+    ("status", &Router::new().get(&API_METHOD_LXC_GET_STATUS)),
     ("stop", &Router::new().post(&API_METHOD_LXC_STOP)),
     ("shutdown", &Router::new().post(&API_METHOD_LXC_SHUTDOWN)),
     ("migrate", &Router::new().post(&API_METHOD_LXC_MIGRATE)),
@@ -94,6 +95,7 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_QEMU_GET_CONFIG)),
     ("rrddata", &rrddata::QEMU_RRD_ROUTER),
     ("start", &Router::new().post(&API_METHOD_QEMU_START)),
+    ("status", &Router::new().get(&API_METHOD_QEMU_GET_STATUS)),
     ("stop", &Router::new().post(&API_METHOD_QEMU_STOP)),
     ("shutdown", &Router::new().post(&API_METHOD_QEMU_SHUTDOWN)),
     ("migrate", &Router::new().post(&API_METHOD_QEMU_MIGRATE)),
@@ -396,6 +398,38 @@ pub async fn qemu_get_config(
     Ok(pve
         .qemu_get_config(&node, vmid, state.current(), snapshot)
         .await?)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: { type: pve_api_types::QemuStatus },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get the status of a qemu VM from a remote. If a node is provided, the VM must be on that
+/// node, otherwise the node is determined automatically.
+pub async fn qemu_get_status(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+) -> Result<pve_api_types::QemuStatus, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = connect_to_remote(&remotes, &remote)?;
+
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+
+    Ok(pve.qemu_get_status(&node, vmid).await?)
 }
 
 #[api(
@@ -762,6 +796,38 @@ pub async fn lxc_get_config(
     Ok(pve
         .lxc_get_config(&node, vmid, state.current(), snapshot)
         .await?)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: { type: pve_api_types::QemuStatus },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get the status of an LXC guest from a remote. If a node is provided, the guest must be on that
+/// node, otherwise the node is determined automatically.
+pub async fn lxc_get_status(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+) -> Result<pve_api_types::LxcStatus, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = connect_to_remote(&remotes, &remote)?;
+
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+
+    Ok(pve.lxc_get_status(&node, vmid).await?)
 }
 
 #[api(
