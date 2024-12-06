@@ -63,7 +63,7 @@ pub fn render_qemu_status_icon(qemu: &PveQemuResource) -> Container {
 
 fn render_guest_status_icon(base: &str, status: &str, template: bool) -> Container {
     let (status, extra_class) = match (status, template) {
-        ("running", _) => (
+        ("running", false) => (
             Some(
                 GuestState::Running
                     .to_fa_icon()
@@ -73,6 +73,15 @@ fn render_guest_status_icon(base: &str, status: &str, template: bool) -> Contain
             None,
         ),
         ("stopped", false) => (None, Some(Opacity::Quarter)),
+        ("paused", false) => (
+            Some(
+                GuestState::Paused
+                    .to_fa_icon()
+                    .fixed_width()
+                    .class("status-icon"),
+            ),
+            None,
+        ),
         (_, true) => (Some(Fa::new(base).fixed_width().class("status-icon")), None),
         _ => (Some(GuestState::Unknown.to_fa_icon()), None),
     };
