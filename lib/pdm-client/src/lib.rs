@@ -958,6 +958,18 @@ where
     }
 
     let mut output = String::new();
+    if mapping.len() == 1 {
+        let (key, value) = mapping.iter().next().unwrap();
+
+        // special case 1: '* = *' => identity mapping
+        if key == "*" && value == "*" {
+            return serializer.serialize_str("1");
+        }
+
+        // special case 2: '* = <something>' => single value of <something> )
+        return serializer.serialize_str(value);
+    }
+
     for (from, to) in mapping.iter() {
         if !output.is_empty() {
             output.reserve(from.len() + to.len() + 2);
