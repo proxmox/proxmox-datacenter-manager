@@ -127,23 +127,8 @@ impl LoadableComponent for PveRemoteComp {
         link.task_base_url(format!("/pve/remotes/{}/tasks", ctx.props().remote));
         link.repeated_load(3000);
 
-        let remote = get_remote(link.yew_link(), &ctx.props().remote);
-        let remote_base_url = remote.and_then(|remote| {
-            remote.nodes.first().and_then(|node| {
-                let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
-                if let Ok(url) = url {
-                    if url.port() == "" {
-                        url.set_port("8006");
-                    }
-                    Some(url)
-                } else {
-                    None
-                }
-            })
-        });
-
         Self {
-            columns: columns(link, store.clone(), remote_base_url.clone()),
+            columns: columns(link, store.clone(), ctx.props().remote.clone()),
             nodes: Vec::new(),
             loaded: false,
             store,
@@ -452,6 +437,24 @@ impl LoadableComponent for PveRemoteComp {
     }
 }
 
+fn get_base_url(link: &LoadableComponentLink<PveRemoteComp>, remote: &str) -> Option<Url> {
+    let remote = get_remote(link.yew_link(), remote);
+    let remote_base_url = remote.and_then(|remote| {
+        remote.nodes.first().and_then(|node| {
+            let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
+            if let Ok(url) = url {
+                if url.port() == "" {
+                    url.set_port("8006");
+                }
+                Some(url)
+            } else {
+                None
+            }
+        })
+    });
+    remote_base_url
+}
+
 fn create_empty_node(node_id: String) -> PveTreeNode {
     PveTreeNode::Node(PveNodeResource {
         cgroup_mode: Default::default(),
@@ -469,7 +472,7 @@ fn create_empty_node(node_id: String) -> PveTreeNode {
 fn columns(
     link: LoadableComponentLink<PveRemoteComp>,
     store: TreeStore<PveTreeNode>,
-    remote_base_url: Option<Url>,
+    remote: String,
 ) -> Rc<Vec<DataTableHeader<PveTreeNode>>> {
     Rc::new(vec![
         DataTableColumn::new("Type/ID")
@@ -559,11 +562,16 @@ fn columns(
                             })
                             .class(ColorScheme::Success)
                     }))
-                    .with_optional_child(remote_base_url.clone().map(|url| {
-                        ActionIcon::new("fa fa-chevron-right").on_activate(move |()| {
-                            url.set_hash(&format!("v1::={local_id}"));
-                            let _ = window().open_with_url(&url.href());
-                        })
+                    .with_child(ActionIcon::new("fa fa-chevron-right").on_activate({
+                        let link = link.clone();
+                        let remote = remote.clone();
+                        move |()| {
+                            // there must be a remote with a connections config if were already here
+                            if let Some(url) = get_base_url(&link, &remote) {
+                                url.set_hash(&format!("v1::={local_id}"));
+                                let _ = window().open_with_url(&url.href());
+                            }
+                        }
                     }))
                     .into()
             })
