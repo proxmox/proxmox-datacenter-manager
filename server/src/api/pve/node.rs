@@ -5,6 +5,7 @@ use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::{remotes::REMOTE_ID_SCHEMA, NODE_SCHEMA};
+use pve_api_types::StorageContent;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -13,7 +14,8 @@ pub const ROUTER: Router = Router::new()
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("rrddata", &super::rrddata::NODE_RRD_ROUTER),
-    ("network", &Router::new().get(&API_METHOD_GET_NETWORK))
+    ("network", &Router::new().get(&API_METHOD_GET_NETWORK)),
+    ("storage", &Router::new().get(&API_METHOD_GET_STORAGES)),
 ]);
 
 #[api(
@@ -38,4 +40,58 @@ async fn get_network(
     let client = super::connect_to_remote(&remotes, &remote)?;
     let networks = client.list_networks(&node, interface_type).await?;
     Ok(networks)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA },
+            content: {
+                type: Array,
+                description: "A list of contenttypes to filter for",
+                items: {
+                    type: StorageContent,
+                },
+                optional: true,
+            },
+            enabled: {
+                type: bool,
+                optional: true,
+                description: "Only include enabled storages.",
+            },
+            format: {
+                type: bool,
+                optional: true,
+                description: "Include format information.",
+            },
+            storage: {
+                type: String,
+                optional: true,
+                description: "Only list status for specified storage.",
+            },
+            target: {
+                type: String,
+                optional: true,
+                description: "If target is different to 'node', only list shared storages which are accessible by both.",
+            },
+        },
+    },
+)]
+/// Get status for all datastores
+async fn get_storages(
+    remote: String,
+    node: String,
+    content: Option<Vec<StorageContent>>,
+    enabled: Option<bool>,
+    format: Option<bool>,
+    storage: Option<String>,
+    target: Option<String>,
+) -> Result<Vec<pve_api_types::StorageInfo>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let client = super::connect_to_remote(&remotes, &remote)?;
+    let list = client
+        .list_storages(&node, content, enabled, format, storage, target)
+        .await?;
+    Ok(list)
 }
