@@ -28,6 +28,7 @@ use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage}
 
 use crate::connection;
 
+mod node;
 mod rrddata;
 pub mod tasks;
 
@@ -79,14 +80,7 @@ const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
 
 const NODES_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_NODES)
-    .match_all("node", &SINGLE_NODE_ROUTER);
-
-const SINGLE_NODE_ROUTER: Router = Router::new()
-    .get(&list_subdirs_api_method!(SINGLE_NODE_SUBDIRS))
-    .subdirs(SINGLE_NODE_SUBDIRS);
-
-#[sortable]
-const SINGLE_NODE_SUBDIRS: SubdirMap = &sorted!([("rrddata", &rrddata::NODE_RRD_ROUTER),]);
+    .match_all("node", &node::ROUTER);
 
 const QEMU_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_QEMU)
