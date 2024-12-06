@@ -23,11 +23,22 @@ pub mod types {
     pub use pdm_api_types::remotes::Remote;
     pub use pdm_api_types::{AclListItem, Authid, ConfigurationState, RemoteUpid};
 
+    pub use pve_api_types::{ClusterNodeIndexResponse, ClusterNodeIndexResponseStatus};
+
     pub use pve_api_types::{ListNetworksType, NetworkInterface, NetworkInterfaceType};
+
+    pub use pve_api_types::ClusterResourceKind;
 
     pub use pve_api_types::{StorageContent, StorageInfo};
 
     pub use pve_api_types::{IsRunning, LxcStatus, QemuStatus};
+
+    pub use pve_api_types::verifiers::VOLUME_ID;
+    pub use pve_api_types::{
+        LxcConfig, LxcConfigMp, LxcConfigNet, LxcConfigRootfs, LxcConfigUnused, PveQmIde,
+        QemuConfig, QemuConfigNet, QemuConfigNetModel, QemuConfigSata, QemuConfigScsi,
+        QemuConfigUnused, QemuConfigVirtio,
+    };
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
