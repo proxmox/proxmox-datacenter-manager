@@ -4,6 +4,9 @@ pub use pve_node_selector::PveNodeSelector;
 mod pve_network_selector;
 pub use pve_network_selector::PveNetworkSelector;
 
+mod pve_storage_selector;
+pub use pve_storage_selector::PveStorageSelector;
+
 mod resource_tree;
 pub use resource_tree::ResourceTree;
 
