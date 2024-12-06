@@ -103,7 +103,7 @@ pub struct PveRemoteComp {
     view_selection: Selection,
     loaded: bool,
     view: PveTreeNode,
-    is_filtered: bool,
+    filter: String,
 }
 
 impl LoadableComponent for PveRemoteComp {
@@ -134,7 +134,7 @@ impl LoadableComponent for PveRemoteComp {
             store,
             view_selection,
             view: PveTreeNode::Root(false),
-            is_filtered: false,
+            filter: String::new(),
         }
     }
 
@@ -295,11 +295,11 @@ impl LoadableComponent for PveRemoteComp {
                 }
             }
             Msg::Filter(text) => {
-                if text.is_empty() {
+                self.filter = text;
+                if self.filter.is_empty() {
                     self.store.set_filter(None);
-                    self.is_filtered = false;
                 } else {
-                    let text = text.to_lowercase();
+                    let text = self.filter.to_lowercase();
                     self.store.set_filter(move |node: &PveTreeNode| match node {
                         PveTreeNode::Lxc(r) => {
                             r.vmid.to_string().to_lowercase().contains(&text)
@@ -315,7 +315,6 @@ impl LoadableComponent for PveRemoteComp {
                         }
                         _ => true,
                     });
-                    self.is_filtered = true;
                 }
             }
         }
@@ -361,9 +360,10 @@ impl LoadableComponent for PveRemoteComp {
                                 .border_bottom(true)
                                 .with_child(
                                     Field::new()
+                                        .value(self.filter.clone())
                                         .with_trigger(
                                             // FIXME: add `with_optional_trigger` ?
-                                            Trigger::new(if self.is_filtered {
+                                            Trigger::new(if !self.filter.is_empty() {
                                                 "fa fa-times"
                                             } else {
                                                 ""
