@@ -533,8 +533,9 @@ fn columns(
                 Row::new()
                     .class(JustifyContent::FlexEnd)
                     .with_optional_child(status.map(|status| {
+                        let disabled = status != "running";
                         ActionIcon::new("fa fa-fw fa-power-off")
-                            .disabled(status != "running")
+                            .disabled(disabled)
                             .on_activate({
                                 let id = id.to_string();
                                 let link = link.clone();
@@ -545,11 +546,12 @@ fn columns(
                                     )))
                                 }
                             })
-                            .class(ColorScheme::Error)
+                            .class((!disabled).then_some(ColorScheme::Error))
                     }))
                     .with_optional_child(status.map(|status| {
+                        let disabled = status != "stopped";
                         ActionIcon::new("fa fa-fw fa-play")
-                            .disabled(status != "stopped")
+                            .disabled(disabled)
                             .on_activate({
                                 let id = id.to_string();
                                 let link = link.clone();
@@ -560,7 +562,7 @@ fn columns(
                                     )));
                                 }
                             })
-                            .class(ColorScheme::Success)
+                            .class((!disabled).then_some(ColorScheme::Success))
                     }))
                     .with_child(ActionIcon::new("fa fa-chevron-right").on_activate({
                         let link = link.clone();
