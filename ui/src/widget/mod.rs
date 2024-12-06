@@ -1,3 +1,6 @@
+mod pve_network_selector;
+pub use pve_network_selector::PveNetworkSelector;
+
 mod resource_tree;
 pub use resource_tree::ResourceTree;
 
