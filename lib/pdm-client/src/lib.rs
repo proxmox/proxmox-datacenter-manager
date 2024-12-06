@@ -23,6 +23,8 @@ pub mod types {
     pub use pdm_api_types::remotes::Remote;
     pub use pdm_api_types::{AclListItem, Authid, ConfigurationState, RemoteUpid};
 
+    pub use pve_api_types::{ListNetworksType, NetworkInterface, NetworkInterfaceType};
+
     pub use pve_api_types::{IsRunning, LxcStatus, QemuStatus};
 }
 
@@ -730,6 +732,18 @@ impl<T: HttpApiClient> PdmClient<T> {
     pub async fn resources(&self, max_age: Option<u64>) -> Result<Vec<RemoteResources>, Error> {
         let mut path = "/api2/extjs/resources/list".to_string();
         add_query_arg(&mut path, &mut '?', "max-age", &max_age);
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_list_networks(
+        &self,
+        remote: &str,
+        node: &str,
+        interface_type: Option<ListNetworksType>,
+    ) -> Result<Vec<NetworkInterface>, Error> {
+        let mut path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/network");
+        let mut sep = '?';
+        add_query_arg(&mut path, &mut sep, "interface-type", &interface_type);
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 }
