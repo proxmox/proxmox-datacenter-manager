@@ -1,3 +1,6 @@
+mod pve_node_selector;
+pub use pve_node_selector::PveNodeSelector;
+
 mod pve_network_selector;
 pub use pve_network_selector::PveNetworkSelector;
 
