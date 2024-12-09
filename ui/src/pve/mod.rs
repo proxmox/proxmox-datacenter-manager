@@ -22,7 +22,10 @@ use pwt::widget::{
 };
 use pwt::{prelude::*, widget::Button};
 
-use pdm_api_types::resource::{PveLxcResource, PveNodeResource, PveQemuResource, PveResource};
+use pdm_api_types::{
+    resource::{PveLxcResource, PveNodeResource, PveQemuResource, PveResource},
+    RemoteUpid,
+};
 
 pub mod lxc;
 pub mod node;
@@ -30,6 +33,8 @@ pub mod qemu;
 pub mod remote;
 pub mod utils;
 use utils::{get_remote, render_guest_tags, render_lxc_name, render_qemu_name};
+
+use crate::widget::MigrateWindow;
 
 #[derive(Clone, PartialEq)]
 enum PveTreeNode {
@@ -110,7 +115,8 @@ impl GuestInfo {
 
 #[derive(PartialEq)]
 pub enum ViewState {
-    Confirm(Action, String), // ID
+    Confirm(Action, String),  // ID
+    MigrateWindow(GuestInfo), // ID
 }
 
 pub enum Msg {
@@ -421,6 +427,7 @@ impl LoadableComponent for PveRemoteComp {
         ctx: &LoadableComponentContext<Self>,
         view_state: &Self::ViewState,
     ) -> Option<Html> {
+        let props = ctx.props();
         match view_state {
             ViewState::Confirm(action, id) => {
                 let action = action.clone();
@@ -443,6 +450,15 @@ impl LoadableComponent for PveRemoteComp {
                         .into(),
                 )
             }
+            ViewState::MigrateWindow(guest_info) => Some(
+                MigrateWindow::new(props.remote.clone(), *guest_info)
+                    .on_close(ctx.link().change_view_callback(|_| None))
+                    .on_submit({
+                        let link = ctx.link().clone();
+                        move |upid: RemoteUpid| link.show_task_progres(upid.to_string())
+                    })
+                    .into(),
+            ),
         }
     }
 
@@ -538,26 +554,34 @@ fn columns(
             })
             .into(),
         DataTableColumn::new(tr!("Actions"))
-            .width("100px")
+            .width("150px")
             .render(move |entry: &PveTreeNode| {
-                let (id, local_id, status) = match entry {
-                    PveTreeNode::Lxc(r) => (
-                        r.id.as_str(),
-                        format!("lxc/{}", r.vmid),
-                        Some(r.status.as_str()),
-                    ),
-                    PveTreeNode::Qemu(r) => (
-                        r.id.as_str(),
-                        format!("qemu/{}", r.vmid),
-                        Some(r.status.as_str()),
-                    ),
+                let (id, local_id, guest_info) = match entry {
+                    PveTreeNode::Lxc(r) => {
+                        let guest_info = GuestInfo::new(GuestType::Lxc, r.vmid);
+                        let local_id = guest_info.local_id();
+                        (
+                            r.id.as_str(),
+                            local_id,
+                            Some((guest_info, r.status.as_str())),
+                        )
+                    }
+                    PveTreeNode::Qemu(r) => {
+                        let guest_info = GuestInfo::new(GuestType::Qemu, r.vmid);
+                        let local_id = guest_info.local_id();
+                        (
+                            r.id.as_str(),
+                            local_id,
+                            Some((guest_info, r.status.as_str())),
+                        )
+                    }
                     PveTreeNode::Root(_) => ("root", "root".to_string(), None),
                     PveTreeNode::Node(r) => (r.id.as_str(), format!("node/{}", r.node), None),
                 };
 
                 Row::new()
                     .class(JustifyContent::FlexEnd)
-                    .with_optional_child(status.map(|status| {
+                    .with_optional_child(guest_info.map(|(_, status)| {
                         let disabled = status != "running";
                         ActionIcon::new("fa fa-fw fa-power-off")
                             .disabled(disabled)
@@ -573,8 +597,8 @@ fn columns(
                             })
                             .class((!disabled).then_some(ColorScheme::Error))
                     }))
-                    .with_optional_child(status.map(|status| {
-                        let disabled = status != "stopped";
+                    .with_optional_child(guest_info.map(|(_, status)| {
+                        let disabled = status == "running";
                         ActionIcon::new("fa fa-fw fa-play")
                             .disabled(disabled)
                             .on_activate({
@@ -588,6 +612,12 @@ fn columns(
                                 }
                             })
                             .class((!disabled).then_some(ColorScheme::Success))
+                    }))
+                    .with_optional_child(guest_info.map(|(guest_info, _)| {
+                        ActionIcon::new("fa fa-fw fa-paper-plane-o").on_activate({
+                            let link = link.clone();
+                            move |_| link.change_view(Some(ViewState::MigrateWindow(guest_info)))
+                        })
                     }))
                     .with_child(ActionIcon::new("fa fa-chevron-right").on_activate({
                         let link = link.clone();
