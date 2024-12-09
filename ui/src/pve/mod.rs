@@ -83,6 +83,31 @@ impl std::fmt::Display for Action {
     }
 }
 
+#[derive(PartialEq, Clone, Copy)]
+pub enum GuestType {
+    Qemu,
+    Lxc,
+}
+
+#[derive(PartialEq, Clone, Copy)]
+pub struct GuestInfo {
+    pub guest_type: GuestType,
+    pub vmid: u32,
+}
+
+impl GuestInfo {
+    fn new(guest_type: GuestType, vmid: u32) -> Self {
+        Self { guest_type, vmid }
+    }
+
+    fn local_id(&self) -> String {
+        match self.guest_type {
+            GuestType::Qemu => format!("qemu/{}", self.vmid),
+            GuestType::Lxc => format!("lxc/{}", self.vmid),
+        }
+    }
+}
+
 #[derive(PartialEq)]
 pub enum ViewState {
     Confirm(Action, String), // ID
