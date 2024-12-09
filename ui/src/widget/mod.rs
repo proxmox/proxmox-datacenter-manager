@@ -1,3 +1,6 @@
+mod migrate_window;
+pub use migrate_window::MigrateWindow;
+
 mod pve_node_selector;
 pub use pve_node_selector::PveNodeSelector;
 
