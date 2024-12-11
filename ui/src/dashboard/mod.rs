@@ -89,6 +89,7 @@ impl PdmDashboard {
         };
         Panel::new()
             .flex(1.0)
+            .width(300)
             .title(self.create_title_with_icon(icon, title))
             .border(true)
             .with_child(
@@ -110,6 +111,7 @@ impl PdmDashboard {
     fn create_guest_panel(&self, icon: &str, title: String, status: &GuestStatusCount) -> Panel {
         Panel::new()
             .flex(1.0)
+            .width(300)
             .title(self.create_title_with_icon(icon, title))
             .border(true)
             .with_child(if self.loading {
@@ -228,7 +230,7 @@ impl Component for PdmDashboard {
                         .title(self.create_title_with_icon("server", tr!("Remotes")))
                         .flex(1.0)
                         .border(true)
-                        .width(200)
+                        .width(300)
                         .min_height(175)
                         .with_child(
                             Column::new()
@@ -268,6 +270,7 @@ impl Component for PdmDashboard {
                 .with_child(
                     Panel::new()
                         .flex(1.0)
+                        .width(300)
                         .title(self.create_title_with_icon("floppy-o", tr!("PBS Datastores")))
                         .border(true)
                         .with_child(if self.loading {
