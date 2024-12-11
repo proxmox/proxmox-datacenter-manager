@@ -19,6 +19,9 @@ use pdm_api_types::resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus
 
 use crate::RemoteList;
 
+mod top_entities;
+pub use top_entities::TopEntities;
+
 mod subscription_info;
 pub use subscription_info::SubscriptionInfo;
 
@@ -322,7 +325,8 @@ impl Component for PdmDashboard {
                                 )
                         }),
                 )
-                .with_child(SubscriptionInfo::new()),
+                .with_child(SubscriptionInfo::new())
+                .with_child(TopEntities::new()),
         );
 
         Panel::new().with_child(content).into()
