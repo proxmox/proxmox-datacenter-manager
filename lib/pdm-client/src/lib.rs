@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use pdm_api_types::resource::{PveResource, RemoteResources};
+use pdm_api_types::resource::{PveResource, RemoteResources, Resource, ResourceRrdData};
 use pdm_api_types::rrddata::{
     LxcDataPoint, NodeDataPoint, PbsDatastoreDataPoint, PbsNodeDataPoint, QemuDataPoint,
 };
@@ -39,6 +39,8 @@ pub mod types {
         QemuConfig, QemuConfigNet, QemuConfigNetModel, QemuConfigSata, QemuConfigScsi,
         QemuConfigUnused, QemuConfigVirtio,
     };
+
+    pub use pdm_api_types::resource::{Resource, ResourceRrdData};
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -782,6 +784,13 @@ impl<T: HttpApiClient> PdmClient<T> {
             }
         }
         Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn get_top_entities(
+        &self,
+    ) -> Result<Vec<(String, Resource, ResourceRrdData)>, Error> {
+        let path = "/api2/extjs/resources/top-entities";
+        Ok(self.0.get(path).await?.expect_json()?.data)
     }
 }
 

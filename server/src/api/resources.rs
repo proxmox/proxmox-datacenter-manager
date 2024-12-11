@@ -9,7 +9,7 @@ use pbs_api_types::{DataStoreStatusListItem, NodeStatus};
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
     PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource, PveQemuResource,
-    PveStorageResource, RemoteResources, Resource, ResourcesStatus,
+    PveStorageResource, RemoteResources, Resource, ResourceRrdData, ResourcesStatus,
 };
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
@@ -32,6 +32,10 @@ pub const ROUTER: Router = Router::new()
 const SUBDIRS: SubdirMap = &sorted!([
     ("list", &Router::new().get(&API_METHOD_GET_RESOURCES)),
     ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
+    (
+        "top-entities",
+        &Router::new().get(&API_METHOD_GET_TOP_ENTITIES)
+    ),
     (
         "subscription",
         &Router::new().get(&API_METHOD_GET_SUBSCRIPTION_STATUS)
@@ -264,6 +268,17 @@ pub async fn get_subscription_status(
     Ok(join_all(futures).await)
 }
 
+// FIXME: make timeframe and count parameters?
+// FIXME: permissions?
+#[api]
+/// Returns the top X entities regarding the chosen type
+async fn get_top_entities() -> Result<Vec<(String, Resource, ResourceRrdData)>, Error> {
+    let (remotes_config, _) = pdm_config::remotes::config()?;
+
+    let res = crate::metric_collection::calculate_top(&remotes_config.sections, 10, "cpu_current");
+    Ok(res)
+}
+
 #[derive(Clone)]
 struct CachedSubscriptionState {
     node_info: HashMap<String, Option<NodeSubscriptionInfo>>,
@@ -431,9 +446,9 @@ async fn fetch_remote_subscription_info(
 }
 
 #[derive(Clone)]
-struct CachedResources {
-    resources: Vec<Resource>,
-    timestamp: i64,
+pub struct CachedResources {
+    pub resources: Vec<Resource>,
+    pub timestamp: i64,
 }
 
 static CACHE: LazyLock<RwLock<HashMap<String, CachedResources>>> =
@@ -456,7 +471,7 @@ async fn get_resources_for_remote(remote: Remote, max_age: u64) -> Result<Vec<Re
 }
 
 /// Read cached resource data from the cache
-fn get_cached_resources(remote: &str, max_age: u64) -> Option<CachedResources> {
+pub fn get_cached_resources(remote: &str, max_age: u64) -> Option<CachedResources> {
     // there is no good way to recover from this, so panicking should be fine
     let cache = CACHE.read().expect("mutex poisoned");
 

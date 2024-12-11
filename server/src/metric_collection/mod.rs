@@ -6,7 +6,10 @@ use anyhow::Error;
 use pbs_api_types::{MetricDataPoint, MetricDataType};
 use proxmox_rrd::rrd::DataSourceType;
 
-use pdm_api_types::remotes::RemoteType;
+use pdm_api_types::{
+    remotes::RemoteType,
+    resource::{Resource, ResourceRrdData},
+};
 use pve_api_types::{ClusterMetricsData, ClusterMetricsDataType};
 
 use crate::{connection, task_utils};
@@ -146,4 +149,90 @@ fn store_metric_pbs(remote_name: &str, data_point: &MetricDataPoint) {
         data_point.timestamp,
         data_source_type,
     );
+}
+
+fn insert_sorted<T>(vec: &mut Vec<(usize, T)>, value: (usize, T), limit: usize) {
+    let index = match vec.binary_search_by_key(&value.0, |(idx, _)| *idx) {
+        Ok(idx) | Err(idx) => idx,
+    };
+
+    vec.insert(index, value);
+    if vec.len() > limit {
+        for _ in 0..(vec.len() - limit) {
+            vec.remove(0);
+        }
+    }
+}
+
+// for now simple sum of the values => area under the graph curve
+fn calculate_coefficient(values: &proxmox_rrd::Entry) -> usize {
+    let mut coefficient = 0.0;
+    for point in values.data.iter() {
+        let value = point.unwrap_or_default();
+        if value.is_finite() {
+            coefficient += value * 100.0;
+        }
+    }
+
+    coefficient.round() as usize
+}
+
+// FIXME: cache the values instead of calculate freshly every time?
+// FIXME: find better way to enumerate nodes/guests/etc.(instead of relying on the cache)
+pub fn calculate_top(
+    remotes: &HashMap<String, pdm_api_types::remotes::Remote>,
+    num: usize,
+    metric: &str,
+) -> Vec<(String, Resource, ResourceRrdData)> {
+    let mut top10cpu_guests = Vec::new();
+
+    for remote_name in remotes.keys() {
+        log::info!("calculating for remote {remote_name}");
+        if let Some(data) =
+            crate::api::resources::get_cached_resources(remote_name, i64::MAX as u64)
+        {
+            for res in data.resources {
+                let id = res.id().to_string();
+                let name = format!("pve/{remote_name}/{id}");
+                if let Ok(Some(values)) = rrd_cache::extract_data(
+                    &name,
+                    metric,
+                    proxmox_rrd_api_types::RrdTimeframe::Hour,
+                    proxmox_rrd_api_types::RrdMode::Average,
+                ) {
+                    let coefficient = calculate_coefficient(&values);
+                    if coefficient > 0 {
+                        match &res {
+                            Resource::PveStorage(_) => {}
+                            Resource::PveQemu(_) | Resource::PveLxc(_) => {
+                                insert_sorted(
+                                    &mut top10cpu_guests,
+                                    (coefficient, (remote_name.clone(), res, values)),
+                                    num,
+                                );
+                            }
+                            Resource::PveNode(_) => {}
+                            Resource::PbsNode(_) => {}
+                            Resource::PbsDatastore(_) => {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    top10cpu_guests
+        .into_iter()
+        .map(|(_, (remote, resource, entry))| {
+            (
+                remote,
+                resource,
+                ResourceRrdData {
+                    start: entry.start,
+                    resolution: entry.resolution,
+                    data: entry.data,
+                },
+            )
+        })
+        .collect()
 }

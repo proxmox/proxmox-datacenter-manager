@@ -344,3 +344,25 @@ pub struct ResourcesStatus {
     /// Status of PBS Datastores
     pub pbs_datastores: StorageStatusCount,
 }
+
+#[api(
+    properties: {
+        data: {
+            type: Array,
+            items: {
+                type: f64,
+                description: "An optional data point.",
+            },
+        }
+    }
+)]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+/// An RRD data series.
+pub struct ResourceRrdData {
+    /// The UNIX epoch of the first data point.
+    pub start: u64,
+    /// The resolution of the data points.
+    pub resolution: u64,
+    /// The data points.
+    pub data: Vec<Option<f64>>,
+}
