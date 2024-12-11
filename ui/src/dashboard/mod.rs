@@ -249,7 +249,7 @@ impl Component for PdmDashboard {
                 )
                 .with_child(self.create_node_panel(
                     "building",
-                    tr!("PVE Nodes"),
+                    tr!("Virtual Environments Nodes"),
                     &self.status.pve_nodes,
                 ))
                 .with_child(self.create_guest_panel(
@@ -264,14 +264,19 @@ impl Component for PdmDashboard {
                 ))
                 .with_child(self.create_node_panel(
                     "building-o",
-                    tr!("PBS Nodes"),
+                    tr!("Backup Server Nodes"),
                     &self.status.pbs_nodes,
                 ))
                 .with_child(
                     Panel::new()
                         .flex(1.0)
                         .width(300)
-                        .title(self.create_title_with_icon("floppy-o", tr!("PBS Datastores")))
+                        .title(
+                            self.create_title_with_icon(
+                                "floppy-o",
+                                tr!("Backup Server Datastores"),
+                            ),
+                        )
                         .border(true)
                         .with_child(if self.loading {
                             Column::new()
