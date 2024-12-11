@@ -22,7 +22,11 @@ use proxmox_yew_comp::{http_get, Status};
 
 use pdm_api_types::resource::{RemoteResources, Resource};
 
-use crate::{get_deep_url, RemoteList};
+use crate::{
+    get_deep_url,
+    renderer::{render_resource_name, render_status_icon},
+    RemoteList,
+};
 
 const REFRESH_TIME_S: u32 = 60;
 const INPUT_BUFFER_MS: u32 = 500;
@@ -263,38 +267,11 @@ fn columns(
                         String::from("root"),
                         None,
                     ),
-                    PdmTreeEntry::Resource(_, resource) => match resource {
-                        Resource::PveNode(r) => (
-                            crate::pve::utils::render_node_status_icon(r),
-                            r.node.to_string(),
-                            None,
-                        ),
-                        Resource::PveQemu(r) => (
-                            crate::pve::utils::render_qemu_status_icon(r),
-                            crate::pve::utils::render_qemu_name(r, true),
-                            None,
-                        ),
-                        Resource::PveLxc(r) => (
-                            crate::pve::utils::render_lxc_status_icon(r),
-                            crate::pve::utils::render_lxc_name(r, true),
-                            None,
-                        ),
-                        Resource::PveStorage(r) => (
-                            crate::pve::utils::render_storage_status_icon(r),
-                            r.storage.to_string(),
-                            None,
-                        ),
-                        Resource::PbsNode(r) => (
-                            Container::new().with_child(Fa::new("building-o").fixed_width()),
-                            r.name.to_string(),
-                            None,
-                        ),
-                        Resource::PbsDatastore(r) => (
-                            Container::new().with_child(Fa::new("floppy-o").fixed_width()),
-                            r.name.to_string(),
-                            None,
-                        ),
-                    },
+                    PdmTreeEntry::Resource(_, resource) => (
+                        render_status_icon(resource),
+                        render_resource_name(resource, true),
+                        None,
+                    ),
                     PdmTreeEntry::Remote(remote, err) => (
                         Container::new()
                             .class("pdm-type-icon")
