@@ -325,7 +325,7 @@ impl Component for PdmDashboard {
                 .with_child(SubscriptionInfo::new()),
         );
 
-        content.into()
+        Panel::new().with_child(content).into()
     }
 }
 
