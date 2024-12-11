@@ -47,3 +47,63 @@ impl std::ops::Deref for RemoteList {
         &self.0
     }
 }
+
+/// Get the global remote list if loaded
+pub(crate) fn get_remote_list<C: yew::Component>(link: &yew::html::Scope<C>) -> Option<RemoteList> {
+    let (list, _) = link.context(yew::Callback::from(|_: RemoteList| {}))?;
+    Some(list)
+}
+
+/// Get the given remote from the global remote list if loaded
+pub(crate) fn get_remote<C: yew::Component>(
+    link: &yew::html::Scope<C>,
+    id: &str,
+) -> Option<pdm_client::types::Remote> {
+    for remote in get_remote_list(link)?.iter() {
+        if remote.id == id {
+            return Some(remote.clone());
+        }
+    }
+
+    None
+}
+
+/// Get a deep link to the given remote/id pair
+///
+/// Returns None if the remote can't be found, or there is no global remote list
+pub(crate) fn get_deep_url<C: yew::Component>(
+    link: &yew::html::Scope<C>,
+    remote: &str,
+    id: &str,
+) -> Option<web_sys::Url> {
+    let remote = get_remote(link, remote)?;
+    let (default_port, hash) = match remote.ty {
+        pdm_api_types::remotes::RemoteType::Pve => (
+            "8006",
+            if id.is_empty() {
+                String::new()
+            } else {
+                format!("v1::={id}")
+            },
+        ),
+        pdm_api_types::remotes::RemoteType::Pbs => (
+            "8007",
+            if id.is_empty() {
+                String::new()
+            } else {
+                format!("DataStore-{id}")
+            },
+        ),
+    };
+    let node = remote.nodes.first()?;
+    let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
+    if let Ok(url) = url {
+        if url.port() == "" {
+            url.set_port(default_port);
+        }
+        url.set_hash(&hash);
+        Some(url)
+    } else {
+        None
+    }
+}

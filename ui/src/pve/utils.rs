@@ -4,7 +4,7 @@ use pdm_api_types::resource::{
 };
 use pdm_client::types::{
     LxcConfig, LxcConfigMp, LxcConfigRootfs, LxcConfigUnused, PveQmIde, QemuConfig, QemuConfigSata,
-    QemuConfigScsi, QemuConfigUnused, QemuConfigVirtio, Remote,
+    QemuConfigScsi, QemuConfigUnused, QemuConfigVirtio,
 };
 use proxmox_schema::ApiType;
 use proxmox_yew_comp::{GuestState, NodeState, StorageState};
@@ -13,8 +13,6 @@ use pwt::{
     props::{ContainerBuilder, WidgetBuilder, WidgetStyleBuilder},
     widget::{Container, Fa, Row},
 };
-
-use crate::RemoteList;
 
 /// Renders the display name for Virtual Machines, e.g. used for resource trees
 pub fn render_qemu_name(qemu: &PveQemuResource, vmid_first: bool) -> String {
@@ -32,23 +30,6 @@ fn render_guest_name(name: &str, vmid: u32, vmid_first: bool) -> String {
     } else {
         format!("{name} ({vmid})")
     }
-}
-
-/// Get the global remote list if loaded
-pub fn get_remote_list<C: yew::Component>(link: &yew::html::Scope<C>) -> Option<RemoteList> {
-    let (list, _) = link.context(yew::Callback::from(|_: RemoteList| {}))?;
-    Some(list)
-}
-
-/// Get the given remote from the global remote list if loaded
-pub fn get_remote<C: yew::Component>(link: &yew::html::Scope<C>, id: &str) -> Option<Remote> {
-    for remote in get_remote_list(link)?.iter() {
-        if remote.id == id {
-            return Some(remote.clone());
-        }
-    }
-
-    None
 }
 
 /// Renders the status icon for a Virtual Machine

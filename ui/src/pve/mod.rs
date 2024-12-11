@@ -2,7 +2,6 @@ use core::convert::From;
 use std::rc::Rc;
 
 use gloo_utils::window;
-use web_sys::Url;
 use yew::{
     prelude::Html,
     virtual_dom::{Key, VComp, VNode},
@@ -32,9 +31,9 @@ pub mod node;
 pub mod qemu;
 pub mod remote;
 pub mod utils;
-use utils::{get_remote, render_guest_tags, render_lxc_name, render_qemu_name};
+use utils::{render_guest_tags, render_lxc_name, render_qemu_name};
 
-use crate::widget::MigrateWindow;
+use crate::{get_deep_url, widget::MigrateWindow};
 
 #[derive(Clone, PartialEq)]
 enum PveTreeNode {
@@ -478,24 +477,6 @@ impl LoadableComponent for PveRemoteComp {
     }
 }
 
-fn get_base_url(link: &LoadableComponentLink<PveRemoteComp>, remote: &str) -> Option<Url> {
-    let remote = get_remote(link.yew_link(), remote);
-    let remote_base_url = remote.and_then(|remote| {
-        remote.nodes.first().and_then(|node| {
-            let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
-            if let Ok(url) = url {
-                if url.port() == "" {
-                    url.set_port("8006");
-                }
-                Some(url)
-            } else {
-                None
-            }
-        })
-    });
-    remote_base_url
-}
-
 fn create_empty_node(node_id: String) -> PveTreeNode {
     PveTreeNode::Node(PveNodeResource {
         cgroup_mode: Default::default(),
@@ -624,8 +605,7 @@ fn columns(
                         let remote = remote.clone();
                         move |()| {
                             // there must be a remote with a connections config if were already here
-                            if let Some(url) = get_base_url(&link, &remote) {
-                                url.set_hash(&format!("v1::={local_id}"));
+                            if let Some(url) = get_deep_url(link.yew_link(), &remote, &local_id) {
                                 let _ = window().open_with_url(&url.href());
                             }
                         }

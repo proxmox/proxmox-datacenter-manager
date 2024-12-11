@@ -22,7 +22,7 @@ use proxmox_yew_comp::{http_get, Status};
 
 use pdm_api_types::resource::{RemoteResources, Resource};
 
-use crate::RemoteList;
+use crate::{get_deep_url, RemoteList};
 
 const REFRESH_TIME_S: u32 = 60;
 const INPUT_BUFFER_MS: u32 = 500;
@@ -204,14 +204,11 @@ impl Component for PdmResourceTree {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
-        let table = DataTable::new(
-            columns(&self.remote_list, self.store.clone()),
-            self.store.clone(),
-        )
-        .selection(self.selection.clone())
-        .class(FlexFit)
-        .hover(true)
-        .borderless(true);
+        let table = DataTable::new(columns(&ctx.link(), self.store.clone()), self.store.clone())
+            .selection(self.selection.clone())
+            .class(FlexFit)
+            .hover(true)
+            .borderless(true);
 
         let has_data = self
             .store
@@ -251,15 +248,10 @@ impl Component for PdmResourceTree {
     }
 }
 
-fn find_remote<'a>(list: &'a RemoteList, id: &str) -> Option<&'a pdm_client::types::Remote> {
-    list.iter().find(|remote| remote.id == id)
-}
 fn columns(
-    list: &RemoteList,
+    link: &html::Scope<PdmResourceTree>,
     store: TreeStore<PdmTreeEntry>,
 ) -> Rc<Vec<DataTableHeader<PdmTreeEntry>>> {
-    let list = list.clone();
-
     Rc::new(vec![
         DataTableColumn::new(tr!("ID"))
             .tree_column(store)
@@ -343,57 +335,23 @@ fn columns(
         DataTableColumn::new("")
             .width("50px")
             .justify("right")
-            .render(move |item: &PdmTreeEntry| {
-                let (remote, id) = match item {
-                    PdmTreeEntry::Root => return html! {},
-                    PdmTreeEntry::Resource(remote_id, resource) => {
-                        (find_remote(&list, remote_id), resource.id())
+            .render({
+                let link = link.clone();
+                move |item: &PdmTreeEntry| {
+                    let (remote, id) = match item {
+                        PdmTreeEntry::Root => return html! {},
+                        PdmTreeEntry::Resource(remote_id, resource) => (remote_id, resource.id()),
+                        PdmTreeEntry::Remote(remote_id, _) => (remote_id, String::new()),
+                    };
+
+                    match get_deep_url(&link, remote, &id) {
+                        Some(url) => ActionIcon::new("fa fa-chevron-right")
+                            .on_activate(move |()| {
+                                let _ = window().unwrap().open_with_url(&url.href());
+                            })
+                            .into(),
+                        None => html! {},
                     }
-                    PdmTreeEntry::Remote(remote_id, _) => {
-                        (find_remote(&list, remote_id), String::new())
-                    }
-                };
-                if remote.is_none() {
-                    return html! {};
-                }
-                let remote = remote.unwrap();
-                let (default_port, hash) = match remote.ty {
-                    pdm_api_types::remotes::RemoteType::Pve => (
-                        "8006",
-                        if id.is_empty() {
-                            id
-                        } else {
-                            format!("v1::={id}")
-                        },
-                    ),
-                    pdm_api_types::remotes::RemoteType::Pbs => (
-                        "8007",
-                        if id.is_empty() {
-                            id
-                        } else {
-                            format!("DataStore-{id}")
-                        },
-                    ),
-                };
-                let link = remote.nodes.first().and_then(|node| {
-                    let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
-                    if let Ok(url) = url {
-                        if url.port() == "" {
-                            url.set_port(default_port);
-                        }
-                        url.set_hash(&hash);
-                        Some(url)
-                    } else {
-                        None
-                    }
-                });
-                match link {
-                    Some(url) => ActionIcon::new("fa fa-chevron-right")
-                        .on_activate(move |()| {
-                            let _ = window().unwrap().open_with_url(&url.href());
-                        })
-                        .into(),
-                    None => html! {},
                 }
             })
             .into(),
