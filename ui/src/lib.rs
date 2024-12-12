@@ -1,3 +1,4 @@
+use pdm_api_types::resource::{PveLxcResource, PveQemuResource};
 use serde::{Deserialize, Serialize};
 
 mod administration;
@@ -21,6 +22,7 @@ pub use top_nav_bar::TopNavBar;
 
 mod dashboard;
 pub use dashboard::Dashboard;
+use yew_router::prelude::RouterScopeExt;
 
 mod widget;
 
@@ -107,5 +109,29 @@ pub(crate) fn get_deep_url<C: yew::Component>(
         Some(url)
     } else {
         None
+    }
+}
+
+pub(crate) fn navigate_to<C: yew::Component>(
+    link: &yew::html::Scope<C>,
+    remote: &str,
+    resource: Option<&pdm_client::types::Resource>,
+) {
+    if let Some(nav) = link.navigator() {
+        let id = resource
+            .and_then(|resource| {
+                Some(match resource {
+                    pdm_client::types::Resource::PveQemu(PveQemuResource { vmid, .. })
+                    | pdm_client::types::Resource::PveLxc(PveLxcResource { vmid, .. }) => {
+                        format!("guest+{vmid}")
+                    }
+                    pdm_client::types::Resource::PveNode(node) => format!("node+{}", node.node),
+                    pdm_client::types::Resource::PbsDatastore(store) => store.name.clone(),
+                    // FIXME: implement
+                    _ => return None,
+                })
+            })
+            .unwrap_or_default();
+        nav.push(&yew_router::AnyRoute::new(format!("/remote-{remote}/{id}")));
     }
 }

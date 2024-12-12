@@ -117,13 +117,36 @@ impl Component for PdmResourceTree {
             ctx.link().clone().send_message(Msg::Load);
         }
 
+        let store = TreeStore::new().view_root(false);
+        let selection = Selection::new().on_select({
+            let store = store.clone();
+            let link = ctx.link().clone();
+            move |selection: Selection| {
+                let store = store.read();
+                let root = store.root().unwrap();
+
+                if let Some(key) = selection.selected_key() {
+                    if let Some(node) = root.find_node_by_key(&key) {
+                        match node.record() {
+                            PdmTreeEntry::Resource(remote, resource) => {
+                                crate::navigate_to(&link, remote, Some(resource));
+                            }
+                            PdmTreeEntry::Remote(remote, _) => {
+                                crate::navigate_to(&link, remote, None);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        });
         Self {
             loading: false,
             last_error: None,
-            store: TreeStore::new().view_root(false),
+            store,
             remote_list: list,
             _context_listener,
-            selection: Selection::new(),
+            selection,
             _load_timeout: None,
         }
     }

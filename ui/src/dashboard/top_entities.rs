@@ -25,7 +25,7 @@ use pwt::{
 use pdm_client::types::{Resource, ResourceRrdData};
 
 use crate::{
-    get_deep_url,
+    get_deep_url, navigate_to,
     renderer::{render_resource_icon, render_resource_name},
 };
 
@@ -165,6 +165,15 @@ impl Component for TopEntitiesComp {
             };
             list.add_child(
                 Row::new()
+                    .onclick({
+                        let link = ctx.link().clone();
+                        let remote = remote.clone();
+                        let resource = resource.clone();
+                        move |_| {
+                            navigate_to(&link, &remote, Some(&resource));
+                        }
+                    })
+                    .style("cursor", "pointer")
                     .gap(2)
                     .class(AlignItems::Center)
                     .with_child(render_resource_icon(resource))
