@@ -15,7 +15,7 @@ pub use other::OtherPanel;
 pub fn system_configuration() -> Html {
     let panel = TabPanel::new()
         .state_id(StorageLocation::session("SystemConfigurationState"))
-        .title(tr!("Configuration") + ": " + &tr!("System"))
+        //.title(tr!("Configuration") + ": " + &tr!("System"))
         .class("pwt-flex-fit")
         .router(true)
         .scroll_mode(MiniScrollMode::Arrow)
@@ -41,7 +41,7 @@ pub fn system_configuration() -> Html {
 pub fn access_control() -> Html {
     let panel = TabPanel::new()
         .state_id(StorageLocation::session("AccessControlState"))
-        .title(tr!("Configuration") + ": " + &tr!("Access Control"))
+        //.title(tr!("Configuration") + ": " + &tr!("Access Control"))
         .class("pwt-flex-fit")
         .router(true)
         .scroll_mode(MiniScrollMode::Arrow)

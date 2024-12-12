@@ -48,7 +48,7 @@ impl Component for PdmServerAdministration {
         let panel = TabPanel::new()
             .state_id(StorageLocation::session("ServerAdministrationState"))
             .class("pwt-flex-fill pwt-overflow-auto")
-            .title("Server Administration")
+            //.title("Server Administration")
             .router(true)
             .scroll_mode(MiniScrollMode::Arrow)
             /*

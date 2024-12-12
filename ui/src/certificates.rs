@@ -12,7 +12,7 @@ pub fn certificates_panel() -> Html {
     let panel = TabPanel::new()
         .state_id(StorageLocation::session("CertificatesState"))
         .class("pwt-flex-fit")
-        .title("Certificates")
+        //.title("Certificates")
         .router(true)
         .scroll_mode(MiniScrollMode::Arrow)
         .with_item_builder(

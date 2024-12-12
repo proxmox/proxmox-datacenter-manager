@@ -10,7 +10,7 @@ use pwt::css::{self, Display, FlexFit};
 use pwt::prelude::*;
 use pwt::state::{PersistentState, Selection};
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
-use pwt::widget::{Container, Panel, Row, SelectionView, SelectionViewRenderInfo};
+use pwt::widget::{Container, Row, SelectionView, SelectionViewRenderInfo};
 
 use proxmox_yew_comp::{NotesView, XTermJs};
 
@@ -177,19 +177,14 @@ impl Component for PdmMainMenu {
             "notes",
             Some("fa fa-sticky-note-o"),
             move |_| {
-                Panel::new()
-                    .class(FlexFit)
-                    .border(false)
-                    .title(tr!("Notes"))
-                    .with_child(
-                        NotesView::new("/config/notes").on_submit(|notes| async move {
-                            proxmox_yew_comp::http_put(
-                                "/config/notes",
-                                Some(serde_json::to_value(&notes)?),
-                            )
-                            .await
-                        }),
-                    )
+                NotesView::new("/config/notes")
+                    .on_submit(|notes| async move {
+                        proxmox_yew_comp::http_put(
+                            "/config/notes",
+                            Some(serde_json::to_value(&notes)?),
+                        )
+                        .await
+                    })
                     .into()
             },
         );
