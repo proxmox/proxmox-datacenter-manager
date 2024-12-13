@@ -23,10 +23,10 @@ gloo-net = "0.4"
 gloo-utils = "0.2"
 web-sys = { version = "0.3", features = ["Location"] }
 
-pwt = "0.3"
-pwt-macros = "0.1"
+pwt = "0.4"
+pwt-macros = "0.2"
 
-proxmox-yew-comp = { version = "0.2", features = ["apt", "dns", "network", "rrd"] }
+proxmox-yew-comp = { version = "0.3", features = ["apt", "dns", "network", "rrd"] }
 
 proxmox-client = "0.5"
 proxmox-human-byte = "0.1.3"
