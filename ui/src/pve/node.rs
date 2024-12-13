@@ -7,7 +7,7 @@ use yew::{
 
 use proxmox_yew_comp::{RRDGraph, Series};
 use pwt::{
-    css::FlexFit,
+    css::{ColorScheme, FlexFit},
     prelude::*,
     props::{ContainerBuilder, WidgetBuilder},
     widget::{Column, Container, Panel},
@@ -146,6 +146,8 @@ impl yew::Component for NodePanelComp {
         Panel::new()
             .class(FlexFit)
             .title(props.node.as_str())
+            .border(true)
+            .class(ColorScheme::Neutral)
             .with_child(
                 Container::new().class(FlexFit).with_child(
                     Column::new()

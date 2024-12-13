@@ -1,14 +1,21 @@
 use std::rc::Rc;
 
+use proxmox_client::Error;
+use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 use yew::{
     prelude::Html,
     virtual_dom::{VComp, VNode},
 };
 
-use pwt::prelude::*;
-use pwt::props::{ContainerBuilder, WidgetBuilder};
-use pwt::widget::{Pane, SplitPane};
-use pwt::{css::FlexFit, state::NavigationContainer};
+use pwt::state::NavigationContainer;
+use pwt::{
+    css::FlexFit,
+    prelude::*,
+    props::{ContainerBuilder, WidgetBuilder},
+    widget::{Column, Panel, Row},
+};
+
+use pdm_api_types::resource::PveResource;
 
 pub mod lxc;
 pub mod node;
@@ -32,7 +39,7 @@ impl PveRemote {
 
 impl Into<VNode> for PveRemote {
     fn into(self) -> VNode {
-        VComp::new::<PveRemoteComp>(Rc::new(self), None).into()
+        VComp::new::<LoadableComponentMaster<PveRemoteComp>>(Rc::new(self), None).into()
     }
 }
 
@@ -79,38 +86,56 @@ impl GuestInfo {
 
 pub enum Msg {
     SelectedView(tree::PveTreeNode),
+    ResourcesList(Result<Vec<PveResource>, Error>),
 }
 
 pub struct PveRemoteComp {
     view: tree::PveTreeNode,
+    resources: Rc<Vec<PveResource>>,
+    last_error: Option<String>,
 }
 
-impl Component for PveRemoteComp {
+impl LoadableComponent for PveRemoteComp {
     type Message = Msg;
     type Properties = PveRemote;
+    type ViewState = ();
 
-    fn create(_ctx: &yew::Context<PveRemoteComp>) -> Self {
+    fn create(ctx: &LoadableComponentContext<PveRemoteComp>) -> Self {
+        ctx.link().repeated_load(5000);
         Self {
-            view: PveTreeNode::Root(false),
+            view: PveTreeNode::Root,
+            resources: Rc::new(Vec::new()),
+            last_error: None,
         }
     }
 
-    fn update(&mut self, _ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::SelectedView(node) => {
                 self.view = node;
             }
+            Msg::ResourcesList(res) => match res {
+                Ok(res) => {
+                    self.last_error = None;
+                    self.resources = Rc::new(res);
+                }
+                Err(err) => {
+                    self.last_error = Some(err.to_string());
+                    _ctx.link()
+                        .show_error(tr!("Load failed"), err.to_string(), false);
+                }
+            },
         }
         true
     }
 
-    fn view(&self, ctx: &yew::Context<Self>) -> Html {
+    fn main_view(&self, ctx: &LoadableComponentContext<Self>) -> Html {
         let props = ctx.props();
 
         let remote = &props.remote;
 
         let content: Html = match &self.view {
-            PveTreeNode::Root(_) => remote::RemotePanel::new(remote.clone()).into(),
+            PveTreeNode::Root => html! {},
             PveTreeNode::Node(node) => {
                 node::NodePanel::new(remote.clone(), node.node.clone()).into()
             }
@@ -122,20 +147,68 @@ impl Component for PveRemoteComp {
             }
         };
 
-        NavigationContainer::new()
+        let link = ctx.link();
+
+        let content = Row::new()
+            .class(FlexFit)
+            .padding(2)
             .with_child(
-                SplitPane::new()
+                Column::new()
+                    .padding(2)
+                    .min_width(500)
+                    .gap(4)
+                    .style("flex", "1 1 0")
                     .class(FlexFit)
                     .with_child(
-                        Pane::new(tree::PveTree::new(
-                            remote.to_string(),
-                            ctx.link().callback(|node| Msg::SelectedView(node)),
-                        ))
-                        .min_size(400)
-                        .flex(1),
+                        remote::RemotePanel::new(
+                            remote.clone(),
+                            self.resources.clone(),
+                            self.last_error.clone(),
+                        )
+                        .border(true),
                     )
-                    .with_child(Pane::new(content).flex(1)),
+                    .with_child(
+                        Panel::new()
+                            .class(FlexFit)
+                            .border(true)
+                            .padding(2)
+                            .with_child(tree::PveTree::new(
+                                remote.to_string(),
+                                self.resources.clone(),
+                                ctx.loading(),
+                                link.callback(|node| Msg::SelectedView(node)),
+                                {
+                                    let link = link.clone();
+                                    move |_| link.send_reload()
+                                },
+                            )),
+                    ),
             )
+            .with_child(
+                Column::new()
+                    .class(FlexFit)
+                    .padding(2)
+                    .min_width(500)
+                    .with_child(content)
+                    .style("flex", "1 1 0"),
+            );
+        NavigationContainer::new()
+            .with_child(Panel::new().class(FlexFit).with_child(content))
             .into()
+    }
+
+    fn load(
+        &self,
+        ctx: &LoadableComponentContext<Self>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), anyhow::Error>>>> {
+        let link = ctx.link();
+        let remote = ctx.props().remote.clone();
+        Box::pin(async move {
+            let res = crate::pdm_client()
+                .pve_cluster_resources(&remote, None)
+                .await;
+            link.send_message(Msg::ResourcesList(res));
+            Ok(())
+        })
     }
 }

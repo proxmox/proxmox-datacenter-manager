@@ -1,31 +1,32 @@
 use std::rc::Rc;
 
-use yew::{
-    virtual_dom::{VComp, VNode},
-    Properties,
-};
+use yew::Properties;
 
 use pwt::{
-    css::{AlignItems, FlexFit},
+    css::AlignItems,
     prelude::*,
     props::WidgetBuilder,
     widget::{Fa, Panel, Row},
 };
+use pwt_macros::widget;
 
-#[derive(Clone, Debug, Eq, PartialEq, Properties)]
+use pdm_api_types::resource::PveResource;
+
+#[widget(comp=RemotePanelComp, @element)]
+#[derive(Clone, Debug, PartialEq, Properties)]
 pub struct RemotePanel {
     remote: String,
+    resources: Rc<Vec<PveResource>>,
+    error: Option<String>,
 }
 
 impl RemotePanel {
-    pub fn new(remote: String) -> Self {
-        yew::props!(Self { remote })
-    }
-}
-
-impl Into<VNode> for RemotePanel {
-    fn into(self) -> VNode {
-        VComp::new::<RemotePanelComp>(Rc::new(self), None).into()
+    pub fn new(remote: String, resources: Rc<Vec<PveResource>>, error: Option<String>) -> Self {
+        yew::props!(Self {
+            remote,
+            resources,
+            error
+        })
     }
 }
 
@@ -45,8 +46,11 @@ impl yew::Component for RemotePanelComp {
             .gap(2)
             .class(AlignItems::Center)
             .with_child(Fa::new("server"))
-            .with_child(ctx.props().remote.as_str())
+            .with_child(tr! {"Remote '{0}'", ctx.props().remote})
             .into();
-        Panel::new().class(FlexFit).title(title).into()
+        Panel::new()
+            .with_std_props(&ctx.props().std_props)
+            .title(title)
+            .into()
     }
 }

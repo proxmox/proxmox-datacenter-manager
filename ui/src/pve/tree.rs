@@ -34,7 +34,7 @@ use super::{
 
 #[derive(Clone, PartialEq)]
 pub enum PveTreeNode {
-    Root(bool), // loaded
+    Root,
     Node(PveNodeResource),
     Lxc(PveLxcResource),
     Qemu(PveQemuResource),
@@ -43,7 +43,7 @@ pub enum PveTreeNode {
 impl ExtractPrimaryKey for PveTreeNode {
     fn extract_key(&self) -> Key {
         Key::from(match self {
-            PveTreeNode::Root(_) => "__root__",
+            PveTreeNode::Root => "__root__",
             PveTreeNode::Node(node) => node.id.as_str(),
             PveTreeNode::Lxc(lxc) => lxc.id.as_str(),
             PveTreeNode::Qemu(qemu) => qemu.id.as_str(),
@@ -54,7 +54,7 @@ impl ExtractPrimaryKey for PveTreeNode {
 impl PveTreeNode {
     fn get_path(&self) -> String {
         match self {
-            PveTreeNode::Root(_) => String::new(),
+            PveTreeNode::Root => String::new(),
             PveTreeNode::Node(node) => format!("node+{}", node.node),
             PveTreeNode::Lxc(lxc) => format!("guest+{}", lxc.vmid),
             PveTreeNode::Qemu(qemu) => format!("guest+{}", qemu.vmid),
@@ -66,14 +66,29 @@ impl PveTreeNode {
 pub struct PveTree {
     remote: String,
 
+    resources: Rc<Vec<PveResource>>,
+
+    loading: bool,
+
     on_select: Callback<PveTreeNode>,
+
+    on_reload_click: Callback<()>,
 }
 
 impl PveTree {
-    pub fn new(remote: String, on_select: impl Into<Callback<PveTreeNode>>) -> Self {
+    pub fn new(
+        remote: String,
+        resources: Rc<Vec<PveResource>>,
+        loading: bool,
+        on_select: impl Into<Callback<PveTreeNode>>,
+        on_reload_click: impl Into<Callback<()>>,
+    ) -> Self {
         yew::props!(Self {
             remote,
-            on_select: on_select.into()
+            resources,
+            loading,
+            on_select: on_select.into(),
+            on_reload_click: on_reload_click.into(),
         })
     }
 }
@@ -109,19 +124,117 @@ pub enum ViewState {
 pub enum Msg {
     Filter(String),
     GuestAction(Action, String), //ID
-    ResourcesList(Vec<PveResource>),
     KeySelected(Option<Key>),
     RouteChanged(String),
 }
 
 pub struct PveTreeComp {
     columns: Rc<Vec<DataTableHeader<PveTreeNode>>>,
-    nodes: Vec<String>,
     store: TreeStore<PveTreeNode>,
     loaded: bool,
     filter: String,
     _nav_handle: ContextHandle<NavigationContext>,
     view_selection: Selection,
+}
+
+impl PveTreeComp {
+    fn load_tree(&mut self, ctx: &LoadableComponentContext<'_, PveTreeComp>) {
+        let remote = ctx.props().remote.clone();
+        let resources = ctx.props().resources.as_ref();
+        log::info!("{}", resources.len());
+        let mut tree = KeyedSlabTree::new();
+        let mut root = tree.set_root(PveTreeNode::Root);
+        for entry in resources {
+            match entry {
+                PveResource::Node(node_info) => {
+                    let key = Key::from(node_info.id.as_str());
+
+                    if let Some(mut node) = root.find_node_by_key_mut(&key) {
+                        *node.record_mut() = PveTreeNode::Node(node_info.clone());
+                    } else {
+                        root.append(PveTreeNode::Node(node_info.clone()));
+                    }
+                }
+                PveResource::Qemu(qemu_info) => {
+                    let node_id = format!("remote/{}/node/{}", remote, qemu_info.node);
+                    let key = Key::from(node_id.as_str());
+                    let mut node = match root.find_node_by_key_mut(&key) {
+                        Some(node) => node,
+                        None => root.append(create_empty_node(node_id)),
+                    };
+
+                    if !self.loaded {
+                        node.set_expanded(true);
+                    }
+                    node.append(PveTreeNode::Qemu(qemu_info.clone()));
+                }
+                PveResource::Lxc(lxc_info) => {
+                    let node_id = format!("remote/{}/node/{}", remote, lxc_info.node);
+                    let key = Key::from(node_id.as_str());
+                    let mut node = match root.find_node_by_key_mut(&key) {
+                        Some(node) => node,
+                        None => root.append(create_empty_node(node_id)),
+                    };
+
+                    if !self.loaded {
+                        node.set_expanded(true);
+                    }
+                    node.append(PveTreeNode::Lxc(lxc_info.clone()));
+                }
+                _ => {} //PveResource::Storage(pve_storage_resource) => todo!(),
+            }
+        }
+        if !self.loaded {
+            root.set_expanded(true);
+        }
+
+        let cmp_guests = |template_a, template_b, vmid_a: u32, vmid_b: u32| -> std::cmp::Ordering {
+            if template_a == template_b {
+                vmid_a.cmp(&vmid_b)
+            } else if template_a {
+                std::cmp::Ordering::Greater
+            } else {
+                std::cmp::Ordering::Less
+            }
+        };
+        root.sort_by(true, |a, b| match (a, b) {
+            (PveTreeNode::Root, PveTreeNode::Root) => std::cmp::Ordering::Equal,
+            (PveTreeNode::Root, _) => std::cmp::Ordering::Less,
+            (_, PveTreeNode::Root) => std::cmp::Ordering::Greater,
+            (PveTreeNode::Node(a), PveTreeNode::Node(b)) => a.node.cmp(&b.node),
+            (PveTreeNode::Node(_), _) => std::cmp::Ordering::Less,
+            (_, PveTreeNode::Node(_)) => std::cmp::Ordering::Greater,
+            (PveTreeNode::Lxc(a), PveTreeNode::Lxc(b)) => {
+                cmp_guests(a.template, b.template, a.vmid, b.vmid)
+            }
+            (PveTreeNode::Lxc(_), PveTreeNode::Qemu(_)) => std::cmp::Ordering::Less,
+            (PveTreeNode::Qemu(_), PveTreeNode::Lxc(_)) => std::cmp::Ordering::Greater,
+            (PveTreeNode::Qemu(a), PveTreeNode::Qemu(b)) => {
+                cmp_guests(a.template, b.template, a.vmid, b.vmid)
+            }
+        });
+        let first_id = root
+            .children()
+            .next()
+            .map(|c| c.key())
+            .unwrap_or(Key::from("__root__"));
+        let select_key = self
+            .view_selection
+            .selected_key()
+            .unwrap_or(first_id.clone());
+        log::info!("{:?} {:?}", self.view_selection.selected_key(), select_key);
+        if !self.loaded {
+            if let Some(node) = tree.lookup_node(&select_key) {
+                self.view_selection.select(select_key);
+                ctx.props().on_select.emit(node.record().clone());
+            } else {
+                self.view_selection.select(first_id);
+            }
+        }
+        self.store.write().update_root_tree(tree);
+        self.store.write().set_view_root(false);
+        self.loaded = true;
+    }
 }
 
 impl LoadableComponent for PveTreeComp {
@@ -131,7 +244,7 @@ impl LoadableComponent for PveTreeComp {
 
     fn create(ctx: &LoadableComponentContext<PveTreeComp>) -> Self {
         let mut tree = KeyedSlabTree::new();
-        tree.set_root(PveTreeNode::Root(false));
+        tree.set_root(PveTreeNode::Root);
         let store = TreeStore::new();
         store.write().update_root_tree(tree);
 
@@ -160,8 +273,12 @@ impl LoadableComponent for PveTreeComp {
         ctx.link().send_message(Msg::RouteChanged(path));
 
         Self {
-            columns: columns(link, store.clone(), ctx.props().remote.clone()),
-            nodes: Vec::new(),
+            columns: columns(
+                link,
+                store.clone(),
+                ctx.props().remote.clone(),
+                ctx.props().loading,
+            ),
             loaded: false,
             store,
             filter: String::new(),
@@ -173,98 +290,6 @@ impl LoadableComponent for PveTreeComp {
     fn update(&mut self, ctx: &LoadableComponentContext<PveTreeComp>, msg: Self::Message) -> bool {
         let remote = &ctx.props().remote;
         match msg {
-            Msg::ResourcesList(resources) => {
-                let nodes = resources.iter().filter_map(|res| match res {
-                    PveResource::Node(node) => Some(node.node.clone()),
-                    _ => None,
-                });
-
-                self.nodes = nodes.collect();
-                let mut tree = KeyedSlabTree::new();
-                let mut root = tree.set_root(PveTreeNode::Root(true));
-                for entry in resources {
-                    match entry {
-                        PveResource::Node(node_info) => {
-                            let key = Key::from(node_info.id.as_str());
-
-                            if let Some(mut node) = root.find_node_by_key_mut(&key) {
-                                *node.record_mut() = PveTreeNode::Node(node_info);
-                            } else {
-                                root.append(PveTreeNode::Node(node_info));
-                            }
-                        }
-                        PveResource::Qemu(qemu_info) => {
-                            let node_id = format!("remote/{}/node/{}", remote, qemu_info.node);
-                            let key = Key::from(node_id.as_str());
-                            let mut node = match root.find_node_by_key_mut(&key) {
-                                Some(node) => node,
-                                None => root.append(create_empty_node(node_id)),
-                            };
-
-                            if !self.loaded {
-                                node.set_expanded(true);
-                            }
-                            node.append(PveTreeNode::Qemu(qemu_info));
-                        }
-                        PveResource::Lxc(lxc_info) => {
-                            let node_id = format!("remote/{}/node/{}", remote, lxc_info.node);
-                            let key = Key::from(node_id.as_str());
-                            let mut node = match root.find_node_by_key_mut(&key) {
-                                Some(node) => node,
-                                None => root.append(create_empty_node(node_id)),
-                            };
-
-                            if !self.loaded {
-                                node.set_expanded(true);
-                            }
-                            node.append(PveTreeNode::Lxc(lxc_info));
-                        }
-                        _ => {} //PveResource::Storage(pve_storage_resource) => todo!(),
-                    }
-                }
-                if !self.loaded {
-                    root.set_expanded(true);
-                }
-
-                let cmp_guests =
-                    |template_a, template_b, vmid_a: u32, vmid_b: u32| -> std::cmp::Ordering {
-                        if template_a == template_b {
-                            vmid_a.cmp(&vmid_b)
-                        } else if template_a {
-                            std::cmp::Ordering::Greater
-                        } else {
-                            std::cmp::Ordering::Less
-                        }
-                    };
-                root.sort_by(true, |a, b| match (a, b) {
-                    (PveTreeNode::Root(_), PveTreeNode::Root(_)) => std::cmp::Ordering::Equal,
-                    (PveTreeNode::Root(_), _) => std::cmp::Ordering::Less,
-                    (_, PveTreeNode::Root(_)) => std::cmp::Ordering::Greater,
-                    (PveTreeNode::Node(a), PveTreeNode::Node(b)) => a.node.cmp(&b.node),
-                    (PveTreeNode::Node(_), _) => std::cmp::Ordering::Less,
-                    (_, PveTreeNode::Node(_)) => std::cmp::Ordering::Greater,
-                    (PveTreeNode::Lxc(a), PveTreeNode::Lxc(b)) => {
-                        cmp_guests(a.template, b.template, a.vmid, b.vmid)
-                    }
-                    (PveTreeNode::Lxc(_), PveTreeNode::Qemu(_)) => std::cmp::Ordering::Less,
-                    (PveTreeNode::Qemu(_), PveTreeNode::Lxc(_)) => std::cmp::Ordering::Greater,
-                    (PveTreeNode::Qemu(a), PveTreeNode::Qemu(b)) => {
-                        cmp_guests(a.template, b.template, a.vmid, b.vmid)
-                    }
-                });
-                if !self.loaded {
-                    if let Some(node) = tree.lookup_node(
-                        &self
-                            .view_selection
-                            .selected_key()
-                            .unwrap_or(Key::from("__root__")),
-                    ) {
-                        ctx.props().on_select.emit(node.record().clone());
-                    }
-                }
-                self.store.write().update_root_tree(tree);
-                self.loaded = true;
-            }
             Msg::GuestAction(action, id) => {
                 let remote = remote.clone();
                 let store = self.store.read();
@@ -371,6 +396,26 @@ impl LoadableComponent for PveTreeComp {
         true
     }
 
+    fn changed(
+        &mut self,
+        ctx: &LoadableComponentContext<Self>,
+        _old_props: &Self::Properties,
+    ) -> bool {
+        let props = ctx.props();
+        if props.resources != _old_props.resources {
+            self.load_tree(ctx);
+        }
+
+        self.columns = columns(
+            ctx.link(),
+            self.store.clone(),
+            props.remote.clone(),
+            props.loading,
+        );
+
+        true
+    }
+
     fn main_view(&self, ctx: &LoadableComponentContext<PveTreeComp>) -> Html {
         let nav = DataTable::new(Rc::clone(&self.columns), self.store.clone())
             .selection(self.view_selection.clone())
@@ -378,9 +423,9 @@ impl LoadableComponent for PveTreeComp {
             .borderless(true)
             .hover(true)
             .class(FlexFit)
-            .show_header(true);
+            .show_header(false);
 
-        let link = ctx.link().clone();
+        let link = ctx.link();
 
         Column::new()
             .class(FlexFit)
@@ -397,16 +442,19 @@ impl LoadableComponent for PveTreeComp {
                                 } else {
                                     ""
                                 })
-                                .onclick(ctx.link().callback(|_| Msg::Filter(String::new()))),
+                                .onclick(link.callback(|_| Msg::Filter(String::new()))),
                                 true,
                             )
                             .placeholder(tr!("Filter"))
-                            .on_input(ctx.link().callback(Msg::Filter)),
+                            .on_input(link.callback(Msg::Filter)),
                     )
                     .with_flex_spacer()
-                    .with_child(
-                        Button::refresh(ctx.loading()).onclick(move |_| link.send_reload()),
-                    ),
+                    .with_child(Button::refresh(ctx.props().loading).onclick({
+                        let on_reload_click = ctx.props().on_reload_click.clone();
+                        move |_| {
+                            on_reload_click.emit(());
+                        }
+                    })),
             )
             .with_child(nav)
             .into()
@@ -454,17 +502,9 @@ impl LoadableComponent for PveTreeComp {
 
     fn load(
         &self,
-        ctx: &LoadableComponentContext<Self>,
+        _ctx: &LoadableComponentContext<Self>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), anyhow::Error>>>> {
-        let link = ctx.link();
-        let remote = ctx.props().remote.clone();
-        Box::pin(async move {
-            let nodes = crate::pdm_client()
-                .pve_cluster_resources(&remote, None)
-                .await?;
-            link.send_message(Msg::ResourcesList(nodes));
-            Ok(())
-        })
+        Box::pin(async move { Ok(()) })
     }
 }
 
@@ -479,6 +519,7 @@ fn create_empty_node(node_id: String) -> PveTreeNode {
         node: Default::default(),
         uptime: Default::default(),
         status: Default::default(),
+        level: Default::default(),
     })
 }
 
@@ -486,6 +527,7 @@ fn columns(
     link: LoadableComponentLink<PveTreeComp>,
     store: TreeStore<PveTreeNode>,
     remote: String,
+    loading: bool,
 ) -> Rc<Vec<DataTableHeader<PveTreeNode>>> {
     Rc::new(vec![
         DataTableColumn::new("Type/ID")
@@ -493,12 +535,12 @@ fn columns(
             .tree_column(store)
             .render(move |entry: &PveTreeNode| {
                 let el = match entry {
-                    PveTreeNode::Root(false) => Row::new()
+                    PveTreeNode::Root if loading => Row::new()
                         .class(AlignItems::Center)
                         .gap(4)
                         .with_child(Container::from_tag("i").class("pwt-loading-icon"))
                         .with_child(tr!("Querying Remote...")),
-                    PveTreeNode::Root(_) => Row::new()
+                    PveTreeNode::Root => Row::new()
                         .class(AlignItems::Baseline)
                         .gap(2)
                         .with_child(Fa::new("server"))
@@ -512,17 +554,23 @@ fn columns(
                         .class(AlignItems::Baseline)
                         .gap(2)
                         .with_child(utils::render_qemu_status_icon(r))
-                        .with_child(render_qemu_name(r, true))
-                        .with_child(render_guest_tags(&r.tags[..])),
+                        .with_child(render_qemu_name(r, true)),
                     PveTreeNode::Lxc(r) => Row::new()
                         .class(AlignItems::Baseline)
                         .gap(2)
                         .with_child(utils::render_lxc_status_icon(r))
-                        .with_child(render_lxc_name(r, true))
-                        .with_child(render_guest_tags(&r.tags[..])),
+                        .with_child(render_lxc_name(r, true)),
                 };
 
                 Container::new().with_child(el).into()
+            })
+            .into(),
+        DataTableColumn::new(tr!("Tags"))
+            .flex(1)
+            .render(move |entry: &PveTreeNode| match entry {
+                PveTreeNode::Lxc(lxc) => render_guest_tags(&lxc.tags[..]).into(),
+                PveTreeNode::Qemu(qemu) => render_guest_tags(&qemu.tags[..]).into(),
+                _ => html! {},
             })
             .into(),
         DataTableColumn::new(tr!("Actions"))
@@ -547,7 +595,7 @@ fn columns(
                             Some((guest_info, r.status.as_str())),
                         )
                     }
-                    PveTreeNode::Root(_) => ("root", "root".to_string(), None),
+                    PveTreeNode::Root => ("root", "root".to_string(), None),
                     PveTreeNode::Node(r) => (r.id.as_str(), format!("node/{}", r.node), None),
                 };
 
