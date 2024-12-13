@@ -272,7 +272,15 @@ fn make_row(title: String, icon: &str, text: String, meter_value: Option<f32>) -
         .with_child(text)
         .with_child(Fa::new(icon).fixed_width());
 
-    Column::new().gap(1).with_child(row).with_optional_child(
-        meter_value.map(|value| Meter::new().optimum(0.0).low(0.7).high(0.9).value(value)),
-    )
+    Column::new()
+        .gap(1)
+        .with_child(row)
+        .with_optional_child(meter_value.map(|value| {
+            Meter::new()
+                .optimum(0.0)
+                .low(0.7)
+                .high(0.9)
+                .animated(true)
+                .value(value)
+        }))
 }
