@@ -202,6 +202,8 @@ pub struct PveNodeResource {
     pub uptime: u64,
     /// Node status
     pub status: String,
+    /// Subscription level
+    pub level: String,
 }
 
 #[api]

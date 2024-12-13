@@ -560,6 +560,7 @@ pub(super) fn map_pve_node(remote: &str, resource: ClusterResource) -> Option<Pv
             node: resource.node.unwrap_or_default(),
             uptime: resource.uptime.unwrap_or_default() as u64,
             status: resource.status.unwrap_or_default(),
+            level: resource.level.unwrap_or_default(),
         }),
         _ => None,
     }
