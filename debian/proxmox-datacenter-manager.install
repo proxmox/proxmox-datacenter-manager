@@ -1,11 +1,11 @@
-usr/sbin/proxmox-datacenter-manager-admin
+lib/systemd/system/proxmox-datacenter-api.service
+lib/systemd/system/proxmox-datacenter-privileged-api.service
 usr/libexec/proxmox/proxmox-datacenter-api
 usr/libexec/proxmox/proxmox-datacenter-privileged-api
-usr/share/zsh/vendor-completions/_proxmox-datacenter-api
-usr/share/zsh/vendor-completions/_proxmox-datacenter-manager-admin
-usr/share/zsh/vendor-completions/_proxmox-datacenter-privileged-api
+usr/sbin/proxmox-datacenter-manager-admin
 usr/share/bash-completion/completions/proxmox-datacenter-api.bc
 usr/share/bash-completion/completions/proxmox-datacenter-manager-admin.bc
 usr/share/bash-completion/completions/proxmox-datacenter-privileged-api.bc
-lib/systemd/system/proxmox-datacenter-api.service
-lib/systemd/system/proxmox-datacenter-privileged-api.service
+usr/share/zsh/vendor-completions/_proxmox-datacenter-api
+usr/share/zsh/vendor-completions/_proxmox-datacenter-manager-admin
+usr/share/zsh/vendor-completions/_proxmox-datacenter-privileged-api
