@@ -46,7 +46,7 @@ dist/pdm_bundle.js: dist/pdm.js dist/pdm_bg.wasm
 	esbuild --bundle dist/pdm.js --format=esm >dist/pdm_bundle.js.tmp
 	mv dist/pdm_bundle.js.tmp dist/pdm_bundle.js
 
-dist/%.css: css/%.scss | dist
+dist/%.css: css/%.scss dist
 	rust-grass $< $@
 
 install: $(COMPILED_OUTPUT) index.hbs
@@ -71,7 +71,7 @@ install: $(COMPILED_OUTPUT) index.hbs
 $(BUILDDIR):
 	rm -rf $@ $@.tmp
 	mkdir $@.tmp
-	cp -a debian/ src/ pwt-assets/ images/ index.hbs Makefile Cargo.toml $@.tmp
+	cp -a debian/ src/ pwt-assets/ images/ css/ index.hbs Makefile Cargo.toml $@.tmp
 	echo "git clone git://git.proxmox.com/git/$(PACKAGE).git\\ngit checkout $$(git rev-parse HEAD)" \
 	    > $@.tmp/debian/SOURCE
 	mv $@.tmp $@
