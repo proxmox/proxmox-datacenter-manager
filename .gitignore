@@ -1,7 +1,10 @@
 **/*.rs.bk
+*.build
 *.buildinfo
 *.changes
 *.deb
+*.dsc
+*.tar.?z
 *~
 .create-shell-completions
 /target
