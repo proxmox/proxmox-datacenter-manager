@@ -249,7 +249,7 @@ fn main() {
         |url| async move { proxmox_yew_comp::http_get(&url, None).await },
     );
 
-    pwt::state::set_available_themes(&["Crisp", "Desktop", "Material"]);
+    pwt::state::set_available_themes(&["Desktop", "Crisp"]);
     wasm_logger::init(wasm_logger::Config::default());
 
     pwt::state::set_available_languages(proxmox_yew_comp::available_language_list());
