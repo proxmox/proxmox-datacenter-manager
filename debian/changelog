@@ -1,3 +1,9 @@
+proxmox-datacenter-manager (0.1.1) bookworm; urgency=medium
+
+  * bump version for testing packaging with current development state.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 15 Dec 2024 21:10:19 +0100
+
 proxmox-datacenter-manager (0.1.0) bookworm; urgency=medium
 
   * initial release

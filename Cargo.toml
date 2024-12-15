@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 authors = [
     "Thomas Lamprecht <t.lamprecht@proxmox.com>",
     "Proxmox Support Team <support@proxmox.com>",
@@ -83,8 +83,8 @@ server = { path = "server" }
 pdm-api-types = { path = "lib/pdm-api-types" }
 pdm-buildcfg = { path = "lib/pdm-buildcfg" }
 pdm-config = { path = "lib/pdm-config" }
-pdm-client = { path = "lib/pdm-client" }
-pdm-ui-shared = { path = "lib/pdm-ui-shared" }
+pdm-client = { version = "0.1", path = "lib/pdm-client" }
+pdm-ui-shared = { version = "0.1", path = "lib/pdm-ui-shared" }
 proxmox-fido2 = { path = "cli/proxmox-fido2" }
 
 # regular crates
