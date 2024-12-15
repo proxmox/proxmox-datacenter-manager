@@ -224,6 +224,9 @@ impl Component for PdmTopNavBar {
                 };
                 Container::from_tag("span").padding_x(4).with_child(text)
             })
+            .with_child(
+                html! { <a href="https://bugzilla.proxmox.com" target="_blank">{"ALPHA"}</a> },
+            )
             .with_flex_spacer()
             .with_child(SearchBox::new())
             .with_flex_spacer()
