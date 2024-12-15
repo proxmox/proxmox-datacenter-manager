@@ -5,6 +5,7 @@ After=network.target
 
 [Service]
 Type=notify
+ExecStartPre=/usr/libexec/proxmox/proxmox-datacenter-privileged-api setup
 ExecStart=/usr/libexec/proxmox/proxmox-datacenter-privileged-api
 ExecReload=/bin/kill -HUP $MAINPID
 PIDFile=/run/proxmox-datacenter-manager/priv.pid
