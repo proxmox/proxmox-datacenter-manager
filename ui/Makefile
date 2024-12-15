@@ -70,10 +70,11 @@ install: $(COMPILED_OUTPUT) index.hbs
 
 $(BUILDDIR):
 	rm -rf $@ $@.tmp
-	mkdir $@.tmp
-	cp -a debian/ src/ pwt-assets/ images/ css/ index.hbs Makefile Cargo.toml $@.tmp
+	mkdir -p $@.tmp/ui
+	cp -a debian/ src/ pwt-assets/ images/ css/ index.hbs Makefile Cargo.toml $@.tmp/ui
+	cp -a ../lib $@.tmp/
 	echo "git clone git://git.proxmox.com/git/$(PACKAGE).git\\ngit checkout $$(git rev-parse HEAD)" \
-	    > $@.tmp/debian/SOURCE
+	    > $@.tmp/ui/debian/SOURCE
 	mv $@.tmp $@
 
 $(ORIG_SRC_TAR): $(BUILDDIR)
@@ -83,7 +84,8 @@ $(ORIG_SRC_TAR): $(BUILDDIR)
 deb: $(DEB)
 $(DBG_DEB): $(DEB)
 $(DEB): $(BUILDDIR)
-	cd $(BUILDDIR); dpkg-buildpackage -b -uc -us
+	cd $(BUILDDIR)/ui; dpkg-buildpackage -b -uc -us
+	mv $(BUILDDIR)/*.deb ./
 	lintian $(DEB)
 	@echo $(DEB)
 
