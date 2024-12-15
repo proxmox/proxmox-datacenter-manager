@@ -16,7 +16,7 @@ use proxmox_yew_comp::{
 };
 
 //use pbs::MainMenu;
-use pdm::{MainMenu, RemoteList, TopNavBar};
+use pdm_ui::{MainMenu, RemoteList, TopNavBar};
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 
 type MsgRemoteList = Result<RemoteList, Error>;
@@ -113,7 +113,7 @@ impl DatacenterManagerApp {
     }
 
     async fn get_remote_list() -> Result<RemoteList, Error> {
-        let mut list = pdm::pdm_client().list_remotes().await?;
+        let mut list = pdm_ui::pdm_client().list_remotes().await?;
         list.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(RemoteList(list))
     }
