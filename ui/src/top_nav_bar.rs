@@ -218,7 +218,7 @@ impl Component for PdmTopNavBar {
             .with_child(html! { <img {src} alt="Proxmox logo"/> })
             .with_child({
                 let text = if let Some(info) = &self.version_info {
-                    format!("Datacenter Manager {}-{}", info.version, info.release)
+                    format!("Datacenter Manager {}.{}", info.version, info.release)
                 } else {
                     "Datacenter Manager".into()
                 };
