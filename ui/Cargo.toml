@@ -37,18 +37,12 @@ proxmox-login = "0.1"
 proxmox-schema = "3.2"
 proxmox-rrd-api-types = "1"
 
-pdm-api-types = "0.1"
-pbs-api-types = "0.1"
-pdm-ui-shared = "0.1"
-
-pdm-client = "0.1"
+pdm-api-types = { version = "0.1", path = "../lib/pdm-api-types" }
+pbs-api-types = { version = "0.1", path = "../lib/proxmox-backup/pbs-api-types" }
+pdm-ui-shared = { version = "0.1", path = "../lib/pdm-ui-shared" }
+pdm-client = { version = "0.1", path = "../lib/pdm-client" }
 
 [patch.crates-io]
-pdm-api-types = { path = "../lib/pdm-api-types" }
-pbs-api-types = { path = "../lib/proxmox-backup/pbs-api-types" }
-pdm-ui-shared = { path = "../lib/pdm-ui-shared" }
-
-pdm-client = { path = "../lib/pdm-client" }
 # proxmox-client = { path = "../../proxmox/proxmox-client" }
 # proxmox-human-byte = { path = "../../proxmox/proxmox-human-byte" }
 # proxmox-login = { path = "../../proxmox/proxmox-login" }
