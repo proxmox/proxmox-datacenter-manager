@@ -11,7 +11,7 @@ use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLo
 
 use pdm_buildcfg::configdir;
 
-static CONFIG: LazyLock<SectionConfig> = LazyLock::new(init);
+pub static CONFIG: LazyLock<SectionConfig> = LazyLock::new(init);
 
 fn init() -> SectionConfig {
     let obj_schema = match OpenIdRealmConfig::API_SCHEMA {
