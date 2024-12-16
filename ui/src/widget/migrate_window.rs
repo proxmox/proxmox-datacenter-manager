@@ -373,6 +373,7 @@ impl Component for PdmMigrateWindow {
         let guest_info = props.guest_info;
         let remote = props.remote.clone();
         EditWindow::new(tr!("Migrate"))
+            .edit(false)
             .submit_text(tr!("Migrate"))
             .on_close(props.on_close.clone())
             .on_submit({
