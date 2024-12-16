@@ -1,3 +1,15 @@
+proxmox-datacenter-manager (0.1.2) bookworm; urgency=medium
+
+  * admin cli: set up server context on startup
+
+  * server: add docgen binary
+
+  * server: api: add pve node status api call
+
+  * record various missing package dependencies
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 16 Dec 2024 21:26:08 +0100
+
 proxmox-datacenter-manager (0.1.1) bookworm; urgency=medium
 
   * bump version for testing packaging with current development state.
