@@ -11,7 +11,7 @@ use proxmox_router::{Permission, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::{Authid, ACL_PATH_SCHEMA, PRIVILEGES, PRIV_SYS_AUDIT};
+use pdm_api_types::{Authid, ACL_PATH_SCHEMA, PRIVILEGES, PRIV_ACCESS_AUDIT};
 
 mod acl;
 mod domains;
@@ -56,7 +56,7 @@ fn check_list_permissions(
 
     let user_privs = user_info.lookup_privs(who, &["access"]);
     // Users with AUDIT on `/access` can list anyone's permissions.
-    if user_privs & PRIV_SYS_AUDIT != 0 {
+    if user_privs & PRIV_ACCESS_AUDIT != 0 {
         return Ok(());
     }
 
