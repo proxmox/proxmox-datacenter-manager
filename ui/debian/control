@@ -4,6 +4,7 @@ Priority: optional
 Build-Depends: cargo:native,
                debhelper-compat (= 13),
                dh-cargo (>= 25),
+               esbuild,
                librust-anyhow-1+default-dev,
                librust-futures-0.3+default-dev,
                librust-gloo-net-0.4-dev,
