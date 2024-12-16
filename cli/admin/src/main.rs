@@ -7,6 +7,8 @@ fn main() {
     proxmox_log::init_cli_logger("PDM_LOG", proxmox_log::LevelFilter::INFO)
         .expect("failed to set up logger");
 
+    server::context::init().expect("could not set up server context");
+
     let cmd_def = CliCommandMap::new().insert("remote", remotes::cli());
 
     let rpcenv = CliEnvironment::new();
