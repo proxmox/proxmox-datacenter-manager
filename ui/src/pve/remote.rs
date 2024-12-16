@@ -8,7 +8,7 @@ use pwt::{
     css::AlignItems,
     prelude::*,
     props::WidgetBuilder,
-    widget::{error_message, ActionIcon, Column, Fa, Meter, Panel, Row},
+    widget::{error_message, Button, Column, Fa, Meter, Panel, Row},
 };
 use pwt_macros::widget;
 
@@ -248,15 +248,19 @@ impl yew::Component for RemotePanelComp {
         Panel::new()
             .with_std_props(&ctx.props().std_props)
             .title(title)
-            .with_tool(ActionIcon::new("fa fa-external-link").on_activate({
-                let link = ctx.link().clone();
-                let remote = ctx.props().remote.clone();
-                move |_| {
-                    if let Some(url) = get_deep_url(&link, &remote, "") {
-                        let _ = window().open_with_url(&url.href());
-                    }
-                }
-            }))
+            .with_tool(
+                Button::new(tr!("Open Web UI"))
+                    .icon_class("fa fa-external-link")
+                    .onclick({
+                        let link = ctx.link().clone();
+                        let remote = ctx.props().remote.clone();
+                        move |_| {
+                            if let Some(url) = get_deep_url(&link, &remote, "") {
+                                let _ = window().open_with_url(&url.href());
+                            }
+                        }
+                    }),
+            )
             .with_child(content)
             .into()
     }
