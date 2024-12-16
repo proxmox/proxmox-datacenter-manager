@@ -76,29 +76,29 @@ mod roles {
         | PRIV_RESOURCE_AUDIT
         | PRIV_ACCESS_AUDIT;
 
-    /// The system administrator has `System.Modify` access everywhere.
-    pub const ROLE_SYS_ADMINISTRATOR: u64 = 0
-        | PRIV_SYS_AUDIT
-        | PRIV_SYS_MODIFY;
+    ///// The system administrator has `System.Modify` access everywhere.
+    //pub const ROLE_SYS_ADMINISTRATOR: u64 = 0
+    //    | PRIV_SYS_AUDIT
+    //    | PRIV_SYS_MODIFY;
 
-    /// The system auditor has `System.Audit` access everywhere.
-    pub const ROLE_SYS_AUDITOR: u64 = 0
-        | PRIV_SYS_AUDIT;
-    ///
-    /// The resource administrator has `Resource.Modify` access everywhere.
-    pub const ROLE_RESOURCE_ADMINISTRATOR: u64 = 0
-        | PRIV_RESOURCE_AUDIT
-        | PRIV_RESOURCE_MODIFY
-        | PRIV_RESOURCE_DELETE
-        | PRIV_RESOURCE_MIGRATE;
+    ///// The system auditor has `System.Audit` access everywhere.
+    //pub const ROLE_SYS_AUDITOR: u64 = 0
+    //    | PRIV_SYS_AUDIT;
+    /////
+    ///// The resource administrator has `Resource.Modify` access everywhere.
+    //pub const ROLE_RESOURCE_ADMINISTRATOR: u64 = 0
+    //    | PRIV_RESOURCE_AUDIT
+    //    | PRIV_RESOURCE_MODIFY
+    //    | PRIV_RESOURCE_DELETE
+    //    | PRIV_RESOURCE_MIGRATE;
 
-    /// The resource auditor has `Resource.Audit` access everywhere.
-    pub const ROLE_RESOURCE_AUDITOR: u64 = 0
-        | PRIV_RESOURCE_AUDIT;
+    ///// The resource auditor has `Resource.Audit` access everywhere.
+    //pub const ROLE_RESOURCE_AUDITOR: u64 = 0
+    //    | PRIV_RESOURCE_AUDIT;
 
-    /// The access auditor has `Access.Audit` access everywhere.
-    pub const ROLE_ACCESS_AUDITOR: u64 = 0
-        | PRIV_ACCESS_AUDIT;
+    ///// The access auditor has `Access.Audit` access everywhere.
+    //pub const ROLE_ACCESS_AUDITOR: u64 = 0
+    //    | PRIV_ACCESS_AUDIT;
 
     /// NoAccess can be used to remove privileges from specific (sub-)paths
     pub const ROLE_NAME_NO_ACCESS: &str = "NoAccess";

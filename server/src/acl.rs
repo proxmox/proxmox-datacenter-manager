@@ -23,11 +23,11 @@ impl proxmox_access_control::init::AccessControlConfig for AccessControlConfig {
             [
                 ("Administrator", pdm_api_types::ROLE_ADMINISTRATOR),
                 ("Auditor", pdm_api_types::ROLE_AUDITOR),
-                ("SystemAdministrator", pdm_api_types::ROLE_SYS_ADMINISTRATOR),
-                ("SystemAuditor", pdm_api_types::ROLE_SYS_AUDITOR),
-                ("ResourceAdministrator", pdm_api_types::ROLE_RESOURCE_ADMINISTRATOR),
-                ("ResourceAuditor", pdm_api_types::ROLE_RESOURCE_AUDITOR),
-                ("AccessAuditor", pdm_api_types::ROLE_ACCESS_AUDITOR),
+                //("SystemAdministrator", pdm_api_types::ROLE_SYS_ADMINISTRATOR),
+                //("SystemAuditor", pdm_api_types::ROLE_SYS_AUDITOR),
+                //("ResourceAdministrator", pdm_api_types::ROLE_RESOURCE_ADMINISTRATOR),
+                //("ResourceAuditor", pdm_api_types::ROLE_RESOURCE_AUDITOR),
+                //("AccessAuditor", pdm_api_types::ROLE_ACCESS_AUDITOR),
             ]
             .into_iter()
             .collect()
