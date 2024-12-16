@@ -1,3 +1,37 @@
+proxmox-datacenter-manager-ui (0.1.2) bookworm; urgency=medium
+
+  * dasbhoard: make panel fill the whole space and  move 'guest cpu usage'
+    panel into a new row
+
+  * dashboard: add 'add remote' button to remote panel on dashboard as
+    short-cut
+
+  * change 'chevron-right' to 'external-link
+
+  * remotes: add confirm dialog for removal
+
+  * pve: reorganize panels on the left side and restructure shown information
+
+  * migrate window: always enable 'with-local-disks' option to migration
+
+  * fixate width of navigation to 275px
+
+  * reduce list of available languages to english, there is no translation
+    message catalogue for other languages anyway.
+
+  * update pwt-assets submodule
+
+  * pve: remote: fix subscription icon
+
+  * add simple favicon spelling PDM
+
+  * pve: node: add status header and additional rrd graph
+
+  * migrate window: set edit to false to avoid validity failures disabling the
+    Migrate submit button.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 16 Dec 2024 21:29:29 +0100
+
 proxmox-datacenter-manager-ui (0.1.1) bookworm; urgency=medium
 
   * bump version for testing packaging with current development state.
