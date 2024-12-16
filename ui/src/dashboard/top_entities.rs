@@ -215,7 +215,8 @@ impl Component for TopEntitiesComp {
             .into();
         Panel::new()
             .flex(1.0)
-            .width(400)
+            .width(500)
+            .min_width(400)
             .border(true)
             .title(title)
             .with_child(list)
