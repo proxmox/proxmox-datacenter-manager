@@ -1,13 +1,14 @@
 use std::rc::Rc;
 
+use proxmox_yew_comp::Status;
 use yew::Properties;
 
 use proxmox_human_byte::HumanByte;
 use pwt::{
-    css::AlignItems,
+    css::{AlignItems, FontStyle},
     prelude::*,
     props::WidgetBuilder,
-    widget::{error_message, Column, Fa, Meter, Panel, Row},
+    widget::{error_message, Column, Container, Fa, Meter, Panel, Row},
 };
 use pwt_macros::widget;
 
@@ -162,37 +163,83 @@ impl yew::Component for RemotePanelComp {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let status = &self.status;
+        let separator =
+            || -> Container { Container::new().with_child(html! {<hr />}).padding_y(2) };
         let content = match &ctx.props().error {
             Some(err) => Column::new().padding(4).with_child(error_message(err)),
             None => Column::new()
-                .gap(4)
+                .gap(2)
                 .with_child(make_row(
                     tr!("Subscription Status"),
                     if status.level.is_empty() {
-                        "times-circle"
+                        Status::Success.to_fa_icon()
                     } else {
-                        "check"
+                        Status::Error.to_fa_icon()
                     },
                     status.level.to_string(),
                     None,
                 ))
                 .with_child(make_row(
                     tr! {"Nodes"},
-                    "building",
+                    Fa::new("building"),
                     format!("{}", status.nodes),
                     None,
                 ))
                 .with_child(make_row(
-                    tr! {"Guests running"},
-                    "desktop",
-                    tr!("{0} ({1} total)", status.guests_running, status.guests),
+                    tr! {"Guests"},
+                    Fa::new("desktop"),
+                    tr!(
+                        "{0} / {1} (running / total)",
+                        status.guests_running,
+                        status.guests
+                    ),
                     None,
                 ))
+                .with_child(separator())
+                .with_child(
+                    Row::new()
+                        .class(AlignItems::Baseline)
+                        .class(FontStyle::TitleMedium)
+                        .gap(2)
+                        .with_child(Fa::new("bar-chart"))
+                        .with_child(tr!("Usage")),
+                )
                 .with_child(make_row(
-                    tr! {"Host Cores assigned"},
-                    "database",
+                    tr! {"Host CPU usage (avg.)"},
+                    Fa::new("database"),
+                    format!("{:.2}%", status.cpu_usage * 100.0),
+                    Some(status.cpu_usage as f32),
+                ))
+                .with_child(make_row(
+                    tr! {"Host Memory usage (avg.)"},
+                    Fa::new("list"),
+                    format!("{:.2}%", status.memory_usage * 100.0),
+                    Some(status.memory_usage as f32),
+                ))
+                .with_child(make_row(
+                    tr! {"Host Storage used"},
+                    Fa::new("server"),
+                    format!(
+                        "{} / {}",
+                        HumanByte::from(status.storage),
+                        HumanByte::from(status.max_storage)
+                    ),
+                    Some((status.storage as f64 / status.max_storage as f64) as f32),
+                ))
+                .with_child(separator())
+                .with_child(
+                    Row::new()
+                        .class(AlignItems::Baseline)
+                        .class(FontStyle::TitleMedium)
+                        .gap(2)
+                        .with_child(Fa::new("pie-chart"))
+                        .with_child(tr!("Allocation")),
+                )
+                .with_child(make_row(
+                    tr! {"Cores assigned"},
+                    Fa::new("database"),
                     tr!(
-                        "{0} / {1} ({2} total configured)",
+                        "{0} running / {1} physical ({2} total configured)",
                         status.guest_cores_running,
                         status.max_cores,
                         status.guest_cores,
@@ -200,37 +247,15 @@ impl yew::Component for RemotePanelComp {
                     None,
                 ))
                 .with_child(make_row(
-                    tr! {"Host CPU usage (avg.)"},
-                    "database",
-                    format!("{:.2}%", status.cpu_usage * 100.0),
-                    Some(status.cpu_usage as f32),
-                ))
-                .with_child(make_row(
-                    tr! {"Host Memory assigned"},
-                    "list",
+                    tr! {"Memory assigned"},
+                    Fa::new("list"),
                     tr!(
-                        "{0} / {1} ({2} total)",
+                        "{0} running / {1} physical ({2} total configured)",
                         HumanByte::from(status.guest_memory_running),
                         HumanByte::from(status.max_memory),
                         HumanByte::from(status.guest_memory),
                     ),
-                    Some((status.guest_memory_running as f64 / status.max_memory as f64) as f32),
-                ))
-                .with_child(make_row(
-                    tr! {"Host Memory usage (avg.)"},
-                    "list",
-                    format!("{:.2}%", status.memory_usage * 100.0),
-                    Some(status.memory_usage as f32),
-                ))
-                .with_child(make_row(
-                    tr! {"Host Storage used"},
-                    "server",
-                    format!(
-                        "{} / {}",
-                        HumanByte::from(status.storage),
-                        HumanByte::from(status.max_storage)
-                    ),
-                    Some((status.storage as f64 / status.max_storage as f64) as f32),
+                    None,
                 )),
         };
 
@@ -241,7 +266,7 @@ impl yew::Component for RemotePanelComp {
     }
 }
 
-fn make_row(title: String, icon: &str, text: String, meter_value: Option<f32>) -> Column {
+fn make_row(title: String, icon: Fa, text: String, meter_value: Option<f32>) -> Column {
     let row = Row::new()
         .class(AlignItems::Baseline)
         //.class(FontStyle::HeadlineSmall)
@@ -249,7 +274,7 @@ fn make_row(title: String, icon: &str, text: String, meter_value: Option<f32>) -
         .with_child(title)
         .with_flex_spacer()
         .with_child(text)
-        .with_child(Fa::new(icon).fixed_width());
+        .with_child(icon.fixed_width());
 
     Column::new()
         .gap(1)
