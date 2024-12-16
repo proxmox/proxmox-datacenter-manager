@@ -15,7 +15,7 @@ use tracing::level_filters::LevelFilter;
 use url::form_urlencoded;
 
 use proxmox_lang::try_block;
-use proxmox_rest_server::{cookie_from_header, ApiConfig, RestEnvironment, RestServer};
+use proxmox_rest_server::{ApiConfig, RestEnvironment, RestServer};
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
 use proxmox_sys::fs::CreateOptions;
 
@@ -56,17 +56,6 @@ fn main() -> Result<(), Error> {
     server::context::init()?;
 
     proxmox_async::runtime::main(run(debug))
-}
-
-/// check for a cookie with the user-preferred language, fallback to the config one if not set or
-/// not existing
-fn get_language(headers: &http::HeaderMap) -> String {
-    let exists = |l: &str| Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{l}.js")).exists();
-
-    match cookie_from_header(headers, "PDMLangCookie") {
-        Some(cookie_lang) if exists(&cookie_lang) => cookie_lang,
-        _ => String::from(""),
-    }
 }
 
 async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> {
@@ -112,7 +101,6 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> 
         "NodeName": nodename,
         "UserName": user,
         "CSRFPreventionToken": csrf_token,
-        "language": get_language(&parts.headers),
         "debug": debug,
     });
 
