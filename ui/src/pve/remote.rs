@@ -45,7 +45,7 @@ struct RemoteStatus {
     guest_memory_running: u64,
     guest_memory: u64,
     max_cores: f64,
-    memory_usage: f64,
+    memory: u64,
     max_memory: u64,
     storage: u64,
     max_storage: u64,
@@ -63,7 +63,7 @@ impl RemotePanelComp {
         let mut guest_memory_running = 0;
         let mut guest_memory = 0;
         let mut max_cores = 0.0;
-        let mut memory_usage = 0.0;
+        let mut memory = 0;
         let mut max_memory = 0;
         let mut storage = 0;
         let mut max_storage = 1;
@@ -101,10 +101,9 @@ impl RemotePanelComp {
                 PveResource::Node(node) => {
                     nodes += 1;
                     max_cores += node.maxcpu;
+                    memory += node.mem;
                     max_memory += node.maxmem;
                     cpu_usage += node.cpu;
-
-                    memory_usage += node.mem as f64 / node.maxmem as f64;
 
                     match (node.level.as_str(), level) {
                         (x, Some(y)) if x == y => {}
@@ -122,7 +121,6 @@ impl RemotePanelComp {
         }
 
         let cpu_usage = cpu_usage / nodes as f64;
-        let memory_usage = memory_usage / nodes as f64;
 
         self.status = RemoteStatus {
             guests,
@@ -132,7 +130,7 @@ impl RemotePanelComp {
             guest_memory_running,
             guest_memory,
             max_cores,
-            memory_usage,
+            memory,
             max_memory,
             storage,
             max_storage,
@@ -211,16 +209,28 @@ impl yew::Component for RemotePanelComp {
                     Some(status.cpu_usage as f32),
                 ))
                 .with_child(make_row(
-                    tr! {"Host Memory usage (avg.)"},
+                    tr! {"Host Memory used"},
                     Fa::new("list"),
-                    format!("{:.2}%", status.memory_usage * 100.0),
-                    Some(status.memory_usage as f32),
+                    tr!(
+                        "{0}% ({1} of {2})",
+                        format!(
+                            "{:.2}",
+                            100.0 * status.memory as f64 / status.max_memory as f64
+                        ),
+                        HumanByte::from(status.memory),
+                        HumanByte::from(status.max_memory),
+                    ),
+                    Some((status.memory as f64 / status.max_memory as f64) as f32),
                 ))
                 .with_child(make_row(
                     tr! {"Host Storage used"},
                     Fa::new("server"),
-                    format!(
-                        "{} / {}",
+                    tr!(
+                        "{0}% ({1} of {2})",
+                        format!(
+                            "{:.2}",
+                            100.0 * status.storage as f64 / status.max_storage as f64
+                        ),
                         HumanByte::from(status.storage),
                         HumanByte::from(status.max_storage)
                     ),
