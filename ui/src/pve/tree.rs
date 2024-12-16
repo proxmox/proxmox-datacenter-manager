@@ -141,7 +141,6 @@ impl PveTreeComp {
     fn load_tree(&mut self, ctx: &LoadableComponentContext<'_, PveTreeComp>) {
         let remote = ctx.props().remote.clone();
         let resources = ctx.props().resources.as_ref();
-        log::info!("{}", resources.len());
         let mut tree = KeyedSlabTree::new();
         let mut root = tree.set_root(PveTreeNode::Root);
         for entry in resources {
@@ -222,7 +221,6 @@ impl PveTreeComp {
             .view_selection
             .selected_key()
             .unwrap_or(first_id.clone());
-        log::info!("{:?} {:?}", self.view_selection.selected_key(), select_key);
         if !self.loaded {
             if let Some(node) = tree.lookup_node(&select_key) {
                 self.view_selection.select(select_key);

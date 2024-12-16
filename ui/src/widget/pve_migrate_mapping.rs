@@ -307,7 +307,6 @@ impl ManagedField for PveMigrateMapComp {
 
         let _async_pool = AsyncPool::new();
         _async_pool.spawn(async move {
-            log::info!("here2?");
             link.send_message(Msg::LoadResult(
                 Self::load_storages(remote, guest_info).await,
             ));
