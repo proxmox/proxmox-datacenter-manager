@@ -50,7 +50,7 @@ fn check_list_permissions(
     }
 
     // Users can list permissions of their tokens:
-    if whose.is_token() && !who.is_token() && who.user() == whose.user() {
+    if whose.is_token() && &Authid::from(whose.user().clone()) == who {
         return Ok(());
     }
 
