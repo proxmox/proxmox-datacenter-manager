@@ -329,7 +329,7 @@ impl Component for PdmDashboard {
                 .with_child(TopEntities::new()),
         );
 
-        Panel::new().with_child(content).into()
+        Panel::new().with_child(content).class(FlexFit).into()
     }
 }
 
