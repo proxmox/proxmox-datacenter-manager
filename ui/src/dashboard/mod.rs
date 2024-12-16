@@ -11,7 +11,7 @@ use proxmox_yew_comp::{http_get, GuestState, Status, StorageState};
 use pwt::{
     css::{AlignItems, FlexFit, FlexWrap, JustifyContent},
     prelude::*,
-    widget::{Column, Container, Fa, Panel, Row},
+    widget::{ActionIcon, Column, Container, Fa, Panel, Row},
     AsyncPool,
 };
 
@@ -224,110 +224,121 @@ impl Component for PdmDashboard {
             ),
         };
 
-        let content = Column::new().class(FlexFit).padding(4).gap(2).with_child(
-            Row::new()
-                .gap(4)
-                .class(FlexWrap::Wrap)
-                .with_child(
-                    Panel::new()
-                        .title(self.create_title_with_icon("server", tr!("Remotes")))
-                        .flex(1.0)
-                        .border(true)
-                        .width(300)
-                        .min_height(175)
-                        .with_child(
-                            Column::new()
-                                .padding(4)
-                                .class(FlexFit)
-                                .class(AlignItems::Center)
-                                .class(JustifyContent::Center)
-                                .gap(2)
-                                .with_child(if self.loading {
-                                    html! {<i class={"pwt-loading-icon"} />}
-                                } else {
-                                    remote_icon.large_4x().into()
-                                })
-                                .with_optional_child((!self.loading).then_some(remote_text)),
-                        ),
-                )
-                .with_child(self.create_node_panel(
-                    "building",
-                    tr!("Virtual Environments Nodes"),
-                    &self.status.pve_nodes,
-                ))
-                .with_child(self.create_guest_panel(
-                    "desktop",
-                    tr!("Virtual Machines"),
-                    &self.status.qemu,
-                ))
-                .with_child(self.create_guest_panel(
-                    "cubes",
-                    tr!("Linux Container"),
-                    &self.status.lxc,
-                ))
-                .with_child(self.create_node_panel(
-                    "building-o",
-                    tr!("Backup Server Nodes"),
-                    &self.status.pbs_nodes,
-                ))
-                .with_child(
-                    Panel::new()
-                        .flex(1.0)
-                        .width(300)
-                        .title(
-                            self.create_title_with_icon(
+        let content = Column::new()
+            .class(FlexFit)
+            .padding(4)
+            .gap(4)
+            .with_child(
+                Row::new()
+                    .gap(4)
+                    .class(FlexWrap::Wrap)
+                    .with_child(
+                        Panel::new()
+                            .title(self.create_title_with_icon("server", tr!("Remotes")))
+                            .flex(1.0)
+                            .border(true)
+                            .width(300)
+                            .min_height(175)
+                            .with_child(
+                                Column::new()
+                                    .padding(4)
+                                    .class(FlexFit)
+                                    .class(AlignItems::Center)
+                                    .class(JustifyContent::Center)
+                                    .gap(2)
+                                    .with_child(if self.loading {
+                                        html! {<i class={"pwt-loading-icon"} />}
+                                    } else {
+                                        remote_icon.large_4x().into()
+                                    })
+                                    .with_optional_child((!self.loading).then_some(remote_text)),
+                            ),
+                    )
+                    .with_child(self.create_node_panel(
+                        "building",
+                        tr!("Virtual Environments Nodes"),
+                        &self.status.pve_nodes,
+                    ))
+                    .with_child(self.create_guest_panel(
+                        "desktop",
+                        tr!("Virtual Machines"),
+                        &self.status.qemu,
+                    ))
+                    .with_child(self.create_guest_panel(
+                        "cubes",
+                        tr!("Linux Container"),
+                        &self.status.lxc,
+                    ))
+                    .with_child(self.create_node_panel(
+                        "building-o",
+                        tr!("Backup Server Nodes"),
+                        &self.status.pbs_nodes,
+                    ))
+                    .with_child(
+                        Panel::new()
+                            .flex(1.0)
+                            .width(300)
+                            .title(self.create_title_with_icon(
                                 "floppy-o",
                                 tr!("Backup Server Datastores"),
-                            ),
-                        )
-                        .border(true)
-                        .with_child(if self.loading {
-                            Column::new()
-                                .padding(4)
-                                .class(FlexFit)
-                                .class(JustifyContent::Center)
-                                .class(AlignItems::Center)
-                                .with_child(html! {<i class={"pwt-loading-icon"} />})
-                        } else {
-                            Column::new()
-                                .padding(4)
-                                .class(FlexFit)
-                                .class(JustifyContent::Center)
-                                .gap(2)
-                                // FIXME: show more detailed status (usage?)
-                                .with_child(
-                                    Row::new()
-                                        .gap(2)
-                                        .with_child(
-                                            StorageState::Available.to_fa_icon().fixed_width(),
-                                        )
-                                        .with_child(tr!("available"))
-                                        .with_flex_spacer()
-                                        .with_child(
-                                            Container::from_tag("span")
-                                                .with_child(self.status.pbs_datastores.available),
-                                        ),
-                                )
-                                .with_optional_child(
-                                    (self.status.pbs_datastores.unknown > 0).then_some(
+                            ))
+                            .border(true)
+                            .with_child(if self.loading {
+                                Column::new()
+                                    .padding(4)
+                                    .class(FlexFit)
+                                    .class(JustifyContent::Center)
+                                    .class(AlignItems::Center)
+                                    .with_child(html! {<i class={"pwt-loading-icon"} />})
+                            } else {
+                                Column::new()
+                                    .padding(4)
+                                    .class(FlexFit)
+                                    .class(JustifyContent::Center)
+                                    .gap(2)
+                                    // FIXME: show more detailed status (usage?)
+                                    .with_child(
                                         Row::new()
                                             .gap(2)
                                             .with_child(
-                                                StorageState::Unknown.to_fa_icon().fixed_width(),
+                                                StorageState::Available.to_fa_icon().fixed_width(),
                                             )
-                                            .with_child(tr!("unknown"))
+                                            .with_child(tr!("available"))
                                             .with_flex_spacer()
                                             .with_child(
-                                                Container::from_tag("span")
-                                                    .with_child(self.status.pbs_datastores.unknown),
+                                                Container::from_tag("span").with_child(
+                                                    self.status.pbs_datastores.available,
+                                                ),
                                             ),
-                                    ),
-                                )
-                        }),
-                )
-                .with_child(SubscriptionInfo::new())
-                .with_child(TopEntities::new()),
-        );
+                                    )
+                                    .with_optional_child(
+                                        (self.status.pbs_datastores.unknown > 0).then_some(
+                                            Row::new()
+                                                .gap(2)
+                                                .with_child(
+                                                    StorageState::Unknown
+                                                        .to_fa_icon()
+                                                        .fixed_width(),
+                                                )
+                                                .with_child(tr!("unknown"))
+                                                .with_flex_spacer()
+                                                .with_child(
+                                                    Container::from_tag("span").with_child(
+                                                        self.status.pbs_datastores.unknown,
+                                                    ),
+                                                ),
+                                        ),
+                                    )
+                            }),
+                    )
+                    .with_child(SubscriptionInfo::new()),
+            )
+            .with_child(
+                Row::new()
+                    .gap(4)
+                    .class(FlexWrap::Wrap)
+                    .with_child(TopEntities::new()),
+            );
 
         Panel::new().with_child(content).class(FlexFit).into()
     }
