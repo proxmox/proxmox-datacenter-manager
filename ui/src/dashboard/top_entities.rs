@@ -182,7 +182,7 @@ impl Component for TopEntitiesComp {
                     .with_child(render_resource_name(resource, false))
                     .with_flex_spacer()
                     // FIXME: add link
-                    .with_child(ActionIcon::new("fa fa-chevron-right").on_activate({
+                    .with_child(ActionIcon::new("fa fa-external-link").on_activate({
                         let link = ctx.link().clone();
                         let remote = remote.clone();
                         let id = resource.id();

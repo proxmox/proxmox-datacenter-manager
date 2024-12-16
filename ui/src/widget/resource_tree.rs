@@ -345,7 +345,7 @@ fn columns(
                     };
 
                     match get_deep_url(&link, remote, &id) {
-                        Some(url) => ActionIcon::new("fa fa-chevron-right")
+                        Some(url) => ActionIcon::new("fa fa-external-link")
                             .on_activate(move |()| {
                                 let _ = window().unwrap().open_with_url(&url.href());
                             })

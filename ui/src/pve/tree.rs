@@ -639,7 +639,7 @@ fn columns(
                             move |_| link.change_view(Some(ViewState::MigrateWindow(guest_info)))
                         })
                     }))
-                    .with_child(ActionIcon::new("fa fa-chevron-right").on_activate({
+                    .with_child(ActionIcon::new("fa fa-external-link").on_activate({
                         let link = link.clone();
                         let remote = remote.clone();
                         move |()| {
