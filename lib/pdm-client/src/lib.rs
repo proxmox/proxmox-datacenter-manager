@@ -41,6 +41,8 @@ pub mod types {
     };
 
     pub use pdm_api_types::resource::{Resource, ResourceRrdData};
+
+    pub use pve_api_types::NodeStatus;
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -791,6 +793,11 @@ impl<T: HttpApiClient> PdmClient<T> {
     ) -> Result<Vec<(String, Resource, ResourceRrdData)>, Error> {
         let path = "/api2/extjs/resources/top-entities";
         Ok(self.0.get(path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_node_status(&self, remote: &str, node: &str) -> Result<NodeStatus, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/status");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 }
 
