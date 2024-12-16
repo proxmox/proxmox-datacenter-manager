@@ -27,6 +27,8 @@ use anyhow::Error;
 use edit_remote::EditRemote;
 //use pwt::widget::form::{Field, FormContext, InputType};
 
+use pwt::widget::AlertDialog;
+
 use pdm_api_types::remotes::Remote;
 //use proxmox_schema::{property_string::PropertyString, ApiType};
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
@@ -113,6 +115,7 @@ impl RemoteConfigPanel {
 pub enum ViewState {
     Add(RemoteType),
     Edit,
+    ConfirmRemove,
 }
 
 pub enum Msg {
@@ -208,11 +211,10 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                     .disabled(disabled)
                     .onclick(link.change_view_callback(|_| Some(ViewState::Edit))),
             )
-            .with_child(
-                Button::new(tr!("Remove"))
-                    .disabled(disabled)
-                    .onclick(link.callback(|_| Msg::RemoveItem)),
-            )
+            .with_child(Button::new(tr!("Remove")).disabled(disabled).onclick({
+                let link = link.clone();
+                move |_| link.change_view(Some(ViewState::ConfirmRemove))
+            }))
             .with_flex_spacer()
             .with_child({
                 let loading = ctx.loading();
@@ -246,6 +248,12 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                 .selection
                 .selected_key()
                 .map(|key| self.create_edit_dialog(ctx, key)),
+            ViewState::ConfirmRemove => self.selection.selected_key().map(|key| {
+                AlertDialog::new(tr!("Are you sure you want to remove remote '{0}' ?", key))
+                    .title(tr!("Confirm"))
+                    .on_close(ctx.link().callback(|_| Msg::RemoveItem))
+                    .into()
+            }),
         }
     }
 }
