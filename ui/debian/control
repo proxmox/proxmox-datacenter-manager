@@ -49,7 +49,7 @@ Multi-Arch: allowed
 Depends: pve-xtermjs,
          ${misc:Depends},
          ${shlibs:Depends},
-Description: A web UI to for the Proxmox Datacenter Manager
+Description: Web UI to for the Proxmox Datacenter Manager
  This package provides the web UI of the Proxmox Datacenter Manager (PDM)
  which allows one to add multiple Proxmox VE and Proxmox Backup Server
  remotes and to manage these remotes from a central UI.
