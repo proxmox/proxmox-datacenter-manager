@@ -207,7 +207,7 @@ impl PdmMigrateWindow {
                             None,
                             guest_info.vmid,
                             value["node"].as_str().unwrap().to_string(),
-                            MigrateQemu::new().online(true),
+                            MigrateQemu::new().online(true).with_local_disks(true),
                         )
                         .await?
                 }
