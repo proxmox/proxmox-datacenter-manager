@@ -5,6 +5,7 @@ Build-Depends: cargo:native,
                debhelper-compat (= 13),
                dh-cargo (>= 25),
                esbuild,
+               fonts-font-awesome,
                librust-anyhow-1+default-dev,
                librust-futures-0.3+default-dev,
                librust-gloo-net-0.4-dev,
@@ -46,9 +47,7 @@ Rules-Requires-Root: no
 Package: proxmox-datacenter-manager-ui
 Architecture: any
 Multi-Arch: allowed
-Depends: pve-xtermjs,
-         ${misc:Depends},
-         ${shlibs:Depends},
+Depends: pve-xtermjs, ${misc:Depends}, ${shlibs:Depends},
 Description: Web UI to for the Proxmox Datacenter Manager
  This package provides the web UI of the Proxmox Datacenter Manager (PDM)
  which allows one to add multiple Proxmox VE and Proxmox Backup Server
