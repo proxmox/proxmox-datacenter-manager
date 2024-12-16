@@ -1,5 +1,4 @@
 mod wizard_page_connect;
-use add_wizard::AddWizard;
 use proxmox_schema::property_string::PropertyString;
 use wizard_page_connect::WizardPageConnect;
 
@@ -13,6 +12,7 @@ mod wizard_page_info;
 pub use wizard_page_info::WizardPageInfo;
 
 mod add_wizard;
+pub use add_wizard::AddWizard;
 
 mod node_url_list;
 pub use node_url_list::NodeUrlList;
@@ -64,7 +64,7 @@ async fn delete_item(key: Key) -> Result<(), Error> {
     Ok(())
 }
 
-async fn create_item(mut data: Value, remote_type: RemoteType) -> Result<(), Error> {
+pub(crate) async fn create_remote(mut data: Value, remote_type: RemoteType) -> Result<(), Error> {
     if data.get("nodes").is_none() {
         let nodes = vec![PropertyString::new(NodeUrl {
             hostname: data["hostname"].as_str().unwrap_or_default().to_string(),
@@ -291,7 +291,7 @@ impl PbsRemoteConfigPanel {
     ) -> Html {
         AddWizard::new(remote_type)
             .on_close(ctx.link().change_view_callback(|_| None))
-            .on_submit(move |ctx| create_item(ctx, remote_type))
+            .on_submit(move |ctx| create_remote(ctx, remote_type))
             .into()
 
         // EditWindow::new(tr!("Add") + ": " + &tr!("Remote"))

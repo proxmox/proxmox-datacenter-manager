@@ -11,13 +11,13 @@ use proxmox_yew_comp::{http_get, GuestState, Status, StorageState};
 use pwt::{
     css::{AlignItems, FlexFit, FlexWrap, JustifyContent},
     prelude::*,
-    widget::{ActionIcon, Column, Container, Fa, Panel, Row},
+    widget::{Button, Column, Container, Fa, Panel, Row},
     AsyncPool,
 };
 
 use pdm_api_types::resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus};
 
-use crate::RemoteList;
+use crate::{remotes::AddWizard, RemoteList};
 
 mod top_entities;
 pub use top_entities::TopEntities;
@@ -47,6 +47,7 @@ impl Default for Dashboard {
 pub enum Msg {
     LoadingFinished(Result<ResourcesStatus, Error>),
     RemoteListChanged(RemoteList),
+    CreateWizard(bool),
 }
 
 pub struct PdmDashboard {
@@ -54,6 +55,7 @@ pub struct PdmDashboard {
     last_error: Option<Error>,
     loading: bool,
     remote_list: RemoteList,
+    show_wizard: bool,
     _context_listener: ContextHandle<RemoteList>,
     _async_pool: AsyncPool,
 }
@@ -185,6 +187,7 @@ impl Component for PdmDashboard {
             last_error: None,
             loading: true,
             remote_list,
+            show_wizard: false,
             _context_listener,
             _async_pool: async_pool,
         }
@@ -207,6 +210,10 @@ impl Component for PdmDashboard {
                 let changed = self.remote_list != remote_list;
                 self.remote_list = remote_list;
                 changed
+            }
+            Msg::CreateWizard(show) => {
+                self.show_wizard = show;
+                true
             }
         }
     }
@@ -239,6 +246,11 @@ impl Component for PdmDashboard {
                             .border(true)
                             .width(300)
                             .min_height(175)
+                            .with_tool(
+                                Button::new(tr!("Add"))
+                                    .icon_class("fa fa-plus-circle")
+                                    .onclick(_ctx.link().callback(|_| Msg::CreateWizard(true))),
+                            )
                             .with_child(
                                 Column::new()
                                     .padding(4)
@@ -340,7 +352,23 @@ impl Component for PdmDashboard {
                     .with_child(TopEntities::new()),
             );
 
-        Panel::new().with_child(content).class(FlexFit).into()
+        Panel::new()
+            .class(FlexFit)
+            .with_child(content)
+            // FIXME: make pbs also addable?
+            .with_optional_child(
+                self.show_wizard.then_some(
+                    AddWizard::new(pdm_api_types::remotes::RemoteType::Pve)
+                        .on_close(_ctx.link().callback(|_| Msg::CreateWizard(false)))
+                        .on_submit(move |ctx| {
+                            crate::remotes::create_remote(
+                                ctx,
+                                pdm_api_types::remotes::RemoteType::Pve,
+                            )
+                        }),
+                ),
+            )
+            .into()
     }
 }
 
