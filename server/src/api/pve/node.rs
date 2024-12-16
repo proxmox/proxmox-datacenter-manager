@@ -16,6 +16,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("rrddata", &super::rrddata::NODE_RRD_ROUTER),
     ("network", &Router::new().get(&API_METHOD_GET_NETWORK)),
     ("storage", &Router::new().get(&API_METHOD_GET_STORAGES)),
+    ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
 ]);
 
 #[api(
@@ -94,4 +95,20 @@ async fn get_storages(
         .list_storages(&node, content, enabled, format, storage, target)
         .await?;
     Ok(list)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA },
+        },
+    },
+)]
+/// Get status for the node
+async fn get_status(remote: String, node: String) -> Result<pve_api_types::NodeStatus, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let client = super::connect_to_remote(&remotes, &remote)?;
+    let result = client.node_status(&node).await?;
+    Ok(result)
 }
