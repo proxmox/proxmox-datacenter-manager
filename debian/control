@@ -122,7 +122,10 @@ Rules-Requires-Root: no
 Package: proxmox-datacenter-manager
 Architecture: any
 Multi-Arch: allowed
-Depends: pve-xtermjs, ${misc:Depends}, ${shlibs:Depends},
+Depends: proxmox-mini-journalreader,
+         pve-xtermjs,
+         ${misc:Depends},
+         ${shlibs:Depends},
 Recommends: proxmox-datacenter-manager-client,
 Description: Manage multiple Proxmox VE cluster and other Proxmox projects
  This package provides the API daemons of the Proxmox Datacenter Manager (PDM)
