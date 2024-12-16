@@ -290,6 +290,7 @@ const WARN_CUTOFF: f64 = 0.5;
 const GOOD_COLOR: &str = "var(--pwt-color-success)";
 const WARN_COLOR: &str = "var(--pwt-color-warning)";
 const ERR_COLOR: &str = "var(--pwt-color-error)";
+const BACKGROUND_COLOR: &str = "var(--pwt-color-surface)";
 
 const COLOR_SPACE: &str = "oklab";
 
@@ -325,7 +326,8 @@ fn graph_from_data(data: &Vec<Option<f64>>) -> Container {
             // only add empty point if it's not the last, since the rrd data sometimes adds
             // data points that were not collected yet.
             list.push(format!(
-                "rgba(0,0,0,0) {:.0}% {:.0}%",
+                "{} {:.0}% {:.0}%",
+                BACKGROUND_COLOR,
                 (i as f64 - 1.0) * 100.0 / data.len() as f64,
                 (i as f64 + 1.0) * 100.0 / data.len() as f64,
             ));
