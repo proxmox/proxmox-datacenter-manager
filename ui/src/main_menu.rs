@@ -282,6 +282,7 @@ impl Component for PdmMainMenu {
             .aria_label("Datacenter Manager")
             .class("pwt-border-end")
             .class(css::Flex::None)
+            .width(275)
             .router(true)
             .default_active(self.active.to_string())
             .selection(self.menu_selection.clone())
