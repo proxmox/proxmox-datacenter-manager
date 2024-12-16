@@ -14,6 +14,8 @@ use pwt_macros::widget;
 
 use pdm_api_types::resource::PveResource;
 
+use crate::renderer::separator;
+
 #[widget(comp=RemotePanelComp, @element)]
 #[derive(Clone, Debug, PartialEq, Properties)]
 pub struct RemotePanel {
@@ -161,8 +163,6 @@ impl yew::Component for RemotePanelComp {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let status = &self.status;
-        let separator =
-            || -> Container { Container::new().with_child(html! {<hr />}).padding_y(2) };
         let content = match &ctx.props().error {
             Some(err) => Column::new().padding(4).with_child(error_message(err)),
             None => Column::new()
@@ -277,24 +277,5 @@ impl yew::Component for RemotePanelComp {
 }
 
 fn make_row(title: String, icon: Fa, text: String, meter_value: Option<f32>) -> Column {
-    let row = Row::new()
-        .class(AlignItems::Baseline)
-        //.class(FontStyle::HeadlineSmall)
-        .gap(2)
-        .with_child(title)
-        .with_flex_spacer()
-        .with_child(text)
-        .with_child(icon.fixed_width());
-
-    Column::new()
-        .gap(1)
-        .with_child(row)
-        .with_optional_child(meter_value.map(|value| {
-            Meter::new()
-                .optimum(0.0)
-                .low(0.7)
-                .high(0.9)
-                .animated(true)
-                .value(value)
-        }))
+    crate::renderer::status_row(title, icon, text, meter_value, true)
 }

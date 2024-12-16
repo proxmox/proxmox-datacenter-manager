@@ -1,6 +1,8 @@
 use pwt::{
+    css,
+    prelude::*,
     props::ContainerBuilder,
-    widget::{Container, Fa},
+    widget::{Column, Container, Fa, Meter, Row},
 };
 
 use pdm_client::types::Resource;
@@ -40,4 +42,37 @@ pub fn render_status_icon(resource: &Resource) -> Container {
         // FIXME: implement remaining types
         _ => Container::new().with_child(render_resource_icon(resource)),
     }
+}
+
+pub(crate) fn status_row(
+    title: String,
+    icon: Fa,
+    text: String,
+    meter_value: Option<f32>,
+    icon_right: bool,
+) -> Column {
+    let row = Row::new()
+        .class(css::AlignItems::Baseline)
+        .gap(2)
+        .with_optional_child((!icon_right).then_some(icon.clone().fixed_width()))
+        .with_child(title)
+        .with_flex_spacer()
+        .with_child(text)
+        .with_optional_child((icon_right).then_some(icon.fixed_width()));
+
+    Column::new()
+        .gap(1)
+        .with_child(row)
+        .with_optional_child(meter_value.map(|value| {
+            Meter::new()
+                .optimum(0.0)
+                .low(0.7)
+                .high(0.9)
+                .animated(true)
+                .value(value)
+        }))
+}
+
+pub(crate) fn separator() -> Container {
+    Container::new().with_child(html! {<hr />}).padding_y(2)
 }
