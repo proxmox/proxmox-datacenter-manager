@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use gloo_utils::window;
 use proxmox_client::Error;
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 use yew::{
@@ -7,7 +8,11 @@ use yew::{
     virtual_dom::{VComp, VNode},
 };
 
-use pwt::state::NavigationContainer;
+use pwt::{
+    css::AlignItems,
+    state::NavigationContainer,
+    widget::{Button, Fa},
+};
 use pwt::{
     css::FlexFit,
     prelude::*,
@@ -25,6 +30,8 @@ pub mod utils;
 
 mod tree;
 use tree::PveTreeNode;
+
+use crate::get_deep_url;
 
 #[derive(Debug, Eq, PartialEq, Properties)]
 pub struct PveRemote {
@@ -149,29 +156,48 @@ impl LoadableComponent for PveRemoteComp {
 
         let link = ctx.link();
 
+        let title: Html = Row::new()
+            .gap(2)
+            .class(AlignItems::Center)
+            .with_child(Fa::new("server"))
+            .with_child(tr! {"Remote '{0}'", ctx.props().remote})
+            .into();
+
         let content = Row::new()
             .class(FlexFit)
-            .padding(2)
+            .padding(4)
+            .gap(4)
             .with_child(
-                Column::new()
-                    .padding(2)
+                Panel::new()
                     .min_width(500)
-                    .gap(4)
                     .style("flex", "1 1 0")
                     .class(FlexFit)
-                    .with_child(
-                        remote::RemotePanel::new(
-                            remote.clone(),
-                            self.resources.clone(),
-                            self.last_error.clone(),
-                        )
-                        .border(true),
+                    .border(true)
+                    .title(title)
+                    .with_tool(
+                        Button::new(tr!("Open Web UI"))
+                            .icon_class("fa fa-external-link")
+                            .onclick({
+                                let link = ctx.link().clone();
+                                let remote = ctx.props().remote.clone();
+                                move |_| {
+                                    if let Some(url) = get_deep_url(&link.yew_link(), &remote, "") {
+                                        let _ = window().open_with_url(&url.href());
+                                    }
+                                }
+                            }),
                     )
                     .with_child(
-                        Panel::new()
+                        Column::new()
+                            .padding(4)
                             .class(FlexFit)
-                            .border(true)
-                            .padding(2)
+                            .gap(4)
+                            .with_child(remote::RemotePanel::new(
+                                remote.clone(),
+                                self.resources.clone(),
+                                self.last_error.clone(),
+                            ))
+                            .with_child(html! {<hr/>})
                             .with_child(tree::PveTree::new(
                                 remote.to_string(),
                                 self.resources.clone(),
@@ -185,9 +211,9 @@ impl LoadableComponent for PveRemoteComp {
                     ),
             )
             .with_child(
-                Column::new()
+                Panel::new()
                     .class(FlexFit)
-                    .padding(2)
+                    .border(true)
                     .min_width(500)
                     .with_child(content)
                     .style("flex", "1 1 0"),

@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-use gloo_utils::window;
 use yew::Properties;
 
 use proxmox_human_byte::HumanByte;
@@ -8,13 +7,11 @@ use pwt::{
     css::AlignItems,
     prelude::*,
     props::WidgetBuilder,
-    widget::{error_message, Button, Column, Fa, Meter, Panel, Row},
+    widget::{error_message, Column, Fa, Meter, Panel, Row},
 };
 use pwt_macros::widget;
 
 use pdm_api_types::resource::PveResource;
-
-use crate::get_deep_url;
 
 #[widget(comp=RemotePanelComp, @element)]
 #[derive(Clone, Debug, PartialEq, Properties)]
@@ -164,18 +161,10 @@ impl yew::Component for RemotePanelComp {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let title: Html = Row::new()
-            .gap(2)
-            .class(AlignItems::Center)
-            .with_child(Fa::new("server"))
-            .with_child(tr! {"Remote '{0}'", ctx.props().remote})
-            .into();
-
         let status = &self.status;
         let content = match &ctx.props().error {
             Some(err) => Column::new().padding(4).with_child(error_message(err)),
             None => Column::new()
-                .padding(4)
                 .gap(4)
                 .with_child(make_row(
                     tr!("Subscription Status"),
@@ -247,20 +236,6 @@ impl yew::Component for RemotePanelComp {
 
         Panel::new()
             .with_std_props(&ctx.props().std_props)
-            .title(title)
-            .with_tool(
-                Button::new(tr!("Open Web UI"))
-                    .icon_class("fa fa-external-link")
-                    .onclick({
-                        let link = ctx.link().clone();
-                        let remote = ctx.props().remote.clone();
-                        move |_| {
-                            if let Some(url) = get_deep_url(&link, &remote, "") {
-                                let _ = window().open_with_url(&url.href());
-                            }
-                        }
-                    }),
-            )
             .with_child(content)
             .into()
     }
