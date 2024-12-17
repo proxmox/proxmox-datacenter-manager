@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-use anyhow::Error;
 use web_sys::HtmlElement;
 use yew::{
     virtual_dom::{VComp, VNode},
@@ -9,18 +8,17 @@ use yew::{
 
 use proxmox_yew_comp::utils::render_epoch;
 use pwt::{
-    css::{AlignItems, Display, JustifyContent},
+    css::{AlignItems, Display, FlexFit, JustifyContent},
     dom::align::{align_to, AlignOptions},
     props::{
-        ContainerBuilder, CssBorderBuilder, CssLength, CssPaddingBuilder, EventSubscriber,
-        WidgetBuilder, WidgetStyleBuilder,
+        ContainerBuilder, CssLength, CssPaddingBuilder, EventSubscriber, WidgetBuilder,
+        WidgetStyleBuilder,
     },
     tr,
-    widget::{ActionIcon, Column, Container, Fa, Panel, Row},
-    AsyncPool,
+    widget::{ActionIcon, Column, Container, Row},
 };
 
-use pdm_client::types::{Resource, ResourceRrdData};
+use pdm_client::types::{Resource, TopEntity};
 
 use crate::{
     get_deep_url, navigate_to,
@@ -28,11 +26,17 @@ use crate::{
 };
 
 #[derive(Properties, PartialEq)]
-pub struct TopEntities {}
+pub struct TopEntities {
+    entities: Vec<TopEntity>,
+    metrics_title: String,
+}
 
 impl TopEntities {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(entities: Vec<TopEntity>, metrics_title: String) -> Self {
+        Self {
+            entities,
+            metrics_title,
+        }
     }
 }
 
@@ -44,7 +48,6 @@ impl From<TopEntities> for VNode {
 }
 
 pub enum Msg {
-    LoadResult(Result<Vec<(String, Resource, ResourceRrdData)>, Error>),
     ShowTooltip(PointerEvent, Resource),
     HideTooltip,
 }
@@ -57,58 +60,35 @@ struct TooltipInfo {
 }
 
 struct TopEntitiesComp {
-    data: Vec<(String, Resource, ResourceRrdData)>,
-    _async_pool: AsyncPool,
-    last_error: Option<String>,
     tooltip_info: Option<TooltipInfo>,
     tooltip_ref: NodeRef,
     tooltip_anchor: NodeRef,
-}
-
-impl TopEntitiesComp {
-    async fn load() -> Result<Vec<(String, Resource, ResourceRrdData)>, Error> {
-        let res = crate::pdm_client().get_top_entities().await?;
-        Ok(res)
-    }
 }
 
 impl Component for TopEntitiesComp {
     type Message = Msg;
     type Properties = TopEntities;
 
-    fn create(ctx: &yew::Context<Self>) -> Self {
-        let _async_pool = AsyncPool::new();
-        _async_pool.send_future(ctx.link().clone(), async move {
-            Msg::LoadResult(Self::load().await)
-        });
+    fn create(_ctx: &yew::Context<Self>) -> Self {
         Self {
-            _async_pool,
-            data: Vec::new(),
-            last_error: None,
             tooltip_info: None,
             tooltip_ref: NodeRef::default(),
             tooltip_anchor: NodeRef::default(),
         }
     }
 
-    fn update(&mut self, _ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
+        let props = ctx.props();
+        let data = &props.entities;
         match msg {
-            Msg::LoadResult(res) => match res {
-                Ok(data) => {
-                    self.last_error = None;
-                    self.data = data;
-                }
-                Err(err) => {
-                    self.last_error = Some(err.to_string());
-                }
-            },
             Msg::ShowTooltip(pointer_event, resource) => {
                 let offset = pointer_event.offset_x();
                 let target: Option<HtmlElement> = pointer_event.target_dyn_into();
                 if let Some(node) = target {
                     let relative_pos = offset as f64 / node.get_bounding_client_rect().width();
-                    for (_remote, res, rrd) in &self.data {
-                        if *res != resource {
+                    for entity in data.iter() {
+                        let rrd = &entity.rrd_data;
+                        if entity.resource != resource {
                             continue;
                         }
 
@@ -137,6 +117,7 @@ impl Component for TopEntitiesComp {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
+        let props = ctx.props();
         let mut list = Container::new()
             .padding(4)
             .class(Display::Grid)
@@ -144,10 +125,15 @@ impl Component for TopEntitiesComp {
             .style("grid-template-columns", "min-content auto")
             .style("gap", "var(--pwt-spacer-3)");
         let mut tooltip = None;
-        for (remote, resource, rrd) in self.data.iter().rev() {
+        let data = &props.entities;
+        for entity in data.iter().rev() {
+            let resource = &entity.resource;
+            let rrd = &entity.rrd_data;
+            let remote = &entity.remote;
+
             let tooltip_anchor = if let Some(info) = self.tooltip_info.as_ref() {
                 if info.id == resource.global_id() {
-                    tooltip = Some(create_tooltip(remote, resource, info));
+                    tooltip = Some(create_tooltip(remote, resource, info, &props.metrics_title));
                     Some(
                         Container::new()
                             .node_ref(self.tooltip_anchor.clone())
@@ -205,18 +191,8 @@ impl Component for TopEntitiesComp {
                     .with_optional_child(tooltip_anchor),
             );
         }
-        let title: yew::Html = Row::new()
-            .class(AlignItems::Center)
-            .gap(2)
-            .with_child(Fa::new("desktop"))
-            .with_child(tr!("Guests with most CPU usage"))
-            .into();
-        Panel::new()
-            .flex(1.0)
-            .width(500)
-            .min_width(400)
-            .border(true)
-            .title(title)
+        Container::new()
+            .class(FlexFit)
             .with_child(list)
             .with_optional_child(tooltip.map(|tooltip| {
                 Container::new()
@@ -251,7 +227,12 @@ impl Component for TopEntitiesComp {
     }
 }
 
-fn create_tooltip(remote: &str, resource: &Resource, info: &TooltipInfo) -> Column {
+fn create_tooltip(
+    remote: &str,
+    resource: &Resource,
+    info: &TooltipInfo,
+    metrics_title: &str,
+) -> Column {
     Column::new()
         .min_width(200)
         .gap(2)
@@ -264,7 +245,7 @@ fn create_tooltip(remote: &str, resource: &Resource, info: &TooltipInfo) -> Colu
             Row::new()
                 .class(JustifyContent::SpaceBetween)
                 .gap(2)
-                .with_child(Container::from_tag("span").with_child(tr!("CPU Usage")))
+                .with_child(Container::from_tag("span").with_child(metrics_title))
                 .with_optional_child(info.value.map(|value| {
                     Container::from_tag("span").with_child(format!("{:.2}%", value * 100.0))
                 }))
@@ -283,7 +264,7 @@ fn create_tooltip(remote: &str, resource: &Resource, info: &TooltipInfo) -> Colu
         )
 }
 
-const WARN_CUTOFF: f64 = 0.5;
+const WARN_CUTOFF: f64 = 0.7;
 
 const GOOD_COLOR: &str = "var(--pwt-color-success)";
 const WARN_COLOR: &str = "var(--pwt-color-warning)";

@@ -7,15 +7,16 @@ use yew::{
     Component,
 };
 
-use proxmox_yew_comp::{http_get, GuestState, Status, StorageState};
+use proxmox_yew_comp::{http_get, GuestState, Status};
 use pwt::{
     css::{AlignItems, FlexFit, FlexWrap, JustifyContent},
     prelude::*,
-    widget::{Button, Column, Container, Fa, Panel, Row},
+    widget::{error_message, Button, Column, Container, Fa, Panel, Row},
     AsyncPool,
 };
 
 use pdm_api_types::resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus};
+use pdm_client::types::TopEntity;
 
 use crate::{remotes::AddWizard, RemoteList};
 
@@ -46,6 +47,7 @@ impl Default for Dashboard {
 
 pub enum Msg {
     LoadingFinished(Result<ResourcesStatus, Error>),
+    TopEntitiesLoadResult(Result<pdm_client::types::TopEntities, proxmox_client::Error>),
     RemoteListChanged(RemoteList),
     CreateWizard(bool),
 }
@@ -53,6 +55,8 @@ pub enum Msg {
 pub struct PdmDashboard {
     status: ResourcesStatus,
     last_error: Option<Error>,
+    top_entities: Option<pdm_client::types::TopEntities>,
+    last_top_entities_error: Option<proxmox_client::Error>,
     loading: bool,
     remote_list: RemoteList,
     show_wizard: bool,
@@ -120,12 +124,7 @@ impl PdmDashboard {
             .title(self.create_title_with_icon(icon, title))
             .border(true)
             .with_child(if self.loading {
-                Column::new()
-                    .padding(4)
-                    .class(FlexFit)
-                    .class(JustifyContent::Center)
-                    .class(AlignItems::Center)
-                    .with_child(html! {<i class={"pwt-loading-icon"} />})
+                loading_column()
             } else {
                 Column::new()
                     .padding(4)
@@ -161,6 +160,30 @@ impl PdmDashboard {
                     )
             })
     }
+
+    fn create_top_entities_panel(
+        &self,
+        icon: &str,
+        title: String,
+        metrics_title: String,
+        entities: Option<&Vec<TopEntity>>,
+    ) -> Panel {
+        Panel::new()
+            .flex(1.0)
+            .width(500)
+            .min_width(400)
+            .border(true)
+            .title(self.create_title_with_icon(icon, title))
+            .with_optional_child(
+                entities.map(|entities| TopEntities::new(entities.clone(), metrics_title)),
+            )
+            .with_optional_child(self.top_entities.is_none().then_some(loading_column()))
+            .with_optional_child(
+                self.last_top_entities_error
+                    .as_ref()
+                    .map(|err| error_message(&err.to_string())),
+            )
+    }
 }
 
 impl Component for PdmDashboard {
@@ -177,6 +200,13 @@ impl Component for PdmDashboard {
             let result = http_get("/resources/status", Some(json!({"max-age": max_age}))).await;
             link.send_message(Msg::LoadingFinished(result));
         });
+        async_pool.spawn({
+            let link = ctx.link().clone();
+            async move {
+                let result = crate::pdm_client().get_top_entities().await;
+                link.send_message(Msg::TopEntitiesLoadResult(result));
+            }
+        });
         let (remote_list, _context_listener) = ctx
             .link()
             .context(ctx.link().callback(Msg::RemoteListChanged))
@@ -185,6 +215,8 @@ impl Component for PdmDashboard {
         Self {
             status: ResourcesStatus::default(),
             last_error: None,
+            top_entities: None,
+            last_top_entities_error: None,
             loading: true,
             remote_list,
             show_wizard: false,
@@ -204,6 +236,16 @@ impl Component for PdmDashboard {
                     Err(err) => self.last_error = Some(err),
                 }
                 self.loading = false;
+                true
+            }
+            Msg::TopEntitiesLoadResult(res) => {
+                match res {
+                    Ok(data) => {
+                        self.last_top_entities_error = None;
+                        self.top_entities = Some(data);
+                    }
+                    Err(err) => self.last_top_entities_error = Some(err),
+                }
                 true
             }
             Msg::RemoteListChanged(remote_list) => {
@@ -350,7 +392,25 @@ impl Component for PdmDashboard {
                 Row::new()
                     .gap(4)
                     .class(FlexWrap::Wrap)
-                    .with_child(TopEntities::new()),
+                    .min_height(175)
+                    .with_child(self.create_top_entities_panel(
+                        "desktop",
+                        tr!("Guests with most CPU usage"),
+                        tr!("CPU usage"),
+                        self.top_entities.as_ref().map(|e| &e.guest_cpu),
+                    ))
+                    .with_child(self.create_top_entities_panel(
+                        "building",
+                        tr!("Nodes with most CPU usage"),
+                        tr!("CPU usage"),
+                        self.top_entities.as_ref().map(|e| &e.node_cpu),
+                    ))
+                    .with_child(self.create_top_entities_panel(
+                        "building",
+                        tr!("Nodes with most memory usage"),
+                        tr!("Memory usage"),
+                        self.top_entities.as_ref().map(|e| &e.node_memory),
+                    )),
             );
 
         Panel::new()
@@ -378,4 +438,13 @@ impl From<Dashboard> for VNode {
         let comp = VComp::new::<PdmDashboard>(Rc::new(val), None);
         VNode::from(comp)
     }
+}
+
+fn loading_column() -> Column {
+    Column::new()
+        .padding(4)
+        .class(FlexFit)
+        .class(JustifyContent::Center)
+        .class(AlignItems::Center)
+        .with_child(html! {<i class={"pwt-loading-icon"} />})
 }
