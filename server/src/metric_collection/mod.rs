@@ -187,7 +187,6 @@ pub fn calculate_top(
     let mut top10cpu_guests = Vec::new();
 
     for remote_name in remotes.keys() {
-        log::info!("calculating for remote {remote_name}");
         if let Some(data) =
             crate::api::resources::get_cached_resources(remote_name, i64::MAX as u64)
         {
