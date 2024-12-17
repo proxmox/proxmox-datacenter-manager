@@ -189,12 +189,6 @@ impl Component for PdmTopNavBar {
             );
         }
 
-        let src = if self.dark_mode {
-            "/images/proxmox_logo_white.png"
-        } else {
-            "/images/proxmox_logo.png"
-        };
-
         let dialog: Option<Html> = self.view_state.as_ref().map(|view_state| match view_state {
             ViewState::LanguageDialog => LanguageDialog::new()
                 .on_close(ctx.link().callback(|_| Msg::ChangeView(None)))
@@ -216,7 +210,9 @@ impl Component for PdmTopNavBar {
             .class("pwt-border-bottom")
             .padding(2)
             .with_child(html! {
-                <a href="https://www.proxmox.com" target="_blank"><img {src} alt="Proxmox logo"/></a>
+                <a href="https://www.proxmox.com" target="_blank">
+                    <img src="/images/proxmox_logo.svg" height="30" alt="Proxmox logo"/>
+                </a>
             })
             .with_child({
                 let text = if let Some(info) = &self.version_info {
