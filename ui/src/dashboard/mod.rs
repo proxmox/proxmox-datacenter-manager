@@ -395,19 +395,19 @@ impl Component for PdmDashboard {
                     .min_height(175)
                     .with_child(self.create_top_entities_panel(
                         "desktop",
-                        tr!("Guests with most CPU usage"),
+                        tr!("Guests With Most CPU Usage"),
                         tr!("CPU usage"),
                         self.top_entities.as_ref().map(|e| &e.guest_cpu),
                     ))
                     .with_child(self.create_top_entities_panel(
                         "building",
-                        tr!("Nodes with most CPU usage"),
+                        tr!("Nodes With Most CPU Usage"),
                         tr!("CPU usage"),
                         self.top_entities.as_ref().map(|e| &e.node_cpu),
                     ))
                     .with_child(self.create_top_entities_panel(
                         "building",
-                        tr!("Nodes with most memory usage"),
+                        tr!("Nodes With Most Memory Usage"),
                         tr!("Memory usage"),
                         self.top_entities.as_ref().map(|e| &e.node_memory),
                     )),
