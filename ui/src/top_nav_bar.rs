@@ -215,7 +215,9 @@ impl Component for PdmTopNavBar {
             .class("pwt-justify-content-space-between pwt-align-items-center")
             .class("pwt-border-bottom")
             .padding(2)
-            .with_child(html! { <img {src} alt="Proxmox logo"/> })
+            .with_child(html! {
+                <a href="https://www.proxmox.com" target="_blank"><img {src} alt="Proxmox logo"/></a>
+            })
             .with_child({
                 let text = if let Some(info) = &self.version_info {
                     format!("Datacenter Manager {}.{}", info.version, info.release)
