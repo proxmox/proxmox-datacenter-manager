@@ -40,20 +40,21 @@
 .fa-cpu::before {
     content: " ";
     background-image: url(./images/icon-cpu.svg);
-    background-size: 1em;
+    background-size: 16px 16px;
     background-repeat: no-repeat;
-    width: 1em;
-    height: 1em;
+    width: 16px;
+    height: 16px;
+    vertical-align: bottom;
     display: inline-block;
 }
 
 .fa-memory::before {
     content: " ";
     background-image: url(./images/icon-memory.svg);
-    background-size: 1em;
-    background-position: bottom;
+    background-size: 16px 16px;
     background-repeat: no-repeat;
-    width: 1em;
-    height: 1em;
+    width: 16px;
+    height: 16px;
+    vertical-align: bottom;
     display: inline-block;
 }
