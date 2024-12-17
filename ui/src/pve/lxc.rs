@@ -245,7 +245,7 @@ impl yew::Component for LxcanelComp {
         let title: Html = Row::new()
             .gap(2)
             .class(AlignItems::Baseline)
-            .with_child(Fa::new("desktop"))
+            .with_child(Fa::new("cube"))
             .with_child(tr! {"VM '{0}'", render_lxc_name(&props.info, true)})
             .into();
 
