@@ -28,6 +28,8 @@ LIBEXECDIR = $(PREFIX)/libexec
 BASHCOMPDIR = $(PREFIX)/share/bash-completion/completions
 ZSHCOMPDIR = $(PREFIX)/share/zsh/vendor-completions
 
+UI_DIR = ui
+
 # TODO: finalize naming of binaries/services, e.g.:
 # – full proxmox-datacenter-manager-XYZ prefix for all?
 # - pdm-XYZ, would not matter for service binaries, but for user facing though.
@@ -92,7 +94,7 @@ cargo-build:
 $(BUILDDIR):
 	rm -rf $@ $@.tmp
 	mkdir $@.tmp
-	cp -a debian/ server/ services/ cli/ lib/ docs/ Makefile Cargo.toml $@.tmp
+	cp -a debian/ server/ services/ cli/ lib/ docs/ ui/ Makefile Cargo.toml $@.tmp
 	echo "git clone git://git.proxmox.com/git/$(PACKAGE).git\\ngit checkout $$(git rev-parse HEAD)" \
 	    > $@.tmp/debian/SOURCE
 	mv $@.tmp $@
@@ -101,7 +103,7 @@ $(ORIG_SRC_TAR): $(BUILDDIR)
 	tar czf $(ORIG_SRC_TAR) --exclude="$(BUILDDIR)/debian" $(BUILDDIR)
 
 .PHONY: deb
-deb: $(DEB)
+deb: $(DEB) deb-ui
 $(DBG_DEB): $(DEB)
 $(DEB): $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -b -uc -us
@@ -132,7 +134,13 @@ clean:
 	$(MAKE) -C $(COMPLETION_DIR) clean
 	rm -rf $(PACKAGE)-[0-9]*/ build/
 	rm -f *.deb *.changes *.dsc *.tar.* *.buildinfo *.build .do-cargo-build
+	$(MAKE) -C $(UI_DIR) clean
 
 .PHONY: dinstall
 dinstall: deb
 	dpkg -i $(DEB)
+
+.PHONY: deb-ui
+deb-ui: $(UI_DIR)
+	$(MAKE) -C $(UI_DIR) deb
+	mv $(UI_DIR)/proxmox-datacenter-manager-ui*.deb .
