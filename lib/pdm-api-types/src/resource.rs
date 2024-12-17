@@ -368,3 +368,50 @@ pub struct ResourceRrdData {
     /// The data points.
     pub data: Vec<Option<f64>>,
 }
+
+#[api]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+/// One entry for the list of "top entities"
+pub struct TopEntity {
+    /// The remote the resource is on
+    pub remote: String,
+    /// The resource information
+    pub resource: Resource,
+    /// The rrd data related to this entry.
+    pub rrd_data: ResourceRrdData,
+}
+
+#[api(
+    properties: {
+        "guest-cpu": {
+            type: Array,
+            items: {
+                type: TopEntity,
+            },
+        },
+        "node-cpu": {
+            type: Array,
+            items: {
+                type: TopEntity,
+            },
+        },
+        "node-memory": {
+            type: Array,
+            items: {
+                type: TopEntity,
+            },
+        },
+    },
+)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+/// Contains a list for "top entities" for Guest-CPU, Node-CPU and Node-Memory
+pub struct TopEntities {
+    /// The top entries for Guest CPU
+    pub guest_cpu: Vec<TopEntity>,
+    /// The top entries for Node CPU
+    pub node_cpu: Vec<TopEntity>,
+    /// The top entries for Node Memory
+    pub node_memory: Vec<TopEntity>,
+}

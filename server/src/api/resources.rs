@@ -9,7 +9,7 @@ use pbs_api_types::{DataStoreStatusListItem, NodeStatus};
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
     PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource, PveQemuResource,
-    PveStorageResource, RemoteResources, Resource, ResourceRrdData, ResourcesStatus,
+    PveStorageResource, RemoteResources, Resource, ResourcesStatus, TopEntities,
 };
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
@@ -272,10 +272,10 @@ pub async fn get_subscription_status(
 // FIXME: permissions?
 #[api]
 /// Returns the top X entities regarding the chosen type
-async fn get_top_entities() -> Result<Vec<(String, Resource, ResourceRrdData)>, Error> {
+async fn get_top_entities() -> Result<TopEntities, Error> {
     let (remotes_config, _) = pdm_config::remotes::config()?;
 
-    let res = crate::metric_collection::calculate_top(&remotes_config.sections, 10, "cpu_current");
+    let res = crate::metric_collection::calculate_top(&remotes_config.sections, 10);
     Ok(res)
 }
 
