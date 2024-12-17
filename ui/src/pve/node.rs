@@ -229,7 +229,7 @@ impl yew::Component for NodePanelComp {
             status_comp = status_comp
                 .with_child(make_row(
                     tr!("CPU usage"),
-                    Fa::new("database"),
+                    Fa::new("cpu"),
                     tr!("{0}% of {1} CPU(s)", format!("{:.2}", cpu * 100.0), maxcpu),
                     Some(cpu as f32),
                 ))
@@ -241,7 +241,7 @@ impl yew::Component for NodePanelComp {
                 ))
                 .with_child(make_row(
                     tr!("Memory usage"),
-                    Fa::new("list"),
+                    Fa::new("memory"),
                     tr!(
                         "{0}% ({1} of {2})",
                         format!("{:.2}", memory_used * 100.0),
@@ -252,7 +252,7 @@ impl yew::Component for NodePanelComp {
                 ))
                 .with_child(make_row(
                     tr!("Root filesystem usage"),
-                    Fa::new("server"),
+                    Fa::new("database"),
                     tr!(
                         "{0}% ({1} of {2})",
                         format!("{:.2}", root_used * 100.0),

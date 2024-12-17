@@ -55,6 +55,8 @@ install: $(COMPILED_OUTPUT) index.hbs
 
 	install -dm0755 $(DESTDIR)$(UIDIR)/images
 	install -m0644 images/favicon.svg $(DESTDIR)$(UIDIR)/images
+	install -m0644 images/icon-cpu.svg $(DESTDIR)$(UIDIR)/images
+	install -m0644 images/icon-memory.svg $(DESTDIR)$(UIDIR)/images
 	install -m0644 images/proxmox_logo.png $(DESTDIR)$(UIDIR)/images
 	install -m0644 images/proxmox_logo_white.png $(DESTDIR)$(UIDIR)/images
 

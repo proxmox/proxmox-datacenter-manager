@@ -291,7 +291,7 @@ impl yew::Component for LxcanelComp {
             let cpu = status.cpu.unwrap_or_default();
             status_comp.add_child(make_row(
                 tr!("CPU usage"),
-                Fa::new("database"),
+                Fa::new("cpu"),
                 tr!(
                     "{0}% of {1} CPU(s)",
                     format!("{:.2}", cpu * 100.0),
@@ -304,7 +304,7 @@ impl yew::Component for LxcanelComp {
             let mem_usage = mem as f64 / maxmem as f64;
             status_comp.add_child(make_row(
                 tr!("Memory usage"),
-                Fa::new("list"),
+                Fa::new("memory"),
                 tr!(
                     "{0}% ({1} of {2})",
                     format!("{:.2}", mem_usage * 100.0),
@@ -315,7 +315,7 @@ impl yew::Component for LxcanelComp {
             ));
             status_comp.add_child(make_row(
                 tr!("Bootdisk size"),
-                Fa::new("server"),
+                Fa::new("database"),
                 HumanByte::from(status.maxdisk.unwrap_or_default() as u64).to_string(),
                 None,
             ));

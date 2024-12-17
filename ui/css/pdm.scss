@@ -36,3 +36,24 @@
     border-radius: var(--pwt-button-corner-shape);
     height: map-get($line-height, "label-large");
 }
+
+.fa-cpu::before {
+    content: " ";
+    background-image: url(./images/icon-cpu.svg);
+    background-size: 1em;
+    background-repeat: no-repeat;
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+}
+
+.fa-memory::before {
+    content: " ";
+    background-image: url(./images/icon-memory.svg);
+    background-size: 1em;
+    background-position: bottom;
+    background-repeat: no-repeat;
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+}

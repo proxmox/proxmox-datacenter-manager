@@ -204,13 +204,13 @@ impl yew::Component for RemotePanelComp {
                 )
                 .with_child(make_row(
                     tr! {"Host CPU usage (avg.)"},
-                    Fa::new("database"),
+                    Fa::new("cpu"),
                     format!("{:.2}%", status.cpu_usage * 100.0),
                     Some(status.cpu_usage as f32),
                 ))
                 .with_child(make_row(
                     tr! {"Host Memory used"},
-                    Fa::new("list"),
+                    Fa::new("memory"),
                     tr!(
                         "{0}% ({1} of {2})",
                         format!(
@@ -224,7 +224,7 @@ impl yew::Component for RemotePanelComp {
                 ))
                 .with_child(make_row(
                     tr! {"Host Storage used"},
-                    Fa::new("server"),
+                    Fa::new("database"),
                     tr!(
                         "{0}% ({1} of {2})",
                         format!(
@@ -247,7 +247,7 @@ impl yew::Component for RemotePanelComp {
                 )
                 .with_child(make_row(
                     tr! {"Cores assigned"},
-                    Fa::new("database"),
+                    Fa::new("cpu"),
                     tr!(
                         "{0} running / {1} physical ({2} total configured)",
                         status.guest_cores_running,
@@ -258,7 +258,7 @@ impl yew::Component for RemotePanelComp {
                 ))
                 .with_child(make_row(
                     tr! {"Memory assigned"},
-                    Fa::new("list"),
+                    Fa::new("memory"),
                     tr!(
                         "{0} running / {1} physical ({2} total configured)",
                         HumanByte::from(status.guest_memory_running),
