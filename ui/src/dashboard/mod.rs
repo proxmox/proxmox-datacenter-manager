@@ -281,68 +281,69 @@ impl Component for PdmDashboard {
                         tr!("Linux Container"),
                         &self.status.lxc,
                     ))
-                    .with_child(self.create_node_panel(
-                        "building-o",
-                        tr!("Backup Server Nodes"),
-                        &self.status.pbs_nodes,
-                    ))
-                    .with_child(
-                        Panel::new()
-                            .flex(1.0)
-                            .width(300)
-                            .title(self.create_title_with_icon(
-                                "floppy-o",
-                                tr!("Backup Server Datastores"),
-                            ))
-                            .border(true)
-                            .with_child(if self.loading {
-                                Column::new()
-                                    .padding(4)
-                                    .class(FlexFit)
-                                    .class(JustifyContent::Center)
-                                    .class(AlignItems::Center)
-                                    .with_child(html! {<i class={"pwt-loading-icon"} />})
-                            } else {
-                                Column::new()
-                                    .padding(4)
-                                    .class(FlexFit)
-                                    .class(JustifyContent::Center)
-                                    .gap(2)
-                                    // FIXME: show more detailed status (usage?)
-                                    .with_child(
-                                        Row::new()
-                                            .gap(2)
-                                            .with_child(
-                                                StorageState::Available.to_fa_icon().fixed_width(),
-                                            )
-                                            .with_child(tr!("available"))
-                                            .with_flex_spacer()
-                                            .with_child(
-                                                Container::from_tag("span").with_child(
-                                                    self.status.pbs_datastores.available,
-                                                ),
-                                            ),
-                                    )
-                                    .with_optional_child(
-                                        (self.status.pbs_datastores.unknown > 0).then_some(
-                                            Row::new()
-                                                .gap(2)
-                                                .with_child(
-                                                    StorageState::Unknown
-                                                        .to_fa_icon()
-                                                        .fixed_width(),
-                                                )
-                                                .with_child(tr!("unknown"))
-                                                .with_flex_spacer()
-                                                .with_child(
-                                                    Container::from_tag("span").with_child(
-                                                        self.status.pbs_datastores.unknown,
-                                                    ),
-                                                ),
-                                        ),
-                                    )
-                            }),
-                    )
+                    // FIXME: add PBS support
+                    //.with_child(self.create_node_panel(
+                    //    "building-o",
+                    //    tr!("Backup Server Nodes"),
+                    //    &self.status.pbs_nodes,
+                    //))
+                    //.with_child(
+                    //    Panel::new()
+                    //        .flex(1.0)
+                    //        .width(300)
+                    //        .title(self.create_title_with_icon(
+                    //            "floppy-o",
+                    //            tr!("Backup Server Datastores"),
+                    //        ))
+                    //        .border(true)
+                    //        .with_child(if self.loading {
+                    //            Column::new()
+                    //                .padding(4)
+                    //                .class(FlexFit)
+                    //                .class(JustifyContent::Center)
+                    //                .class(AlignItems::Center)
+                    //                .with_child(html! {<i class={"pwt-loading-icon"} />})
+                    //        } else {
+                    //            Column::new()
+                    //                .padding(4)
+                    //                .class(FlexFit)
+                    //                .class(JustifyContent::Center)
+                    //                .gap(2)
+                    //                // FIXME: show more detailed status (usage?)
+                    //                .with_child(
+                    //                    Row::new()
+                    //                        .gap(2)
+                    //                        .with_child(
+                    //                            StorageState::Available.to_fa_icon().fixed_width(),
+                    //                        )
+                    //                        .with_child(tr!("available"))
+                    //                        .with_flex_spacer()
+                    //                        .with_child(
+                    //                            Container::from_tag("span").with_child(
+                    //                                self.status.pbs_datastores.available,
+                    //                            ),
+                    //                        ),
+                    //                )
+                    //                .with_optional_child(
+                    //                    (self.status.pbs_datastores.unknown > 0).then_some(
+                    //                        Row::new()
+                    //                            .gap(2)
+                    //                            .with_child(
+                    //                                StorageState::Unknown
+                    //                                    .to_fa_icon()
+                    //                                    .fixed_width(),
+                    //                            )
+                    //                            .with_child(tr!("unknown"))
+                    //                            .with_flex_spacer()
+                    //                            .with_child(
+                    //                                Container::from_tag("span").with_child(
+                    //                                    self.status.pbs_datastores.unknown,
+                    //                                ),
+                    //                            ),
+                    //                    ),
+                    //                )
+                    //        }),
+                    //)
                     .with_child(SubscriptionInfo::new()),
             )
             .with_child(
