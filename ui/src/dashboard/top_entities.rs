@@ -10,15 +10,13 @@ use yew::{
 use proxmox_yew_comp::utils::render_epoch;
 use pwt::{
     css::{AlignItems, Display, JustifyContent},
+    dom::align::{align_to, AlignOptions},
     props::{
         ContainerBuilder, CssBorderBuilder, CssLength, CssPaddingBuilder, EventSubscriber,
         WidgetBuilder, WidgetStyleBuilder,
     },
     tr,
-    widget::{
-        align::{align_to, AlignOptions},
-        ActionIcon, Column, Container, Fa, Panel, Row,
-    },
+    widget::{ActionIcon, Column, Container, Fa, Panel, Row},
     AsyncPool,
 };
 
@@ -241,9 +239,9 @@ impl Component for TopEntitiesComp {
                     tooltip_node,
                     Some(
                         AlignOptions::new(
-                            pwt::widget::align::Point::BottomStart,
-                            pwt::widget::align::Point::TopStart,
-                            pwt::widget::align::GrowDirection::None,
+                            pwt::dom::align::Point::BottomStart,
+                            pwt::dom::align::Point::TopStart,
+                            pwt::dom::align::GrowDirection::None,
                         )
                         .offset(20.0, 20.0),
                     ),

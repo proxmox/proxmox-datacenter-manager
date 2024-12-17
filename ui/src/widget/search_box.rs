@@ -9,10 +9,11 @@ use yew::{
 };
 
 use pwt::{
+    dom::focus::FocusTracker,
     dom::IntoHtmlElement,
     prelude::*,
     props::CssLength,
-    widget::{focus::FocusTracker, form::Field, Container},
+    widget::{form::Field, Container},
 };
 
 use super::ResourceTree;

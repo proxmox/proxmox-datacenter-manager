@@ -73,7 +73,7 @@ $(BUILDDIR):
 	rm -rf $@ $@.tmp
 	mkdir -p $@.tmp/ui
 	cp -a debian/ src/ pwt-assets/ images/ css/ index.hbs Makefile Cargo.toml $@.tmp/ui
-	cp -a ../lib $@.tmp/
+	cp -a ../Cargo.toml ../lib $@.tmp/
 	echo "git clone git://git.proxmox.com/git/$(PACKAGE).git\\ngit checkout $$(git rev-parse HEAD)" \
 	    > $@.tmp/ui/debian/SOURCE
 	mv $@.tmp $@
