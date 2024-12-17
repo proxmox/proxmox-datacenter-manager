@@ -2,6 +2,7 @@ use core::f64;
 use std::rc::Rc;
 
 use gloo_timers::callback::Timeout;
+use serde_json::json;
 use yew::{
     virtual_dom::{VComp, VNode},
     Properties,
@@ -18,7 +19,7 @@ use pwt::{
 };
 
 use pdm_api_types::{resource::PveLxcResource, rrddata::LxcDataPoint};
-use pdm_client::types::LxcStatus;
+use pdm_client::types::{IsRunning, LxcStatus};
 
 use crate::{pve::utils::render_lxc_name, renderer::separator};
 
@@ -250,81 +251,112 @@ impl yew::Component for LxcanelComp {
             .into();
 
         let mut status_comp = Column::new().gap(2).padding(4);
-        if self.status.is_none() && self.last_status_error.is_none() {
-            status_comp.add_child(Progress::new());
-        }
-        if let Some(status) = &self.status {
-            if !status.template.unwrap_or_default() {
-                status_comp.add_child(make_row(
-                    tr!("Status"),
-                    Fa::new("info"),
-                    status.status.to_string(),
-                    None,
-                ));
-            }
+        let status = match &self.status {
+            Some(status) => status,
+            None => &LxcStatus {
+                cpu: Some(props.info.cpu),
+                cpus: Some(props.info.maxcpu),
+                diskread: None,
+                diskwrite: None,
+                ha: json!({ "managed": 0 }),
+                lock: None,
+                maxdisk: Some(props.info.maxdisk as i64),
+                maxmem: Some(props.info.maxmem as i64),
+                mem: Some(props.info.mem as i64),
+                name: None,
+                netin: None,
+                netout: None,
+                status: serde_json::from_value(serde_json::Value::String(
+                    props.info.status.clone(),
+                ))
+                .unwrap_or(IsRunning::Stopped),
+                tags: None,
+                template: Some(props.info.template),
+                uptime: None,
+                vmid: props.info.vmid,
+                disk: None,
+                maxswap: None,
+            },
+        };
 
-            let ha_text = if status.ha["managed"].as_i64().unwrap_or_default() > 0 {
-                let ha_group = status
-                    .ha
-                    .get("group")
-                    .and_then(|c| c.as_str().map(|c| c.to_string()))
-                    .unwrap_or(tr!("none"));
-                let ha_state = status
-                    .ha
-                    .get("state")
-                    .and_then(|c| c.as_str())
-                    .unwrap_or_default();
-                tr!("{0}, Group: {1}", ha_state, ha_group)
-            } else {
-                tr!("none")
-            };
-
+        if !status.template.unwrap_or_default() {
             status_comp.add_child(make_row(
-                tr!("HA state"),
-                Fa::new("heartbeat"),
-                ha_text,
-                None,
-            ));
-
-            status_comp.add_child(Container::new().padding(1)); // spacer
-
-            let cpu = status.cpu.unwrap_or_default();
-            status_comp.add_child(make_row(
-                tr!("CPU usage"),
-                Fa::new("cpu"),
-                tr!(
-                    "{0}% of {1} CPU(s)",
-                    format!("{:.2}", cpu * 100.0),
-                    status.cpus.unwrap_or_default()
-                ),
-                Some(cpu as f32),
-            ));
-            let mem = status.mem.unwrap_or_default() as u64;
-            let maxmem = status.maxmem.unwrap_or_default() as u64;
-            let mem_usage = mem as f64 / maxmem as f64;
-            status_comp.add_child(make_row(
-                tr!("Memory usage"),
-                Fa::new("memory"),
-                tr!(
-                    "{0}% ({1} of {2})",
-                    format!("{:.2}", mem_usage * 100.0),
-                    HumanByte::from(mem),
-                    HumanByte::from(maxmem),
-                ),
-                Some(mem_usage as f32),
-            ));
-            status_comp.add_child(make_row(
-                tr!("Bootdisk size"),
-                Fa::new("database"),
-                HumanByte::from(status.maxdisk.unwrap_or_default() as u64).to_string(),
+                tr!("Status"),
+                Fa::new("info"),
+                status.status.to_string(),
                 None,
             ));
         }
+
+        let ha_text = if status.ha["managed"].as_i64().unwrap_or_default() > 0 {
+            let ha_group = status
+                .ha
+                .get("group")
+                .and_then(|c| c.as_str().map(|c| c.to_string()))
+                .unwrap_or(tr!("none"));
+            let ha_state = status
+                .ha
+                .get("state")
+                .and_then(|c| c.as_str())
+                .unwrap_or_default();
+            tr!("{0}, Group: {1}", ha_state, ha_group)
+        } else {
+            tr!("none")
+        };
+
+        status_comp.add_child(make_row(
+            tr!("HA state"),
+            Fa::new("heartbeat"),
+            ha_text,
+            None,
+        ));
+
+        status_comp.add_child(Container::new().padding(1)); // spacer
+
+        let cpu = status.cpu.unwrap_or_default();
+        status_comp.add_child(make_row(
+            tr!("CPU usage"),
+            Fa::new("cpu"),
+            tr!(
+                "{0}% of {1} CPU(s)",
+                format!("{:.2}", cpu * 100.0),
+                status.cpus.unwrap_or_default()
+            ),
+            Some(cpu as f32),
+        ));
+        let mem = status.mem.unwrap_or_default() as u64;
+        let maxmem = status.maxmem.unwrap_or_default() as u64;
+        let mem_usage = mem as f64 / maxmem as f64;
+        status_comp.add_child(make_row(
+            tr!("Memory usage"),
+            Fa::new("memory"),
+            tr!(
+                "{0}% ({1} of {2})",
+                format!("{:.2}", mem_usage * 100.0),
+                HumanByte::from(mem),
+                HumanByte::from(maxmem),
+            ),
+            Some(mem_usage as f32),
+        ));
+        status_comp.add_child(make_row(
+            tr!("Bootdisk size"),
+            Fa::new("database"),
+            HumanByte::from(status.maxdisk.unwrap_or_default() as u64).to_string(),
+            None,
+        ));
+
+        let loading = self.status.is_none() && self.last_status_error.is_none();
 
         Panel::new()
             .class(FlexFit)
             .title(title)
             .class(ColorScheme::Neutral)
+            .with_child(
+                // FIXME: add some 'visible' or 'active' property to the progress
+                Progress::new()
+                    .value((!loading).then_some(0.0))
+                    .style("opacity", (!loading).then_some("0")),
+            )
             .with_child(status_comp)
             .with_child(separator().padding_x(4))
             .with_child(
