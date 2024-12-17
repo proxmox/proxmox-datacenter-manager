@@ -206,7 +206,7 @@ impl yew::Component for NodePanelComp {
             .gap(2)
             .class(AlignItems::Baseline)
             .with_child(Fa::new("building"))
-            .with_child(tr! {"node '{0}'", props.node})
+            .with_child(tr! {"Node '{0}'", props.node})
             .into();
 
         let mut status_comp = Column::new().gap(2).padding(4);
