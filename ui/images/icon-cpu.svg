@@ -7,11 +7,19 @@
     height="100"
     version="1.1"
 >
+    <style type="text/css">
+        path, .outline { fill: none; stroke: #000; }
+        .filled { fill: #000; stroke: #000; }
+        @media (prefers-color-scheme: dark) {
+            path, .outline { fill: none; stroke: #fff; }
+            .filled { fill: #fff; stroke: #fff; }
+        }
+    </style>
 
-    <g fill="none" stroke="#000" stroke-width="5" shape-rendering="crispEdges">
+    <g stroke-width="5" shape-rendering="crispEdges">
         <!-- base CPU -->
-        <rect x="15" y="15" rx="0" ry="0" width="70" height="70" />
-        <rect x="30" y="30" rx="0" ry="0" width="40" height="40" fill="black"/>
+        <rect class="outline" x="15" y="15" rx="0" ry="0" width="70" height="70" />
+        <rect class="filled" x="30" y="30" rx="0" ry="0" width="40" height="40" />
         <g stroke-width="8"> <!-- pins -->
             <!-- left -->
             <path d="m14,24.5 h-12.5"/>

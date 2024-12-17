@@ -7,14 +7,22 @@
     height="100"
     version="1.1"
 >
+    <style type="text/css">
+        path, .outline { fill: none; stroke: #000; }
+        .filled { fill: #000; stroke: #000; }
+        @media (prefers-color-scheme: dark) {
+            path, .outline { fill: none; stroke: #fff; }
+            .filled { fill: #fff; stroke: #fff; }
+        }
+    </style>
 
-    <g fill="none" stroke="#000" stroke-width="7" shape-rendering="crispEdges">
-        <rect x="3.0" y="25" rx="0" ry="0" width="94" height="40"/> <!-- outer dimm PCB border -->
+    <g fill="none" stroke-width="7" shape-rendering="crispEdges">
+        <rect class="outline" x="3.0" y="25" rx="0" ry="0" width="94" height="40"/> <!-- outer dimm PCB border -->
 
         <g stroke-width="0"> <!-- dimm chips -->
-            <rect x="12.5" y="35" rx="0" ry="0" width="20" height="20" fill="black"/>
-            <rect x="40.0" y="35" rx="0" ry="0" width="20" height="20" fill="black"/>
-            <rect x="67.5" y="35" rx="0" ry="0" width="20" height="20" fill="black"/>
+            <rect class="filled" x="12.5" y="35" rx="0" ry="0" width="20" height="20" />
+            <rect class="filled" x="40.0" y="35" rx="0" ry="0" width="20" height="20" />
+            <rect class="filled" x="67.5" y="35" rx="0" ry="0" width="20" height="20" />
         </g>
 
         <g stroke-width="8"> <!-- pins -->
