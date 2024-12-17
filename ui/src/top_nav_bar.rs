@@ -220,11 +220,16 @@ impl Component for PdmTopNavBar {
                 } else {
                     "Datacenter Manager".into()
                 };
-                Container::from_tag("span").padding_x(4).with_child(text)
+                Container::from_tag("span")
+                    .class("pwt-font-title-medium")
+                    .padding_x(4)
+                    .with_child(text)
             })
-            .with_child(
-                html! { <a href="https://bugzilla.proxmox.com" target="_blank">{"ALPHA"}</a> },
-            )
+            .with_child(html! {
+                <span class="pwt-font-title-medium">
+                    <a href="https://bugzilla.proxmox.com" target="_blank">{"ALPHA"}</a>
+                </span>
+            })
             .with_flex_spacer()
             .with_child(SearchBox::new())
             .with_flex_spacer()
