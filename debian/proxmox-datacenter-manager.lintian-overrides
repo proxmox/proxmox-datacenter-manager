@@ -1,0 +1,2 @@
+uses-dpkg-database-directly [usr/libexec/proxmox/proxmox-datacenter-api]
+uses-dpkg-database-directly [usr/libexec/proxmox/proxmox-datacenter-privileged-api]
