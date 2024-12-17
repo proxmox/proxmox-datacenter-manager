@@ -257,9 +257,9 @@ impl yew::Component for NodePanelComp {
                         "{0}% ({1} of {2})",
                         format!("{:.2}", root_used * 100.0),
                         HumanByte::from(root),
-                        HumanByte::from(maxmem),
+                        HumanByte::from(maxroot),
                     ),
-                    Some(memory_used as f32),
+                    Some(root_used as f32),
                 ))
                 .with_child(Container::new().padding(1)) // spacer
                 .with_child(
