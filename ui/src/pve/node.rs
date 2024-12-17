@@ -9,7 +9,7 @@ use proxmox_human_byte::HumanByte;
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_yew_comp::{RRDGraph, Series};
 use pwt::{
-    css::{AlignItems, ColorScheme, Flex, FlexFit, Overflow},
+    css::{AlignItems, ColorScheme, FlexFit},
     prelude::*,
     props::{ContainerBuilder, WidgetBuilder},
     widget::{error_message, Column, Container, Fa, Panel, Progress, Row},
