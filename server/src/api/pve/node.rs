@@ -1,10 +1,10 @@
 use anyhow::Error;
 
-use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
+use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::{remotes::REMOTE_ID_SCHEMA, NODE_SCHEMA};
+use pdm_api_types::{remotes::REMOTE_ID_SCHEMA, NODE_SCHEMA, PRIV_RESOURCE_AUDIT};
 use pve_api_types::StorageContent;
 
 pub const ROUTER: Router = Router::new()
@@ -30,6 +30,9 @@ const SUBDIRS: SubdirMap = &sorted!([
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
+    }
 )]
 /// Get network interfaces from PVE node
 async fn get_network(
@@ -78,6 +81,10 @@ async fn get_network(
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
+        description: "if `target` is set, also requires PRIV_RESOURCE_AUDIT on /resource/{remote}/node/{target}"
+    }
 )]
 /// Get status for all datastores
 async fn get_storages(
@@ -103,6 +110,9 @@ async fn get_storages(
             remote: { schema: REMOTE_ID_SCHEMA },
             node: { schema: NODE_SCHEMA },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
     },
 )]
 /// Get status for the node

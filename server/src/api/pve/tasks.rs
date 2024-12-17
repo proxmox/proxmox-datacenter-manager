@@ -2,12 +2,12 @@
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox_router::{list_subdirs_api_method, Router, RpcEnvironment, SubdirMap};
+use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::{api, Schema};
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
-use pdm_api_types::{RemoteUpid, NODE_SCHEMA};
+use pdm_api_types::{RemoteUpid, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MANAGE};
 use pve_api_types::PveUpid;
 
 use super::{connect, connect_to_remote, get_remote};
@@ -37,6 +37,10 @@ const UPID_API_SUBDIRS: SubdirMap = &sorted!([
             },
         },
     },
+    access: {
+        // FIXME: fine-grained task filtering?
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
+    },
     returns: { type: pve_api_types::TaskStatus },
 )]
 /// Get the list of tasks either for a specific node, or query all at once.
@@ -65,6 +69,10 @@ async fn list_tasks(
             remote: { schema: REMOTE_ID_SCHEMA },
             upid: { type: RemoteUpid },
         },
+    },
+    access: {
+        // FIXME: fine-grained task filtering?
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_MANAGE, false),
     },
 )]
 /// Get the status of a task from a Proxmox VE instance.
@@ -102,6 +110,10 @@ async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
                 default: false,
             },
         },
+    },
+    access: {
+        // FIXME: fine-grained task filtering?
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
     },
     returns: { type: pve_api_types::TaskStatus },
 )]
@@ -178,6 +190,10 @@ const DOWNLOAD_PARAM_SCHEMA: Schema = proxmox_schema::BooleanSchema::new(
                 optional: true,
             }
         },
+    },
+    access: {
+        // FIXME: fine-grained task filtering?
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
     },
     returns: { type: pve_api_types::TaskStatus },
 )]

@@ -1,13 +1,13 @@
 use anyhow::Error;
 use serde_json::Value;
 
-use proxmox_router::Router;
+use proxmox_router::{Permission, Router};
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_schema::api;
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use pdm_api_types::rrddata::{LxcDataPoint, NodeDataPoint, QemuDataPoint};
-use pdm_api_types::{NODE_SCHEMA, VMID_SCHEMA};
+use pdm_api_types::{NODE_SCHEMA, PRIV_RESOURCE_AUDIT, VMID_SCHEMA};
 
 use crate::api::rrd_common::{self, DataPoint};
 
@@ -156,6 +156,9 @@ impl DataPoint for LxcDataPoint {
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
+    },
 )]
 /// Read qemu stats
 fn get_qemu_rrd_data(
@@ -183,6 +186,9 @@ fn get_qemu_rrd_data(
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
+    },
 )]
 /// Read lxc stats
 fn get_lxc_rrd_data(
@@ -209,6 +215,9 @@ fn get_lxc_rrd_data(
                 type: RrdMode,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
     },
 )]
 /// Read node stats

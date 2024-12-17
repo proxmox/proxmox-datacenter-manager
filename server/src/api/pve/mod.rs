@@ -18,7 +18,7 @@ use pdm_api_types::resource::PveResource;
 use pdm_api_types::{
     Authid, ConfigurationState, RemoteUpid, CIDR_FORMAT, HOST_OPTIONAL_PORT_FORMAT, NODE_SCHEMA,
     PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE, PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE,
-    SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
+    PRIV_SYS_MODIFY, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
 
 use pve_api_types::client::PveClient;
@@ -107,7 +107,7 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
 
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
 
-pub fn get_remote<'a>(
+pub(crate) fn get_remote<'a>(
     config: &'a SectionConfigData<Remote>,
     id: &str,
 ) -> Result<&'a Remote, Error> {
@@ -186,8 +186,17 @@ pub async fn list_nodes(
 pub async fn cluster_resources(
     remote: String,
     kind: Option<ClusterResourceKind>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<PveResource>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
+    let user_info = CachedUserInfo::new()?;
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .ok_or_else(|| format_err!("no authid available"))?
+        .parse()?;
+    if !user_info.any_privs_below(&auth_id, &["resource", &remote], PRIV_RESOURCE_AUDIT)? {
+        http_bail!(UNAUTHORIZED, "user has no access to resource list");
+    }
 
     let cluster_resources = connect_to_remote(&remotes, &remote)?
         .cluster_resources(kind)
@@ -226,7 +235,8 @@ fn check_guest_list_permissions(
         http_bail!(UNAUTHORIZED, "user has no access to resource list");
     }
 
-    let top_level_allowed = 0 != user_info.lookup_privs(&auth_id, &["resource", remote]);
+    let top_level_allowed =
+        0 != PRIV_RESOURCE_AUDIT & user_info.lookup_privs(&auth_id, &["resource", remote]);
 
     Ok((auth_id, user_info, top_level_allowed))
 }
@@ -236,9 +246,12 @@ fn check_guest_permissions(
     auth_id: &Authid,
     user_info: &CachedUserInfo,
     remote: &str,
+    privilege: u64,
     vmid: u32,
 ) -> bool {
-    0 != user_info.lookup_privs(auth_id, &["resource", remote, "guest", &vmid.to_string()])
+    let auth_privs =
+        user_info.lookup_privs(auth_id, &["resource", remote, "guest", &vmid.to_string()]);
+    auth_privs & privilege != 0
 }
 
 #[api(
@@ -257,8 +270,7 @@ fn check_guest_permissions(
         items: { type: pve_api_types::VmEntry },
     },
     access: {
-        permission: &Permission::Anybody,
-        description: "Returns the resources the user has access to.",
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
     },
 )]
 /// Query the remote's list of qemu VMs. If no node is provided, the all nodes are queried.
@@ -267,6 +279,8 @@ pub async fn list_qemu(
     node: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<pve_api_types::VmEntry>, Error> {
+    // FIXME: top_level_allowed is always true because of schema check above, replace with Anybody
+    // and fine-grained checks once those are implemented for all API calls..
     let (auth_id, user_info, top_level_allowed) = check_guest_list_permissions(&remote, rpcenv)?;
 
     let (remotes, _) = pdm_config::remotes::config()?;
@@ -289,7 +303,15 @@ pub async fn list_qemu(
 
     Ok(list
         .into_iter()
-        .filter(|entry| check_guest_permissions(&auth_id, &user_info, &remote, entry.vmid))
+        .filter(|entry| {
+            check_guest_permissions(
+                &auth_id,
+                &user_info,
+                &remote,
+                PRIV_RESOURCE_AUDIT,
+                entry.vmid,
+            )
+        })
         .collect())
 }
 
@@ -308,6 +330,9 @@ pub async fn list_qemu(
         description: "Get a list of containers.",
         items: { type: pve_api_types::VmEntry },
     },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
+    },
 )]
 /// Query the remote's list of lxc containers. If no node is provided, the all nodes are queried.
 pub async fn list_lxc(
@@ -315,6 +340,8 @@ pub async fn list_lxc(
     node: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<pve_api_types::LxcEntry>, Error> {
+    // FIXME: top_level_allowed is always true because of schema check above, replace with Anybody
+    // and fine-grained checks once those are implemented for all API calls..
     let (auth_id, user_info, top_level_allowed) = check_guest_list_permissions(&remote, rpcenv)?;
 
     let (remotes, _) = pdm_config::remotes::config()?;
@@ -337,7 +364,15 @@ pub async fn list_lxc(
 
     Ok(list
         .into_iter()
-        .filter(|entry| check_guest_permissions(&auth_id, &user_info, &remote, entry.vmid))
+        .filter(|entry| {
+            check_guest_permissions(
+                &auth_id,
+                &user_info,
+                &remote,
+                PRIV_RESOURCE_AUDIT,
+                entry.vmid,
+            )
+        })
         .collect())
 }
 
@@ -683,10 +718,9 @@ pub async fn qemu_migrate(
     },
     returns: { type: RemoteUpid },
     access: {
-        permission: &Permission::And(&[
+        permission:
             &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
-            &Permission::Privilege(&["resource", "{target}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
-        ]),
+        description: "requires PRIV_RESOURCE_MIGRATE on /resource/{remote}/guest/{vmid} for source and target remove and vmid",
     },
 )]
 /// Perform a remote migration of a VM.
@@ -704,6 +738,27 @@ pub async fn qemu_remote_migrate(
     bwlimit: Option<u64>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<RemoteUpid, Error> {
+    let user_info = CachedUserInfo::new()?;
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .ok_or_else(|| format_err!("no authid available"))?
+        .parse()?;
+    let target_privs = user_info.lookup_privs(
+        &auth_id,
+        &[
+            "resource",
+            &target,
+            "guest",
+            &target_vmid.unwrap_or(vmid).to_string(),
+        ],
+    );
+    if target_privs & PRIV_RESOURCE_MIGRATE == 0 {
+        http_bail!(
+            UNAUTHORIZED,
+            "missing PRIV_RESOURCE_MIGRATE on target remote+vmid"
+        );
+    }
+
     if delete {
         check_guest_delete_perms(rpcenv, &remote, vmid)?;
     }
@@ -1057,10 +1112,9 @@ pub async fn lxc_migrate(
     },
     returns: { type: RemoteUpid },
     access: {
-        permission: &Permission::And(&[
+        permission:
             &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
-            &Permission::Privilege(&["resource", "{target}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
-        ]),
+        description: "requires PRIV_RESOURCE_MIGRATE on /resource/{remote}/guest/{vmid} for source and target remove and vmid",
     },
 )]
 /// Perform a remote migration of an lxc container.
@@ -1080,6 +1134,26 @@ pub async fn lxc_remote_migrate(
     timeout: Option<i64>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<RemoteUpid, Error> {
+    let user_info = CachedUserInfo::new()?;
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .ok_or_else(|| format_err!("no authid available"))?
+        .parse()?;
+    let target_privs = user_info.lookup_privs(
+        &auth_id,
+        &[
+            "resource",
+            &target,
+            "guest",
+            &target_vmid.unwrap_or(vmid).to_string(),
+        ],
+    );
+    if target_privs & PRIV_RESOURCE_MIGRATE == 0 {
+        http_bail!(
+            UNAUTHORIZED,
+            "missing PRIV_RESOURCE_MIGRATE on target remote+vmid"
+        );
+    }
     if delete {
         check_guest_delete_perms(rpcenv, &remote, vmid)?;
     }
@@ -1156,6 +1230,10 @@ pub async fn lxc_remote_migrate(
                 description: "The token secret or the user password.",
             },
         },
+    },
+    access: {
+        permission:
+            &Permission::Privilege(&["/"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Scans the given connection info for pve cluster information
