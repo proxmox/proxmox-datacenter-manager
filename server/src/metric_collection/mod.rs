@@ -181,6 +181,7 @@ fn calculate_coefficient(values: &proxmox_rrd::Entry) -> f64 {
 // FIXME: find better way to enumerate nodes/guests/etc.(instead of relying on the cache)
 pub fn calculate_top(
     remotes: &HashMap<String, pdm_api_types::remotes::Remote>,
+    timeframe: proxmox_rrd_api_types::RrdTimeframe,
     num: usize,
 ) -> TopEntities {
     let mut guest_cpu = Vec::new();
@@ -197,23 +198,34 @@ pub fn calculate_top(
                 match &res {
                     Resource::PveStorage(_) => {}
                     Resource::PveQemu(_) | Resource::PveLxc(_) => {
-                        if let Some(entity) = get_entity(remote_name, res, name, "cpu_current") {
+                        if let Some(entity) =
+                            get_entity(timeframe, remote_name, res, name, "cpu_current")
+                        {
                             let coefficient = (entity.0 * 100.0).round() as usize;
                             insert_sorted(&mut guest_cpu, (coefficient, entity.1), num);
                         }
                     }
                     Resource::PveNode(_) => {
-                        if let Some(entity) =
-                            get_entity(remote_name, res.clone(), name.clone(), "cpu_current")
-                        {
+                        if let Some(entity) = get_entity(
+                            timeframe,
+                            remote_name,
+                            res.clone(),
+                            name.clone(),
+                            "cpu_current",
+                        ) {
                             let coefficient = (entity.0 * 100.0).round() as usize;
                             insert_sorted(&mut node_cpu, (coefficient, entity.1), num);
                         }
                         // convert mem/mem_total into a single entity
-                        if let Some(mut mem) =
-                            get_entity(remote_name, res.clone(), name.clone(), "mem_used")
-                        {
-                            if let Some(mem_total) = get_entity(remote_name, res, name, "mem_total")
+                        if let Some(mut mem) = get_entity(
+                            timeframe,
+                            remote_name,
+                            res.clone(),
+                            name.clone(),
+                            "mem_used",
+                        ) {
+                            if let Some(mem_total) =
+                                get_entity(timeframe, remote_name, res, name, "mem_total")
                             {
                                 // skip if we don't have the same amount of data for used and total
                                 let mem_rrd = &mem.1.rrd_data.data;
@@ -250,6 +262,7 @@ pub fn calculate_top(
 }
 
 fn get_entity(
+    timeframe: proxmox_rrd_api_types::RrdTimeframe,
     remote_name: &String,
     res: Resource,
     name: String,
@@ -258,7 +271,7 @@ fn get_entity(
     if let Ok(Some(values)) = rrd_cache::extract_data(
         &name,
         metric,
-        proxmox_rrd_api_types::RrdTimeframe::Hour,
+        timeframe,
         proxmox_rrd_api_types::RrdMode::Average,
     ) {
         let coefficient = calculate_coefficient(&values);

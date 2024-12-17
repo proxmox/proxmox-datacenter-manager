@@ -17,6 +17,7 @@ use pdm_api_types::subscription::{
 use pdm_api_types::PRIV_RESOURCE_AUDIT;
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
+use proxmox_rrd_api_types::RrdTimeframe;
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 use proxmox_subscription::SubscriptionStatus;
@@ -270,12 +271,22 @@ pub async fn get_subscription_status(
 
 // FIXME: make timeframe and count parameters?
 // FIXME: permissions?
-#[api]
+#[api(
+    input: {
+        properties: {
+            "timeframe": {
+                type: RrdTimeframe,
+                optional: true,
+            }
+        }
+    },
+)]
 /// Returns the top X entities regarding the chosen type
-async fn get_top_entities() -> Result<TopEntities, Error> {
+async fn get_top_entities(timeframe: Option<RrdTimeframe>) -> Result<TopEntities, Error> {
     let (remotes_config, _) = pdm_config::remotes::config()?;
 
-    let res = crate::metric_collection::calculate_top(&remotes_config.sections, 10);
+    let timeframe = timeframe.unwrap_or_else(|| RrdTimeframe::Day);
+    let res = crate::metric_collection::calculate_top(&remotes_config.sections, timeframe, 10);
     Ok(res)
 }
 
