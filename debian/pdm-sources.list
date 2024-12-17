@@ -1,0 +1,3 @@
+# Other repositories will be made available with the first stable releases.
+# See https://forum.proxmox.com for announcements.
+deb http://download.proxmox.com/debian/pdm bookworm pdm-test

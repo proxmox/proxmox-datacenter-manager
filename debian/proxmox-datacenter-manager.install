@@ -1,3 +1,4 @@
+debian/pdm-sources.list etc/apt/sources.list.d/pdm-test.list
 lib/systemd/system/proxmox-datacenter-api.service
 lib/systemd/system/proxmox-datacenter-privileged-api.service
 usr/libexec/proxmox/proxmox-datacenter-api
