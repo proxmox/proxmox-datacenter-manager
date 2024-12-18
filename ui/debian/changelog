@@ -1,3 +1,17 @@
+proxmox-datacenter-manager-ui (0.1.5) bookworm; urgency=medium
+
+  * gzip-compress WASM at build-time to reduce transfer size dramatically from
+    16.66 MB to 4.89 MB. This helps with load times on slower or spotty
+    connections.
+
+  * improve some translatable strings
+
+  * pve remote: include Container when calculating the running guests counter.
+
+  * pve remote: fix calculating subscription level
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 18 Dec 2024 23:36:57 +0100
+
 proxmox-datacenter-manager-ui (0.1.4) bookworm; urgency=medium
 
   * fix setting nodename in document title.
