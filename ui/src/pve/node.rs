@@ -192,6 +192,7 @@ impl yew::Component for NodePanelComp {
             self.load_data = Rc::new(Series::new("", Vec::new()));
             self.mem_data = Rc::new(Series::new("", Vec::new()));
             self.mem_total_data = Rc::new(Series::new("", Vec::new()));
+            self.async_pool = AsyncPool::new();
             ctx.link()
                 .send_message_batch(vec![Msg::Reload, Msg::ReloadStatus]);
             true

@@ -233,6 +233,7 @@ impl yew::Component for QemuPanelComp {
             self.netout = Rc::new(Series::new("", Vec::new()));
             self.diskread = Rc::new(Series::new("", Vec::new()));
             self.diskwrite = Rc::new(Series::new("", Vec::new()));
+            self._async_pool = AsyncPool::new();
             ctx.link()
                 .send_message_batch(vec![Msg::ReloadStatus, Msg::ReloadRrd]);
             true
