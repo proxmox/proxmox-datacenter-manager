@@ -57,6 +57,11 @@ pub struct PveStorageSelector {
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
     pub content_types: Option<Vec<StorageContent>>,
+
+    /// If set, automatically selects the first value from the store (if no default is selected)
+    #[builder]
+    #[prop_or(true)]
+    pub autoselect: bool,
 }
 
 impl PveStorageSelector {
@@ -185,7 +190,7 @@ impl Component for PveStorageSelectorComp {
         .loader(self.load_callback.clone())
         .with_std_props(&props.std_props)
         .with_input_props(&props.input_props)
-        .autoselect(true)
+        .autoselect(props.autoselect)
         .validate(self.validate_fn.clone())
         .on_change(on_change)
         .default(props.default.clone())
