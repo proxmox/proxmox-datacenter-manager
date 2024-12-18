@@ -23,10 +23,19 @@
            CSRFPreventionToken: "{{ CSRFPreventionToken }}",
        };
     </script>
-     <link rel="preload" href="/js/pdm-ui_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+     <link rel="preload" href="/js/pdm-ui_bg.wasm.gz" as="fetch" type="application/wasm" crossorigin="">
      <link rel="modulepreload" href="/js/pdm-ui_bundle.js"></head>
    </head>
    <body>
-       <script type="module">import init from '/js/pdm-ui_bundle.js';init('/js/pdm-ui_bg.wasm');</script>
+       <script type="module">
+            import init from '/js/pdm-ui_bundle.js';
+            const decompressedResponse = new Response(
+                await fetch('/js/pdm-ui_bg.wasm.gz')
+                    .then(res => res.body.pipeThrough(new DecompressionStream("gzip")))
+            );
+            // set correct type to allow using faster WebAssembly.instantiateStreaming
+            decompressedResponse.headers.set("Content-Type", "application/wasm");
+            init(decompressedResponse);
+       </script>
    </body>
 </html>

@@ -25,7 +25,7 @@ UIDIR = $(PREFIX)/share/javascript/proxmox-datacenter-manager
 
 COMPILED_OUTPUT := \
 	dist/pdm-ui_bundle.js \
-	dist/pdm-ui_bg.wasm \
+	dist/pdm-ui_bg.wasm.gz \
 	dist/crisp-yew-style.css \
 	dist/material-yew-style.css \
 	dist/desktop-yew-style.css
@@ -36,7 +36,7 @@ dist:
 	mkdir dist
 
 dist/pdm-ui.js dist/pdm-ui_bg.wasm &: $(shell find src -name '*.rs')
-	proxmox-wasm-builder build -n pdm-ui --release
+	proxmox-wasm-builder build -n pdm-ui --release --optimize
 
 .PHONY: rebuild
 rebuild:
@@ -45,6 +45,9 @@ rebuild:
 dist/pdm-ui_bundle.js: dist/pdm-ui.js dist/pdm-ui_bg.wasm
 	esbuild --bundle dist/pdm-ui.js --format=esm >dist/pdm-ui_bundle.js.tmp
 	mv dist/pdm-ui_bundle.js.tmp dist/pdm-ui_bundle.js
+
+dist/pdm-ui_bg.wasm.gz: dist/pdm-ui_bg.wasm
+	gzip -c9 $^ > $@
 
 dist/%.css: css/%.scss dist
 	rust-grass $< $@
@@ -64,7 +67,7 @@ install: $(COMPILED_OUTPUT) index.hbs
 	install -m0644 pwt-assets/assets/fonts/RobotoFlexVariableFont.ttf $(DESTDIR)$(UIDIR)/fonts
 
 	install -m0644 dist/pdm-ui_bundle.js $(DESTDIR)$(UIDIR)/js
-	install -m0644 dist/pdm-ui_bg.wasm $(DESTDIR)$(UIDIR)/js
+	install -m0644 dist/pdm-ui_bg.wasm.gz $(DESTDIR)$(UIDIR)/js
 	install -m0644 index.hbs $(DESTDIR)$(UIDIR)
 	install -m0644 dist/crisp-yew-style.css $(DESTDIR)$(UIDIR)
 	install -m0644 dist/material-yew-style.css $(DESTDIR)$(UIDIR)
