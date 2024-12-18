@@ -1,5 +1,8 @@
 use anyhow::Error;
 use gloo_timers::callback::Timeout;
+use wasm_bindgen::JsCast;
+use web_sys::HtmlElement;
+
 //use pbs::utils::init_task_descr_table_pbs;
 //use pbs_api_types::NodeStatus;
 use yew::prelude::*;
@@ -16,8 +19,8 @@ use proxmox_yew_comp::{
 };
 
 //use pbs::MainMenu;
-use pdm_ui::{MainMenu, RemoteList, TopNavBar};
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
+use pdm_ui::{MainMenu, RemoteList, TopNavBar};
 
 type MsgRemoteList = Result<RemoteList, Error>;
 
@@ -241,7 +244,32 @@ impl Component for DatacenterManagerApp {
     }
 }
 
+fn set_body(content: &str) {
+    let document = web_sys::window().unwrap().document().unwrap();
+    let body: HtmlElement = document.create_element("body").unwrap().dyn_into().unwrap();
+    body.set_inner_html(content);
+    document.set_body(Some(&body));
+}
+
+fn panic_hook() -> Box<dyn Fn(&std::panic::PanicHookInfo) + 'static + Sync + Send> {
+    Box::new(|info: &std::panic::PanicHookInfo<'_>| {
+        let msg = format!("Application panicked: {info}");
+        web_sys::console::error_1(&msg.into());
+
+        set_body(&format!(
+            r#"
+<h1 class="panicked__title">Application panicked!</h1>
+<p>Reason: {info}</p>
+"#
+        ));
+    })
+}
+
 fn main() {
+    wasm_logger::init(wasm_logger::Config::default());
+
+    yew::set_custom_panic_hook(panic_hook());
+
     //init_task_descr_table_pbs();
     proxmox_yew_comp::http_setup(&proxmox_yew_comp::ExistingProduct::PDM);
 
@@ -250,8 +278,6 @@ fn main() {
     );
 
     pwt::state::set_available_themes(&["Desktop", "Crisp"]);
-    wasm_logger::init(wasm_logger::Config::default());
-
     use pwt::state::LanguageInfo;
 
     pwt::state::set_available_languages(vec![LanguageInfo::new(
