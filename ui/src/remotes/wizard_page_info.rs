@@ -13,7 +13,7 @@ use pwt::{
 
 use proxmox_yew_comp::WizardPageRenderInfo;
 
-use pdm_api_types::remotes::Remote;
+use pdm_api_types::{remotes::Remote, Authid};
 
 use pwt_macros::builder;
 
@@ -64,6 +64,19 @@ impl Component for PdmWizardPageInfo {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let mut is_user = true;
+        if let Some(Some(authid)) = ctx
+            .props()
+            .info
+            .valid_data
+            .get("authid")
+            .map(|a| a.as_str())
+        {
+            match authid.parse::<Authid>() {
+                Ok(authid) => is_user = !authid.is_token(),
+                Err(_) => {}
+            }
+        }
         let name = ctx
             .props()
             .server_info
@@ -82,16 +95,17 @@ impl Component for PdmWizardPageInfo {
                 Checkbox::new()
                     .key("create-token-cb")
                     .submit(false)
-                    .default(self.create_token)
+                    .disabled(is_user)
+                    .default(self.create_token || is_user)
                     .on_change(ctx.link().callback(Msg::ToggleCreateToken)),
             )
             .with_field(
                 tr!("Token Name"),
                 Field::new()
                     .name("create-token")
-                    .disabled(!self.create_token)
-                    .required(self.create_token)
-                    .submit(self.create_token)
+                    .disabled(!self.create_token && !is_user)
+                    .required(self.create_token || is_user)
+                    .submit(self.create_token || is_user)
                     .default("pdm-admin"),
             )
             .into()
