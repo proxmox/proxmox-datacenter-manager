@@ -85,7 +85,7 @@ impl Component for AddWizardState {
                 TabBarItem::new()
                     .key("connection")
                     .label(if remote_type == RemoteType::Pve {
-                        tr!("Initial Connection")
+                        tr!("Probe Remote")
                     } else {
                         tr!("Connection")
                     }),
@@ -100,7 +100,7 @@ impl Component for AddWizardState {
             );
 
         if remote_type == RemoteType::Pve {
-            wizard = wizard.with_page(TabBarItem::new().key("nodes").label(tr!("Connections")), {
+            wizard = wizard.with_page(TabBarItem::new().key("nodes").label(tr!("Endpoints")), {
                 let server_info = self.server_info.clone();
                 move |p: &WizardPageRenderInfo| {
                     WizardPageNodes::new(p.clone())
@@ -111,7 +111,7 @@ impl Component for AddWizardState {
         }
 
         wizard
-            .with_page(TabBarItem::new().key("info").label(tr!("Info")), {
+            .with_page(TabBarItem::new().key("info").label(tr!("Settings")), {
                 let server_info = self.server_info.clone();
                 move |p: &WizardPageRenderInfo| {
                     WizardPageInfo::new(p.clone())
