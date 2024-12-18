@@ -86,7 +86,9 @@ pub(crate) async fn create_remote(mut data: Value, remote_type: RemoteType) -> R
     let remote: Remote = serde_json::from_value(data.clone())?;
 
     let mut params = serde_json::to_value(remote)?;
-    params["create-token"] = data["create-token"].clone();
+    if let Some(token) = data["create-token"].as_str() {
+        params["create-token"] = token.into();
+    }
 
     proxmox_yew_comp::http_post("/remotes", Some(params)).await
 }
