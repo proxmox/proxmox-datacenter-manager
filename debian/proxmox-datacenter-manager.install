@@ -1,4 +1,4 @@
-debian/pdm-sources.list etc/apt/sources.list.d/pdm-test.list
+debian/pdm-test.list etc/apt/sources.list.d/
 lib/systemd/system/proxmox-datacenter-api.service
 lib/systemd/system/proxmox-datacenter-manager-banner.service
 lib/systemd/system/proxmox-datacenter-manager-daily-update.service
