@@ -219,7 +219,7 @@ async fn run(debug: bool) -> Result<(), Error> {
                 connections.accept_tls_optional(listener, acceptor);
 
             Ok(async {
-                log::info!("service is ready");
+                log::info!("service ready and listening at {PDM_LISTEN_ADDR}");
                 proxmox_systemd::notify::SystemdNotify::Ready.notify()?;
 
                 let secure_server = hyper::Server::builder(secure_connections)
