@@ -201,6 +201,12 @@ impl Component for PdmTopNavBar {
                 .into(),
         });
 
+        let src = if self.dark_mode {
+            "/images/proxmox_logo_white.svg"
+        } else {
+            "/images/proxmox_logo.svg"
+        };
+
         Row::new()
             .attribute("role", "banner")
             .attribute("aria-label", "Datacenter Manager")
@@ -211,7 +217,7 @@ impl Component for PdmTopNavBar {
             .padding(2)
             .with_child(html! {
                 <a href="https://www.proxmox.com" target="_blank">
-                    <img src="/images/proxmox_logo.svg" height="30" alt="Proxmox logo"/>
+                    <img {src} height="30" alt="Proxmox logo"/>
                 </a>
             })
             .with_child({

@@ -10,10 +10,13 @@
     <style type="text/css">
         path, .outline { fill: none; stroke: #000; }
         .filled { fill: #000; stroke: #000; }
-        @media (prefers-color-scheme: dark) {
-            path, .outline { fill: none; stroke: #fff; }
-            .filled { fill: #fff; stroke: #fff; }
-        }
+    /* handled over an outer CSS filter as WebKit / Safari do not inherit the context over SVG
+     * image boundary even though that's accepted by the w3c CSSWG...
+     *  @media (prefers-color-scheme: dark) {
+     *      path, .outline { fill: none; stroke: #fff; }
+     *      .filled { fill: #fff; stroke: #fff; }
+     *  }
+     **/
     </style>
 
     <g fill="none" stroke-width="7" shape-rendering="crispEdges">

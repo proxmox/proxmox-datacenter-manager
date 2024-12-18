@@ -58,3 +58,9 @@
     vertical-align: bottom;
     display: inline-block;
 }
+
+:root.pwt-dark-mode {
+  .fa-memory, .fa-cpu {
+    filter: invert(90%);
+  }
+}
