@@ -72,7 +72,6 @@ const SUBDIRS: SubdirMap = &sorted!([
 pub async fn get_resources(
     max_age: u64,
     search: Option<String>,
-    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<RemoteResources>, Error> {
     let (remotes_config, _) = pdm_config::remotes::config()?;
 
@@ -140,9 +139,9 @@ pub async fn get_resources(
 /// Return the amount of configured/seen resources by type
 pub async fn get_status(
     max_age: u64,
-    rpcenv: &mut dyn RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ResourcesStatus, Error> {
-    let remotes = get_resources(max_age, None, rpcenv).await?;
+    let remotes = get_resources(max_age, None).await?;
     let mut counts = ResourcesStatus::default();
     for remote in remotes {
         if remote.error.is_some() {

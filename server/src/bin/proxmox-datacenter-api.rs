@@ -28,6 +28,7 @@ use proxmox_auth_api::api::assemble_csrf_prevention_token;
 use server::auth;
 use server::auth::csrf::csrf_secret;
 use server::metric_collection;
+use server::resource_cache;
 use server::task_utils;
 
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
@@ -286,6 +287,7 @@ async fn run(debug: bool) -> Result<(), Error> {
 
     start_task_scheduler();
     metric_collection::start_task();
+    resource_cache::start_task();
 
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");
