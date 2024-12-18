@@ -107,7 +107,8 @@ $(ORIG_SRC_TAR): $(BUILDDIR)
 	tar czf $(ORIG_SRC_TAR) --exclude="$(BUILDDIR)/debian" $(BUILDDIR)
 
 .PHONY: deb
-deb: $(DEB) deb-ui
+deb: deb-api deb-ui
+deb-api: $(DEB)
 $(DBG_DEB): $(DEB)
 $(DEB): $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -b -uc -us
