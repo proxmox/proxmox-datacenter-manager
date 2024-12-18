@@ -131,9 +131,11 @@ pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Resu
             RemoteType::Pve => {
                 let client = pve::connect_or_login(&entry).await?;
 
+                let user = entry.authid.user();
+
                 let token = client
                     .create_token(
-                        &entry.authid.to_string(),
+                        &user.to_string(),
                         &create_token,
                         pve_api_types::CreateToken {
                             comment,
