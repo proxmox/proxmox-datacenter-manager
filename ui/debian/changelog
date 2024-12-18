@@ -1,3 +1,40 @@
+proxmox-datacenter-manager-ui (0.1.4) bookworm; urgency=medium
+
+  * fix setting nodename in document title.
+
+  * cope with SVG limitations of WebKit/Safari based browsers.
+
+  * pve: node: keep content layout on load to avoid "jumping" UI elements.
+
+  * pve resources: cancel in-flight loads when changing guest/node
+
+  * pve resources: make action column wider to avoid cutting of some actions in
+    when density is set to relaxed.
+
+  * remote wizard: don't send 'create-tokens' when it's not set
+
+  * remote wizard: add some hints in field placeholders and as text.
+
+  * remote wizard: require creating a token when connection was done with user
+
+  * setup simple panic hook for a better debugging experience
+
+  * widget: pve storage selector: add auto-select property
+
+  * migrate window: implement basic precondition checks
+
+  * remotes: use proper `ConfirmDialog` instead of `AlertDialog` for prompting
+    about removal of a remote.
+
+  * migrate: filter target storage selection by relevant content type
+
+  * remote wizard: strip http(s):// prefix from hostname for convenience
+
+  * ui: remote wizard: add 'Connection OK' text after trying to connect to
+    have a bit better feedback now.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 18 Dec 2024 16:15:57 +0100
+
 proxmox-datacenter-manager-ui (0.1.3) bookworm; urgency=medium
 
   * packaging: record various missing dependencies.
