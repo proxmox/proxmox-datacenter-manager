@@ -1,7 +1,9 @@
 debian/pdm-sources.list etc/apt/sources.list.d/pdm-test.list
 lib/systemd/system/proxmox-datacenter-api.service
+lib/systemd/system/proxmox-datacenter-manager-banner.service
 lib/systemd/system/proxmox-datacenter-privileged-api.service
 usr/libexec/proxmox/proxmox-datacenter-api
+usr/libexec/proxmox/proxmox-datacenter-manager-banner
 usr/libexec/proxmox/proxmox-datacenter-privileged-api
 usr/sbin/proxmox-datacenter-manager-admin
 usr/share/bash-completion/completions/proxmox-datacenter-api.bc

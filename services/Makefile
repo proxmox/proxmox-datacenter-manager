@@ -1,6 +1,7 @@
 SERVICES := \
 	proxmox-datacenter-api.service \
-	proxmox-datacenter-privileged-api.service
+	proxmox-datacenter-privileged-api.service \
+	proxmox-datacenter-manager-banner.service \
 
 .PHONY: all
 all:

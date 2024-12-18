@@ -1,0 +1,15 @@
+[Unit]
+Description=Proxmox Datacenter Manager Login Banner
+ConditionPathExists=/usr/libexec/proxmox/proxmox-datacenter-manager-banner
+ConditionPathExists=!/usr/bin/pvebanner
+DefaultDependencies=no
+After=local-fs.target
+Before=console-getty.service
+
+[Service]
+ExecStart=/usr/libexec/proxmox/proxmox-datacenter-manager-banner
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=getty.target

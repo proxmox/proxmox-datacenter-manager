@@ -47,8 +47,12 @@ SERVICE_BIN := \
 	proxmox-datacenter-api \
 	proxmox-datacenter-privileged-api \
 
+# for those binaries that are for internal use and e.g. have no command-line completion
+INTERNAL_SERVICE_BIN := \
+	proxmox-datacenter-manager-banner \
+
 COMPILED_BINS := \
-	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
+	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN) $(INTERNAL_SERVICE_BIN))
 
 # completion helper get generated on build
 BASH_COMPLETIONS := $(addsuffix .bc,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
@@ -65,7 +69,7 @@ install: $(COMPILED_BINS) $(SHELL_COMPLETION_FILES)
 	$(foreach i,$(USR_SBIN), \
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(SBINDIR)/ ;)
 	install -dm755 $(DESTDIR)$(LIBEXECDIR)/proxmox
-	$(foreach i,$(SERVICE_BIN), \
+	$(foreach i,$(SERVICE_BIN) $(INTERNAL_SERVICE_BIN), \
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBEXECDIR)/proxmox/ ;)
 	install -dm755 $(DESTDIR)$(BASHCOMPDIR)
 	$(foreach i,$(BASH_COMPLETIONS), \
