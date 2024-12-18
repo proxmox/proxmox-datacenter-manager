@@ -22,7 +22,9 @@ use pdm_api_types::{
 };
 
 use pve_api_types::client::PveClient;
-use pve_api_types::{ClusterResourceKind, ClusterResourceType, StartQemuMigrationType};
+use pve_api_types::{
+    ClusterResourceKind, ClusterResourceType, QemuMigratePreconditions, StartQemuMigrationType,
+};
 
 use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage};
 
@@ -98,7 +100,12 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
     ("status", &Router::new().get(&API_METHOD_QEMU_GET_STATUS)),
     ("stop", &Router::new().post(&API_METHOD_QEMU_STOP)),
     ("shutdown", &Router::new().post(&API_METHOD_QEMU_SHUTDOWN)),
-    ("migrate", &Router::new().post(&API_METHOD_QEMU_MIGRATE)),
+    (
+        "migrate",
+        &Router::new()
+            .get(&API_METHOD_QEMU_MIGRATE_PRECONDITIONS)
+            .post(&API_METHOD_QEMU_MIGRATE)
+    ),
     (
         "remote-migrate",
         &Router::new().post(&API_METHOD_QEMU_REMOTE_MIGRATE)
@@ -677,6 +684,43 @@ pub async fn qemu_migrate(
     };
     let upid = pve.migrate_qemu(&node, vmid, params).await?;
     (remote, upid.to_string()).try_into()
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            target: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        }
+    },
+    access: {
+        permission: &Permission::And(&[
+            &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
+        ]),
+    },
+)]
+/// Qemu (local) migrate preconditions
+async fn qemu_migrate_preconditions(
+    remote: String,
+    node: Option<String>,
+    target: Option<String>,
+    vmid: u32,
+) -> Result<QemuMigratePreconditions, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let pve = connect_to_remote(&remotes, &remote)?;
+
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+
+    let res = pve.qemu_migrate_preconditions(&node, vmid, target).await?;
+    Ok(res)
 }
 
 #[api(
