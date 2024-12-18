@@ -68,7 +68,16 @@ pub struct ConnectParams {
 
 async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<Remote, Error> {
     let data = form_ctx.get_submit_data();
-    let data: ConnectParams = serde_json::from_value(data.clone())?;
+    let mut data: ConnectParams = serde_json::from_value(data.clone())?;
+    if let Some(hostname) = data.hostname.strip_prefix("http://") {
+        data.hostname = hostname.to_string();
+    }
+    if let Some(hostname) = data.hostname.strip_prefix("https://") {
+        data.hostname = hostname.to_string();
+    }
+    if let Some(hostname) = data.hostname.strip_suffix("/") {
+        data.hostname = hostname.to_string();
+    }
 
     Ok(match remote_type {
         RemoteType::Pve => scan(data).await?,
