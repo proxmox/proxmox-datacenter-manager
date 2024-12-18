@@ -108,20 +108,26 @@ impl RemotePanelComp {
                     max_memory += node.maxmem;
                     cpu_usage += node.cpu;
 
+                    log::debug!("sunscription level {}", node.level);
                     match (node.level.as_str(), level) {
                         (x, Some(y)) if x == y => {}
                         (x, Some(y)) if x != y => {
-                            level = Some("");
+                            level = Some(""); // TODO: add separate state for all subscribed but mixed.
                         }
-                        ("c", None) => level = Some("Community"),
-                        ("b", None) => level = Some("Basic"),
-                        ("s", None) => level = Some("Standard"),
-                        ("p", None) => level = Some("Premium"),
+                        ("c" | "b" | "s" | "p", None) => level = Some(node.level.as_str()),
                         _ => level = Some(""),
                     }
                 }
             }
         }
+        // render, but this would be all better with some actual types...
+        let level = match level {
+            Some("c") => "Community",
+            Some("b") => "Basic",
+            Some("s") => "Standard",
+            Some("p") => "Premium",
+            _ => "",
+        };
 
         let cpu_usage = cpu_usage / nodes as f64;
 
@@ -139,7 +145,7 @@ impl RemotePanelComp {
             max_storage,
             nodes,
             cpu_usage,
-            level: level.unwrap_or_default(),
+            level,
         };
     }
 }
