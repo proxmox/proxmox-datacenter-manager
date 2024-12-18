@@ -45,8 +45,8 @@ pub struct PveStorageSelector {
 
     /// The node to query
     #[builder(IntoPropValue, into_prop_value)]
-    #[prop_or(AttrValue::from("localhost"))]
-    pub node: AttrValue,
+    #[prop_or_default]
+    pub node: Option<AttrValue>,
 
     /// The target node for the storage
     #[builder(IntoPropValue, into_prop_value)]
@@ -81,14 +81,14 @@ pub struct PveStorageSelectorComp {
 impl PveStorageSelectorComp {
     async fn get_storage_list(
         remote: AttrValue,
-        node: AttrValue,
+        node: Option<AttrValue>,
         content: Option<Vec<StorageContent>>,
         target: Option<AttrValue>,
     ) -> Result<Vec<StorageInfo>, Error> {
         let mut storages = crate::pdm_client()
             .pve_list_storages(
                 &remote,
-                &node,
+                &node.unwrap_or(AttrValue::from("localhost")),
                 content,
                 Some(true),
                 Some(true),
