@@ -246,7 +246,7 @@ impl yew::Component for RemotePanelComp {
                         .with_child(tr!("Allocation")),
                 )
                 .with_child(make_row(
-                    tr! {"Cores assigned"},
+                    tr! {"CPU Cores assigned"},
                     Fa::new("cpu"),
                     tr!(
                         "{0} running / {1} physical ({2} total configured)",

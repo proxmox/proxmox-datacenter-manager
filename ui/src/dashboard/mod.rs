@@ -310,7 +310,7 @@ impl Component for PdmDashboard {
                     )
                     .with_child(self.create_node_panel(
                         "building",
-                        tr!("Virtual Environments Nodes"),
+                        tr!("Virtual Environment Nodes"),
                         &self.status.pve_nodes,
                     ))
                     .with_child(self.create_guest_panel(
@@ -395,19 +395,19 @@ impl Component for PdmDashboard {
                     .min_height(175)
                     .with_child(self.create_top_entities_panel(
                         "desktop",
-                        tr!("Guests With Most CPU Usage"),
+                        tr!("Guests With the Highest CPU Usage"),
                         tr!("CPU usage"),
                         self.top_entities.as_ref().map(|e| &e.guest_cpu),
                     ))
                     .with_child(self.create_top_entities_panel(
                         "building",
-                        tr!("Nodes With Most CPU Usage"),
+                        tr!("Nodes With the Highest CPU Usage"),
                         tr!("CPU usage"),
                         self.top_entities.as_ref().map(|e| &e.node_cpu),
                     ))
                     .with_child(self.create_top_entities_panel(
                         "building",
-                        tr!("Nodes With Most Memory Usage"),
+                        tr!("Nodes With the Highest Memory Usage"),
                         tr!("Memory usage"),
                         self.top_entities.as_ref().map(|e| &e.node_memory),
                     )),
