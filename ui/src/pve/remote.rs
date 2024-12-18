@@ -96,6 +96,7 @@ impl RemotePanelComp {
                         guest_cores += lxc.maxcpu;
                         guest_memory += lxc.maxmem;
                     } else {
+                        guests_running += 1;
                         guest_cores_running += lxc.maxcpu;
                         guest_memory_running += lxc.maxmem;
                     }
