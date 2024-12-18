@@ -35,9 +35,9 @@ pub struct PveNodeSelector {
     pub default: Option<AttrValue>,
 
     /// Change callback
-    #[builder_cb(IntoEventCallback, into_event_callback, Key)]
+    #[builder_cb(IntoEventCallback, into_event_callback, Option<AttrValue>)]
     #[prop_or_default]
-    pub on_change: Option<Callback<Key>>,
+    pub on_change: Option<Callback<Option<AttrValue>>>,
 
     /// The remote to select the nodes from
     #[builder(IntoPropValue, into_prop_value)]
@@ -104,6 +104,20 @@ impl Component for PveNodeSelectorComp {
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
         let err = self.last_err.clone();
+        let on_change = {
+            let on_change = props.on_change.clone();
+            let store = self.store.clone();
+            move |key: Key| {
+                if let Some(on_change) = &on_change {
+                    let result = store
+                        .read()
+                        .iter()
+                        .find(|e| key == store.extract_key(e))
+                        .map(|e| e.node.clone().into());
+                    on_change.emit(result);
+                }
+            }
+        };
         Selector::new(
             self.store.clone(),
             move |args: &SelectorRenderArgs<Store<ClusterNodeIndexResponse>>| {
@@ -128,7 +142,7 @@ impl Component for PveNodeSelectorComp {
         .with_input_props(&props.input_props)
         .autoselect(true)
         .editable(true)
-        .on_change(props.on_change.clone())
+        .on_change(on_change)
         .default(props.default.clone())
         .into()
     }
