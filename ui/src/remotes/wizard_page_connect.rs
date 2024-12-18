@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use yew::html::IntoEventCallback;
 use yew::virtual_dom::{Key, VComp, VNode};
 
-use pwt::css::{AlignItems, FlexFit, FontColor};
+use pwt::css::{AlignItems, FlexFit};
 use pwt::widget::form::{Field, FormContext, FormContextObserver, InputType};
-use pwt::widget::{Button, Column, Fa, InputPanel, Mask, Row};
+use pwt::widget::{error_message, Button, Column, Container, Fa, InputPanel, Mask, Row};
 use pwt::{prelude::*, AsyncPool};
 
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
@@ -233,18 +233,18 @@ impl Component for PdmWizardPageConnect {
                 (props.remote_type == RemoteType::Pve).then_some(
                     Row::new()
                         .padding(2)
-                        .with_optional_child(self.last_error.as_deref().map(|err| {
-                            Row::new()
-                                .class(AlignItems::Center)
-                                .gap(4)
-                                .with_child(
-                                    Fa::new("exclamation-triangle")
-                                        .large()
-                                        .class(FontColor::Error),
-                                )
-                                .with_child(err.to_string())
-                        }))
+                        .gap(2)
+                        .class(AlignItems::Center)
+                        .with_optional_child(
+                            self.last_error
+                                .as_deref()
+                                .map(|err| error_message(&err.to_string())),
+                        )
                         .with_flex_spacer()
+                        .with_optional_child(
+                            (self.last_error.is_none() && self.server_info.is_some())
+                                .then_some(Container::new().with_child(tr!("Connection OK"))),
+                        )
                         .with_child(
                             Button::new("Connect")
                                 .disabled(!self.form_valid)
