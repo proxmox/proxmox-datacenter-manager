@@ -27,7 +27,7 @@ use anyhow::Error;
 use edit_remote::EditRemote;
 //use pwt::widget::form::{Field, FormContext, InputType};
 
-use pwt::widget::AlertDialog;
+use pwt::widget::ConfirmDialog;
 
 use pdm_api_types::remotes::Remote;
 //use proxmox_schema::{property_string::PropertyString, ApiType};
@@ -258,9 +258,12 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                 .selected_key()
                 .map(|key| self.create_edit_dialog(ctx, key)),
             ViewState::ConfirmRemove => self.selection.selected_key().map(|key| {
-                AlertDialog::new(tr!("Are you sure you want to remove remote '{0}' ?", key))
-                    .title(tr!("Confirm"))
-                    .on_close(ctx.link().callback(|_| Msg::RemoveItem))
+                ConfirmDialog::new()
+                    .title(tr!("Confirm: Remove Remote"))
+                    .confirm_text(tr!("Remove"))
+                    .confirm_message(tr!("Are you sure you want to remove remote '{0}' ?", key))
+                    .on_confirm(ctx.link().callback(|_| Msg::RemoveItem))
+                    .on_done(ctx.link().change_view_callback(|_| None))
                     .into()
             }),
         }
