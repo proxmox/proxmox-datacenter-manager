@@ -188,7 +188,7 @@ impl Component for PdmWizardPageConnect {
             .width("auto")
             .padding(4)
             .with_field(
-                tr!("Server address"),
+                tr!("Server Address"),
                 Field::new()
                     .name("hostname")
                     .placeholder(tr!("<IP/Hostname>:Port"))
