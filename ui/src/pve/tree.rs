@@ -572,7 +572,7 @@ fn columns(
             })
             .into(),
         DataTableColumn::new(tr!("Actions"))
-            .width("150px")
+            .width("180px")
             .render(move |entry: &PveTreeNode| {
                 let (id, local_id, guest_info) = match entry {
                     PveTreeNode::Lxc(r) => {
