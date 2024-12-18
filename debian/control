@@ -125,6 +125,7 @@ Package: proxmox-datacenter-manager
 Architecture: any
 Multi-Arch: allowed
 Depends: proxmox-mini-journalreader,
+         proxmox-termproxy,
          pve-xtermjs,
          ${misc:Depends},
          ${shlibs:Depends},
