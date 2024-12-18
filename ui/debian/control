@@ -47,7 +47,7 @@ Rules-Requires-Root: no
 Package: proxmox-datacenter-manager-ui
 Architecture: any
 Multi-Arch: allowed
-Depends: pve-xtermjs, ${misc:Depends}, ${shlibs:Depends},
+Depends: fonts-font-awesome, pve-xtermjs, ${misc:Depends}, ${shlibs:Depends},
 Description: Web UI to for the Proxmox Datacenter Manager
  This package provides the web UI of the Proxmox Datacenter Manager (PDM)
  which allows one to add multiple Proxmox VE and Proxmox Backup Server
