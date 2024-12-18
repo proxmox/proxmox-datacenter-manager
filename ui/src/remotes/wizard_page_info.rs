@@ -91,7 +91,7 @@ impl Component for PdmWizardPageInfo {
                 Field::new().default(name).name("id").required(true),
             )
             .with_field(
-                tr!("Create Token"),
+                tr!("Create API Token"),
                 Checkbox::new()
                     .key("create-token-cb")
                     .submit(false)
@@ -100,7 +100,7 @@ impl Component for PdmWizardPageInfo {
                     .on_change(ctx.link().callback(Msg::ToggleCreateToken)),
             )
             .with_field(
-                tr!("Token Name"),
+                tr!("API Token Name"),
                 Field::new()
                     .name("create-token")
                     .disabled(!self.create_token && !is_user)
