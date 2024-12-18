@@ -45,6 +45,11 @@ pub mod types {
     pub use pve_api_types::NodeStatus;
 
     pub use pdm_api_types::resource::{TopEntities, TopEntity};
+
+    pub use pve_api_types::{
+        QemuMigratePreconditions, QemuMigratePreconditionsLocalDisks,
+        QemuMigratePreconditionsNotAllowedNodes,
+    };
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -797,6 +802,20 @@ impl<T: HttpApiClient> PdmClient<T> {
 
     pub async fn pve_node_status(&self, remote: &str, node: &str) -> Result<NodeStatus, Error> {
         let path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/status");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_qemu_migrate_preconditions(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        target: Option<String>,
+    ) -> Result<QemuMigratePreconditions, Error> {
+        let mut path = format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/migrate");
+        let mut sep = '?';
+        add_query_arg(&mut path, &mut sep, "node", &node);
+        add_query_arg(&mut path, &mut sep, "target", &target);
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 }
