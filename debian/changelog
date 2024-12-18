@@ -1,3 +1,21 @@
+proxmox-datacenter-manager (0.1.5) bookworm; urgency=medium
+
+  * api: log listening address and port used
+
+  * api: use always use base user when trying to create a token
+
+  * packages: recommend UI package from API and vice versa
+
+  * add simple daily-update executable with systemd service & timer
+
+  * fix installing apt sources file for pdm-test repo
+
+  * api: add qemu migrate preconditions api call
+
+  * automatically poll all remotes and fill metrics cache every 15 minutes.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 18 Dec 2024 15:55:21 +0100
+
 proxmox-datacenter-manager (0.1.4) bookworm; urgency=medium
 
   * api: add banner service to write our /etc/issue
