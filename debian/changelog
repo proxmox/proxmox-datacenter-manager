@@ -1,3 +1,17 @@
+proxmox-datacenter-manager (0.1.3) bookworm; urgency=medium
+
+  * api: pve: various permission check improvements
+
+  * server: remove debug logging from calculating the top entities
+
+  * server: api: include more 'top entities' metrics
+
+  * server: api: top entities: make timeframe configurable
+
+  * ship sources.list file with pdm-test repo configured
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 18 Dec 2024 09:47:27 +0100
+
 proxmox-datacenter-manager (0.1.2) bookworm; urgency=medium
 
   * admin cli: set up server context on startup
