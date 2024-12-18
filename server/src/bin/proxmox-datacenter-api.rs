@@ -1,3 +1,4 @@
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::path::Path;
 use std::pin::pin;
 use std::sync::{Arc, Mutex};
@@ -30,6 +31,11 @@ use server::metric_collection;
 use server::task_utils;
 
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 5 * 60;
+
+const PDM_LISTEN_ADDR: SocketAddr = SocketAddr::new(
+    IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)),
+    pdm_buildcfg::PDM_PORT,
+);
 
 fn main() -> Result<(), Error> {
     //pbs_tools::setup_libc_malloc_opts(); // TODO: move from PBS to proxmox-sys and uncomment
@@ -207,7 +213,7 @@ async fn run(debug: bool) -> Result<(), Error> {
 
     let connections = proxmox_rest_server::connection::AcceptBuilder::new().debug(debug);
     let server = proxmox_daemon::server::create_daemon(
-        ([0, 0, 0, 0, 0, 0, 0, 0], pdm_buildcfg::PDM_PORT).into(),
+        PDM_LISTEN_ADDR,
         move |listener| {
             let (secure_connections, insecure_connections) =
                 connections.accept_tls_optional(listener, acceptor);
