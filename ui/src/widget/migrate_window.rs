@@ -1,4 +1,5 @@
 use anyhow::{bail, Error};
+use pdm_client::types::StorageContent;
 use serde_json::{json, Value};
 use yew::{html::IntoEventCallback, Callback, Component, Properties};
 
@@ -398,6 +399,11 @@ impl PdmMigrateWindow {
             tr!("Detailed Mapping"),
             Checkbox::new().name("detailed-mode"),
         );
+
+        let content_types = match guest_info.guest_type {
+            GuestType::Qemu => vec![StorageContent::Images],
+            GuestType::Lxc => vec![StorageContent::Rootdir],
+        };
         input.add_large_field(
             false,
             !show_target_storage,
@@ -408,6 +414,7 @@ impl PdmMigrateWindow {
                 .node(target_node)
                 .disabled(!show_target_storage)
                 .autoselect(!same_remote)
+                .content_types(content_types.clone())
                 .placeholder(tr!("Current layout"))
                 .required(show_target_storage && !same_remote),
         );
@@ -426,6 +433,7 @@ impl PdmMigrateWindow {
             !detail_mode,
             "",
             PveMigrateMap::new(target_remote, guest_info)
+                .content_types(content_types)
                 .name("detail-map")
                 .submit(detail_mode)
                 .required(detail_mode),

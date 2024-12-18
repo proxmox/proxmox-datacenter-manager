@@ -336,6 +336,7 @@ fn columns(
     ctx: &ManagedFieldContext<'_, PveMigrateMapComp>,
     remote: AttrValue,
 ) -> Rc<Vec<DataTableHeader<MapEntry>>> {
+    let content_types = ctx.props().content_types.clone();
     Rc::new(vec![
         DataTableColumn::new(tr!("Type"))
             .get_property(|entry: &MapEntry| &entry.map_type)
@@ -353,6 +354,7 @@ fn columns(
                 let link = ctx.link();
                 move |entry: &MapEntry| match entry.map_type {
                     MapType::Storage => PveStorageSelector::new(remote.clone())
+                        .content_types(content_types.clone())
                         .default(entry.target.clone())
                         .on_change({
                             let link = link.clone();
