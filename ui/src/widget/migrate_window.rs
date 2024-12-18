@@ -3,20 +3,24 @@ use serde_json::{json, Value};
 use yew::{html::IntoEventCallback, Callback, Component, Properties};
 
 use proxmox_client::ApiResponseData;
-use proxmox_yew_comp::EditWindow;
+use proxmox_human_byte::HumanByte;
+use proxmox_yew_comp::{EditWindow, Status};
 use pwt::css;
 use pwt::prelude::*;
 use pwt::widget::{
     form::{Checkbox, DisplayField, FormContext, Number},
-    Container, InputPanel,
+    Column, Container, InputPanel, Row,
 };
+use pwt::AsyncPool;
 use pwt_macros::{builder, widget};
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::RemoteUpid;
+use pdm_client::types::QemuMigratePreconditions;
 use pdm_client::{MigrateLxc, MigrateQemu, RemoteMigrateLxc, RemoteMigrateQemu};
 
 use crate::pve::GuestInfo;
+use crate::pve::GuestType;
 
 use super::{
     PveMigrateMap, PveNetworkSelector, PveNodeSelector, PveStorageSelector, RemoteSelector,
@@ -58,13 +62,29 @@ impl MigrateWindow {
 pub enum Msg {
     RemoteChange(String),
     Result(RemoteUpid),
+    LoadPreconditions(Option<AttrValue>),
+    PreconditionResult(Result<QemuMigratePreconditions, proxmox_client::Error>),
 }
 
 pub struct PdmMigrateWindow {
     target_remote: AttrValue,
+    _async_pool: AsyncPool,
+    preconditions: Option<QemuMigratePreconditions>,
 }
 
 impl PdmMigrateWindow {
+    async fn load_preconditions(
+        remote: String,
+        guest_info: GuestInfo,
+        target: String,
+    ) -> Result<QemuMigratePreconditions, proxmox_client::Error> {
+        let res = crate::pdm_client()
+            .pve_qemu_migrate_preconditions(&remote, None, guest_info.vmid, Some(target))
+            .await?;
+
+        Ok(res)
+    }
+
     async fn load(
         remote: AttrValue,
         guest_info: GuestInfo,
@@ -201,13 +221,18 @@ impl PdmMigrateWindow {
         } else {
             match guest_info.guest_type {
                 crate::pve::GuestType::Qemu => {
+                    let mut migrate_opts = MigrateQemu::new().online(true).with_local_disks(true);
+                    if let Some(Some(storage)) = value.get("target_storage").map(|v| v.as_str()) {
+                        migrate_opts = migrate_opts.map_storage("*", storage);
+                    }
+
                     crate::pdm_client()
                         .pve_qemu_migrate(
                             &remote,
                             None,
                             guest_info.vmid,
                             value["node"].as_str().unwrap().to_string(),
-                            MigrateQemu::new().online(true).with_local_disks(true),
+                            migrate_opts,
                         )
                         .await?
                 }
@@ -235,12 +260,57 @@ impl PdmMigrateWindow {
         target_remote: AttrValue,
         source_remote: AttrValue,
         guest_info: GuestInfo,
+        preconditions: Option<QemuMigratePreconditions>,
     ) -> Html {
         let same_remote = target_remote == source_remote;
         if !same_remote {
             form_ctx.write().set_field_value("node", "".into());
         }
         let detail_mode = form_ctx.read().get_field_checked("detailed-mode");
+        let mut uses_local_disks = false;
+        let mut uses_local_resources = false;
+        let mut warnings = Vec::new();
+        let mut running = false;
+        let target_node = form_ctx.read().get_field_text("node");
+        let target_node = if target_node.is_empty() {
+            None
+        } else {
+            Some(target_node)
+        };
+        if same_remote {
+            if let Some(preconditions) = preconditions {
+                running = preconditions.running;
+                for disk in preconditions.local_disks {
+                    uses_local_disks = true;
+                    warnings.push(
+                        Row::new()
+                            .gap(2)
+                            .with_child(Status::Warning.to_fa_icon())
+                            .with_child(tr!(
+                                "Migration with local disk might take long: {0} ({1})",
+                                disk.volid,
+                                HumanByte::from(disk.size as u64)
+                            ))
+                            .into(),
+                    );
+                }
+
+                for resource in preconditions.local_resources {
+                    uses_local_resources = true;
+                    warnings.push(
+                        Row::new()
+                            .gap(2)
+                            .with_child(Status::Error.to_fa_icon())
+                            .with_child(tr!("Cannot migrate with local resource: {0}", resource))
+                            .into(),
+                    );
+                }
+            }
+        }
+
+        let show_target_storage =
+            (same_remote && uses_local_disks && running) || (!same_remote && !detail_mode);
+
         let mut input = InputPanel::new()
             .padding(4)
             // hidden field for migration status
@@ -266,18 +336,38 @@ impl PdmMigrateWindow {
                 PveNodeSelector::new(target_remote.clone())
                     .name("node")
                     .required(same_remote)
+                    .on_change(link.callback(Msg::LoadPreconditions))
                     .disabled(!same_remote),
             );
 
-        if !same_remote {
+        if !same_remote || uses_local_disks || uses_local_resources {
             input.add_spacer(false);
+        }
+
+        if uses_local_resources {
+            // just to prevent submitting
+            input.add_field_with_options(
+                pwt::widget::FieldPosition::Left,
+                false,
+                true,
+                tr!(""),
+                Checkbox::new()
+                    .name("force")
+                    .validate(|_: &bool| bail!("Uses local resources")),
+            );
         }
 
         input.add_custom_child(
             Container::new()
                 .key("remote_title")
-                .class(same_remote.then_some(css::Display::None))
-                .with_child(tr!("Remote Migration Settings")),
+                .padding_bottom(1)
+                .class((same_remote && !show_target_storage).then_some(css::Display::None))
+                .class(css::FontStyle::TitleSmall)
+                .with_child(if same_remote {
+                    tr!("Migration Settings")
+                } else {
+                    tr!("Remote Migration Settings")
+                }),
         );
 
         input.add_field_with_options(
@@ -310,13 +400,16 @@ impl PdmMigrateWindow {
         );
         input.add_large_field(
             false,
-            same_remote || detail_mode,
+            !show_target_storage,
             tr!("Target Storage"),
             PveStorageSelector::new(target_remote.clone())
                 .key(format!("storage-{target_remote}"))
                 .name("target_storage")
-                .disabled(detail_mode)
-                .required(!detail_mode),
+                .node(target_node)
+                .disabled(!show_target_storage)
+                .autoselect(!same_remote)
+                .placeholder(tr!("Current layout"))
+                .required(show_target_storage && !same_remote),
         );
         input.add_large_field(
             false,
@@ -338,6 +431,10 @@ impl PdmMigrateWindow {
                 .required(detail_mode),
         );
 
+        if !warnings.is_empty() {
+            input.add_large_custom_child(Column::new().key("warnings").gap(1).children(warnings));
+        }
+
         input.into()
     }
 }
@@ -349,10 +446,13 @@ impl Component for PdmMigrateWindow {
     fn create(ctx: &yew::Context<Self>) -> Self {
         Self {
             target_remote: ctx.props().remote.clone(),
+            _async_pool: AsyncPool::new(),
+            preconditions: None,
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let props = ctx.props();
         match msg {
             Msg::RemoteChange(remote) => {
                 let changed = self.target_remote != remote;
@@ -360,8 +460,32 @@ impl Component for PdmMigrateWindow {
                 changed
             }
             Msg::Result(remote_upid) => {
-                if let Some(on_submit) = &ctx.props().on_submit {
+                if let Some(on_submit) = &props.on_submit {
                     on_submit.emit(remote_upid);
+                }
+                true
+            }
+            Msg::LoadPreconditions(target) => {
+                if props.guest_info.guest_type == GuestType::Lxc {
+                    return false;
+                }
+                if let Some(target) = target {
+                    let remote = props.remote.to_string();
+                    let guest_info = props.guest_info;
+                    let target = target.to_string();
+                    self._async_pool
+                        .send_future(ctx.link().clone(), async move {
+                            let res = Self::load_preconditions(remote, guest_info, target).await;
+                            Msg::PreconditionResult(res)
+                        });
+                }
+
+                false
+            }
+            Msg::PreconditionResult(res) => {
+                match res {
+                    Ok(preconditions) => self.preconditions = Some(preconditions),
+                    Err(err) => log::warn!("could not get preconditions: {err}"),
                 }
                 true
             }
@@ -388,6 +512,7 @@ impl Component for PdmMigrateWindow {
                 let target = self.target_remote.clone();
                 let source_remote = ctx.props().remote.clone();
                 let link = ctx.link().clone();
+                let preconditions = self.preconditions.clone();
                 move |form| {
                     Self::input_panel(
                         &link,
@@ -395,6 +520,7 @@ impl Component for PdmMigrateWindow {
                         target.clone(),
                         source_remote.clone(),
                         guest_info,
+                        preconditions.clone(),
                     )
                 }
             })
