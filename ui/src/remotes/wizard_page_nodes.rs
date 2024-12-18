@@ -49,6 +49,9 @@ impl Component for PdmWizardPageNodes {
         Container::new()
             .class(FlexFit)
             .padding(4)
+            .with_child(Container::new().padding(4).with_child(tr!(
+                "Define how Proxmox Datacenter Manager can reach the cluster. Fingerprints are necessary for self-signed certificates."
+            )))
             .with_child(
                 NodeUrlList::new()
                     .max_height(400)

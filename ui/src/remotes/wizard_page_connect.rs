@@ -189,12 +189,16 @@ impl Component for PdmWizardPageConnect {
             .padding(4)
             .with_field(
                 tr!("Server address"),
-                Field::new().name("hostname").required(true),
+                Field::new()
+                    .name("hostname")
+                    .placeholder(tr!("<IP/Hostname>:Port"))
+                    .required(true),
             )
             .with_right_field(
                 tr!("User/Token"),
                 Field::new()
                     .name("authid")
+                    .placeholder(tr!("Example: user@pve!tokenid"))
                     .schema(&pdm_api_types::Authid::API_SCHEMA)
                     .required(true),
             )
@@ -209,6 +213,7 @@ impl Component for PdmWizardPageConnect {
                 tr!("Fingerprint"),
                 Field::new()
                     .name("fingerprint")
+                    .placeholder(tr!("Server certificate SHA-256 fingerprint, required for self-signed certificates"))
                     .schema(&CERT_FINGERPRINT_SHA256_SCHEMA),
             );
 
