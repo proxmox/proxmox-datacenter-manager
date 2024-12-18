@@ -7,7 +7,7 @@ use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::{AlignItems, FlexFit};
 use pwt::widget::form::{Field, FormContext, FormContextObserver, InputType};
-use pwt::widget::{error_message, Button, Column, Container, Fa, InputPanel, Mask, Row};
+use pwt::widget::{error_message, Button, Column, Container, InputPanel, Mask, Row};
 use pwt::{prelude::*, AsyncPool};
 
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
