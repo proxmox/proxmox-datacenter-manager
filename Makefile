@@ -50,6 +50,7 @@ SERVICE_BIN := \
 # for those binaries that are for internal use and e.g. have no command-line completion
 INTERNAL_SERVICE_BIN := \
 	proxmox-datacenter-manager-banner \
+	proxmox-datacenter-manager-daily-update \
 
 COMPILED_BINS := \
 	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN) $(INTERNAL_SERVICE_BIN))

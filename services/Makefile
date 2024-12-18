@@ -2,6 +2,8 @@ SERVICES := \
 	proxmox-datacenter-api.service \
 	proxmox-datacenter-privileged-api.service \
 	proxmox-datacenter-manager-banner.service \
+	proxmox-datacenter-manager-daily-update.service \
+	proxmox-datacenter-manager-daily-update.timer \
 
 .PHONY: all
 all:
