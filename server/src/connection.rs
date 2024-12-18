@@ -188,7 +188,7 @@ impl ClientFactory for DefaultClientFactory {
 
 fn instance() -> &'static (dyn ClientFactory + Send + Sync) {
     // Not initializing the connection factory instance is
-    // entirely in our reponsibility and not something we can recover from,
+    // entirely in our responsibility and not something we can recover from,
     // so it should be okay to panic in this case.
     INSTANCE
         .get()

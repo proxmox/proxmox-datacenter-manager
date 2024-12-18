@@ -22,7 +22,7 @@ static INSTANCE: OnceLock<Box<dyn RemoteConfig + Send + Sync>> = OnceLock::new()
 
 fn instance() -> &'static (dyn RemoteConfig + Send + Sync) {
     // Not initializing the remote config instance is
-    // entirely in our reponsibility and not something we can recover from,
+    // entirely in our responsibility and not something we can recover from,
     // so it should be okay to panic in this case.
     INSTANCE
         .get()

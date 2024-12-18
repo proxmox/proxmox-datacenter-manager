@@ -1,4 +1,4 @@
-# Expermimental Yew GUI for Proxmox Datacenter Manager
+# Experimental Yew GUI for Proxmox Datacenter Manager
 
 # Testing
 

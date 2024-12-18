@@ -209,7 +209,7 @@ pub struct PveNodeResource {
 #[api]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
-/// Storge resource in a PVE remote
+/// Storage resource in a PVE remote
 pub struct PveStorageResource {
     /// Storage usage
     pub disk: u64,
@@ -280,7 +280,7 @@ pub struct RemoteResources {
     /// Remote name
     pub remote: String,
 
-    /// Any error that occured when querying remote resources
+    /// Any error that occurred when querying remote resources
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 

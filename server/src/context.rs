@@ -6,7 +6,7 @@ use anyhow::Error;
 
 use crate::connection;
 
-/// Dependecy-inject production remote-config implementation and remote client factory
+/// Dependency-inject production remote-config implementation and remote client factory
 #[allow(dead_code)]
 fn default_remote_setup() {
     pdm_config::remotes::init(Box::new(pdm_config::remotes::DefaultRemoteConfig));
