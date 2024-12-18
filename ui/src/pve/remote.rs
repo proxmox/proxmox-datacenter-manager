@@ -108,7 +108,6 @@ impl RemotePanelComp {
                     max_memory += node.maxmem;
                     cpu_usage += node.cpu;
 
-                    log::debug!("sunscription level {}", node.level);
                     match (node.level.as_str(), level) {
                         (x, Some(y)) if x == y => {}
                         (x, Some(y)) if x != y => {
