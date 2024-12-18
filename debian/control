@@ -127,7 +127,7 @@ Depends: proxmox-mini-journalreader,
          pve-xtermjs,
          ${misc:Depends},
          ${shlibs:Depends},
-Recommends: proxmox-datacenter-manager-client,
+Recommends: proxmox-datacenter-manager-client, proxmox-datacenter-manager-ui,
 Description: Manage multiple Proxmox VE cluster and other Proxmox projects
  This package provides the API daemons of the Proxmox Datacenter Manager (PDM)
  which allows one to add multiple Proxmox VE and Proxmox Backup Server
