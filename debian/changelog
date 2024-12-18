@@ -1,3 +1,11 @@
+proxmox-datacenter-manager (0.1.6) bookworm; urgency=medium
+
+  * explicitly depend on proxmox-termproxy.
+
+  * ship GRUB_DISTRIBUTOR default-snippet for easier recognition on boot.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 18 Dec 2024 23:38:43 +0100
+
 proxmox-datacenter-manager (0.1.5) bookworm; urgency=medium
 
   * api: log listening address and port used
