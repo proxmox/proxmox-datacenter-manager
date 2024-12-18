@@ -1,3 +1,32 @@
+proxmox-datacenter-manager-ui (0.1.3) bookworm; urgency=medium
+
+  * packaging: record various missing dependencies.
+
+  * PVE resource: add initial info panels for LXC and QEMU guests.
+
+  * disable PBS integration for now, it's rather to bare bone and might
+    distract from the nicer things that work.
+
+  * add CPU and memory icon from PVE and make them dark-mode aware through
+    inline SVG CSS style.
+
+  * hboard: use title case
+
+  * pve resources: fix jarring loading state of the overview
+
+  * load icon: avoid glitch for on-load animation by using the same icon for
+    the both, static and animated cases
+
+  * dashboard: show top entities for node cpu/memory too
+
+  * link logo to www.proxmox.com
+
+  * use vectorized and natively color-scheme aware Proxmox logo
+
+  * top bar: use title-medium size for product name and alpha label
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 18 Dec 2024 09:45:18 +0100
+
 proxmox-datacenter-manager-ui (0.1.2) bookworm; urgency=medium
 
   * dasbhoard: make panel fill the whole space and  move 'guest cpu usage'
