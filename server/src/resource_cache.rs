@@ -4,7 +4,9 @@ use anyhow::Error;
 
 use crate::task_utils;
 
-const COLLECTION_INTERVAL: u64 = 60 * 60; // once per hour
+// This is the interval we update the cache independent of any API / UI activity, but depending on
+// the max-age from API calls the caches can get updated more frequently.
+const METRIC_POLL_INTERVALL: u64 = 15 * 60; // once every 15 minutes
 
 /// Start the resource caching.
 pub fn start_task() {
@@ -18,11 +20,11 @@ pub fn start_task() {
 // FIXME: handle many remotes more intelligently?
 async fn resource_caching_task() -> Result<(), Error> {
     loop {
-        if let Err(err) = crate::api::resources::get_resources(COLLECTION_INTERVAL, None).await {
+        if let Err(err) = crate::api::resources::get_resources(METRIC_POLL_INTERVALL, None).await {
             log::error!("could not update resource cache: {err}");
         }
 
-        let delay_target = task_utils::next_aligned_instant(COLLECTION_INTERVAL + 10);
+        let delay_target = task_utils::next_aligned_instant(METRIC_POLL_INTERVALL + 10);
         tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
     }
 }
