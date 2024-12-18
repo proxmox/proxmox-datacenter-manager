@@ -210,83 +210,88 @@ impl yew::Component for NodePanelComp {
             .into();
 
         let mut status_comp = Column::new().gap(2).padding(4);
-        if self.status.is_none() && self.last_status_error.is_none() {
-            status_comp.add_child(Progress::new());
-        }
-        if let Some(status) = &self.status {
-            let cpu = status.cpu;
-            let maxcpu = status.cpuinfo.cpus;
-            let load = status.loadavg.join(", ");
+        let status = self.status.as_ref();
+        let cpu = status.map(|s| s.cpu).unwrap_or_default();
+        let maxcpu = status.map(|s| s.cpuinfo.cpus).unwrap_or_default();
+        let load = status.map(|s| s.loadavg.join(", ")).unwrap_or_default();
 
-            let memory = status.memory.used as u64;
-            let maxmem = status.memory.total as u64;
-            let memory_used = memory as f64 / maxmem as f64;
+        let memory = status.map(|s| s.memory.used as u64).unwrap_or_default();
+        let maxmem = status.map(|s| s.memory.total as u64).unwrap_or(1);
 
-            let root = status.rootfs.used as u64;
-            let maxroot = status.rootfs.total as u64;
-            let root_used = root as f64 / maxroot as f64;
+        let root = status.map(|s| s.rootfs.used as u64).unwrap_or_default();
+        let maxroot = status.map(|s| s.rootfs.total as u64).unwrap_or(1);
 
-            status_comp = status_comp
-                .with_child(make_row(
-                    tr!("CPU usage"),
-                    Fa::new("cpu"),
-                    tr!("{0}% of {1} CPU(s)", format!("{:.2}", cpu * 100.0), maxcpu),
-                    Some(cpu as f32),
-                ))
-                .with_child(make_row(
-                    tr!("Load average"),
-                    Fa::new("line-chart"),
-                    load,
-                    None,
-                ))
-                .with_child(make_row(
-                    tr!("Memory usage"),
-                    Fa::new("memory"),
-                    tr!(
-                        "{0}% ({1} of {2})",
-                        format!("{:.2}", memory_used * 100.0),
-                        HumanByte::from(memory),
-                        HumanByte::from(maxmem),
-                    ),
-                    Some(memory_used as f32),
-                ))
-                .with_child(make_row(
-                    tr!("Root filesystem usage"),
-                    Fa::new("database"),
-                    tr!(
-                        "{0}% ({1} of {2})",
-                        format!("{:.2}", root_used * 100.0),
-                        HumanByte::from(root),
-                        HumanByte::from(maxroot),
-                    ),
-                    Some(root_used as f32),
-                ))
-                .with_child(Container::new().padding(1)) // spacer
-                .with_child(
-                    Row::new()
-                        .with_child(tr!("Version"))
-                        .with_flex_spacer()
-                        .with_child(&status.pveversion),
-                )
-                .with_child(
-                    Row::new()
-                        .with_child(tr!("CPU Model"))
-                        .with_flex_spacer()
-                        .with_child(tr!(
-                            "{0} ({1} sockets)",
-                            status.cpuinfo.model,
-                            status.cpuinfo.sockets
-                        )),
-                );
-        }
+        let memory_used = memory as f64 / maxmem as f64;
+        let root_used = root as f64 / maxroot as f64;
+
+        status_comp = status_comp
+            .with_child(make_row(
+                tr!("CPU usage"),
+                Fa::new("cpu"),
+                tr!("{0}% of {1} CPU(s)", format!("{:.2}", cpu * 100.0), maxcpu),
+                Some(cpu as f32),
+            ))
+            .with_child(make_row(
+                tr!("Load average"),
+                Fa::new("line-chart"),
+                load,
+                None,
+            ))
+            .with_child(make_row(
+                tr!("Memory usage"),
+                Fa::new("memory"),
+                tr!(
+                    "{0}% ({1} of {2})",
+                    format!("{:.2}", memory_used * 100.0),
+                    HumanByte::from(memory),
+                    HumanByte::from(maxmem),
+                ),
+                Some(memory_used as f32),
+            ))
+            .with_child(make_row(
+                tr!("Root filesystem usage"),
+                Fa::new("database"),
+                tr!(
+                    "{0}% ({1} of {2})",
+                    format!("{:.2}", root_used * 100.0),
+                    HumanByte::from(root),
+                    HumanByte::from(maxroot),
+                ),
+                Some(root_used as f32),
+            ))
+            .with_child(Container::new().padding(1)) // spacer
+            .with_child(
+                Row::new()
+                    .with_child(tr!("Version"))
+                    .with_flex_spacer()
+                    .with_optional_child(status.map(|s| s.pveversion.as_str())),
+            )
+            .with_child(
+                Row::new()
+                    .with_child(tr!("CPU Model"))
+                    .with_flex_spacer()
+                    .with_child(tr!(
+                        "{0} ({1} sockets)",
+                        status.map(|s| s.cpuinfo.model.as_str()).unwrap_or_default(),
+                        status.map(|s| s.cpuinfo.sockets).unwrap_or_default()
+                    )),
+            );
+
         if let Some(err) = &self.last_status_error {
             status_comp.add_child(error_message(&err.to_string()));
         }
 
+        let loading = self.status.is_none() && self.last_status_error.is_none();
         Panel::new()
             .class(FlexFit)
             .title(title)
             .class(ColorScheme::Neutral)
+            .with_child(
+                // FIXME: add some 'visible' or 'active' property to the progress
+                Progress::new()
+                    .value((!loading).then_some(0.0))
+                    .style("opacity", (!loading).then_some("0")),
+            )
             .with_child(status_comp)
             .with_child(separator().padding_x(4))
             .with_child(
