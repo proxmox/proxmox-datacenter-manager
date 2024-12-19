@@ -1,3 +1,10 @@
+proxmox-datacenter-manager (0.1.8) bookworm; urgency=medium
+
+  * depend on libproxmox-acme-plugins package to ensure DNS challenge plugins
+    are available.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 19 Dec 2024 18:56:31 +0100
+
 proxmox-datacenter-manager (0.1.7) bookworm; urgency=medium
 
   * api: add more permission checks for dashboard calls so that those are
