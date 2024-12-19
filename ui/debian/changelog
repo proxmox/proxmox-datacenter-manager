@@ -1,3 +1,10 @@
+proxmox-datacenter-manager-ui (0.1.8) bookworm; urgency=medium
+
+  * avoid edge case with infinite loading screen on login when there is an
+    invalid subscription
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 19 Dec 2024 16:51:15 +0100
+
 proxmox-datacenter-manager-ui (0.1.7) bookworm; urgency=medium
 
   * ui: pve remote: guests: actually use diskread/write for disk io graphs
