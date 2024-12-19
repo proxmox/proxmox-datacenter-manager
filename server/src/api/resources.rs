@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{LazyLock, RwLock};
 
-use anyhow::Error;
+use anyhow::{format_err, Error};
 use futures::future::join_all;
 use futures::FutureExt;
 
@@ -14,9 +14,11 @@ use pdm_api_types::resource::{
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
 };
-use pdm_api_types::PRIV_RESOURCE_AUDIT;
+use pdm_api_types::{Authid, PRIV_RESOURCE_AUDIT};
 use proxmox_access_control::CachedUserInfo;
-use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
+use proxmox_router::{
+    http_bail, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
+};
 use proxmox_rrd_api_types::RrdTimeframe;
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
@@ -44,8 +46,11 @@ const SUBDIRS: SubdirMap = &sorted!([
 ]);
 
 #[api(
-    // FIXME:: What permissions do we need?
-    //access: { permission: &Permission::Anybody, },
+    // FIXME:: see list-like API calls in resource routers, we probably want more fine-grained
+    // checks..
+    access: {
+        permission: &Permission::Anybody,
+    },
     input: {
         properties: {
             "max-age": {
@@ -72,12 +77,40 @@ const SUBDIRS: SubdirMap = &sorted!([
 pub async fn get_resources(
     max_age: u64,
     search: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<RemoteResources>, Error> {
-    let (remotes_config, _) = pdm_config::remotes::config()?;
+    get_resources_impl(max_age, search, Some(rpcenv)).await
+}
 
+// called from resource_cache where no RPCEnvironment is initialized..
+pub(crate) async fn get_resources_impl(
+    max_age: u64,
+    search: Option<String>,
+    rpcenv: Option<&mut dyn RpcEnvironment>,
+) -> Result<Vec<RemoteResources>, Error> {
+    let user_info = CachedUserInfo::new()?;
+    let mut opt_auth_id = None;
+    if let Some(ref rpcenv) = rpcenv {
+        let auth_id: Authid = rpcenv
+            .get_auth_id()
+            .ok_or_else(|| format_err!("no authid available"))?
+            .parse()?;
+        if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT)? {
+            http_bail!(UNAUTHORIZED, "user has no access to resources");
+        }
+        opt_auth_id = Some(auth_id);
+    }
+
+    let (remotes_config, _) = pdm_config::remotes::config()?;
     let mut join_handles = Vec::new();
 
     for (remote_name, remote) in remotes_config {
+        if let Some(ref auth_id) = opt_auth_id {
+            let remote_privs = user_info.lookup_privs(&auth_id, &["resource", &remote_name]);
+            if remote_privs & PRIV_RESOURCE_AUDIT == 0 {
+                continue;
+            }
+        }
         let handle = tokio::spawn(async move {
             let (resources, error) = match get_resources_for_remote(remote, max_age).await {
                 Ok(resources) => (resources, None),
@@ -116,8 +149,10 @@ pub async fn get_resources(
 }
 
 #[api(
-    // FIXME:: What permissions do we need?
-    //access: { permission: &Permission::Anybody, },
+    // FIXME:: see list-like API calls in resource routers..
+    access: {
+        permission: &Permission::Anybody,
+    },
     input: {
         properties: {
             "max-age": {
@@ -139,9 +174,9 @@ pub async fn get_resources(
 /// Return the amount of configured/seen resources by type
 pub async fn get_status(
     max_age: u64,
-    _rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ResourcesStatus, Error> {
-    let remotes = get_resources(max_age, None).await?;
+    let remotes = get_resources(max_age, None, rpcenv).await?;
     let mut counts = ResourcesStatus::default();
     for remote in remotes {
         if remote.error.is_some() {

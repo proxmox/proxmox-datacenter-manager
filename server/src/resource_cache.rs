@@ -20,7 +20,9 @@ pub fn start_task() {
 // FIXME: handle many remotes more intelligently?
 async fn resource_caching_task() -> Result<(), Error> {
     loop {
-        if let Err(err) = crate::api::resources::get_resources(METRIC_POLL_INTERVALL, None).await {
+        if let Err(err) =
+            crate::api::resources::get_resources_impl(METRIC_POLL_INTERVALL, None, None).await
+        {
             log::error!("could not update resource cache: {err}");
         }
 
