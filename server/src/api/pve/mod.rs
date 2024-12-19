@@ -853,7 +853,7 @@ pub async fn qemu_remote_migrate(
         target_endpoint,
         bwlimit,
     };
-    log::info!("migrating vm {vmid} of node {node:?} with params {params:#?}");
+    log::info!("migrating vm {vmid} of node {node:?}");
     let upid = source_conn.remote_migrate_qemu(&node, vmid, params).await?;
 
     (source, upid.to_string()).try_into()
@@ -1252,7 +1252,7 @@ pub async fn lxc_remote_migrate(
         restart,
         timeout,
     };
-    log::info!("migrating vm {vmid} of node {node:?} with params {params:#?}");
+    log::info!("migrating vm {vmid} of node {node:?}");
     let upid = source_conn.remote_migrate_lxc(&node, vmid, params).await?;
 
     (source, upid.to_string()).try_into()
