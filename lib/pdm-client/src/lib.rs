@@ -50,6 +50,8 @@ pub mod types {
         QemuMigratePreconditions, QemuMigratePreconditionsLocalDisks,
         QemuMigratePreconditionsNotAllowedNodes,
     };
+
+    pub use pve_api_types::ListRealm;
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
