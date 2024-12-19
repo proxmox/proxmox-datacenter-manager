@@ -1,3 +1,10 @@
+proxmox-datacenter-manager-ui (0.1.9) bookworm; urgency=medium
+
+  * acme domains: fix validity handling for http challenge-mode to allow one
+    adding domains.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 19 Dec 2024 18:45:31 +0100
+
 proxmox-datacenter-manager-ui (0.1.8) bookworm; urgency=medium
 
   * avoid edge case with infinite loading screen on login when there is an
