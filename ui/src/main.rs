@@ -162,7 +162,9 @@ impl Component for DatacenterManagerApp {
                 true
             }
             Msg::ShowSubscriptionAlert => {
-                self.show_subscription_alert = Some(true);
+                // Disable for alpha and rework for a beta or stable version to avoid friction if a
+                // few unsubscribed test instances are present in another subscribed (big) setup.
+                // self.show_subscription_alert = Some(true);
                 true
             }
             Msg::Logout => {
