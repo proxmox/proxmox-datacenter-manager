@@ -10,7 +10,7 @@ use yew::html::{IntoEventCallback, IntoPropValue};
 use yew::virtual_dom::{VComp, VNode};
 
 use pwt::state::{Loader, Theme, ThemeObserver};
-use pwt::widget::{Container, Row, ThemeModeSelector};
+use pwt::widget::{Button, Container, Row, ThemeModeSelector, Tooltip};
 
 use proxmox_yew_comp::common_api_types::TaskListItem;
 use proxmox_yew_comp::RunningTasksButton;
@@ -171,7 +171,17 @@ impl Component for PdmTopNavBar {
             .class("pwt-align-items-center")
             .gap(2)
             .with_child(ThemeModeSelector::new().class("pwt-scheme-neutral-alt"))
-            .with_child(HelpButton::new().class("pwt-scheme-neutral"));
+            // FIXME: implement
+            //.with_child(HelpButton::new().class("pwt-scheme-neutral"))
+            .with_child(
+                Tooltip::new(
+                    Button::new(tr!("Documentation"))
+                        .icon_class("fa fa-book")
+                        .disabled(true)
+                        .class(ColorScheme::Neutral),
+                )
+                .tip(tr!("Coming soon")),
+            );
 
         if let Some(username) = &props.username {
             button_group.add_child(
