@@ -76,7 +76,9 @@ pub fn list_remotes(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<Remote>, Erro
 
     Ok(remotes
         .into_iter()
-        .filter_map(|(id, value)| {
+        .filter_map(|(id, mut value)| {
+            // FIXME: proper type here?
+            value.token = String::new(); // remove secret from api response
             (top_level_allowed || 0 != user_info.lookup_privs(&auth_id, &["resource", &id]))
                 .then_some(value)
         })
@@ -286,6 +288,8 @@ pub async fn version(id: String) -> Result<pve_api_types::VersionResponse, Error
 /// Get the Remote Configuration
 pub fn remote_config(id: String) -> Result<Remote, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
-    let remote = get_remote(&remotes, &id)?;
+    let mut remote = get_remote(&remotes, &id)?.clone();
+    // FIXME: proper type here?
+    remote.token = String::new(); // mask token in response
     Ok(remote.clone())
 }

@@ -90,8 +90,9 @@ fn edit_remote_input_panel(_form_ctx: &FormContext, remote_id: &str) -> Html {
             tr!("Password/Secret"),
             Field::new()
                 .name("token")
+                .placeholder(tr!("Unchanged"))
                 .input_type(InputType::Password)
-                .required(true),
+                .required(false),
         )
         .with_custom_child(
             Container::new()
