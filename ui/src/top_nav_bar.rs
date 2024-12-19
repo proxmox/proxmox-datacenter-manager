@@ -142,7 +142,8 @@ impl Component for PdmTopNavBar {
             .map(|cb| Callback::from(move |_event: MenuEvent| cb.emit(())));
 
         let menu = Menu::new()
-            .with_item(MenuItem::new(tr!("My Settings")).icon_class("fa fa-gear"))
+            // FIXME: implement
+            //.with_item(MenuItem::new(tr!("My Settings")).icon_class("fa fa-gear"))
             .with_item(
                 MenuItem::new(tr!("Language"))
                     .icon_class("fa fa-language")
