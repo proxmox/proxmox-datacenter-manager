@@ -24,7 +24,8 @@ use pdm_api_types::{
 
 use pve_api_types::client::PveClient;
 use pve_api_types::{
-    ClusterResourceKind, ClusterResourceType, QemuMigratePreconditions, StartQemuMigrationType,
+    ClusterResourceKind, ClusterResourceType, ListRealm, QemuMigratePreconditions,
+    StartQemuMigrationType,
 };
 
 use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage};
@@ -42,7 +43,11 @@ pub const ROUTER: Router = Router::new()
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("remotes", &REMOTES_ROUTER),
-    ("scan", &Router::new().post(&API_METHOD_SCAN_REMOTE_PVE))
+    ("scan", &Router::new().post(&API_METHOD_SCAN_REMOTE_PVE)),
+    (
+        "realms",
+        &Router::new().post(&API_METHOD_LIST_REALM_REMOTE_PVE)
+    )
 ]);
 
 pub const REMOTES_ROUTER: Router = Router::new().match_all("remote", &MAIN_ROUTER);
@@ -1342,4 +1347,47 @@ pub async fn scan_remote_pve(
     }
 
     Ok(remote)
+}
+
+#[api(
+    input: {
+        properties: {
+            hostname: {
+                type: String,
+                format: &HOST_OPTIONAL_PORT_FORMAT,
+                description: "Hostname (with optional port) of the target remote",
+            },
+            fingerprint: {
+                type: String,
+                description: "Fingerprint of the target remote.",
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission:
+            &Permission::Privilege(&["/"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Scans the given connection info for pve cluster information
+pub async fn list_realm_remote_pve(
+    hostname: String,
+    fingerprint: Option<String>,
+) -> Result<Vec<ListRealm>, Error> {
+    // dummy remote to connect
+    let remote = Remote {
+        ty: RemoteType::Pve,
+        id: String::new(),
+        nodes: vec![PropertyString::new(NodeUrl {
+            hostname,
+            fingerprint,
+        })],
+        authid: "root@pam".parse()?,
+        token: String::new(),
+    };
+
+    let client = connection::make_pve_client(&remote)?;
+    let list = client.list_domains().await?;
+
+    Ok(list)
 }
