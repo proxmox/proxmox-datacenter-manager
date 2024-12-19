@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
+use http::uri::Authority;
 
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
@@ -828,11 +829,13 @@ pub async fn qemu_remote_migrate(
         .nodes
         .first()
         .ok_or_else(|| format_err!("no nodes configured for target cluster"))?;
+    let target_host_port: Authority = target_node.hostname.parse()?;
     let mut target_endpoint = format!(
-        "host={host},apitoken=PVEAPIToken={authid}={secret}",
-        host = target_node.hostname,
+        "host={host},port={port},apitoken=PVEAPIToken={authid}={secret}",
+        host = target_host_port.host(),
         authid = target.authid,
         secret = target.token,
+        port = target_host_port.port_u16().unwrap_or(8006),
     );
     if let Some(fp) = target_node.fingerprint.as_deref() {
         target_endpoint.reserve(fp.len() + ",fingerprint=".len());
@@ -1223,11 +1226,13 @@ pub async fn lxc_remote_migrate(
         .nodes
         .first()
         .ok_or_else(|| format_err!("no nodes configured for target cluster"))?;
+    let target_host_port: Authority = target_node.hostname.parse()?;
     let mut target_endpoint = format!(
-        "host={host},apitoken=PVEAPIToken={authid}={secret}",
-        host = target_node.hostname,
+        "host={host},port={port},apitoken=PVEAPIToken={authid}={secret}",
+        host = target_host_port.host(),
         authid = target.authid,
         secret = target.token,
+        port = target_host_port.port_u16().unwrap_or(8006),
     );
     if let Some(fp) = target_node.fingerprint.as_deref() {
         target_endpoint.reserve(fp.len() + ",fingerprint=".len());
