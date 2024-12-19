@@ -27,8 +27,6 @@ use anyhow::Error;
 use edit_remote::EditRemote;
 //use pwt::widget::form::{Field, FormContext, InputType};
 
-use pwt::widget::ConfirmDialog;
-
 use pdm_api_types::remotes::Remote;
 //use proxmox_schema::{property_string::PropertyString, ApiType};
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
@@ -54,7 +52,9 @@ use pwt::widget::{
 //use pwt::widget::InputPanel;
 
 //use proxmox_yew_comp::EditWindow;
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use proxmox_yew_comp::{
+    ConfirmButton, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+};
 
 use pdm_api_types::remotes::{NodeUrl, RemoteType};
 
@@ -120,7 +120,6 @@ impl RemoteConfigPanel {
 pub enum ViewState {
     Add(RemoteType),
     Edit,
-    ConfirmRemove,
 }
 
 pub enum Msg {
@@ -220,10 +219,12 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                     .disabled(disabled)
                     .onclick(link.change_view_callback(|_| Some(ViewState::Edit))),
             )
-            .with_child(Button::new(tr!("Remove")).disabled(disabled).onclick({
-                let link = link.clone();
-                move |_| link.change_view(Some(ViewState::ConfirmRemove))
-            }))
+            .with_child(
+                ConfirmButton::new(tr!("Remove"))
+                    .confirm_message(tr!("Are you sure you want to remove this remote?"))
+                    .disabled(disabled)
+                    .on_activate(link.callback(|_| Msg::RemoveItem)),
+            )
             .with_flex_spacer()
             .with_child({
                 let loading = ctx.loading();
@@ -257,18 +258,6 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                 .selection
                 .selected_key()
                 .map(|key| self.create_edit_dialog(ctx, key)),
-            ViewState::ConfirmRemove => self.selection.selected_key().map(|key| {
-                ConfirmDialog::new()
-                    .title(tr!("Confirm: Remove Remote"))
-                    .confirm_text(tr!("Remove"))
-                    .confirm_message(tr!(
-                        "Are you sure you want to remove the remote '{0}' ?",
-                        key
-                    ))
-                    .on_confirm(ctx.link().callback(|_| Msg::RemoveItem))
-                    .on_done(ctx.link().change_view_callback(|_| None))
-                    .into()
-            }),
         }
     }
 }
