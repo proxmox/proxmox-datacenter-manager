@@ -1,3 +1,18 @@
+proxmox-datacenter-manager (0.1.7) bookworm; urgency=medium
+
+  * api: add more permission checks for dashboard calls so that those are
+    usable for non-root users. the top entities are still root only for now.
+
+  * remote migrate: fix handling of host:port as remote
+
+  * remote migrate: don't log parameters
+
+  * api: remotes: don't return token secret in response
+
+  * server: api: add 'realms' add point for PVE
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 19 Dec 2024 13:39:02 +0100
+
 proxmox-datacenter-manager (0.1.6) bookworm; urgency=medium
 
   * explicitly depend on proxmox-termproxy.
