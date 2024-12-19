@@ -261,7 +261,10 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                 ConfirmDialog::new()
                     .title(tr!("Confirm: Remove Remote"))
                     .confirm_text(tr!("Remove"))
-                    .confirm_message(tr!("Are you sure you want to remove the remote '{0}' ?", key))
+                    .confirm_message(tr!(
+                        "Are you sure you want to remove the remote '{0}' ?",
+                        key
+                    ))
                     .on_confirm(ctx.link().callback(|_| Msg::RemoveItem))
                     .on_done(ctx.link().change_view_callback(|_| None))
                     .into()

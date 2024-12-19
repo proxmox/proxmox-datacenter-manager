@@ -13,7 +13,10 @@ use proxmox_yew_comp::{
 };
 use yew::virtual_dom::VNode;
 
-use super::{WizardPageConnect, WizardPageInfo, WizardPageNodes, WizardPageSummary};
+use super::{
+    wizard_page_connect::ConnectParams, WizardPageConnect, WizardPageInfo, WizardPageNodes,
+    WizardPageSummary,
+};
 
 use pwt_macros::builder;
 
@@ -51,9 +54,11 @@ impl AddWizard {
 
 pub enum Msg {
     ServerChange(Option<Remote>),
+    ConnectChange(Option<ConnectParams>),
 }
 pub struct AddWizardState {
     server_info: Option<Remote>,
+    connect_info: Option<ConnectParams>,
 }
 
 impl Component for AddWizardState {
@@ -61,13 +66,19 @@ impl Component for AddWizardState {
     type Properties = AddWizard;
 
     fn create(_ctx: &Context<Self>) -> Self {
-        Self { server_info: None }
+        Self {
+            server_info: None,
+            connect_info: None,
+        }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::ServerChange(server_info) => {
                 self.server_info = server_info;
+            }
+            Msg::ConnectChange(realms) => {
+                self.connect_info = realms;
             }
         }
         true
@@ -93,11 +104,21 @@ impl Component for AddWizardState {
                     let link = ctx.link().clone();
                     move |p: &WizardPageRenderInfo| {
                         WizardPageConnect::new(p.clone(), remote_type)
-                            .on_server_change(link.callback(Msg::ServerChange))
+                            .on_connect_change(link.callback(Msg::ConnectChange))
                             .into()
                     }
                 },
-            );
+            )
+            .with_page(TabBarItem::new().key("info").label(tr!("Settings")), {
+                let realms = self.connect_info.clone();
+                let link = ctx.link().clone();
+                move |p: &WizardPageRenderInfo| {
+                    WizardPageInfo::new(p.clone())
+                        .connect_info(realms.clone())
+                        .on_server_change(link.callback(Msg::ServerChange))
+                        .into()
+                }
+            });
 
         if remote_type == RemoteType::Pve {
             wizard = wizard.with_page(TabBarItem::new().key("nodes").label(tr!("Endpoints")), {
@@ -111,14 +132,6 @@ impl Component for AddWizardState {
         }
 
         wizard
-            .with_page(TabBarItem::new().key("info").label(tr!("Settings")), {
-                let server_info = self.server_info.clone();
-                move |p: &WizardPageRenderInfo| {
-                    WizardPageInfo::new(p.clone())
-                        .server_info(server_info.clone())
-                        .into()
-                }
-            })
             .with_page(TabBarItem::new().label(tr!("Summary")), {
                 let server_info = self.server_info.clone();
                 move |p: &WizardPageRenderInfo| {

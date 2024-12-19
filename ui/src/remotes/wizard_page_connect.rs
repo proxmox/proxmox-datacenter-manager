@@ -1,22 +1,21 @@
 use std::rc::Rc;
 
-use anyhow::Error;
+use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use yew::html::IntoEventCallback;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::{AlignItems, FlexFit};
-use pwt::widget::form::{Field, FormContext, FormContextObserver, InputType};
+use pwt::widget::form::{Field, FormContext, FormContextObserver};
 use pwt::widget::{error_message, Button, Column, Container, InputPanel, Mask, Row};
 use pwt::{prelude::*, AsyncPool};
 
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
 
-use proxmox_schema::property_string::PropertyString;
-use proxmox_schema::ApiType;
-
-use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType};
+use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
+use pdm_client::types::ListRealm;
 
 use pwt_macros::builder;
 
@@ -25,9 +24,9 @@ use pwt_macros::builder;
 pub struct WizardPageConnect {
     info: WizardPageRenderInfo,
 
-    #[builder_cb(IntoEventCallback, into_event_callback, Option<Remote>)]
+    #[builder_cb(IntoEventCallback, into_event_callback, Option<ConnectParams>)]
     #[prop_or_default]
-    pub on_server_change: Option<Callback<Option<Remote>>>,
+    pub on_connect_change: Option<Callback<Option<ConnectParams>>>,
 
     remote_type: RemoteType,
 }
@@ -38,35 +37,32 @@ impl WizardPageConnect {
     }
 }
 
-async fn scan(connect: ConnectParams) -> Result<Remote, Error> {
-    let params = serde_json::to_value(&connect)?;
-    let mut result: Remote = proxmox_yew_comp::http_post("/pve/scan", Some(params)).await?;
-
-    // insert the initial connection too, since we know that works
-    result.nodes.insert(
-        0,
-        PropertyString::new(NodeUrl {
-            hostname: connect.hostname,
-            fingerprint: connect.fingerprint,
-        }),
-    );
-
-    result.nodes.sort_by(|a, b| a.hostname.cmp(&b.hostname));
+async fn list_realms(
+    hostname: String,
+    fingerprint: Option<String>,
+) -> Result<Vec<ListRealm>, Error> {
+    let mut params = json!({
+        "hostname": hostname,
+    });
+    if let Some(fp) = fingerprint {
+        params["fingerprint"] = fp.into();
+    }
+    let result: Vec<ListRealm> = proxmox_yew_comp::http_post("/pve/realms", Some(params)).await?;
 
     Ok(result)
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(PartialEq, Clone, Deserialize, Serialize)]
 /// Parameters for connect call.
 pub struct ConnectParams {
-    hostname: String,
-    authid: String,
-    token: String,
+    pub hostname: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    fingerprint: Option<String>,
+    pub fingerprint: Option<String>,
+    #[serde(default)]
+    pub realms: Vec<ListRealm>,
 }
 
-async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<Remote, Error> {
+async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<ConnectParams, Error> {
     let data = form_ctx.get_submit_data();
     let mut data: ConnectParams = serde_json::from_value(data.clone())?;
     if let Some(hostname) = data.hostname.strip_prefix("http://") {
@@ -79,28 +75,22 @@ async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<Remot
         data.hostname = hostname.to_string();
     }
 
-    Ok(match remote_type {
-        RemoteType::Pve => scan(data).await?,
-        RemoteType::Pbs => Remote {
-            ty: remote_type,
-            id: data.hostname.clone(),
-            authid: data.authid.parse()?,
-            token: data.token,
-            nodes: vec![PropertyString::new(NodeUrl {
-                hostname: data.hostname,
-                fingerprint: data.fingerprint,
-            })],
-        },
-    })
+    let realms = match remote_type {
+        RemoteType::Pve => list_realms(data.hostname.clone(), data.fingerprint.clone()).await?,
+        RemoteType::Pbs => bail!("not implemented"),
+    };
+
+    data.realms = realms;
+    Ok(data)
 }
 
 pub enum Msg {
     FormChange,
     Connect,
-    ConnectResult(Result<Remote, Error>),
+    ConnectResult(Result<ConnectParams, Error>),
 }
 pub struct PdmWizardPageConnect {
-    server_info: Option<Remote>,
+    connect_info: Option<ConnectParams>,
     _form_observer: FormContextObserver,
     form_valid: bool,
     loading: bool,
@@ -109,12 +99,12 @@ pub struct PdmWizardPageConnect {
 }
 
 impl PdmWizardPageConnect {
-    fn update_server_info(&mut self, ctx: &Context<Self>, server_info: Option<Remote>) {
+    fn update_connect_info(&mut self, ctx: &Context<Self>, info: Option<ConnectParams>) {
         let props = ctx.props();
-        self.server_info = server_info;
-        props.info.page_lock(self.server_info.is_none());
-        if let Some(on_server_change) = &props.on_server_change {
-            on_server_change.emit(self.server_info.clone());
+        self.connect_info = info.clone();
+        props.info.page_lock(info.is_none());
+        if let Some(on_connect_change) = &props.on_connect_change {
+            on_connect_change.emit(info);
         }
     }
 }
@@ -133,7 +123,7 @@ impl Component for PdmWizardPageConnect {
         props.info.page_lock(true);
 
         Self {
-            server_info: None,
+            connect_info: None,
             _form_observer,
             form_valid: false,
             loading: false,
@@ -149,7 +139,7 @@ impl Component for PdmWizardPageConnect {
                 self.form_valid = props.info.form_ctx.read().is_valid();
                 match props.remote_type {
                     RemoteType::Pve => {
-                        self.update_server_info(ctx, None);
+                        self.update_connect_info(ctx, None);
                     }
                     RemoteType::Pbs => {
                         return <Self as yew::Component>::update(self, ctx, Msg::Connect)
@@ -158,7 +148,7 @@ impl Component for PdmWizardPageConnect {
             }
             Msg::Connect => {
                 let link = ctx.link().clone();
-                self.update_server_info(ctx, None);
+                self.update_connect_info(ctx, None);
                 let form_ctx = props.info.form_ctx.clone();
                 self.loading = true;
                 self.last_error = None;
@@ -172,8 +162,8 @@ impl Component for PdmWizardPageConnect {
             Msg::ConnectResult(server_info) => {
                 self.loading = false;
                 match server_info {
-                    Ok(server_info) => {
-                        self.update_server_info(ctx, Some(server_info));
+                    Ok(connect_info) => {
+                        self.update_connect_info(ctx, Some(connect_info));
                     }
                     Err(err) => {
                         self.last_error = Some(err);
@@ -196,26 +186,11 @@ impl Component for PdmWizardPageConnect {
             // FIXME: input panel css style is not optimal here...
             .width("auto")
             .padding(4)
-            .with_field(
+            .with_large_field(
                 tr!("Server Address"),
                 Field::new()
                     .name("hostname")
                     .placeholder(tr!("<IP/Hostname>:Port"))
-                    .required(true),
-            )
-            .with_right_field(
-                tr!("User/Token"),
-                Field::new()
-                    .name("authid")
-                    .placeholder(tr!("Example: user@pve!tokenid"))
-                    .schema(&pdm_api_types::Authid::API_SCHEMA)
-                    .required(true),
-            )
-            .with_right_field(
-                tr!("Password/Secret"),
-                Field::new()
-                    .name("token")
-                    .input_type(InputType::Password)
                     .required(true),
             )
             .with_large_field(
@@ -242,7 +217,7 @@ impl Component for PdmWizardPageConnect {
                         )
                         .with_flex_spacer()
                         .with_optional_child(
-                            (self.last_error.is_none() && self.server_info.is_some())
+                            (self.last_error.is_none() && self.connect_info.is_some())
                                 .then_some(Container::new().with_child(tr!("Connection OK"))),
                         )
                         .with_child(
