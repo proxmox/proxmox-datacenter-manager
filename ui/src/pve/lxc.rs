@@ -415,8 +415,8 @@ impl yew::Component for LxcanelComp {
                                         v.to_string()
                                     }
                                 })
-                                .serie0(Some(self.netin.clone()))
-                                .serie1(Some(self.netout.clone())),
+                                .serie0(Some(self.diskread.clone()))
+                                .serie1(Some(self.diskwrite.clone())),
                         ),
                 ),
             )
