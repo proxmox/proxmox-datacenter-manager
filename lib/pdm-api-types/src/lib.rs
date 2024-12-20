@@ -237,7 +237,7 @@ pub enum TaskStateType {
         upid: { schema: UPID::API_SCHEMA },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 /// Task properties.
 pub struct TaskListItem {
     pub upid: String,
