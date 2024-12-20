@@ -339,7 +339,7 @@ pub const REMOTE_UPID_SCHEMA: Schema = StringSchema::new("A remote UPID")
     .min_length("C!UPID:N:12345678:12345678:12345678:::".len())
     .schema();
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct RemoteUpid {
     remote: String,
     /// This is usually a pve upid, but may also be a pbs upid, they have distinct formats.
