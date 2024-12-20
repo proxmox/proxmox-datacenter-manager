@@ -24,13 +24,13 @@ use pdm_api_types::{
 
 use pve_api_types::client::PveClient;
 use pve_api_types::{
-    ClusterResourceKind, ClusterResourceType, ListRealm, QemuMigratePreconditions,
+    ClusterResourceKind, ClusterResourceType, ListRealm, PveUpid, QemuMigratePreconditions,
     StartQemuMigrationType,
 };
 
 use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage};
 
-use crate::connection;
+use crate::{connection, task_cache};
 
 mod node;
 mod rrddata;
@@ -119,6 +119,13 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
 ]);
 
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
+
+// converts a remote + PveUpid into a RemoteUpid and starts tracking it
+fn new_remote_upid(remote: String, upid: PveUpid) -> Result<RemoteUpid, Error> {
+    let remote_upid: RemoteUpid = (remote, upid.to_string()).try_into()?;
+    task_cache::track_running_task(remote_upid.clone());
+    Ok(remote_upid)
+}
 
 pub(crate) fn get_remote<'a>(
     config: &'a SectionConfigData<Remote>,
@@ -512,7 +519,7 @@ pub async fn qemu_start(
         .start_qemu_async(&node, vmid, Default::default())
         .await?;
 
-    (remote, upid.to_string()).try_into()
+    new_remote_upid(remote, upid)
 }
 
 #[api(
@@ -545,7 +552,7 @@ pub async fn qemu_stop(
 
     let upid = pve.stop_qemu_async(&node, vmid, Default::default()).await?;
 
-    (remote, upid.to_string()).try_into()
+    new_remote_upid(remote, upid)
 }
 
 #[api(
@@ -580,7 +587,8 @@ pub async fn qemu_shutdown(
         .shutdown_qemu_async(&node, vmid, Default::default())
         .await?;
 
-    (remote, upid.to_string()).try_into()
+    //(remote, upid.to_string()).try_into()
+    new_remote_upid(remote, upid)
 }
 
 fn check_guest_delete_perms(
@@ -689,7 +697,8 @@ pub async fn qemu_migrate(
         with_local_disks,
     };
     let upid = pve.migrate_qemu(&node, vmid, params).await?;
-    (remote, upid.to_string()).try_into()
+    //(remote, upid.to_string()).try_into()
+    new_remote_upid(remote, upid)
 }
 
 #[api(
@@ -967,7 +976,7 @@ pub async fn lxc_start(
 
     let upid = pve.start_lxc_async(&node, vmid, Default::default()).await?;
 
-    (remote, upid.to_string()).try_into()
+    new_remote_upid(remote, upid)
 }
 
 #[api(
@@ -1000,7 +1009,7 @@ pub async fn lxc_stop(
 
     let upid = pve.stop_lxc_async(&node, vmid, Default::default()).await?;
 
-    (remote, upid.to_string()).try_into()
+    new_remote_upid(remote, upid)
 }
 
 #[api(
@@ -1035,7 +1044,7 @@ pub async fn lxc_shutdown(
         .shutdown_lxc_async(&node, vmid, Default::default())
         .await?;
 
-    (remote, upid.to_string()).try_into()
+    new_remote_upid(remote, upid)
 }
 
 #[api(
@@ -1114,7 +1123,8 @@ pub async fn lxc_migrate(
         timeout,
     };
     let upid = pve.migrate_lxc(&node, vmid, params).await?;
-    (remote, upid.to_string()).try_into()
+
+    new_remote_upid(remote, upid)
 }
 
 #[api(
@@ -1260,7 +1270,7 @@ pub async fn lxc_remote_migrate(
     log::info!("migrating vm {vmid} of node {node:?}");
     let upid = source_conn.remote_migrate_lxc(&node, vmid, params).await?;
 
-    (source, upid.to_string()).try_into()
+    new_remote_upid(source, upid)
 }
 
 #[api(
