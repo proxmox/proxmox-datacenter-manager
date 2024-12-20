@@ -7,6 +7,7 @@ pub mod context;
 pub mod env;
 pub mod metric_collection;
 pub mod resource_cache;
+pub mod task_cache;
 pub mod task_utils;
 
 pub mod connection;

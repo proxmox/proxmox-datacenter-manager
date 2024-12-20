@@ -118,7 +118,7 @@ async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
     returns: { type: pve_api_types::TaskStatus },
 )]
 /// Get the status of a task from a Proxmox VE instance.
-async fn get_task_status(
+pub async fn get_task_status(
     remote: String,
     upid: RemoteUpid,
     wait: bool,
