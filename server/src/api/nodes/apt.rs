@@ -167,16 +167,11 @@ fn apt_get_changelog(options: APTGetChangelogOptions) -> Result<String, Error> {
 pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
     const PACKAGES: &[&str] = &[
         "ifupdown2",
-        //"libjs-extjs",
-        //"proxmox-backup-docs",
-        //"proxmox-backup-client",
-        //"proxmox-mail-forward",
-        //"proxmox-mini-journalreader",
-        //"proxmox-offline-mirror-helper",
-        //"proxmox-widget-toolkit",
+        "proxmox-mail-forward",
+        "proxmox-mini-journalreader",
+        "proxmox-offline-mirror-helper",
         "pve-xtermjs",
-        //"smartmontools",
-        //"zfsutils-linux",
+        "zfsutils-linux",
     ];
     let version = pdm_buildcfg::PROXMOX_PKG_VERSION;
     let release = pdm_buildcfg::PROXMOX_PKG_RELEASE;
