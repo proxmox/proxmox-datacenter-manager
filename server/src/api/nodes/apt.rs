@@ -178,9 +178,9 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
         //"smartmontools",
         //"zfsutils-linux",
     ];
-    //let version = pbs_buildcfg::PROXMOX_PKG_VERSION;
-    //let release = pbs_buildcfg::PROXMOX_PKG_RELEASE;
-    let running_daemon_version = format!("running version: {}.{}", 1, 1);
+    let version = pdm_buildcfg::PROXMOX_PKG_VERSION;
+    let release = pdm_buildcfg::PROXMOX_PKG_RELEASE;
+    let running_daemon_version = format!("running version: {version}.{release}");
 
     proxmox_apt::get_package_versions(
         "proxmox-datacenter",
