@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+#DEBHELPER#
+
+# modeled after dh_systemd_start output
+if [ -d /run/systemd/system ] && [ "$1" = remove ]; then
+    deb-systemd-invoke stop 'proxmox-datacenter-api.service' \
+        'proxmox-datacenter-manager-banner.service' \
+        'proxmox-datacenter-manager-daily-update.timer' \
+        'proxmox-datacenter-privileged-api.service' \
+        >/dev/null || true
+fi

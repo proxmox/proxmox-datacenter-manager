@@ -35,5 +35,10 @@ override_dh_strip:
 	  debian/scripts/elf-strip-unused-dependencies.sh "$$exe" || true; \
 	done
 
+override_dh_installsystemd:
+	dh_installsystemd -pproxmox-datacenter-manager  proxmox-datacenter-manager-daily-update.timer
+	# note: we start/try-reload-restart services manually in postinst
+	dh_installsystemd --no-start --no-restart-after-upgrade --no-stop-on-upgrade
+
 override_dh_missing:
 	dh_missing --fail-missing
