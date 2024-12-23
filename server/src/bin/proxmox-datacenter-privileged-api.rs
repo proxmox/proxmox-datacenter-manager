@@ -147,28 +147,32 @@ async fn run() -> Result<(), Error> {
             .expect("bad api socket path"),
         move |listener: tokio::net::UnixListener| {
             let sockpath = pdm_buildcfg::PDM_PRIVILEGED_API_SOCKET_FN;
+            // FIXME: needs to be adapted if socket is no longer removed above
+            // the socket only exists on the first start/restart, it's passed along as open FD for
+            // reloads..
+            if Path::new(sockpath).exists() {
+                // NOTE: NoFollowSymlink is apparently not implemented in fchmodat()...
+                fchmodat(
+                    Some(libc::AT_FDCWD),
+                    sockpath,
+                    Mode::from_bits_truncate(0o660),
+                    FchmodatFlags::FollowSymlink,
+                )
+                .map_err(|err| {
+                    format_err!("unable to set mode for api socket '{sockpath:?}' - {err}")
+                })?;
 
-            // NOTE: NoFollowSymlink is apparently not implemented in fchmodat()...
-            fchmodat(
-                Some(libc::AT_FDCWD),
-                sockpath,
-                Mode::from_bits_truncate(0o660),
-                FchmodatFlags::FollowSymlink,
-            )
-            .map_err(|err| {
-                format_err!("unable to set mode for api socket '{sockpath:?}' - {err}")
-            })?;
-
-            fchownat(
-                None,
-                sockpath,
-                None,
-                Some(api_user.gid),
-                FchownatFlags::FollowSymlink,
-            )
-            .map_err(|err| {
-                format_err!("unable to set ownership for api socket '{sockpath}' - {err}")
-            })?;
+                fchownat(
+                    None,
+                    sockpath,
+                    None,
+                    Some(api_user.gid),
+                    FchownatFlags::FollowSymlink,
+                )
+                .map_err(|err| {
+                    format_err!("unable to set ownership for api socket '{sockpath}' - {err}")
+                })?;
+            }
 
             let incoming = UnixAcceptor::from(listener);
 
