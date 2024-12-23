@@ -1,3 +1,15 @@
+proxmox-datacenter-manager (0.1.9) bookworm; urgency=medium
+
+  * api: apt versions: fix version of running PDM daemon
+
+  * api: apt versions: track more packages again
+
+  * privileged api server: properly handle socket on reload
+
+  * packaging: properly reload services after upgrade
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 23 Dec 2024 16:32:26 +0100
+
 proxmox-datacenter-manager (0.1.8) bookworm; urgency=medium
 
   * depend on libproxmox-acme-plugins package to ensure DNS challenge plugins
