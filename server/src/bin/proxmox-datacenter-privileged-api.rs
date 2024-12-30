@@ -163,6 +163,8 @@ async fn run() -> Result<(), Error> {
                 format_err!("unable to set ownership for api socket '{sockpath}' - {err}")
             })?;
 
+            log::info!("created socket, notifying readiness to systemd and starting API server");
+
             let incoming = UnixAcceptor::from(listener);
 
             Ok(async {
