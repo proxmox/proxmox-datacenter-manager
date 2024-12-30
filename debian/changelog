@@ -1,3 +1,15 @@
+proxmox-datacenter-manager (0.1.10) bookworm; urgency=medium
+
+  * privileged api: do not clean-up socket unconditionally on start-up but
+    only before freshly creating it. This should fix an issue where the
+    unprivileged, main API dameon could not proxy to the privileged API
+    daemon anymore after the latter was reloaded. Which, for example, can
+    happen when installing package updates.
+
+  * privileged api: output log message before signaling readiness to systemd.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 30 Dec 2024 15:43:10 +0100
+
 proxmox-datacenter-manager (0.1.9) bookworm; urgency=medium
 
   * api: apt versions: fix version of running PDM daemon
