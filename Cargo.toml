@@ -32,7 +32,7 @@ proxmox-access-control = "0.2"
 proxmox-async = "0.4"
 proxmox-auth-api = "0.4"
 proxmox-client = "0.5"
-proxmox-daemon = "0.1"
+proxmox-daemon = "0.1.2"
 proxmox-http = { version = "0.9", features = [ "client", "http-helpers", "websocket" ] } # see below
 proxmox-human-byte = "0.1"
 proxmox-io = "1.0.1" # tools and client use "tokio" feature
