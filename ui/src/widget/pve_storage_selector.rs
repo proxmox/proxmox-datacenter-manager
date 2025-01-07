@@ -209,15 +209,15 @@ fn columns() -> Rc<Vec<DataTableHeader<StorageInfo>>> {
             .into(),
         DataTableColumn::new(tr!("Avail"))
             .get_property_owned(|entry: &StorageInfo| entry.used.unwrap_or_default())
-            .render(|entry: &StorageInfo| match entry.used {
-                Some(used) => html! {format!("{:.2}", HumanByte::new_decimal(used as f64))},
+            .render(|entry: &StorageInfo| match entry.avail {
+                Some(avail) => html! {format!("{:.2}", HumanByte::new_decimal(avail as f64))},
                 None => html! {"-"},
             })
             .into(),
         DataTableColumn::new(tr!("Capacity"))
             .get_property_owned(|entry: &StorageInfo| entry.avail.unwrap_or_default())
-            .render(|entry: &StorageInfo| match entry.avail {
-                Some(used) => html! { format!("{:.2}", HumanByte::new_decimal(used as f64))},
+            .render(|entry: &StorageInfo| match entry.total {
+                Some(total) => html! { format!("{:.2}", HumanByte::new_decimal(total as f64))},
                 None => html! {"-"},
             })
             .into(),
