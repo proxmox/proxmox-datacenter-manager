@@ -183,6 +183,10 @@ impl PdmMigrateWindow {
                         .delete_source(value["delete-source"].as_bool().unwrap_or_default())
                         .restart(true, None);
 
+                    if let Some(Value::Number(vmid)) = value.get("target-vmid") {
+                        migrate_opts = migrate_opts.target_vmid(vmid.as_u64().unwrap() as u32);
+                    }
+
                     if form_ctx.read().get_field_checked("detailed-mode") {
                         match value.get("detail-map") {
                             Some(Value::Array(list)) => {
