@@ -102,7 +102,7 @@ fn edit_remote_input_panel(_form_ctx: &FormContext, remote_id: &str) -> Html {
                 .key("nodes-title")
                 .padding_top(4)
                 .class("pwt-font-title-medium")
-                .with_child(tr!("Nodes")),
+                .with_child(tr!("Endpoints")),
         )
         .with_custom_child(NodeUrlList::new().name("nodes").key("nodes").padding_top(2))
         .into()
