@@ -1,17 +1,23 @@
 use std::rc::Rc;
 
+use anyhow::Error;
+use serde_json::Value;
 use yew::html::IntoEventCallback;
 use yew::virtual_dom::{VComp, VNode};
 
 use pwt::css::FlexFit;
 use pwt::prelude::*;
-use pwt::widget::form::{DisplayField, Field, FormContext, InputType};
-use pwt::widget::{Container, InputPanel};
+use pwt::widget::form::{delete_empty_values, DisplayField, Field, FormContext, InputType};
+use pwt::widget::{Container, InputPanel, Row};
 
+use proxmox_yew_comp::form::{flatten_property_string, property_string_from_parts};
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use proxmox_yew_comp::{EditWindow, SchemaValidation};
 
+use proxmox_client::ApiResponseData;
 use proxmox_schema::ApiType;
+
+use pdm_api_types::remotes::WebUrl;
 
 use super::NodeUrlList;
 
@@ -37,6 +43,14 @@ impl EditRemote {
 
 pub struct PdmEditRemote {}
 
+async fn load_remote(url: AttrValue) -> Result<ApiResponseData<Value>, Error> {
+    let mut resp: ApiResponseData<Value> = proxmox_yew_comp::http_get_full(&*url, None).await?;
+
+    flatten_property_string(&mut resp.data, "web-url", &WebUrl::API_SCHEMA);
+
+    Ok(resp)
+}
+
 impl Component for PdmEditRemote {
     type Message = ();
     type Properties = EditRemote;
@@ -47,14 +61,15 @@ impl Component for PdmEditRemote {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let props = ctx.props();
+        let url = format!(
+            "/remotes/{}/config",
+            percent_encode_component(&props.remote_id)
+        );
         EditWindow::new(tr!("Edit") + ": " + &tr!("Remote"))
             .width(800)
             .min_height(400)
             .on_done(props.on_done.clone())
-            .loader(format!(
-                "/remotes/{}/config",
-                percent_encode_component(&props.remote_id)
-            ))
+            .loader((load_remote, url))
             .renderer({
                 let remote_id = props.remote_id.clone();
                 move |form_ctx| edit_remote_input_panel(form_ctx, &remote_id)
@@ -64,7 +79,12 @@ impl Component for PdmEditRemote {
                 move |form_ctx: FormContext| {
                     let url = url.clone();
                     async move {
-                        let data = form_ctx.get_submit_data();
+                        let mut data = form_ctx.get_submit_data();
+
+                        property_string_from_parts::<WebUrl>(&mut data, "web-url", true);
+
+                        let data = delete_empty_values(&data, &["web-url"], true);
+
                         proxmox_yew_comp::http_put(&url, Some(data)).await
                     }
                 }
@@ -96,6 +116,31 @@ fn edit_remote_input_panel(_form_ctx: &FormContext, remote_id: &str) -> Html {
                 .placeholder(tr!("Unchanged"))
                 .input_type(InputType::Password)
                 .required(false),
+        )
+        .with_field(
+            tr!("Web Base URL"),
+            Field::new()
+                .name("_web-url_base-url")
+                .placeholder(tr!("Automatically generate from first connection.")),
+        )
+        .with_field(
+            tr!("per Node URL template"),
+            Field::new()
+                .name("_web-url_per-node-template")
+                .placeholder(tr!("Same as Web Base URL.")),
+        )
+        .with_custom_child(
+            Row::new()
+                .key("hint-text")
+                .gap(2)
+                .with_child(Container::new().with_child(tr!(
+                    "Possible template values for 'per Node URL template' are:"
+                )))
+                .with_child(
+                    Container::new()
+                        .style("font-family", "monospace")
+                        .with_child("{{nodename}}"),
+                ),
         )
         .with_custom_child(
             Container::new()
