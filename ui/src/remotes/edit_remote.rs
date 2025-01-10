@@ -78,7 +78,10 @@ fn edit_remote_input_panel(_form_ctx: &FormContext, remote_id: &str) -> Html {
         .class(FlexFit)
         .padding(4)
         .width("auto")
-        .with_field(tr!("Remote ID"), DisplayField::new(remote_id.to_string()))
+        .with_field(
+            tr!("Remote ID"),
+            DisplayField::new(remote_id.to_string()).key("remote-id"),
+        )
         .with_field(
             tr!("User/Token"),
             Field::new()
