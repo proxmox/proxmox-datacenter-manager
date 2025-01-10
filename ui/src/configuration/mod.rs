@@ -1,7 +1,7 @@
 use pwt::prelude::*;
 use pwt::props::StorageLocation;
 use pwt::state::NavigationContainer;
-use pwt::widget::{Column, MiniScrollMode, Panel, TabBarItem, TabPanel};
+use pwt::widget::{MiniScrollMode, Panel, TabBarItem, TabPanel};
 
 use proxmox_yew_comp::configuration::TimePanel;
 use proxmox_yew_comp::configuration::{DnsPanel, NetworkView};
@@ -11,12 +11,14 @@ use proxmox_yew_comp::UserPanel;
 mod other;
 pub use other::OtherPanel;
 
+use crate::widget::ContentSpacer;
+
 #[function_component(SystemConfiguration)]
 pub fn system_configuration() -> Html {
     let panel = TabPanel::new()
         .state_id(StorageLocation::session("SystemConfigurationState"))
         //.title(tr!("Configuration") + ": " + &tr!("System"))
-        .class("pwt-flex-fit")
+        .class(pwt::css::FlexFit)
         .router(true)
         .scroll_mode(MiniScrollMode::Arrow)
         .with_item_builder(
@@ -42,7 +44,7 @@ pub fn access_control() -> Html {
     let panel = TabPanel::new()
         .state_id(StorageLocation::session("AccessControlState"))
         //.title(tr!("Configuration") + ": " + &tr!("Access Control"))
-        .class("pwt-flex-fit")
+        .class(pwt::css::FlexFit)
         .router(true)
         .scroll_mode(MiniScrollMode::Arrow)
         .with_item_builder(
@@ -50,14 +52,24 @@ pub fn access_control() -> Html {
                 .key("user-management")
                 .icon_class("fa fa-user")
                 .label(tr!("User Management")),
-            |_| UserPanel::new().into(),
+            |_| {
+                ContentSpacer::new()
+                    .class(pwt::css::FlexFit)
+                    .with_child(UserPanel::new())
+                    .into()
+            },
         )
         .with_item_builder(
             TabBarItem::new()
                 .key("two-factor")
                 .icon_class("fa fa-key")
                 .label(tr!("Two Factor Authentication")),
-            |_| TfaView::new().into(),
+            |_| {
+                ContentSpacer::new()
+                    .class(pwt::css::FlexFit)
+                    .with_child(TfaView::new())
+                    .into()
+            },
         );
 
     NavigationContainer::new().with_child(panel).into()
@@ -65,27 +77,22 @@ pub fn access_control() -> Html {
 
 #[function_component(NetworkTimePanel)]
 pub fn create_network_time_panel() -> Html {
-    Column::new()
-        .class("pwt-flex-fit")
-        .padding(2)
-        .gap(4)
+    ContentSpacer::new()
+        .class(pwt::css::FlexFit)
         .with_child(
             Panel::new()
-                .border(true)
                 .title(tr!("Time"))
                 .with_child(html! { <TimePanel/> }),
         )
         .with_child(
             Panel::new()
-                .border(true)
                 .title(tr!("DNS"))
                 .with_child(html! { <DnsPanel/> }),
         )
         .with_child(
             Panel::new()
                 .min_height(200)
-                .class("pwt-flex-fit")
-                .border(true)
+                .class(pwt::css::FlexFit)
                 .title(tr!("Network Interfaces"))
                 .with_child(NetworkView::new()),
         )

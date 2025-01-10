@@ -31,7 +31,7 @@ pub mod utils;
 mod tree;
 use tree::PveTreeNode;
 
-use crate::get_deep_url;
+use crate::{get_deep_url, widget::ContentSpacer};
 
 #[derive(Debug, Eq, PartialEq, Properties)]
 pub struct PveRemote {
@@ -163,10 +163,9 @@ impl LoadableComponent for PveRemoteComp {
             .with_child(tr! {"Remote '{0}'", ctx.props().remote})
             .into();
 
-        let content = Row::new()
+        let content = ContentSpacer::new()
             .class(FlexFit)
-            .padding(4)
-            .gap(4)
+            .class("pwt-flex-direction-row")
             .with_child(
                 Panel::new()
                     .min_width(500)

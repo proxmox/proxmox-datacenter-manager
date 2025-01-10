@@ -1,2 +1,13 @@
 @import "../pwt-assets/scss/desktop-yew-style";
 @import "pdm";
+
+.proxmox-content-spacer {
+    padding: var(--pwt-spacer-4);
+    gap: var(--pwt-spacer-4);
+
+    & > * {
+        border: 0px !important;
+        border-top: 1px solid var(--pwt-color-surface) !important;
+        @include elevation-box-shadow(1);
+    }
+}

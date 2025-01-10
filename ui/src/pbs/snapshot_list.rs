@@ -112,7 +112,7 @@ impl Component for SnapshotListComp {
     fn view(&self, _ctx: &PwtContext<Self>) -> Html {
         let columns = COLUMNS.with(Rc::clone);
         DataTable::new(columns, self.store.clone())
-            .class("pwt-flex-fit")
+            .class(pwt::css::FlexFit)
             .selection(self.selection.clone())
             .into()
     }

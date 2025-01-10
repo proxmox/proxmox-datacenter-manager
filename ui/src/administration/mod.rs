@@ -18,6 +18,8 @@ use pwt_macros::builder;
 
 use proxmox_yew_comp::{AptPackageManager, AptRepositories, ExistingProduct, Syslog, Tasks};
 
+use crate::widget::ContentSpacer;
+
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
 pub struct ServerAdministration {
@@ -47,7 +49,7 @@ impl Component for PdmServerAdministration {
 
         let panel = TabPanel::new()
             .state_id(StorageLocation::session("ServerAdministrationState"))
-            .class("pwt-flex-fill pwt-overflow-auto")
+            .class(pwt::css::FlexFit)
             //.title("Server Administration")
             .router(true)
             .scroll_mode(MiniScrollMode::Arrow)
@@ -73,8 +75,9 @@ impl Component for PdmServerAdministration {
                     .label("Updates")
                     .icon_class("fa fa-refresh"),
                 move |_| {
-                    AptPackageManager::new()
-                        .enable_upgrade(enable_upgrade)
+                    ContentSpacer::new()
+                        .class(pwt::css::FlexFit)
+                        .with_child(AptPackageManager::new().enable_upgrade(enable_upgrade))
                         .into()
                 },
             )
@@ -83,21 +86,36 @@ impl Component for PdmServerAdministration {
                     .key("repositories")
                     .label("Repositories")
                     .icon_class("fa fa-files-o"),
-                |_| AptRepositories::new().product(ExistingProduct::PDM).into(),
+                |_| {
+                    ContentSpacer::new()
+                        .class(pwt::css::FlexFit)
+                        .with_child(AptRepositories::new().product(ExistingProduct::PDM))
+                        .into()
+                },
             )
             .with_item_builder(
                 TabBarItem::new()
                     .key("syslog")
                     .label("Syslog")
                     .icon_class("fa fa-list"),
-                |_| Syslog::new().into(), // fixme: use JournalView instead?
+                |_| {
+                    ContentSpacer::new()
+                        .class(pwt::css::FlexFit)
+                        .with_child(Syslog::new())
+                        .into() // fixme: use JournalView instead?
+                },
             )
             .with_item_builder(
                 TabBarItem::new()
                     .key("tasks")
                     .label("Tasks")
                     .icon_class("fa fa-list-alt"),
-                |_| Tasks::new().into(),
+                |_| {
+                    ContentSpacer::new()
+                        .class(pwt::css::FlexFit)
+                        .with_child(Tasks::new())
+                        .into()
+                },
             );
 
         NavigationContainer::new().with_child(panel).into()

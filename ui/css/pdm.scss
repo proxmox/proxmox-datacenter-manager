@@ -60,7 +60,27 @@
 }
 
 :root.pwt-dark-mode {
-  .fa-memory, .fa-cpu {
-    filter: invert(90%);
-  }
+    .fa-memory,
+    .fa-cpu {
+        filter: invert(90%);
+    }
+}
+
+.proxmox-content-spacer {
+    @include color-scheme-vars("surface");
+    color: var(--pwt-color);
+    background-color: var(--pwt-color-background);
+
+    padding: var(--pwt-spacer-2);
+    gap: var(--pwt-spacer-2);
+
+    display: flex;
+    flex-direction: column;
+
+    & > * {
+        @include color-scheme-vars("neutral");
+        border: 1px solid var(--pwt-color-border);
+        color: var(--pwt-color);
+        background-color: var(--pwt-color-background);
+    }
 }

@@ -16,6 +16,7 @@ use proxmox_yew_comp::{NotesView, XTermJs};
 
 use pdm_api_types::remotes::RemoteType;
 
+use crate::widget::ContentSpacer;
 use crate::{
     AccessControl, CertificatesPanel, Dashboard, RemoteConfigPanel, RemoteList,
     ServerAdministration, SystemConfiguration,
@@ -177,14 +178,14 @@ impl Component for PdmMainMenu {
             "notes",
             Some("fa fa-sticky-note-o"),
             move |_| {
-                NotesView::new("/config/notes")
-                    .on_submit(|notes| async move {
-                        proxmox_yew_comp::http_put(
-                            "/config/notes",
-                            Some(serde_json::to_value(&notes)?),
-                        )
+                let notes = NotesView::new("/config/notes").on_submit(|notes| async move {
+                    proxmox_yew_comp::http_put("/config/notes", Some(serde_json::to_value(&notes)?))
                         .await
-                    })
+                });
+
+                ContentSpacer::new()
+                    .class(pwt::css::FlexFit)
+                    .with_child(notes)
                     .into()
             },
         );
@@ -274,7 +275,12 @@ impl Component for PdmMainMenu {
             } else {
                 "fa fa-server"
             }),
-            |_| RemoteConfigPanel::new().into(),
+            |_| {
+                ContentSpacer::new()
+                    .class(pwt::css::FlexFit)
+                    .with_child(RemoteConfigPanel::new())
+                    .into()
+            },
             remote_submenu,
         );
 

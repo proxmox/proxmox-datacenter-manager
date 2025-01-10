@@ -239,7 +239,7 @@ impl LoadableComponent for PbsRemoteConfigPanel {
         let columns = Rc::clone(&self.remote_list_columns);
         let link = ctx.link();
         DataTable::new(columns, self.store.clone())
-            .class("pwt-flex-fit")
+            .class(pwt::css::FlexFit)
             .selection(self.selection.clone())
             .on_row_dblclick(move |_: &mut _| {
                 link.change_view(Some(ViewState::Edit));

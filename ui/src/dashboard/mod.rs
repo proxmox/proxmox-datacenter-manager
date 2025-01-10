@@ -18,7 +18,7 @@ use pwt::{
 use pdm_api_types::resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus};
 use pdm_client::types::TopEntity;
 
-use crate::{remotes::AddWizard, RemoteList};
+use crate::{remotes::AddWizard, widget::ContentSpacer, RemoteList};
 
 mod top_entities;
 pub use top_entities::TopEntities;
@@ -275,17 +275,15 @@ impl Component for PdmDashboard {
 
         let content = Column::new()
             .class(FlexFit)
-            .padding(4)
-            .gap(4)
             .with_child(
-                Row::new()
-                    .gap(4)
+                ContentSpacer::new()
+                    .class("pwt-flex-direction-row")
                     .class(FlexWrap::Wrap)
                     .with_child(
                         Panel::new()
                             .title(self.create_title_with_icon("server", tr!("Remotes")))
                             .flex(1.0)
-                            .border(true)
+                            //.border(true)
                             .width(300)
                             .min_height(175)
                             .with_tool(
@@ -389,10 +387,11 @@ impl Component for PdmDashboard {
                     .with_child(SubscriptionInfo::new()),
             )
             .with_child(
-                Row::new()
-                    .gap(4)
+                ContentSpacer::new()
+                    .class("pwt-flex-direction-row")
+                    .style("padding-top", "0")
                     .class(FlexWrap::Wrap)
-                    .min_height(175)
+                    //.min_height(175)
                     .with_child(self.create_top_entities_panel(
                         "desktop",
                         tr!("Guests With the Highest CPU Usage"),

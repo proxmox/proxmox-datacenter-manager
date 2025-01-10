@@ -19,7 +19,6 @@ use proxmox_yew_comp::{ObjectGrid, ObjectGridRow};
 #[function_component(WebauthnPanel)]
 pub fn webauthn_panel() -> Html {
     Panel::new()
-        .border(true)
         .title(tr!("WebAuthn TFA"))
         .with_child(object_grid())
         .into()
@@ -138,7 +137,7 @@ impl Component for PdmWebauthnConfigEditor {
             );
 
         Form::new()
-            .class("pwt-flex-fit")
+            .class(pwt::css::FlexFit)
             .form_context(self.form_ctx.clone())
             .with_child(panel)
             .into()
