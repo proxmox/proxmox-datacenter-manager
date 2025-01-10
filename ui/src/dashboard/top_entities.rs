@@ -21,7 +21,7 @@ use pwt::{
 use pdm_client::types::{Resource, TopEntity};
 
 use crate::{
-    get_deep_url, navigate_to,
+    get_deep_url, get_resource_node, navigate_to,
     renderer::{render_resource_icon, render_resource_name},
 };
 
@@ -131,6 +131,8 @@ impl Component for TopEntitiesComp {
             let rrd = &entity.rrd_data;
             let remote = &entity.remote;
 
+            let node = get_resource_node(resource).map(|n| n.to_string());
+
             let tooltip_anchor = if let Some(info) = self.tooltip_info.as_ref() {
                 if info.id == resource.global_id() {
                     tooltip = Some(create_tooltip(remote, resource, info, &props.metrics_title));
@@ -171,7 +173,7 @@ impl Component for TopEntitiesComp {
                         let remote = remote.clone();
                         let id = resource.id();
                         move |_| {
-                            if let Some(url) = get_deep_url(&link, &remote, &id) {
+                            if let Some(url) = get_deep_url(&link, &remote, node.as_deref(), &id) {
                                 let _ = web_sys::window().unwrap().open_with_url(&url.href());
                             }
                         }

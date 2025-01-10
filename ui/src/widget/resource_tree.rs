@@ -23,7 +23,7 @@ use proxmox_yew_comp::{http_get, Status};
 use pdm_api_types::resource::{RemoteResources, Resource};
 
 use crate::{
-    get_deep_url,
+    get_deep_url, get_resource_node,
     renderer::{render_resource_name, render_status_icon},
     RemoteList,
 };
@@ -321,12 +321,9 @@ fn columns(
             .render(|item: &PdmTreeEntry| {
                 match item {
                     PdmTreeEntry::Root => "",
-                    PdmTreeEntry::Resource(_, resource) => match resource {
-                        Resource::PveStorage(r) => &r.node,
-                        Resource::PveQemu(r) => &r.node,
-                        Resource::PveLxc(r) => &r.node,
-                        _ => "",
-                    },
+                    PdmTreeEntry::Resource(_, resource) => {
+                        get_resource_node(&resource).unwrap_or("")
+                    }
                     PdmTreeEntry::Remote(_, _) => "",
                 }
                 .into()
@@ -338,13 +335,15 @@ fn columns(
             .render({
                 let link = link.clone();
                 move |item: &PdmTreeEntry| {
-                    let (remote, id) = match item {
+                    let (remote, id, node) = match item {
                         PdmTreeEntry::Root => return html! {},
-                        PdmTreeEntry::Resource(remote_id, resource) => (remote_id, resource.id()),
-                        PdmTreeEntry::Remote(remote_id, _) => (remote_id, String::new()),
+                        PdmTreeEntry::Resource(remote_id, resource) => {
+                            (remote_id, resource.id(), get_resource_node(resource))
+                        }
+                        PdmTreeEntry::Remote(remote_id, _) => (remote_id, String::new(), None),
                     };
 
-                    match get_deep_url(&link, remote, &id) {
+                    match get_deep_url(&link, remote, node, &id) {
                         Some(url) => ActionIcon::new("fa fa-external-link")
                             .on_activate(move |()| {
                                 let _ = window().unwrap().open_with_url(&url.href());

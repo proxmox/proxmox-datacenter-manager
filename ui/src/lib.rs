@@ -1,4 +1,5 @@
 use pdm_api_types::resource::{PveLxcResource, PveQemuResource};
+use pdm_client::types::Resource;
 use serde::{Deserialize, Serialize};
 
 mod administration;
@@ -78,38 +79,47 @@ pub(crate) fn get_remote<C: yew::Component>(
 pub(crate) fn get_deep_url<C: yew::Component>(
     link: &yew::html::Scope<C>,
     remote: &str,
+    node: Option<&str>,
     id: &str,
 ) -> Option<web_sys::Url> {
     let remote = get_remote(link, remote)?;
-    let (default_port, hash) = match remote.ty {
-        pdm_api_types::remotes::RemoteType::Pve => (
-            "8006",
-            if id.is_empty() {
-                String::new()
-            } else {
-                format!("v1::={id}")
-            },
-        ),
-        pdm_api_types::remotes::RemoteType::Pbs => (
-            "8007",
-            if id.is_empty() {
-                String::new()
-            } else {
-                format!("DataStore-{id}")
-            },
-        ),
+    let hash = match (id, remote.ty) {
+        ("", _) => String::new(),
+        (id, pdm_api_types::remotes::RemoteType::Pve) => format!("v1::={id}"),
+        (id, pdm_api_types::remotes::RemoteType::Pbs) => format!("DataStore-{id}"),
     };
-    let node = remote.nodes.first()?;
-    let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
-    if let Ok(url) = url {
-        if url.port() == "" {
-            url.set_port(default_port);
-        }
-        url.set_hash(&hash);
-        Some(url)
-    } else {
-        None
+
+    let url = match remote.web_url {
+        Some(web_url) => match (web_url.per_node_template.as_deref(), node) {
+            (Some(template), Some(node)) => {
+                web_sys::Url::new(&template.replace("{{nodename}}", node)).ok()
+            }
+            _ => web_url
+                .base_url
+                .as_ref()
+                .map(|url| web_sys::Url::new(url).ok())
+                .flatten(),
+        },
+        None => None,
     }
+    .or_else(|| {
+        let node = remote.nodes.first()?;
+        let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
+        url.ok().map(|url| {
+            if url.port() == "" {
+                let default_port = match remote.ty {
+                    pdm_api_types::remotes::RemoteType::Pve => "8006",
+                    pdm_api_types::remotes::RemoteType::Pbs => "8007",
+                };
+                url.set_port(default_port);
+            }
+            url
+        })
+    });
+    url.map(|url| {
+        url.set_hash(&hash);
+        url
+    })
 }
 
 pub(crate) fn navigate_to<C: yew::Component>(
@@ -133,5 +143,16 @@ pub(crate) fn navigate_to<C: yew::Component>(
             })
             .unwrap_or_default();
         nav.push(&yew_router::AnyRoute::new(format!("/remote-{remote}/{id}")));
+    }
+}
+
+pub(crate) fn get_resource_node(resource: &Resource) -> Option<&str> {
+    match resource {
+        Resource::PveStorage(storage) => Some(&storage.node),
+        Resource::PveQemu(qemu) => Some(&qemu.node),
+        Resource::PveLxc(lxc) => Some(&lxc.node),
+        Resource::PveNode(node) => Some(&node.node),
+        Resource::PbsNode(_) => None,
+        Resource::PbsDatastore(_) => None,
     }
 }

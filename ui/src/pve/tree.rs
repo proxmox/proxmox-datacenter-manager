@@ -574,7 +574,7 @@ fn columns(
         DataTableColumn::new(tr!("Actions"))
             .width("180px")
             .render(move |entry: &PveTreeNode| {
-                let (id, local_id, guest_info) = match entry {
+                let (id, local_id, guest_info, node) = match entry {
                     PveTreeNode::Lxc(r) => {
                         let guest_info = GuestInfo::new(GuestType::Lxc, r.vmid);
                         let local_id = guest_info.local_id();
@@ -582,6 +582,7 @@ fn columns(
                             r.id.as_str(),
                             local_id,
                             Some((guest_info, r.status.as_str())),
+                            Some(r.node.clone()),
                         )
                     }
                     PveTreeNode::Qemu(r) => {
@@ -591,10 +592,16 @@ fn columns(
                             r.id.as_str(),
                             local_id,
                             Some((guest_info, r.status.as_str())),
+                            Some(r.node.clone()),
                         )
                     }
-                    PveTreeNode::Root => ("root", "root".to_string(), None),
-                    PveTreeNode::Node(r) => (r.id.as_str(), format!("node/{}", r.node), None),
+                    PveTreeNode::Root => ("root", "root".to_string(), None, None),
+                    PveTreeNode::Node(r) => (
+                        r.id.as_str(),
+                        format!("node/{}", r.node),
+                        None,
+                        Some(r.node.clone()),
+                    ),
                 };
 
                 Row::new()
@@ -642,7 +649,9 @@ fn columns(
                         let remote = remote.clone();
                         move |()| {
                             // there must be a remote with a connections config if were already here
-                            if let Some(url) = get_deep_url(link.yew_link(), &remote, &local_id) {
+                            if let Some(url) =
+                                get_deep_url(link.yew_link(), &remote, node.as_deref(), &local_id)
+                            {
                                 let _ = window().open_with_url(&url.href());
                             }
                         }
