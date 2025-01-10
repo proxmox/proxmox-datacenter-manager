@@ -37,6 +37,20 @@ pub struct NodeUrl {
 }
 
 #[api]
+/// Options for the URLs used in the Web UI.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct WebUrl {
+    /// A base URL for accessing the remote.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+
+    /// A template for a per node URL. replaces {{nodename}} with the nodename.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub per_node_template: Option<String>,
+}
+
+#[api]
 /// The type of a remote entry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, Ord, PartialOrd)]
 #[serde(rename_all = "lowercase")]
@@ -60,6 +74,10 @@ serde_plain::derive_fromstr_from_deserialize!(RemoteType);
                 type: String,
                 description: "A cluster node IP or hostname.",
             },
+        },
+        "web-url": {
+            type: String,
+            optional: true,
         },
     },
 )]
@@ -86,6 +104,11 @@ pub struct Remote {
     /// The access token's secret.
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
     pub token: String,
+
+    /// Configuration for the Web UI URL link generation.
+    #[updater(serde(skip_serializing_if = "Option::is_none"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub web_url: Option<PropertyString<WebUrl>>,
 }
 
 impl ApiSectionDataEntry for Remote {

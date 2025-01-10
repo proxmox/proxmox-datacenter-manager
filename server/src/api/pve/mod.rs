@@ -340,6 +340,7 @@ pub async fn scan_remote_pve(
         })],
         authid: authid.clone(),
         token,
+        web_url: None,
     };
 
     let client = connect_or_login(&remote)
@@ -418,6 +419,7 @@ pub async fn list_realm_remote_pve(
         })],
         authid: "root@pam".parse()?,
         token: String::new(),
+        web_url: None,
     };
 
     let client = connection::make_pve_client(&remote)?;

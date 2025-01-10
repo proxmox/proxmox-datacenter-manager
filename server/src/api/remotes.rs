@@ -3,6 +3,7 @@
 use std::error::Error as _;
 
 use anyhow::{bail, format_err, Error};
+use serde::{Deserialize, Serialize};
 
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
@@ -177,6 +178,15 @@ pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Resu
     Ok(())
 }
 
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Deletable property name
+pub enum DeletableProperty {
+    /// Delete the web-url property.
+    WebUrl,
+}
+
 // FIXME: Support `OneOf` in schema so we can use a derived Updater for all product types?
 // Otherwise we need to have a custom updater struct that covers all product remotes.
 #[api(
@@ -186,6 +196,14 @@ pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Resu
             updater: {
                 flatten: true,
                 type: RemoteUpdater,
+            },
+            delete: {
+                description: "List of properties to delete.",
+                type: Array,
+                optional: true,
+                items: {
+                    type: DeletableProperty,
+                }
             },
             digest: {
                 optional: true,
@@ -201,6 +219,7 @@ pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Resu
 pub fn update_remote(
     id: String,
     updater: RemoteUpdater,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
     let (mut remotes, config_digest) = pdm_config::remotes::config()?;
@@ -210,6 +229,16 @@ pub fn update_remote(
         .get_mut(&id)
         .ok_or_else(|| http_err!(NOT_FOUND, "no such remote {id:?}"))?;
 
+    if let Some(delete) = delete {
+        for delete_prop in delete {
+            match delete_prop {
+                DeletableProperty::WebUrl => {
+                    entry.web_url = None;
+                }
+            }
+        }
+    }
+
     if let Some(v) = updater.nodes {
         entry.nodes = v;
     }
@@ -218,6 +247,10 @@ pub fn update_remote(
     }
     if let Some(v) = updater.token {
         entry.token = v;
+    }
+
+    if updater.web_url.is_some() {
+        entry.web_url = updater.web_url;
     }
 
     pdm_config::remotes::save_config(&remotes)?;
