@@ -375,7 +375,7 @@ pub async fn qemu_migrate(
         with_local_disks,
     };
     let upid = pve.migrate_qemu(&node, vmid, params).await?;
-    //(remote, upid.to_string()).try_into()
+
     new_remote_upid(remote, upid)
 }
 
@@ -548,5 +548,5 @@ pub async fn qemu_remote_migrate(
     log::info!("migrating vm {vmid} of node {node:?}");
     let upid = source_conn.remote_migrate_qemu(&node, vmid, params).await?;
 
-    (source, upid.to_string()).try_into()
+    new_remote_upid(source, upid)
 }
