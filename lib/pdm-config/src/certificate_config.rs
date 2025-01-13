@@ -123,7 +123,7 @@ impl<'a> AcmeDomainIter<'a> {
     }
 }
 
-impl<'a> Iterator for AcmeDomainIter<'a> {
+impl Iterator for AcmeDomainIter<'_> {
     type Item = Result<AcmeDomain, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {

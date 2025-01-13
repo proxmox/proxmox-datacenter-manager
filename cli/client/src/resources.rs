@@ -248,7 +248,7 @@ impl<'a, T: fmt::Display> Formatted<'a, T> {
     }
 }
 
-impl<'a, T: fmt::Display> fmt::Display for Formatted<'a, T> {
+impl<T: fmt::Display> fmt::Display for Formatted<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if env().use_color() {
             write!(f, "{}{}{}", self.format, self.content, COLOR_RESET)
