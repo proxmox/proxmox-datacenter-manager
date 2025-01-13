@@ -73,12 +73,14 @@ async fn fetch_tasks(remote: &Remote) -> Result<Vec<TaskListItem>, Error> {
             // N+1 requests - we could use /cluster/tasks, but that one
             // only gives a limited task history
             for node in client.list_nodes().await? {
-                let mut params = ListTasks::default();
-                // Include running tasks
-                params.source = Some(ListTasksSource::All);
-                // TODO: How much task history do we want? Right now we just hard-code it
-                // to 7 days.
-                params.since = Some(proxmox_time::epoch_i64() - 7 * 24 * 60 * 60);
+                let params = ListTasks {
+                    // Include running tasks
+                    source: Some(ListTasksSource::All),
+                    // TODO: How much task history do we want? Right now we just hard-code it
+                    // to 7 days.
+                    since: Some(proxmox_time::epoch_i64() - 7 * 24 * 60 * 60),
+                    ..Default::default()
+                };
 
                 let list = client.get_task_list(&node.node, params).await?;
                 let mapped = map_tasks(list, &remote.id)?;
