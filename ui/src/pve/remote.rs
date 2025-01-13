@@ -81,10 +81,9 @@ impl RemotePanelComp {
                 }
                 PveResource::Qemu(qemu) => {
                     guests += 1;
-                    if qemu.status == "stopped" {
-                        guest_cores += qemu.maxcpu;
-                        guest_memory += qemu.maxmem;
-                    } else {
+                    guest_cores += qemu.maxcpu;
+                    guest_memory += qemu.maxmem;
+                    if qemu.status != "stopped" {
                         guests_running += 1;
                         guest_cores_running += qemu.maxcpu;
                         guest_memory_running += qemu.maxmem;
@@ -92,10 +91,9 @@ impl RemotePanelComp {
                 }
                 PveResource::Lxc(lxc) => {
                     guests += 1;
-                    if lxc.status == "stopped" {
-                        guest_cores += lxc.maxcpu;
-                        guest_memory += lxc.maxmem;
-                    } else {
+                    guest_cores += lxc.maxcpu;
+                    guest_memory += lxc.maxmem;
+                    if lxc.status != "stopped" {
                         guests_running += 1;
                         guest_cores_running += lxc.maxcpu;
                         guest_memory_running += lxc.maxmem;
