@@ -76,7 +76,7 @@ async fn metric_collection_task() -> Result<(), Error> {
                         .await
                     }
                     RemoteType::Pbs => {
-                        let client = connection::make_pbs_client(&remote)?;
+                        let client = connection::make_pbs_client(remote)?;
                         let metrics = client.metrics(Some(true), Some(start_time)).await?;
 
                         // Involves some blocking file IO

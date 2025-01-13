@@ -106,7 +106,7 @@ pub(crate) async fn get_resources_impl(
 
     for (remote_name, remote) in remotes_config {
         if let Some(ref auth_id) = opt_auth_id {
-            let remote_privs = user_info.lookup_privs(&auth_id, &["resource", &remote_name]);
+            let remote_privs = user_info.lookup_privs(auth_id, &["resource", &remote_name]);
             if remote_privs & PRIV_RESOURCE_AUDIT == 0 {
                 continue;
             }
@@ -441,7 +441,7 @@ async fn fetch_remote_subscription_info(
     let mut list = HashMap::new();
     match remote.ty {
         RemoteType::Pve => {
-            let client = connection::make_pve_client(&remote)?;
+            let client = connection::make_pve_client(remote)?;
 
             let nodes = client.list_nodes().await?;
             let mut futures = Vec::with_capacity(nodes.len());
@@ -471,7 +471,7 @@ async fn fetch_remote_subscription_info(
             }
         }
         RemoteType::Pbs => {
-            let client = connection::make_pbs_client(&remote)?;
+            let client = connection::make_pbs_client(remote)?;
 
             let info = client.get_subscription().await.ok().map(|info| {
                 let level = SubscriptionLevel::from_key(info.key.as_deref());
