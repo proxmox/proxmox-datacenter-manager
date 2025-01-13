@@ -26,11 +26,21 @@ struct ConnectInfo {
 
 /// Returns a [`proxmox_client::Client`] and a token prefix for the specified
 /// [`pdm_api_types::Remote`]
-fn prepare_connect_client(remote: &Remote) -> Result<ConnectInfo, Error> {
+fn prepare_connect_client(
+    remote: &Remote,
+    target_endpoint: Option<&str>,
+) -> Result<ConnectInfo, Error> {
     let node = remote
         .nodes
-        .first()
-        .ok_or_else(|| format_err!("no nodes configured for remote"))?;
+        .iter()
+        .find(|endpoint| match target_endpoint {
+            Some(target) => target == endpoint.hostname,
+            None => true,
+        })
+        .ok_or_else(|| match target_endpoint {
+            Some(endpoint) => format_err!("{endpoint} not configured for remote"),
+            None => format_err!("no nodes configured for remote"),
+        })?;
     let mut options = TlsOptions::default();
 
     if let Some(fp) = &node.fingerprint {
@@ -66,12 +76,12 @@ fn prepare_connect_client(remote: &Remote) -> Result<ConnectInfo, Error> {
 ///
 /// It does not actually opens a connection there, but prepares the client with the correct
 /// authentication information and settings for the [`RemoteType`]
-fn connect(remote: &Remote) -> Result<Client, anyhow::Error> {
+fn connect(remote: &Remote, target_endpoint: Option<&str>) -> Result<Client, anyhow::Error> {
     let ConnectInfo {
         client,
         perl_compat,
         prefix,
-    } = prepare_connect_client(remote)?;
+    } = prepare_connect_client(remote, target_endpoint)?;
     client.set_authentication(proxmox_client::Token {
         userid: remote.authid.to_string(),
         prefix,
@@ -91,11 +101,14 @@ fn connect(remote: &Remote) -> Result<Client, anyhow::Error> {
 /// This is intended for API calls that accept a user in addition to tokens.
 ///
 /// Note: currently does not support two factor authentication.
-async fn connect_or_login(remote: &Remote) -> Result<Client, anyhow::Error> {
+async fn connect_or_login(
+    remote: &Remote,
+    target_endpoint: Option<&str>,
+) -> Result<Client, anyhow::Error> {
     if remote.authid.is_token() {
-        connect(remote)
+        connect(remote, target_endpoint)
     } else {
-        let info = prepare_connect_client(remote)?;
+        let info = prepare_connect_client(remote, target_endpoint)?;
         let client = info.client;
         match client
             .login(proxmox_login::Login::new(
@@ -131,6 +144,13 @@ pub trait ClientFactory {
     /// Create a new API client for PBS remotes
     fn make_pbs_client(&self, remote: &Remote) -> Result<Box<PbsClient>, Error>;
 
+    /// Create a new API client for PVE remotes, but with a specific endpoint.
+    fn make_pve_client_with_endpoint(
+        &self,
+        remote: &Remote,
+        target_endpoint: Option<&str>,
+    ) -> Result<Box<dyn PveClient + Send + Sync>, Error>;
+
     /// Create a new API client for PVE remotes.
     ///
     /// In case the remote has a user configured (instead of an API token), it will connect and get
@@ -163,25 +183,34 @@ pub struct DefaultClientFactory;
 #[async_trait::async_trait]
 impl ClientFactory for DefaultClientFactory {
     fn make_pve_client(&self, remote: &Remote) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
-        let client = crate::connection::connect(remote)?;
+        let client = crate::connection::connect(remote, None)?;
         Ok(Box::new(PveClientImpl(client)))
     }
 
     fn make_pbs_client(&self, remote: &Remote) -> Result<Box<PbsClient>, Error> {
-        let client = crate::connection::connect(remote)?;
+        let client = crate::connection::connect(remote, None)?;
         Ok(Box::new(PbsClient(client)))
+    }
+
+    fn make_pve_client_with_endpoint(
+        &self,
+        remote: &Remote,
+        target_endpoint: Option<&str>,
+    ) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
+        let client = crate::connection::connect(remote, target_endpoint)?;
+        Ok(Box::new(PveClientImpl(client)))
     }
 
     async fn make_pve_client_and_login(
         &self,
         remote: &Remote,
     ) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
-        let client = connect_or_login(remote).await?;
+        let client = connect_or_login(remote, None).await?;
         Ok(Box::new(PveClientImpl(client)))
     }
 
     async fn make_pbs_client_and_login(&self, remote: &Remote) -> Result<Box<PbsClient>, Error> {
-        let client = connect_or_login(remote).await?;
+        let client = connect_or_login(remote, None).await?;
         Ok(Box::new(PbsClient(client)))
     }
 }
@@ -199,6 +228,14 @@ fn instance() -> &'static (dyn ClientFactory + Send + Sync) {
 /// Create a new API client for PVE remotes
 pub fn make_pve_client(remote: &Remote) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
     instance().make_pve_client(remote)
+}
+
+/// Create a new API client for PVE remotes, but for a specific endpoint
+pub fn make_pve_client_with_endpoint(
+    remote: &Remote,
+    target_endpoint: Option<&str>,
+) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
+    instance().make_pve_client_with_endpoint(remote, target_endpoint)
 }
 
 /// Create a new API client for PBS remotes
