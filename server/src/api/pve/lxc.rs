@@ -403,6 +403,12 @@ pub async fn lxc_migrate(
                 description: "Add a shutdown timeout for the restart-migration.",
                 optional: true,
             },
+            // TODO better to change remote migration to proxy to node?
+            "target-endpoint": {
+                type: String,
+                optional: true,
+                description: "The target endpoint to use for the connection.",
+            },
         },
     },
     returns: { type: RemoteUpid },
@@ -427,6 +433,7 @@ pub async fn lxc_remote_migrate(
     bwlimit: Option<u64>,
     restart: Option<bool>,
     timeout: Option<i64>,
+    target_endpoint: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<RemoteUpid, Error> {
     let user_info = CachedUserInfo::new()?;
@@ -472,8 +479,16 @@ pub async fn lxc_remote_migrate(
 
     let target_node = target
         .nodes
-        .first()
-        .ok_or_else(|| format_err!("no nodes configured for target cluster"))?;
+        .iter()
+        .find(|endpoint| match target_endpoint.as_deref() {
+            Some(target) => target == endpoint.hostname,
+            None => true,
+        })
+        .ok_or_else(|| match target_endpoint {
+            Some(endpoint) => format_err!("{endpoint} not configured for target cluster"),
+            None => format_err!("no nodes configured for target cluster"),
+        })?;
+
     let target_host_port: Authority = target_node.hostname.parse()?;
     let mut target_endpoint = format!(
         "host={host},port={port},apitoken=PVEAPIToken={authid}={secret}",

@@ -450,7 +450,13 @@ async fn qemu_migrate_preconditions(
             bwlimit: {
                 description: "Override I/O bandwidth limit (in KiB/s).",
                 optional: true,
-            }
+            },
+            // TODO better to change remote migration to proxy to node?
+            "target-endpoint": {
+                type: String,
+                optional: true,
+                description: "The target endpoint to use for the connection.",
+            },
         },
     },
     returns: { type: RemoteUpid },
@@ -473,6 +479,7 @@ pub async fn qemu_remote_migrate(
     target_storage: String,
     target_bridge: String,
     bwlimit: Option<u64>,
+    target_endpoint: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<RemoteUpid, Error> {
     let user_info = CachedUserInfo::new()?;
@@ -519,8 +526,16 @@ pub async fn qemu_remote_migrate(
 
     let target_node = target
         .nodes
-        .first()
-        .ok_or_else(|| format_err!("no nodes configured for target cluster"))?;
+        .iter()
+        .find(|endpoint| match target_endpoint.as_deref() {
+            Some(target) => target == endpoint.hostname,
+            None => true,
+        })
+        .ok_or_else(|| match target_endpoint {
+            Some(endpoint) => format_err!("{endpoint} not configured for target cluster"),
+            None => format_err!("no nodes configured for target cluster"),
+        })?;
+
     let target_host_port: Authority = target_node.hostname.parse()?;
     let mut target_endpoint = format!(
         "host={host},port={port},apitoken=PVEAPIToken={authid}={secret}",
