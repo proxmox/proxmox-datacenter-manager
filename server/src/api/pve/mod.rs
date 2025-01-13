@@ -21,7 +21,9 @@ use pdm_api_types::{
 };
 
 use pve_api_types::client::PveClient;
-use pve_api_types::{ClusterResourceKind, ClusterResourceType, ListRealm, PveUpid};
+use pve_api_types::{
+    ClusterNodeStatus, ClusterResourceKind, ClusterResourceType, ListRealm, PveUpid,
+};
 
 use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage};
 
@@ -59,6 +61,7 @@ const REMOTE_SUBDIRS: SubdirMap = &sorted!([
     ("nodes", &NODES_ROUTER),
     ("qemu", &qemu::ROUTER),
     ("resources", &RESOURCES_ROUTER),
+    ("cluster-status", &STATUS_ROUTER),
     ("tasks", &tasks::ROUTER),
 ]);
 
@@ -67,6 +70,8 @@ const NODES_ROUTER: Router = Router::new()
     .match_all("node", &node::ROUTER);
 
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
+
+const STATUS_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_STATUS);
 
 // converts a remote + PveUpid into a RemoteUpid and starts tracking it
 fn new_remote_upid(remote: String, upid: PveUpid) -> Result<RemoteUpid, Error> {
@@ -173,6 +178,40 @@ pub async fn cluster_resources(
         .filter_map(|r| map_pve_resource(&remote, r));
 
     Ok(cluster_resources.collect())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            "target-endpoint": {
+                type: String,
+                optional: true,
+                description: "The target endpoint to use for the connection.",
+            },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "Get all nodes Cluster Status",
+        items: { type: ClusterNodeStatus },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Query the cluster nodes status.
+// FIXME: Use more fine grained permissions and filter on:
+//   - `/resource/{remote-id}/{resource-type=node}/{resource-id}`
+pub async fn cluster_status(
+    remote: String,
+    target_endpoint: Option<String>,
+) -> Result<Vec<ClusterNodeStatus>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let remote = get_remote(&remotes, &remote)?;
+    let client = connection::make_pve_client_with_endpoint(remote, target_endpoint.as_deref())?;
+    let status = client.cluster_status().await?;
+    Ok(status)
 }
 
 fn map_pve_resource(remote: &str, resource: pve_api_types::ClusterResource) -> Option<PveResource> {
