@@ -29,8 +29,8 @@ members = [
 [workspace.dependencies]
 # proxmox workspace
 proxmox-access-control = "0.2"
-proxmox-apt = "0.11"
 proxmox-api-macro = "1.3"
+proxmox-apt = "0.11"
 proxmox-apt-api-types = "1.0"
 proxmox-async = "0.4"
 proxmox-auth-api = "0.4"
