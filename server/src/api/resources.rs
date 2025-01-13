@@ -319,7 +319,7 @@ pub async fn get_subscription_status(
 async fn get_top_entities(timeframe: Option<RrdTimeframe>) -> Result<TopEntities, Error> {
     let (remotes_config, _) = pdm_config::remotes::config()?;
 
-    let timeframe = timeframe.unwrap_or_else(|| RrdTimeframe::Day);
+    let timeframe = timeframe.unwrap_or(RrdTimeframe::Day);
     let res = crate::metric_collection::calculate_top(&remotes_config.sections, timeframe, 10);
     Ok(res)
 }
