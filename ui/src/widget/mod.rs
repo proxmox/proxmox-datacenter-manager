@@ -24,3 +24,5 @@ pub use search_box::SearchBox;
 
 mod remote_selector;
 pub use remote_selector::RemoteSelector;
+
+mod remote_endpoint_selector;
