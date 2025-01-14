@@ -44,8 +44,8 @@ pub struct PveNetworkSelector {
 
     /// The node to select the network from
     #[builder(IntoPropValue, into_prop_value)]
-    #[prop_or(AttrValue::from("localhost"))]
-    pub node: AttrValue,
+    #[prop_or_default]
+    pub node: Option<AttrValue>,
 
     /// The interface types to list
     #[builder(IntoPropValue, into_prop_value)]
@@ -82,7 +82,7 @@ impl PveNetworkSelectorComp {
     fn create_load_callback(ctx: &yew::Context<Self>) -> LoadCallback<Vec<NetworkInterface>> {
         let props = ctx.props();
         let remote = props.remote.clone();
-        let node = props.node.clone();
+        let node = props.node.clone().unwrap_or(AttrValue::from("localhost"));
         let ty = props.interface_type;
 
         (move || Self::get_network_list(remote.clone(), node.clone(), ty)).into()

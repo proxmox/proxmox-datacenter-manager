@@ -81,8 +81,8 @@ pub struct PveMigrateMap {
 
     /// The node to query
     #[builder(IntoPropValue, into_prop_value)]
-    #[prop_or(AttrValue::from("localhost"))]
-    pub node: AttrValue,
+    #[prop_or_default]
+    pub node: Option<AttrValue>,
 
     /// The target node for the storage
     #[builder(IntoPropValue, into_prop_value)]
@@ -350,7 +350,8 @@ fn columns(
     ctx: &ManagedFieldContext<'_, PveMigrateMapComp>,
     remote: AttrValue,
 ) -> Rc<Vec<DataTableHeader<MapEntry>>> {
-    let content_types = ctx.props().content_types.clone();
+    let props = ctx.props();
+    let content_types = props.content_types.clone();
     Rc::new(vec![
         DataTableColumn::new(tr!("Type"))
             .get_property(|entry: &MapEntry| &entry.map_type)
@@ -366,10 +367,12 @@ fn columns(
             .flex(2)
             .render({
                 let link = ctx.link();
+                let node = props.node.clone();
                 move |entry: &MapEntry| match entry.map_type {
                     MapType::Storage => PveStorageSelector::new(remote.clone())
                         .content_types(content_types.clone())
                         .default(entry.target.clone())
+                        .node(node.clone())
                         .on_change({
                             let link = link.clone();
                             let entry = entry.clone();
@@ -383,6 +386,7 @@ fn columns(
                         .into(),
                     MapType::Network => PveNetworkSelector::new(remote.clone())
                         .default(entry.target.clone())
+                        .node(node.clone())
                         .on_change({
                             let link = link.clone();
                             let entry = entry.clone();

@@ -457,7 +457,7 @@ impl PdmMigrateWindow {
             PveStorageSelector::new(target_remote.clone())
                 .key(format!("storage-{target_remote}"))
                 .name("target_storage")
-                .node(target_node)
+                .node(target_node.clone())
                 .disabled(!show_target_storage)
                 .autoselect(!same_remote)
                 .content_types(content_types.clone())
@@ -471,6 +471,7 @@ impl PdmMigrateWindow {
             PveNetworkSelector::new(target_remote.clone())
                 .key(format!("network-{target_remote}"))
                 .name("target_network")
+                .node(target_node.clone())
                 .disabled(detail_mode)
                 .required(!detail_mode),
         );
@@ -481,6 +482,7 @@ impl PdmMigrateWindow {
             PveMigrateMap::new(target_remote, guest_info)
                 .content_types(content_types)
                 .name("detail-map")
+                .node(target_node)
                 .submit(detail_mode)
                 .required(detail_mode),
         );
