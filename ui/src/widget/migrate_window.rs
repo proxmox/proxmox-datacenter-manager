@@ -23,6 +23,7 @@ use pdm_client::{MigrateLxc, MigrateQemu, RemoteMigrateLxc, RemoteMigrateQemu};
 use crate::pve::GuestInfo;
 use crate::pve::GuestType;
 
+use super::remote_endpoint_selector::EndpointSelector;
 use super::{
     PveMigrateMap, PveNetworkSelector, PveNodeSelector, PveStorageSelector, RemoteSelector,
 };
@@ -62,6 +63,8 @@ impl MigrateWindow {
 
 pub enum Msg {
     RemoteChange(String),
+    EndpointChange(String),
+    NodenameResult(Result<String, proxmox_client::Error>),
     Result(RemoteUpid),
     LoadPreconditions(Option<AttrValue>),
     PreconditionResult(Result<QemuMigratePreconditions, proxmox_client::Error>),
@@ -71,9 +74,29 @@ pub struct PdmMigrateWindow {
     target_remote: AttrValue,
     _async_pool: AsyncPool,
     preconditions: Option<QemuMigratePreconditions>,
+    target_node: Option<AttrValue>,
 }
 
 impl PdmMigrateWindow {
+    async fn get_nodename(
+        remote: AttrValue,
+        target_endpoint: AttrValue,
+    ) -> Result<String, proxmox_client::Error> {
+        let status_list = crate::pdm_client()
+            .pve_cluster_status(&remote, Some(&target_endpoint))
+            .await?;
+
+        for status in status_list {
+            if status.local.unwrap_or(false) {
+                return Ok(status.name);
+            }
+        }
+
+        Err(proxmox_client::Error::Other(
+            "could not find local nodename",
+        ))
+    }
+
     async fn load_preconditions(
         remote: String,
         guest_info: GuestInfo,
@@ -132,6 +155,7 @@ impl PdmMigrateWindow {
         let target_remote = value["remote"].as_str().unwrap_or_default();
 
         let upid = if target_remote != remote {
+            let target_endpoint = value.get("target-endpoint").and_then(|e| e.as_str());
             match guest_info.guest_type {
                 crate::pve::GuestType::Qemu => {
                     let mut migrate_opts = RemoteMigrateQemu::new()
@@ -174,7 +198,7 @@ impl PdmMigrateWindow {
                             None,
                             guest_info.vmid,
                             target_remote.to_string(),
-                            None,
+                            target_endpoint,
                             migrate_opts,
                         )
                         .await?
@@ -219,7 +243,7 @@ impl PdmMigrateWindow {
                             None,
                             guest_info.vmid,
                             target_remote.to_string(),
-                            None,
+                            target_endpoint,
                             migrate_opts,
                         )
                         .await?
@@ -268,10 +292,12 @@ impl PdmMigrateWindow {
         source_remote: AttrValue,
         guest_info: GuestInfo,
         preconditions: Option<QemuMigratePreconditions>,
+        target_node: Option<AttrValue>,
     ) -> Html {
         let same_remote = target_remote == source_remote;
         if !same_remote {
-            form_ctx.write().set_field_value("node", "".into());
+            let node = target_node.unwrap_or_default().to_string();
+            form_ctx.write().set_field_value("node", node.into());
         }
         let detail_mode = form_ctx.read().get_field_checked("detailed-mode");
         let mut uses_local_disks = false;
@@ -338,13 +364,27 @@ impl PdmMigrateWindow {
                 tr!("Mode"),
                 DisplayField::new("").name("migrate-mode").key("mode"),
             )
-            .with_right_field(
+            .with_field_and_options(
+                pwt::widget::FieldPosition::Right,
+                false,
+                !same_remote,
                 tr!("Target Node"),
                 PveNodeSelector::new(target_remote.clone())
                     .name("node")
                     .required(same_remote)
                     .on_change(link.callback(Msg::LoadPreconditions))
                     .disabled(!same_remote),
+            )
+            .with_field_and_options(
+                pwt::widget::FieldPosition::Right,
+                false,
+                same_remote,
+                tr!("Target Endpoint"),
+                EndpointSelector::new(target_remote.clone())
+                    .placeholder(tr!("Automatic"))
+                    .name("target-endpoint")
+                    .on_change(link.callback(Msg::EndpointChange))
+                    .disabled(same_remote),
             );
 
         if !same_remote || uses_local_disks || uses_local_resources {
@@ -462,6 +502,7 @@ impl Component for PdmMigrateWindow {
             target_remote: ctx.props().remote.clone(),
             _async_pool: AsyncPool::new(),
             preconditions: None,
+            target_node: None,
         }
     }
 
@@ -503,6 +544,25 @@ impl Component for PdmMigrateWindow {
                 }
                 true
             }
+            Msg::EndpointChange(endpoint) => {
+                let remote = self.target_remote.clone();
+                self._async_pool
+                    .send_future(ctx.link().clone(), async move {
+                        let res = Self::get_nodename(remote, endpoint.into()).await;
+                        Msg::NodenameResult(res)
+                    });
+                false
+            }
+            Msg::NodenameResult(result) => match result {
+                Ok(nodename) => {
+                    self.target_node = Some(nodename.into());
+                    true
+                }
+                Err(err) => {
+                    log::error!("could not extract nodename from endpoint: {err}");
+                    false
+                }
+            },
         }
     }
 
@@ -527,6 +587,7 @@ impl Component for PdmMigrateWindow {
                 let source_remote = ctx.props().remote.clone();
                 let link = ctx.link().clone();
                 let preconditions = self.preconditions.clone();
+                let target_node = self.target_node.clone();
                 move |form| {
                     Self::input_panel(
                         &link,
@@ -535,6 +596,7 @@ impl Component for PdmMigrateWindow {
                         source_remote.clone(),
                         guest_info,
                         preconditions.clone(),
+                        target_node.clone(),
                     )
                 }
             })
