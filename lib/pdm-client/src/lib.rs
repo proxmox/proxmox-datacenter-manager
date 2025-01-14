@@ -488,6 +488,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         node: Option<&str>,
         vmid: u32,
         target: String,
+        target_endpoint: Option<&str>,
         params: RemoteMigrateQemu,
     ) -> Result<RemoteUpid, Error> {
         let path = format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/remote-migrate");
@@ -495,6 +496,9 @@ impl<T: HttpApiClient> PdmClient<T> {
         request["target"] = target.into();
         if let Some(node) = node {
             request["node"] = node.into();
+        }
+        if let Some(target_endpoint) = target_endpoint {
+            request["target-endpoint"] = target_endpoint.into();
         }
         Ok(self.0.post(&path, &request).await?.expect_json()?.data)
     }
@@ -581,6 +585,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         node: Option<&str>,
         vmid: u32,
         target: String,
+        target_endpoint: Option<&str>,
         params: RemoteMigrateLxc,
     ) -> Result<RemoteUpid, Error> {
         let path = format!("/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/remote-migrate");
@@ -588,6 +593,9 @@ impl<T: HttpApiClient> PdmClient<T> {
         request["target"] = target.into();
         if let Some(node) = node {
             request["node"] = node.into();
+        }
+        if let Some(target_endpoint) = target_endpoint {
+            request["target-endpoint"] = target_endpoint.into();
         }
         Ok(self.0.post(&path, &request).await?.expect_json()?.data)
     }

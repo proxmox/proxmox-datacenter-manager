@@ -618,7 +618,7 @@ async fn remote_migrate_qemu(
 
     let client = client()?;
     let upid = client
-        .pve_qemu_remote_migrate(&remote, node.as_deref(), vmid, target, params)
+        .pve_qemu_remote_migrate(&remote, node.as_deref(), vmid, target, None, params)
         .await?;
     println!("upid: {upid}");
     let status = client.pve_wait_for_task(&upid).await?;
@@ -996,7 +996,7 @@ async fn remote_migrate_lxc(
 
     let client = client()?;
     let upid = client
-        .pve_lxc_remote_migrate(&remote, node.as_deref(), vmid, target, params)
+        .pve_lxc_remote_migrate(&remote, node.as_deref(), vmid, target, None, params)
         .await?;
     println!("upid: {upid}");
     let status = client.pve_wait_for_task(&upid).await?;

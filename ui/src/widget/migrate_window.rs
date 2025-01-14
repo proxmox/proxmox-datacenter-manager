@@ -174,6 +174,7 @@ impl PdmMigrateWindow {
                             None,
                             guest_info.vmid,
                             target_remote.to_string(),
+                            None,
                             migrate_opts,
                         )
                         .await?
@@ -218,6 +219,7 @@ impl PdmMigrateWindow {
                             None,
                             guest_info.vmid,
                             target_remote.to_string(),
+                            None,
                             migrate_opts,
                         )
                         .await?
