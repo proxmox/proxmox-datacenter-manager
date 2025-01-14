@@ -52,6 +52,8 @@ pub mod types {
     };
 
     pub use pve_api_types::ListRealm;
+
+    pub use pve_api_types::ClusterNodeStatus;
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -344,6 +346,16 @@ impl<T: HttpApiClient> PdmClient<T> {
     ) -> Result<Vec<PveResource>, Error> {
         let mut query = format!("/api2/extjs/pve/remotes/{remote}/resources");
         add_query_arg(&mut query, &mut '?', "kind", &kind);
+        Ok(self.0.get(&query).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_cluster_status(
+        &self,
+        remote: &str,
+        target_endpoint: Option<&str>,
+    ) -> Result<Vec<ClusterNodeStatus>, Error> {
+        let mut query = format!("/api2/extjs/pve/remotes/{remote}/cluster-status");
+        add_query_arg(&mut query, &mut '?', "target-endpoint", &target_endpoint);
         Ok(self.0.get(&query).await?.expect_json()?.data)
     }
 
