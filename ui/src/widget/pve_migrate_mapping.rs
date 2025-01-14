@@ -139,7 +139,14 @@ impl PveMigrateMapComp {
 
                 let mut storages = HashSet::new();
 
-                foreach_drive_qemu(&config, |key, value| {
+                foreach_drive_qemu(&config, |key, res| {
+                    let value = match res {
+                        Ok(value) => value,
+                        Err(err) => {
+                            log::error!("could not parse {key}: {err}");
+                            return;
+                        }
+                    };
                     let file = value.get_file();
                     if let Some(captures) = pdm_client::types::VOLUME_ID.captures(file) {
                         let storage = captures.get(1).unwrap();
@@ -147,7 +154,7 @@ impl PveMigrateMapComp {
                     } else {
                         log::error!("could not parse 'file' property of '{key}");
                     }
-                })?;
+                });
 
                 let mut networks = HashSet::new();
 
@@ -178,7 +185,14 @@ impl PveMigrateMapComp {
 
                 let mut storages = HashSet::new();
 
-                foreach_drive_lxc(&config, |key, value| {
+                foreach_drive_lxc(&config, |key, res| {
+                    let value = match res {
+                        Ok(value) => value,
+                        Err(err) => {
+                            log::error!("could not parse {key}: {err}");
+                            return;
+                        }
+                    };
                     let volume = value.get_volume();
                     if let Some(captures) = pdm_client::types::VOLUME_ID.captures(volume) {
                         let storage = captures.get(1).unwrap();
@@ -186,7 +200,7 @@ impl PveMigrateMapComp {
                     } else {
                         log::error!("could not parse 'file' property of '{key}");
                     }
-                })?;
+                });
 
                 let mut networks = HashSet::new();
 
