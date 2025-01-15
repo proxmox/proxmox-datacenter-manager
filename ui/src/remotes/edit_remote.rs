@@ -121,7 +121,7 @@ fn edit_remote_input_panel(_form_ctx: &FormContext, remote_id: &str) -> Html {
             tr!("Web Base URL"),
             Field::new()
                 .name("_web-url_base-url")
-                .placeholder(tr!("Automatically generate from first connection.")),
+                .placeholder(tr!("Use first endpoint.")),
         )
         .with_field(
             tr!("per Node URL template"),
