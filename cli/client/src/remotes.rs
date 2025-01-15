@@ -4,7 +4,7 @@ use proxmox_router::cli::{
     format_and_print_result, format_and_print_result_full, CliCommand, CliCommandMap,
     CommandLineInterface, OutputFormat,
 };
-use proxmox_schema::{api, property_string, ApiType, ReturnType, Schema, StringSchema};
+use proxmox_schema::{api, property_string, ApiType, ReturnType, Schema};
 
 use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
 
@@ -66,11 +66,10 @@ async fn list_remotes() -> Result<(), Error> {
     Ok(())
 }
 
-const CREATE_TOKEN_SCHEMA: Schema = StringSchema {
-    description: "If given, create this token on the remote and use it.",
-    ..*pdm_api_types::PROXMOX_TOKEN_NAME_SCHEMA.unwrap_string_schema()
-}
-.schema();
+const CREATE_TOKEN_SCHEMA: Schema = pdm_api_types::PROXMOX_TOKEN_NAME_SCHEMA
+    .unwrap_string_schema_cloned()
+    .description("If given, create this token on the remote and use it.")
+    .schema();
 
 // FIXME: Support `OneOf` in schema so we can just use the `Remote` enum api schema here as input.
 #[api(

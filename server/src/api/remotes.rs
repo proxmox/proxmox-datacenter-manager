@@ -9,7 +9,7 @@ use proxmox_router::{
     http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::api;
-use proxmox_schema::{Schema, StringSchema};
+use proxmox_schema::Schema;
 use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 use proxmox_time::{epoch_i64, epoch_to_rfc2822};
@@ -85,11 +85,10 @@ pub fn list_remotes(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<Remote>, Erro
         .collect())
 }
 
-const CREATE_TOKEN_SCHEMA: Schema = StringSchema {
-    description: "If given, create this token on the remote and use it.",
-    ..*pdm_api_types::PROXMOX_TOKEN_NAME_SCHEMA.unwrap_string_schema()
-}
-.schema();
+const CREATE_TOKEN_SCHEMA: Schema = pdm_api_types::PROXMOX_TOKEN_NAME_SCHEMA
+    .unwrap_string_schema_cloned()
+    .description("If given, create this token on the remote and use it.")
+    .schema();
 
 // FIXME: need to have a type spanning all remote types here... SOMEHOW... (eg. oneOf support)
 #[api(

@@ -48,7 +48,7 @@ proxmox-router = { version = "3.0.0", default-features = false }
 proxmox-rrd = { version = "0.4", default-features = false}
 proxmox-rrd-api-types = "1.0.2"
 # everything but pbs-config and pbs-client use "api-macro"
-proxmox-schema = "3.1.1"
+proxmox-schema = "4"
 proxmox-section-config = "2.1.1"
 proxmox-serde = "0.1.1"
 proxmox-shared-memory = "0.3.0"
