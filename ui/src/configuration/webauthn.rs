@@ -12,24 +12,19 @@ use yew::virtual_dom::VNode;
 
 use pwt::prelude::*;
 use pwt::widget::form::{Field, FormContext};
-use pwt::widget::{InputPanel, Panel};
+use pwt::widget::InputPanel;
 
 use proxmox_yew_comp::{ObjectGrid, ObjectGridRow};
 
 #[function_component(WebauthnPanel)]
 pub fn webauthn_panel() -> Html {
-    Panel::new()
-        .title(tr!("WebAuthn TFA"))
-        .with_child(object_grid())
-        .into()
-}
-
-fn object_grid() -> ObjectGrid {
     ObjectGrid::new()
+        .class(pwt::css::FlexFit)
         .editable(true)
         .loader("/config/access/tfa/webauthn")
         .on_submit(store_tfa_config)
         .rows(ROWS.with(Rc::clone))
+        .into()
 }
 
 async fn store_tfa_config(form: FormContext) -> Result<(), Error> {

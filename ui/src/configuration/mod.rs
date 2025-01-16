@@ -8,8 +8,8 @@ use proxmox_yew_comp::configuration::{DnsPanel, NetworkView};
 use proxmox_yew_comp::tfa::TfaView;
 use proxmox_yew_comp::UserPanel;
 
-mod other;
-pub use other::OtherPanel;
+mod webauthn;
+pub use webauthn::WebauthnPanel;
 
 use crate::widget::ContentSpacer;
 
@@ -30,10 +30,10 @@ pub fn system_configuration() -> Html {
         )
         .with_item_builder(
             TabBarItem::new()
-                .key("other")
-                .label("Other")
+                .key("webauthn")
+                .label("WebAuthn TFA")
                 .icon_class("fa fa-sliders"),
-            |_| html! { <OtherPanel/> },
+            |_| html! { <WebauthnPanel/> },
         );
 
     NavigationContainer::new().with_child(panel).into()
