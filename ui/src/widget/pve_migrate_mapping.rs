@@ -4,7 +4,7 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 use yew::{html::IntoPropValue, virtual_dom::Key, AttrValue, Properties};
 
-use proxmox_schema::{ObjectSchema, Schema};
+use proxmox_schema::property_string::PropertyString;
 use pwt::{
     props::{ContainerBuilder, CssBorderBuilder, ExtractPrimaryKey, FieldBuilder, WidgetBuilder},
     state::Store,
@@ -19,7 +19,7 @@ use pwt::{
 };
 use pwt_macros::{builder, widget};
 
-use pdm_client::types::StorageContent;
+use pdm_client::types::{LxcConfigNet, QemuConfigNet, StorageContent};
 
 use crate::pve::{
     utils::{foreach_drive_lxc, foreach_drive_qemu},
@@ -115,11 +115,6 @@ pub struct PveMigrateMapComp {
     _async_pool: AsyncPool,
 }
 
-// HACK!, our rust schema does not support `keyAlias`  yet, so we parse it into a generic value`
-static NET_WORKAROUND_SCHEMA: Schema = ObjectSchema::new("", &[])
-    .additional_properties(true)
-    .schema();
-
 impl PveMigrateMapComp {
     async fn load_storages(
         remote: AttrValue,
@@ -158,12 +153,15 @@ impl PveMigrateMapComp {
 
                 let mut networks = HashSet::new();
 
-                let nets = serde_json::to_value(&config.net)?;
-                for (_key, net) in nets.as_object().unwrap() {
-                    let net = NET_WORKAROUND_SCHEMA.parse_property_string(net.as_str().unwrap())?;
-
-                    if let Some(bridge) = net.get("bridge") {
-                        networks.insert(bridge.as_str().unwrap().to_string());
+                for (idx, net) in config.net.iter() {
+                    let key = format!("net{idx}");
+                    match net.parse::<PropertyString<QemuConfigNet>>() {
+                        Ok(net) => {
+                            if let Some(bridge) = net.into_inner().bridge {
+                                networks.insert(bridge);
+                            }
+                        }
+                        Err(err) => log::error!("could not parse {key}: {err}"),
                     }
                 }
 
@@ -204,12 +202,15 @@ impl PveMigrateMapComp {
 
                 let mut networks = HashSet::new();
 
-                let nets = serde_json::to_value(&config.net)?;
-                for (_key, net) in nets.as_object().unwrap() {
-                    let net = NET_WORKAROUND_SCHEMA.parse_property_string(net.as_str().unwrap())?;
-
-                    if let Some(bridge) = net.get("bridge") {
-                        networks.insert(bridge.as_str().unwrap().to_string());
+                for (idx, net) in (&*config.net).into_iter() {
+                    let key = format!("net{idx}");
+                    match net.parse::<PropertyString<LxcConfigNet>>() {
+                        Ok(net) => {
+                            if let Some(bridge) = net.into_inner().bridge {
+                                networks.insert(bridge);
+                            }
+                        }
+                        Err(err) => log::error!("could not parse {key}: {err}"),
                     }
                 }
 
