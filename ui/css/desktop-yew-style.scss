@@ -5,6 +5,10 @@
     padding: var(--pwt-spacer-4);
     gap: var(--pwt-spacer-4);
 
+    &.proxmox-content-spacer-with-one-child {
+        padding: 0;
+    }
+
     & > * {
         border: 0px !important;
         border-top: 1px solid var(--pwt-color-surface) !important;
