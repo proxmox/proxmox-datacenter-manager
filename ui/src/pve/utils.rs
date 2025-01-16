@@ -152,7 +152,7 @@ pub fn foreach_drive_qemu<F>(config: &QemuConfig, mut f: F)
 where
     F: FnMut(&str, Result<PveDriveQemu, Error>),
 {
-    for (idx, value) in (&*config.ide).into_iter() {
+    for (idx, value) in config.ide.iter() {
         let key = format!("ide{idx}");
         let res = value
             .parse::<PropertyString<PveQmIde>>()
@@ -160,7 +160,7 @@ where
         f(&key, res.map_err(Error::from));
     }
 
-    for (idx, value) in (&*config.sata).into_iter() {
+    for (idx, value) in config.sata.iter() {
         let key = format!("sata{idx}");
         let res = value
             .parse::<PropertyString<QemuConfigSata>>()
@@ -168,7 +168,7 @@ where
         f(&key, res.map_err(Error::from));
     }
 
-    for (idx, value) in (&*config.scsi).into_iter() {
+    for (idx, value) in config.scsi.iter() {
         let key = format!("scsi{idx}");
         let res = value
             .parse::<PropertyString<QemuConfigScsi>>()
@@ -176,7 +176,7 @@ where
         f(&key, res.map_err(Error::from));
     }
 
-    for (idx, value) in (&*config.virtio).into_iter() {
+    for (idx, value) in config.virtio.iter() {
         let key = format!("virtio{idx}");
         let res = value
             .parse::<PropertyString<QemuConfigVirtio>>()
@@ -184,7 +184,7 @@ where
         f(&key, res.map_err(Error::from));
     }
 
-    for (idx, value) in (&*config.unused).into_iter() {
+    for (idx, value) in config.unused.iter() {
         let key = format!("unused{idx}");
         let res = value
             .parse::<PropertyString<QemuConfigUnused>>()
@@ -224,7 +224,7 @@ where
         f(key, res.map_err(Error::from));
     }
 
-    for (idx, value) in (&*config.mp).into_iter() {
+    for (idx, value) in config.mp.iter() {
         let key = format!("mp{idx}");
         let res = value
             .parse::<PropertyString<LxcConfigMp>>()
@@ -232,7 +232,7 @@ where
         f(&key, res.map_err(Error::from));
     }
 
-    for (idx, value) in (&*config.unused).into_iter() {
+    for (idx, value) in config.unused.iter() {
         let key = format!("unused{idx}");
         let res = value
             .parse::<PropertyString<LxcConfigUnused>>()
