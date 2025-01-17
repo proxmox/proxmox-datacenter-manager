@@ -1,14 +1,2 @@
 @import "../pwt-assets/scss/crisp-yew-style";
 @import "pdm";
-
-.proxmox-content-spacer {
-    @include color-scheme-vars("neutral");
-
-    &.proxmox-content-spacer-with-one-child {
-        padding: 0;
-    }
-
-    &.proxmox-content-spacer-with-one-child > * {
-        border: 0;
-    }
-}

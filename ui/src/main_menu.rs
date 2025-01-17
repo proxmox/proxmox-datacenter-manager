@@ -16,7 +16,6 @@ use proxmox_yew_comp::{NotesView, XTermJs};
 
 use pdm_api_types::remotes::RemoteType;
 
-use crate::widget::ContentSpacer;
 use crate::{
     AccessControl, CertificatesPanel, Dashboard, RemoteConfigPanel, RemoteList,
     ServerAdministration, SystemConfiguration,
@@ -183,7 +182,8 @@ impl Component for PdmMainMenu {
                         .await
                 });
 
-                ContentSpacer::new()
+                Container::new()
+                    .class("pwt-content-spacer")
                     .class(pwt::css::FlexFit)
                     .with_child(notes)
                     .into()
@@ -276,7 +276,8 @@ impl Component for PdmMainMenu {
                 "fa fa-server"
             }),
             |_| {
-                ContentSpacer::new()
+                Container::new()
+                    .class("pwt-content-spacer")
                     .class(pwt::css::FlexFit)
                     .with_child(RemoteConfigPanel::new())
                     .into()

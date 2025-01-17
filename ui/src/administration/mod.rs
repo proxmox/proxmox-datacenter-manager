@@ -6,7 +6,7 @@ use pwt::props::StorageLocation;
 use yew::virtual_dom::{VComp, VNode};
 
 use pwt::state::NavigationContainer;
-use pwt::widget::{MiniScrollMode, TabBarItem, TabPanel};
+use pwt::widget::{Container, MiniScrollMode, TabBarItem, TabPanel};
 
 use pwt_macros::builder;
 
@@ -17,8 +17,6 @@ use pwt_macros::builder;
 //pub use services::Services;
 
 use proxmox_yew_comp::{AptPackageManager, AptRepositories, ExistingProduct, Syslog, Tasks};
-
-use crate::widget::ContentSpacer;
 
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
@@ -75,7 +73,8 @@ impl Component for PdmServerAdministration {
                     .label("Updates")
                     .icon_class("fa fa-refresh"),
                 move |_| {
-                    ContentSpacer::new()
+                    Container::new()
+                        .class("pwt-content-spacer")
                         .class(pwt::css::FlexFit)
                         .with_child(AptPackageManager::new().enable_upgrade(enable_upgrade))
                         .into()
@@ -87,7 +86,8 @@ impl Component for PdmServerAdministration {
                     .label("Repositories")
                     .icon_class("fa fa-files-o"),
                 |_| {
-                    ContentSpacer::new()
+                    Container::new()
+                        .class("pwt-content-spacer")
                         .class(pwt::css::FlexFit)
                         .with_child(AptRepositories::new().product(ExistingProduct::PDM))
                         .into()
@@ -99,7 +99,8 @@ impl Component for PdmServerAdministration {
                     .label("Syslog")
                     .icon_class("fa fa-list"),
                 |_| {
-                    ContentSpacer::new()
+                    Container::new()
+                        .class("pwt-content-spacer")
                         .class(pwt::css::FlexFit)
                         .with_child(Syslog::new())
                         .into() // fixme: use JournalView instead?
@@ -111,7 +112,8 @@ impl Component for PdmServerAdministration {
                     .label("Tasks")
                     .icon_class("fa fa-list-alt"),
                 |_| {
-                    ContentSpacer::new()
+                    Container::new()
+                        .class("pwt-content-spacer")
                         .class(pwt::css::FlexFit)
                         .with_child(Tasks::new())
                         .into()

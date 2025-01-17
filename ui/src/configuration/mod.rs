@@ -1,7 +1,7 @@
 use pwt::prelude::*;
 use pwt::props::StorageLocation;
 use pwt::state::NavigationContainer;
-use pwt::widget::{MiniScrollMode, Panel, TabBarItem, TabPanel};
+use pwt::widget::{Container, MiniScrollMode, Panel, TabBarItem, TabPanel};
 
 use proxmox_yew_comp::configuration::TimePanel;
 use proxmox_yew_comp::configuration::{DnsPanel, NetworkView};
@@ -10,8 +10,6 @@ use proxmox_yew_comp::UserPanel;
 
 mod webauthn;
 pub use webauthn::WebauthnPanel;
-
-use crate::widget::ContentSpacer;
 
 #[function_component(SystemConfiguration)]
 pub fn system_configuration() -> Html {
@@ -53,7 +51,8 @@ pub fn access_control() -> Html {
                 .icon_class("fa fa-user")
                 .label(tr!("User Management")),
             |_| {
-                ContentSpacer::new()
+                Container::new()
+                    .class("pwt-content-spacer")
                     .class(pwt::css::FlexFit)
                     .with_child(UserPanel::new())
                     .into()
@@ -65,7 +64,8 @@ pub fn access_control() -> Html {
                 .icon_class("fa fa-key")
                 .label(tr!("Two Factor Authentication")),
             |_| {
-                ContentSpacer::new()
+                Container::new()
+                    .class("pwt-content-spacer")
                     .class(pwt::css::FlexFit)
                     .with_child(TfaView::new())
                     .into()
@@ -77,7 +77,8 @@ pub fn access_control() -> Html {
 
 #[function_component(NetworkTimePanel)]
 pub fn create_network_time_panel() -> Html {
-    ContentSpacer::new()
+    Container::new()
+        .class("pwt-content-spacer")
         .class(pwt::css::FlexFit)
         .with_child(
             Panel::new()

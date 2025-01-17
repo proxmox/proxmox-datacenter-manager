@@ -11,7 +11,7 @@ use yew::{
 use pwt::{
     css::AlignItems,
     state::NavigationContainer,
-    widget::{Button, Fa},
+    widget::{Button, Container, Fa},
 };
 use pwt::{
     css::FlexFit,
@@ -31,7 +31,7 @@ pub mod utils;
 mod tree;
 use tree::PveTreeNode;
 
-use crate::{get_deep_url, widget::ContentSpacer};
+use crate::get_deep_url;
 
 #[derive(Debug, Eq, PartialEq, Properties)]
 pub struct PveRemote {
@@ -163,7 +163,8 @@ impl LoadableComponent for PveRemoteComp {
             .with_child(tr! {"Remote '{0}'", ctx.props().remote})
             .into();
 
-        let content = ContentSpacer::new()
+        let content = Container::new()
+            .class("pwt-content-spacer")
             .class(FlexFit)
             .class("pwt-flex-direction-row")
             .with_child(
