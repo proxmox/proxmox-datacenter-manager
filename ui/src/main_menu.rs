@@ -16,9 +16,10 @@ use proxmox_yew_comp::{NotesView, XTermJs};
 
 use pdm_api_types::remotes::RemoteType;
 
+use crate::remotes::RemotesPanel;
 use crate::{
-    AccessControl, CertificatesPanel, Dashboard, RemoteConfigPanel, RemoteList,
-    ServerAdministration, SystemConfiguration,
+    AccessControl, CertificatesPanel, Dashboard, RemoteList, ServerAdministration,
+    SystemConfiguration,
 };
 
 /*
@@ -279,7 +280,7 @@ impl Component for PdmMainMenu {
                 Container::new()
                     .class("pwt-content-spacer")
                     .class(pwt::css::FlexFit)
-                    .with_child(RemoteConfigPanel::new())
+                    .with_child(html! {<RemotesPanel/>})
                     .into()
             },
             remote_submenu,
