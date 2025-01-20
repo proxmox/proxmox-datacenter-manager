@@ -13,10 +13,14 @@ use pwt::state::{Loader, Theme, ThemeObserver};
 use pwt::widget::{Button, Container, Row, ThemeModeSelector, Tooltip};
 
 use proxmox_yew_comp::common_api_types::TaskListItem;
+use proxmox_yew_comp::utils::{format_task_description, format_upid, set_location_href};
 use proxmox_yew_comp::RunningTasksButton;
 use proxmox_yew_comp::{http_get, HelpButton, LanguageDialog, TaskViewer, ThemeDialog};
 
 use pwt_macros::builder;
+
+use pdm_api_types::RemoteUpid;
+use pdm_client::types::PveUpid;
 
 use crate::widget::SearchBox;
 
@@ -185,10 +189,38 @@ impl Component for PdmTopNavBar {
 
         if let Some(username) = &props.username {
             button_group.add_child(
-                RunningTasksButton::new(props.running_tasks.clone()).on_show_task(
-                    ctx.link()
-                        .callback(|info| Msg::ChangeView(Some(ViewState::OpenTask(info)))),
-                ),
+                RunningTasksButton::new(props.running_tasks.clone())
+                    .on_show_task(
+                        ctx.link()
+                            .callback(|info| Msg::ChangeView(Some(ViewState::OpenTask(info)))),
+                    )
+                    .buttons(vec![
+                        Button::new(tr!("Show Local Tasks"))
+                            .class(ColorScheme::Primary)
+                            .onclick(move |_| {
+                                set_location_href("#/administration/tasks");
+                            }),
+                        Button::new(tr!("Show Remote Tasks"))
+                            .class(ColorScheme::Primary)
+                            .onclick(move |_| {
+                                set_location_href("#/remotes/tasks");
+                            }),
+                    ])
+                    .render(|item: &TaskListItem| {
+                        if let Ok(remote_upid) = (&item.upid).parse::<RemoteUpid>() {
+                            let description = match remote_upid.upid.parse::<PveUpid>() {
+                                Ok(upid) => format_task_description(
+                                    &upid.worker_type,
+                                    upid.worker_id.as_deref(),
+                                ),
+                                Err(_) => format_upid(&remote_upid.upid),
+                            };
+                            format!("{} - {}", remote_upid.remote(), description)
+                        } else {
+                            format_upid(&item.upid)
+                        }
+                        .into()
+                    }),
             );
 
             button_group.add_child(
@@ -207,9 +239,17 @@ impl Component for PdmTopNavBar {
             ViewState::ThemeDialog => ThemeDialog::new()
                 .on_close(ctx.link().callback(|_| Msg::ChangeView(None)))
                 .into(),
-            ViewState::OpenTask((task_id, _endtime)) => TaskViewer::new(task_id)
-                .on_close(ctx.link().callback(|_| Msg::ChangeView(None)))
-                .into(),
+            ViewState::OpenTask((task_id, _endtime)) => {
+                // TODO PBS
+                let base_url = task_id
+                    .parse::<RemoteUpid>()
+                    .ok()
+                    .map(|upid| format!("/pve/remotes/{}/tasks", upid.remote()));
+                TaskViewer::new(task_id)
+                    .base_url(base_url.unwrap_or("/nodes/localhost/tasks".to_string()))
+                    .on_close(ctx.link().callback(|_| Msg::ChangeView(None)))
+                    .into()
+            }
         });
 
         let src = if self.dark_mode {

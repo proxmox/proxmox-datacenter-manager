@@ -1,5 +1,6 @@
 use anyhow::Error;
 use gloo_timers::callback::Timeout;
+use serde_json::json;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 
@@ -135,7 +136,23 @@ impl Component for DatacenterManagerApp {
 
         let running_tasks = Loader::new()
             .on_change(ctx.link().callback(|_| Msg::TaskChanged))
-            .loader("/nodes/localhost/tasks?running=1&limit=100");
+            .loader((
+                |url: AttrValue| async move {
+                    // TODO replace with pdm client call
+                    let params = Some(json!({
+                        "limit": 100,
+                        "running": true,
+                    }));
+                    let mut res: Vec<TaskListItem> =
+                        http_get(url.to_string(), params.clone()).await?;
+
+                    let res2: Vec<_> = http_get("/remote-tasks/list", params).await?;
+                    res.extend_from_slice(&res2);
+
+                    Ok(res.into_iter().take(100).collect())
+                },
+                "/nodes/localhost/tasks",
+            ));
 
         let login_info = authentication_from_cookie(&proxmox_yew_comp::ExistingProduct::PDM);
 
