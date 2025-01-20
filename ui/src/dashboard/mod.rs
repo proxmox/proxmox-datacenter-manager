@@ -391,6 +391,8 @@ impl Component for PdmDashboard {
                 Container::new()
                     .class("pwt-content-spacer")
                     .class("pwt-flex-direction-row")
+                    .class("pwt-align-content-start")
+                    .class(pwt::css::Flex::Fill)
                     .style("padding-top", "0")
                     .class(FlexWrap::Wrap)
                     //.min_height(175)
