@@ -54,6 +54,8 @@ pub mod types {
     pub use pve_api_types::ListRealm;
 
     pub use pve_api_types::ClusterNodeStatus;
+
+    pub use pve_api_types::PveUpid;
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
