@@ -32,6 +32,9 @@ pub mod pve;
 
 pub mod renderer;
 
+mod tasks;
+pub use tasks::register_pve_tasks;
+
 pub fn pdm_client() -> pdm_client::PdmClient<std::rc::Rc<proxmox_yew_comp::HttpClientWasm>> {
     pdm_client::PdmClient(proxmox_yew_comp::CLIENT.with(|c| std::rc::Rc::clone(&c.borrow())))
 }

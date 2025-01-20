@@ -13,6 +13,7 @@ use pwt::widget::{Column, DesktopApp, Dialog, Mask};
 
 use proxmox_login::Authentication;
 use proxmox_yew_comp::common_api_types::TaskListItem;
+use proxmox_yew_comp::utils::init_task_descr_table_base;
 use proxmox_yew_comp::{
     authentication_from_cookie, http_get, register_auth_observer, AuthObserver, LoginPanel,
     SubscriptionAlert,
@@ -20,7 +21,7 @@ use proxmox_yew_comp::{
 
 //use pbs::MainMenu;
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
-use pdm_ui::{MainMenu, RemoteList, TopNavBar};
+use pdm_ui::{register_pve_tasks, MainMenu, RemoteList, TopNavBar};
 
 type MsgRemoteList = Result<RemoteList, Error>;
 
@@ -274,7 +275,8 @@ fn main() {
 
     yew::set_custom_panic_hook(panic_hook());
 
-    //init_task_descr_table_pbs();
+    init_task_descr_table_base();
+    register_pve_tasks();
     proxmox_yew_comp::http_setup(&proxmox_yew_comp::ExistingProduct::PDM);
 
     pwt::props::set_http_get_method(
