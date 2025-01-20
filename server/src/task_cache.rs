@@ -57,7 +57,7 @@ pub async fn get_tasks(max_age: i64, filters: TaskFilters) -> Result<Vec<TaskLis
     }
 
     let mut returned_tasks = add_running_tasks(all_tasks)?;
-    returned_tasks.sort_by(|a, b| a.starttime.cmp(&b.starttime));
+    returned_tasks.sort_by(|a, b| b.starttime.cmp(&a.starttime));
     let returned_tasks = returned_tasks
         .into_iter()
         .filter(|item| {
