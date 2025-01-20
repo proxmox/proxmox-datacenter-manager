@@ -42,7 +42,13 @@ pub async fn get_tasks(max_age: i64) -> Result<Vec<TaskListItem>, Error> {
             // Data in cache is recent enough and has not been invalidated.
             all_tasks.extend(tasks);
         } else {
-            let tasks = fetch_tasks(remote).await?;
+            let tasks = match fetch_tasks(remote).await {
+                Ok(tasks) => tasks,
+                Err(err) => {
+                    // ignore errors for not reachable remotes
+                    continue;
+                }
+            };
             cache.set_tasks(remote_name.as_str(), tasks.clone(), now);
 
             all_tasks.extend(tasks);
