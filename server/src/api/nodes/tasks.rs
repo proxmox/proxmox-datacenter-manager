@@ -12,8 +12,8 @@ use proxmox_schema::{api, Schema};
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::{
-    Authid, TaskListItem, TaskStateType, Tokenname, Userid, NODE_SCHEMA, PRIV_SYS_AUDIT,
-    PRIV_SYS_MODIFY, UPID, UPID_SCHEMA,
+    Authid, TaskFilters, TaskListItem, TaskStateType, Tokenname, Userid, NODE_SCHEMA,
+    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, UPID, UPID_SCHEMA,
 };
 
 pub const ROUTER: Router = Router::new()
@@ -57,57 +57,9 @@ fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
             node: {
                 schema: NODE_SCHEMA
             },
-            start: {
-                type: u64,
-                description: "List tasks beginning from this offset.",
-                default: 0,
-                optional: true,
-            },
-            limit: {
-                type: u64,
-                description: "Only list this amount of tasks. (0 means no limit)",
-                default: 50,
-                optional: true,
-            },
-            running: {
-                type: bool,
-                description: "Only list running tasks.",
-                optional: true,
-                default: false,
-            },
-            errors: {
-                type: bool,
-                description: "Only list erroneous tasks.",
-                optional:true,
-                default: false,
-            },
-            userfilter: {
-                optional: true,
-                type: String,
-                description: "Only list tasks from this user.",
-            },
-            since: {
-                type: i64,
-                description: "Only list tasks since this UNIX epoch.",
-                optional: true,
-            },
-            until: {
-                type: i64,
-                description: "Only list tasks until this UNIX epoch.",
-                optional: true,
-            },
-            typefilter: {
-                optional: true,
-                type: String,
-                description: "Only list tasks whose type contains this.",
-            },
-            statusfilter: {
-                optional: true,
-                type: Array,
-                description: "Only list tasks which have any one of the listed status.",
-                items: {
-                    type: TaskStateType,
-                },
+            filters: {
+                type: TaskFilters,
+                flatten: true,
             },
         },
     },
@@ -120,17 +72,21 @@ fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
 /// List tasks.
 #[allow(clippy::too_many_arguments)]
 pub fn list_tasks(
-    start: u64,
-    limit: u64,
-    errors: bool,
-    running: bool,
-    userfilter: Option<String>,
-    since: Option<i64>,
-    until: Option<i64>,
-    typefilter: Option<String>,
-    statusfilter: Option<Vec<TaskStateType>>,
+    filters: TaskFilters,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
+    let TaskFilters {
+        start,
+        limit,
+        errors,
+        running,
+        userfilter,
+        since,
+        until,
+        typefilter,
+        statusfilter,
+    } = filters;
+
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&auth_id, &["system", "tasks"]);

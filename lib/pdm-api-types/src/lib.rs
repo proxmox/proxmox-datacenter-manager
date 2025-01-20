@@ -219,7 +219,7 @@ pub enum NodePowerCommand {
 
 #[api]
 /// The state of a task.
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TaskStateType {
     /// Ok
@@ -418,3 +418,82 @@ impl fmt::Display for RemoteUpid {
 
 serde_plain::derive_deserialize_from_fromstr!(RemoteUpid, "valid remote upid");
 serde_plain::derive_serialize_from_display!(RemoteUpid);
+
+fn limit_default() -> u64 {
+    50
+}
+
+#[api(
+    properties: {
+            start: {
+                type: u64,
+                description: "List tasks beginning from this offset.",
+                default: 0,
+                optional: true,
+            },
+            limit: {
+                type: u64,
+                description: "Only list this amount of tasks. (0 means no limit)",
+                default: 50,
+                optional: true,
+            },
+            running: {
+                type: bool,
+                description: "Only list running tasks.",
+                optional: true,
+                default: false,
+            },
+            errors: {
+                type: bool,
+                description: "Only list erroneous tasks.",
+                optional:true,
+                default: false,
+            },
+            userfilter: {
+                optional: true,
+                type: String,
+                description: "Only list tasks from this user.",
+            },
+            since: {
+                type: i64,
+                description: "Only list tasks since this UNIX epoch.",
+                optional: true,
+            },
+            until: {
+                type: i64,
+                description: "Only list tasks until this UNIX epoch.",
+                optional: true,
+            },
+            typefilter: {
+                optional: true,
+                type: String,
+                description: "Only list tasks whose type contains this.",
+            },
+            statusfilter: {
+                optional: true,
+                type: Array,
+                description: "Only list tasks which have any one of the listed status.",
+                items: {
+                    type: TaskStateType,
+                },
+            },
+    }
+)]
+/// Task filter settings
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TaskFilters {
+    #[serde(default)]
+    pub start: u64,
+    #[serde(default = "limit_default")]
+    pub limit: u64,
+    #[serde(default)]
+    pub errors: bool,
+    #[serde(default)]
+    pub running: bool,
+    pub userfilter: Option<String>,
+    pub since: Option<i64>,
+    pub until: Option<i64>,
+    pub typefilter: Option<String>,
+    pub statusfilter: Option<Vec<TaskStateType>>,
+}
