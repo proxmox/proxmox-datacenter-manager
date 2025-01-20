@@ -1,5 +1,5 @@
 use anyhow::Error;
-use pdm_api_types::TaskListItem;
+use pdm_api_types::{TaskFilters, TaskListItem};
 use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
@@ -27,13 +27,17 @@ const SUBDIRS: SubdirMap = &sorted!([("list", &Router::new().get(&API_METHOD_LIS
                 // TODO: sensible default max-age
                 default: 300,
                 description: "Maximum age of cached task data",
+            },
+            filters: {
+                type: TaskFilters,
+                flatten: true,
             }
         },
     },
 )]
 /// Get the list of tasks for all remotes.
-async fn list_tasks(max_age: i64) -> Result<Vec<TaskListItem>, Error> {
-    let tasks = task_cache::get_tasks(max_age).await?;
+async fn list_tasks(max_age: i64, filters: TaskFilters) -> Result<Vec<TaskListItem>, Error> {
+    let tasks = task_cache::get_tasks(max_age, filters).await?;
 
     Ok(tasks)
 }

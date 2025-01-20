@@ -9,7 +9,7 @@ use std::{
 use anyhow::Error;
 use pdm_api_types::{
     remotes::{Remote, RemoteType},
-    RemoteUpid, TaskListItem,
+    RemoteUpid, TaskFilters, TaskListItem, TaskStateType,
 };
 use proxmox_sys::fs::CreateOptions;
 use pve_api_types::{ListTasks, ListTasksResponse, ListTasksSource, PveUpid};
@@ -19,7 +19,8 @@ use tokio::task::JoinHandle;
 use crate::{api::pve, task_utils};
 
 /// Get tasks for all remotes
-pub async fn get_tasks(max_age: i64) -> Result<Vec<TaskListItem>, Error> {
+// FIXME: filter for privileges
+pub async fn get_tasks(max_age: i64, filters: TaskFilters) -> Result<Vec<TaskListItem>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     let mut all_tasks = Vec::new();
@@ -57,6 +58,55 @@ pub async fn get_tasks(max_age: i64) -> Result<Vec<TaskListItem>, Error> {
 
     let mut returned_tasks = add_running_tasks(all_tasks)?;
     returned_tasks.sort_by(|a, b| a.starttime.cmp(&b.starttime));
+    let returned_tasks = returned_tasks
+        .into_iter()
+        .filter(|item| {
+            if filters.running && item.endtime.is_some() {
+                return false;
+            }
+
+            if let Some(until) = filters.until {
+                if item.starttime > until {
+                    return false;
+                }
+            }
+
+            if let Some(since) = filters.since {
+                if item.starttime < since {
+                    return false;
+                }
+            }
+
+            if let Some(needle) = &filters.userfilter {
+                if !item.user.contains(needle) {
+                    return false;
+                }
+            }
+
+            if let Some(typefilter) = &filters.typefilter {
+                if !item.worker_type.contains(typefilter) {
+                    return false;
+                }
+            }
+
+            let state = item.status.as_ref().map(|status| tasktype(status));
+
+            match (state, &filters.statusfilter) {
+                (Some(TaskStateType::OK), _) if filters.errors => return false,
+                (Some(state), Some(filters)) => {
+                    if !filters.contains(&state) {
+                        return false;
+                    }
+                }
+                (None, Some(_)) => return false,
+                _ => {}
+            }
+
+            true
+        })
+        .skip(filters.start as usize)
+        .take(filters.limit as usize)
+        .collect();
 
     // We don't need to wait for this task to finish
     tokio::task::spawn_blocking(move || {
@@ -458,4 +508,17 @@ pub async fn get_finished_tasks() -> Vec<(RemoteUpid, String)> {
     }
 
     finished
+}
+
+/// Parses a task status string into a TaskStateType
+pub fn tasktype(status: &str) -> TaskStateType {
+    if status == "unknown" || status.is_empty() {
+        TaskStateType::Unknown
+    } else if status == "OK" {
+        TaskStateType::OK
+    } else if status.starts_with("WARNINGS: ") {
+        TaskStateType::Warning
+    } else {
+        TaskStateType::Error
+    }
 }
