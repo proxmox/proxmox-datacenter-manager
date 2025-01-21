@@ -313,14 +313,14 @@ impl Component for PdmWizardPageInfo {
                 pwt::widget::FieldPosition::Left,
                 false,
                 true,
-                tr!(""),
+                "",
                 Field::new().name("token").required(true),
             )
             .with_field_and_options(
                 pwt::widget::FieldPosition::Left,
                 false,
                 true,
-                tr!(""),
+                "",
                 Field::new().name("authid").required(true),
             );
         let content = Column::new()

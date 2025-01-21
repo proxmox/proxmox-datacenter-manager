@@ -74,7 +74,7 @@ a list of available options. ",
         (
             Status::Success,
             tr!("Your subscription status is valid."),
-            tr!("").into(),
+            "".into(),
         )
     } else {
         (

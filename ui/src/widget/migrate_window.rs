@@ -397,7 +397,7 @@ impl PdmMigrateWindow {
                 pwt::widget::FieldPosition::Left,
                 false,
                 true,
-                tr!(""),
+                "",
                 Checkbox::new()
                     .name("force")
                     .validate(|_: &bool| bail!("Uses local resources")),
