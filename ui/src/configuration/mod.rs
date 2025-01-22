@@ -22,7 +22,8 @@ pub fn system_configuration() -> Html {
         .with_item_builder(
             TabBarItem::new()
                 .key("network")
-                .label(tr!("Network") + "/" + &tr!("Time"))
+                // TRANSLATORS: As in "Network and Time system configuration"
+                .label(tr!("Network/Time"))
                 .icon_class("fa fa-exchange"),
             |_| html! { <NetworkTimePanel/> },
         )
