@@ -41,14 +41,14 @@ pub fn system_configuration() -> Html {
         .with_item_builder(
             TabBarItem::new()
                 .key("configuration")
-                .label("Configuration")
+                .label(tr!("Configuration"))
                 .icon_class("fa fa-cogs"),
             |_| RemoteConfigPanel::new().into(),
         )
         .with_item_builder(
             TabBarItem::new()
                 .key("tasks")
-                .label("Tasks")
+                .label(tr!("Tasks"))
                 .icon_class("fa fa-book"),
             |_| tasks::RemoteTaskList::new().into(),
         );

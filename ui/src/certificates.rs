@@ -18,7 +18,7 @@ pub fn certificates_panel() -> Html {
         .with_item_builder(
             TabBarItem::new()
                 .key("certificate_List")
-                .label("Certificates"),
+                .label(tr!("Certificates")),
             |_| {
                 Container::new()
                     .class("pwt-content-spacer")
@@ -28,7 +28,10 @@ pub fn certificates_panel() -> Html {
             },
         )
         .with_item_builder(
-            TabBarItem::new().key("acme_domains").label("ACME Domains"),
+            TabBarItem::new()
+                .key("acme_domains")
+                // TRANSLATORS: ACME Stands for Automatic Certificate Management Environment
+                .label(tr!("ACME Domains")),
             |_| {
                 Container::new()
                     .class("pwt-content-spacer")
@@ -40,7 +43,7 @@ pub fn certificates_panel() -> Html {
         .with_item_builder(
             TabBarItem::new()
                 .key("acme_accounts")
-                .label("ACME Accounts"),
+                .label(tr!("ACME Accounts")),
             |_| {
                 Container::new()
                     .class("pwt-content-spacer")
@@ -52,7 +55,7 @@ pub fn certificates_panel() -> Html {
         .with_item_builder(
             TabBarItem::new()
                 .key("acme_plugins")
-                .label("Challenge Plugins"),
+                .label(tr!("Challenge Plugins")),
             |_| {
                 Container::new()
                     .class("pwt-content-spacer")

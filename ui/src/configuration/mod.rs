@@ -29,7 +29,7 @@ pub fn system_configuration() -> Html {
         .with_item_builder(
             TabBarItem::new()
                 .key("webauthn")
-                .label("WebAuthn TFA")
+                .label(tr!("WebAuthn TFA"))
                 .icon_class("fa fa-sliders"),
             |_| html! { <WebauthnPanel/> },
         );

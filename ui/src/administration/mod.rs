@@ -70,7 +70,7 @@ impl Component for PdmServerAdministration {
             .with_item_builder(
                 TabBarItem::new()
                     .key("updates")
-                    .label("Updates")
+                    .label(tr!("Updates"))
                     .icon_class("fa fa-refresh"),
                 move |_| {
                     Container::new()
@@ -83,7 +83,7 @@ impl Component for PdmServerAdministration {
             .with_item_builder(
                 TabBarItem::new()
                     .key("repositories")
-                    .label("Repositories")
+                    .label(tr!("Repositories"))
                     .icon_class("fa fa-files-o"),
                 |_| {
                     Container::new()
@@ -96,7 +96,7 @@ impl Component for PdmServerAdministration {
             .with_item_builder(
                 TabBarItem::new()
                     .key("syslog")
-                    .label("Syslog")
+                    .label(tr!("Syslog"))
                     .icon_class("fa fa-list"),
                 |_| {
                     Container::new()
@@ -109,7 +109,7 @@ impl Component for PdmServerAdministration {
             .with_item_builder(
                 TabBarItem::new()
                     .key("tasks")
-                    .label("Tasks")
+                    .label(tr!("Tasks"))
                     .icon_class("fa fa-list-alt"),
                 |_| {
                     Container::new()
