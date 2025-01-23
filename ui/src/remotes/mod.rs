@@ -28,6 +28,7 @@ use yew::{function_component, Html};
 use pwt::{
     props::{ContainerBuilder, StorageLocation},
     state::NavigationContainer,
+    tr,
     widget::{MiniScrollMode, TabBarItem, TabPanel},
 };
 
