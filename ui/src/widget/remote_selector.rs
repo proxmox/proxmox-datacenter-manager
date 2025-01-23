@@ -3,7 +3,7 @@ use std::rc::Rc;
 use wasm_bindgen::UnwrapThrowExt;
 use yew::{
     html::{IntoEventCallback, IntoPropValue},
-    AttrValue, Callback, Component, Properties,
+    AttrValue, Callback, Component, ContextHandle, Properties,
 };
 
 use pdm_api_types::remotes::RemoteType;
@@ -43,17 +43,22 @@ impl RemoteSelector {
 
 pub struct PdmRemoteSelector {
     remotes: Rc<Vec<AttrValue>>,
+    _remotes_update_ctx: Option<ContextHandle<RemoteList>>,
 }
 
 impl PdmRemoteSelector {
     fn update_remote_list(&mut self, ctx: &yew::Context<Self>) {
-        let (remotes, _): (RemoteList, _) = ctx
+        let (remotes, _remotes_update_ctx): (RemoteList, _) = ctx
             .link()
-            .context(ctx.link().callback(|_| ()))
+            .context(ctx.link().callback(|list| list))
             .unwrap_throw();
 
-        let ty = ctx.props().remote_type;
+        self.set_remote_list(ctx, remotes);
+        self._remotes_update_ctx = Some(_remotes_update_ctx);
+    }
 
+    fn set_remote_list(&mut self, ctx: &yew::Context<Self>, remotes: RemoteList) {
+        let ty = ctx.props().remote_type;
         let remotes = remotes
             .iter()
             .filter_map(move |remote| match (ty, remote.ty) {
@@ -68,16 +73,22 @@ impl PdmRemoteSelector {
 }
 
 impl Component for PdmRemoteSelector {
-    type Message = ();
+    type Message = RemoteList;
     type Properties = RemoteSelector;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
         let mut this = Self {
             remotes: Rc::new(Vec::new()),
+            _remotes_update_ctx: None,
         };
 
         this.update_remote_list(ctx);
         this
+    }
+
+    fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
+        self.set_remote_list(ctx, msg);
+        true
     }
 
     fn changed(&mut self, ctx: &yew::Context<Self>, _old_props: &Self::Properties) -> bool {
