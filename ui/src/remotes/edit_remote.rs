@@ -123,25 +123,6 @@ fn edit_remote_input_panel(_form_ctx: &FormContext, remote_id: &str) -> Html {
                 .name("_web-url_base-url")
                 .placeholder(tr!("Use first endpoint.")),
         )
-        .with_field(
-            tr!("per Node URL template"),
-            Field::new()
-                .name("_web-url_per-node-template")
-                .placeholder(tr!("Same as Web Base URL.")),
-        )
-        .with_custom_child(
-            Row::new()
-                .key("hint-text")
-                .gap(2)
-                .with_child(Container::new().with_child(tr!(
-                    "Possible template values for 'per Node URL template' are:"
-                )))
-                .with_child(
-                    Container::new()
-                        .style("font-family", "monospace")
-                        .with_child("{{nodename}}"),
-                ),
-        )
         .with_custom_child(
             Container::new()
                 .key("nodes-title")

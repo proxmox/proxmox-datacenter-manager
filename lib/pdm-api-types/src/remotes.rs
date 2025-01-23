@@ -44,10 +44,6 @@ pub struct WebUrl {
     /// A base URL for accessing the remote.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub base_url: Option<String>,
-
-    /// A template for a per node URL. replaces {{nodename}} with the nodename.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_node_template: Option<String>,
 }
 
 #[api]

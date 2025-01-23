@@ -82,7 +82,7 @@ pub(crate) fn get_remote<C: yew::Component>(
 pub(crate) fn get_deep_url<C: yew::Component>(
     link: &yew::html::Scope<C>,
     remote: &str,
-    node: Option<&str>,
+    _node: Option<&str>,
     id: &str,
 ) -> Option<web_sys::Url> {
     let remote = get_remote(link, remote)?;
@@ -91,37 +91,27 @@ pub(crate) fn get_deep_url<C: yew::Component>(
         (id, pdm_api_types::remotes::RemoteType::Pve) => format!("v1::={id}"),
         (id, pdm_api_types::remotes::RemoteType::Pbs) => format!("DataStore-{id}"),
     };
+    let url = remote
+        .web_url
+        .as_deref()
+        .and_then(|web_url| web_url.base_url.as_deref())
+        .and_then(|url| web_sys::Url::new(url).ok())
+        .or_else(|| {
+            let node = remote.nodes.first()?;
+            let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
+            url.ok().inspect(|url| {
+                if url.port() == "" {
+                    let default_port = match remote.ty {
+                        pdm_api_types::remotes::RemoteType::Pve => "8006",
+                        pdm_api_types::remotes::RemoteType::Pbs => "8007",
+                    };
+                    url.set_port(default_port);
+                }
+            })
+        });
 
-    let url = match remote.web_url {
-        Some(web_url) => match (web_url.per_node_template.as_deref(), node) {
-            (Some(template), Some(node)) => {
-                web_sys::Url::new(&template.replace("{{nodename}}", node)).ok()
-            }
-            _ => web_url
-                .base_url
-                .as_ref()
-                .map(|url| web_sys::Url::new(url).ok())
-                .flatten(),
-        },
-        None => None,
-    }
-    .or_else(|| {
-        let node = remote.nodes.first()?;
-        let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
-        url.ok().map(|url| {
-            if url.port() == "" {
-                let default_port = match remote.ty {
-                    pdm_api_types::remotes::RemoteType::Pve => "8006",
-                    pdm_api_types::remotes::RemoteType::Pbs => "8007",
-                };
-                url.set_port(default_port);
-            }
-            url
-        })
-    });
-    url.map(|url| {
+    url.inspect(|url| {
         url.set_hash(&hash);
-        url
     })
 }
 
