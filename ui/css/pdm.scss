@@ -28,7 +28,7 @@
     text-overflow: ellipsis;
     .pve-tag {
         border-radius: var(--pwt-button-corner-shape);
-        @include padding-level(2, "inline");
+	padding-inline: var(--pwt-spacer-2)
     }
 }
 
