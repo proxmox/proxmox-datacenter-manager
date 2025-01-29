@@ -8,16 +8,13 @@ use yew::virtual_dom::{VComp, VNode};
 use pwt::css::FlexFit;
 use pwt::prelude::*;
 use pwt::widget::form::{delete_empty_values, DisplayField, Field, FormContext, InputType};
-use pwt::widget::{Container, InputPanel, Row};
+use pwt::widget::{Container, InputPanel};
 
-use proxmox_yew_comp::form::{flatten_property_string, property_string_from_parts};
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use proxmox_yew_comp::{EditWindow, SchemaValidation};
 
 use proxmox_client::ApiResponseData;
 use proxmox_schema::ApiType;
-
-use pdm_api_types::remotes::WebUrl;
 
 use super::NodeUrlList;
 
@@ -44,11 +41,7 @@ impl EditRemote {
 pub struct PdmEditRemote {}
 
 async fn load_remote(url: AttrValue) -> Result<ApiResponseData<Value>, Error> {
-    let mut resp: ApiResponseData<Value> = proxmox_yew_comp::http_get_full(&*url, None).await?;
-
-    flatten_property_string(&mut resp.data, "web-url", &WebUrl::API_SCHEMA);
-
-    Ok(resp)
+    proxmox_yew_comp::http_get_full(&*url, None).await
 }
 
 impl Component for PdmEditRemote {
@@ -79,9 +72,7 @@ impl Component for PdmEditRemote {
                 move |form_ctx: FormContext| {
                     let url = url.clone();
                     async move {
-                        let mut data = form_ctx.get_submit_data();
-
-                        property_string_from_parts::<WebUrl>(&mut data, "web-url", true);
+                        let data = form_ctx.get_submit_data();
 
                         let data = delete_empty_values(&data, &["web-url"], true);
 
@@ -120,7 +111,7 @@ fn edit_remote_input_panel(_form_ctx: &FormContext, remote_id: &str) -> Html {
         .with_field(
             tr!("Web Base URL"),
             Field::new()
-                .name("_web-url_base-url")
+                .name("web-url")
                 .placeholder(tr!("Use first endpoint.")),
         )
         .with_custom_child(

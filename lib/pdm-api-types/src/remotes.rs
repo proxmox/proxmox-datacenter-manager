@@ -1,5 +1,6 @@
 use std::sync::OnceLock;
 
+use http::Uri;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::property_string::PropertyString;
@@ -34,16 +35,6 @@ pub struct NodeUrl {
     /// Certificate fingerprint.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-}
-
-#[api]
-/// Options for the URLs used in the Web UI.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
-pub struct WebUrl {
-    /// A base URL for accessing the remote.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub base_url: Option<String>,
 }
 
 #[api]
@@ -102,9 +93,18 @@ pub struct Remote {
     pub token: String,
 
     /// Configuration for the Web UI URL link generation.
-    #[updater(serde(skip_serializing_if = "Option::is_none"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub web_url: Option<PropertyString<WebUrl>>,
+    #[updater(serde(
+        default,
+        with = "serde_option_uri",
+        skip_serializing_if = "Option::is_none"
+    ))]
+    #[updater(type = "Option<Uri>")]
+    #[serde(
+        default,
+        with = "serde_option_uri",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub web_url: Option<Uri>,
 }
 
 impl ApiSectionDataEntry for Remote {
@@ -133,6 +133,40 @@ impl ApiSectionDataEntry for Remote {
         match self.ty {
             RemoteType::Pve => "pve",
             RemoteType::Pbs => "pbs",
+        }
+    }
+}
+
+/// Since `Uri` does not directly support `serde`, we turn this into using FromStr/Display.
+///
+/// If we want to turn this into a property string, we can use a default_key, but may need to work
+/// around the fact that urls may contain `=`, so the regular property string parser might not
+/// realize it's supposed to use a default key.
+mod serde_option_uri {
+    use std::borrow::Cow;
+
+    use http::Uri;
+    use serde::Deserialize;
+
+    pub fn serialize<S>(uri: &Option<Uri>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match uri {
+            Some(uri) => serializer.serialize_str(&uri.to_string()),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Uri>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        match <Option<Cow<str>>>::deserialize(deserializer)? {
+            None => Ok(None),
+            Some(uri) => uri.parse::<Uri>().map(Some).map_err(D::Error::custom),
         }
     }
 }

@@ -93,9 +93,20 @@ pub(crate) fn get_deep_url<C: yew::Component>(
     };
     let url = remote
         .web_url
-        .as_deref()
-        .and_then(|web_url| web_url.base_url.as_deref())
-        .and_then(|url| web_sys::Url::new(url).ok())
+        .and_then(|orig_url| {
+            let mut parts = orig_url.clone().into_parts();
+            if parts.scheme.is_none() {
+                parts.scheme = Some(http::uri::Scheme::HTTPS);
+            }
+            http::Uri::from_parts(parts)
+                .inspect_err(|err| {
+                    log::error!(
+                        "failed to rebuild URL from {orig_url:?} with scheme 'https' - {err:?}"
+                    )
+                })
+                .ok()
+        })
+        .and_then(|url| web_sys::Url::new(&url.to_string()).ok())
         .or_else(|| {
             let node = remote.nodes.first()?;
             let url = web_sys::Url::new(&format!("https://{}/", node.hostname));
