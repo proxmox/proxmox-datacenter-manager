@@ -273,18 +273,14 @@ fn stop_task(upid: UPID, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     },
 )]
 /// Get task status.
-async fn get_task_status(
-    upid: UPID,
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+async fn get_task_status(upid: UPID, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     check_task_access(&auth_id, &upid)?;
 
     let task_auth_id: Authid = upid.auth_id.parse()?;
 
     let mut result = json!({
-        "upid": param["upid"],
+        "upid": upid.to_string(),
         "node": upid.node,
         "pid": upid.pid,
         "pstart": upid.pstart,
