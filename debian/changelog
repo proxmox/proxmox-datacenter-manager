@@ -1,3 +1,33 @@
+proxmox-datacenter-manager (0.1.11) bookworm; urgency=medium
+
+  * privileged-api: create /var/cache/proxmox-datacenter-manager/ on startup
+
+  * api: add caching 'remote-tasks' API endpoint
+
+  * pve api: track new tasks created by PDM
+
+  * api: fix remote upid tracking for qemu remote migration
+
+  * api: add target-endpoint parameter to remote migrate api calls
+
+  * api: pve: add remote cluster-status api call
+
+  * client: add cluster status method
+
+  * client: add target-endpoint parameter to remote migration methods
+
+  * task cache: skip remotes with errors on fetch to avoid that a single
+    unavailable cluster node can block the whole remote.
+
+  * task cache: skip remotes with errors on fetch
+
+  * task cache: add filter options and reverse task order
+
+  * add optional web-url configuration for remotes to override the URL that
+    the PDM web UI should use to open external resources.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 29 Jan 2025 09:21:27 +0100
+
 proxmox-datacenter-manager (0.1.10) bookworm; urgency=medium
 
   * privileged api: do not clean-up socket unconditionally on start-up but
