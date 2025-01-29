@@ -1,3 +1,45 @@
+proxmox-datacenter-manager-ui (0.1.10) bookworm; urgency=medium
+
+  * fix #6016: remote migrate: submit 'target-vmid' property for CT
+
+  * pve storage selector: fix the displayed values
+
+  * show 'available' and 'capacity' (total), as correctly indicated by the
+    column headers, instead of wrongly showing 'used' and 'available'
+    respectively.
+
+  * pve: correctly count 'total' guest cores and memory
+
+  * migrate: make target endpoint selectable for remote migration
+
+  * remote migrate: consistently use selected node also for the network
+    selector and detailed mappings
+
+  * remotes: use ConfirmButton component instead of ConfirmDialog
+
+  * remote edit: fix change-tracking for the ID field to ensure one can go
+    back in the wizard and change its value.
+
+  * allow one to override the URL used to open the web UI of a remote node or
+    remote resource to handle the relatively frequent case where the admins
+    end devices needs to use a different URL compared to the PDM to talk to a
+    remote, for example because the PDM uses a tunnel to talk directly to the
+    remote nodes whereas the admin needs to connect over a central reverse
+    proxy or simply needs to use another domain name or IP address.
+
+  * configuration: replace Other tab with WebAuthn, as that was the sole
+    panel there anyway.
+
+  * remotes: add task view tab to global remote panel
+
+  * show running tasks from remotes in the 'running tasks' list
+
+  * remote selector: update remotes when context changes
+
+  * various small style and layout fixes and improvements
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 29 Jan 2025 15:55:15 +0100
+
 proxmox-datacenter-manager-ui (0.1.9) bookworm; urgency=medium
 
   * acme domains: fix validity handling for http challenge-mode to allow one
