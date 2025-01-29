@@ -97,6 +97,9 @@ pub(crate) fn get_deep_url<C: yew::Component>(
             let mut parts = orig_url.clone().into_parts();
             if parts.scheme.is_none() {
                 parts.scheme = Some(http::uri::Scheme::HTTPS);
+                if parts.path_and_query.is_none() {
+                    parts.path_and_query = Some(http::uri::PathAndQuery::from_static("/"));
+                }
             }
             http::Uri::from_parts(parts)
                 .inspect_err(|err| {
