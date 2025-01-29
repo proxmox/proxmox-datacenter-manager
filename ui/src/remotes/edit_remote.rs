@@ -109,7 +109,7 @@ fn edit_remote_input_panel(_form_ctx: &FormContext, remote_id: &str) -> Html {
                 .required(false),
         )
         .with_field(
-            tr!("Web Base URL"),
+            tr!("Web UI URL"),
             Field::new()
                 .name("web-url")
                 .placeholder(tr!("Use first endpoint.")),
