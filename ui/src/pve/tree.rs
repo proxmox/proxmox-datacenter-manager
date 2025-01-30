@@ -532,35 +532,36 @@ fn columns(
             .flex(1)
             .tree_column(store)
             .render(move |entry: &PveTreeNode| {
-                let el = match entry {
-                    PveTreeNode::Root if loading => Row::new()
-                        .class(AlignItems::Center)
-                        .gap(4)
-                        .with_child(Container::from_tag("i").class("pwt-loading-icon"))
-                        .with_child(tr!("Querying Remote...")),
-                    PveTreeNode::Root => Row::new()
-                        .class(AlignItems::Baseline)
-                        .gap(2)
-                        .with_child(Fa::new("server"))
-                        .with_child(tr!("Remote")),
-                    PveTreeNode::Node(r) => Row::new()
-                        .class(AlignItems::Baseline)
-                        .gap(4)
-                        .with_child(utils::render_node_status_icon(r))
-                        .with_child(&r.node),
-                    PveTreeNode::Qemu(r) => Row::new()
-                        .class(AlignItems::Baseline)
-                        .gap(2)
-                        .with_child(utils::render_qemu_status_icon(r))
-                        .with_child(render_qemu_name(r, true)),
-                    PveTreeNode::Lxc(r) => Row::new()
-                        .class(AlignItems::Baseline)
-                        .gap(2)
-                        .with_child(utils::render_lxc_status_icon(r))
-                        .with_child(render_lxc_name(r, true)),
+                let (icon, text) = match entry {
+                    PveTreeNode::Root if loading => (
+                        Container::from_tag("i").class("pwt-loading-icon"),
+                        tr!("Querying Remote..."),
+                    ),
+                    PveTreeNode::Root => (
+                        Container::new().with_child(Fa::new("server")),
+                        tr!("Remote"),
+                    ),
+                    PveTreeNode::Node(r) => (utils::render_node_status_icon(r), r.node.to_string()),
+                    PveTreeNode::Qemu(r) => {
+                        (utils::render_qemu_status_icon(r), render_qemu_name(r, true))
+                    }
+                    PveTreeNode::Lxc(r) => {
+                        (utils::render_lxc_status_icon(r), render_lxc_name(r, true))
+                    }
                 };
 
-                Container::new().with_child(el).into()
+                Row::new()
+                    .min_width(0)
+                    .class(AlignItems::Center)
+                    .gap(2)
+                    .with_child(icon)
+                    .with_child(
+                        Container::new()
+                            .with_child(text)
+                            .style("text-overflow", "ellipsis")
+                            .style("overflow", "hidden"),
+                    )
+                    .into()
             })
             .into(),
         DataTableColumn::new(tr!("Tags"))
