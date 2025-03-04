@@ -29,7 +29,9 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("tfa", &tfa::ROUTER),
     (
         "ticket",
-        &Router::new().post(&proxmox_auth_api::api::API_METHOD_CREATE_TICKET),
+        &Router::new()
+            .post(&proxmox_auth_api::api::API_METHOD_CREATE_TICKET_HTTP_ONLY)
+            .delete(&proxmox_auth_api::api::API_METHOD_LOGOUT),
     ),
     ("users", &users::ROUTER),
 ]);
