@@ -34,7 +34,7 @@ proxmox-yew-comp = { version = "0.4.0", features = ["apt", "dns", "network", "rr
 
 proxmox-client = "0.5"
 proxmox-human-byte = "0.1.3"
-proxmox-login = "0.1"
+proxmox-login = "0.2"
 proxmox-schema = "4"
 proxmox-rrd-api-types = "1"
 pbs-api-types = "0.2.0"
