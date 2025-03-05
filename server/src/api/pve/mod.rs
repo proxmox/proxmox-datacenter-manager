@@ -20,14 +20,16 @@ use pdm_api_types::{
     PRIV_SYS_MODIFY,
 };
 
-use pve_api_types::client::PveClient;
-use pve_api_types::{
-    ClusterNodeStatus, ClusterResourceKind, ClusterResourceType, ListRealm, PveUpid,
-};
+use pve_api_types::ClusterNodeStatus;
+use pve_api_types::ListRealm;
+use pve_api_types::PveUpid;
+use pve_api_types::{ClusterResourceKind, ClusterResourceType};
 
 use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage};
 
-use crate::{connection, task_cache};
+use crate::connection;
+use crate::connection::PveClient;
+use crate::task_cache;
 
 mod lxc;
 mod node;
@@ -91,18 +93,18 @@ pub(crate) fn get_remote<'a>(
     Ok(remote)
 }
 
-pub async fn connect_or_login(remote: &Remote) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
+pub async fn connect_or_login(remote: &Remote) -> Result<Arc<PveClient>, Error> {
     connection::make_pve_client_and_login(remote).await
 }
 
-pub fn connect(remote: &Remote) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
+pub fn connect(remote: &Remote) -> Result<Arc<PveClient>, Error> {
     connection::make_pve_client(remote)
 }
 
 fn connect_to_remote(
     config: &SectionConfigData<Remote>,
     id: &str,
-) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
+) -> Result<Arc<PveClient>, Error> {
     connect(get_remote(config, id)?)
 }
 
@@ -264,7 +266,7 @@ fn check_guest_permissions(
 async fn find_node_for_vm(
     node: Option<String>,
     vmid: u32,
-    pve: &(dyn PveClient + Send + Sync),
+    pve: &PveClient,
 ) -> Result<String, Error> {
     // FIXME: The pve client should cache the resources
     Ok(match node {
