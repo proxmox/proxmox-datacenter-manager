@@ -68,6 +68,7 @@ impl CachingTask {
     }
 
     /// A single iteration of the caching task.
+    #[tracing::instrument(skip_all, name = "remote_node_caching")]
     async fn run_once(&mut self) {
         let (config, digest) = match pdm_config::remotes::config() {
             Ok(cd) => cd,
@@ -82,21 +83,19 @@ impl CachingTask {
             .as_ref()
             .is_none_or(|d| digest != *d)
         {
-            tracing::debug!("new config - updating remote node name cache");
+            log::trace!("new config - updating remote node name cache");
             self.last_config_digest = Some(digest);
 
             // the config got updated - abort the current name-fetching task, we'll
             // spawn a new one
             if let Some(name_task) = self.current_name_task.take() {
-                tracing::debug!("aborting query task");
+                log::trace!("aborting query task");
                 name_task.abort();
             }
 
             if let Err(err) = self.config_update(&config) {
                 log::error!("error updating remote node cache: {err:?}");
             }
-            //} else {
-            //    tracing::debug!("no change to the config");
         }
 
         if self
@@ -104,7 +103,7 @@ impl CachingTask {
             .as_ref()
             .is_none_or(|task| task.is_finished())
         {
-            log::debug!("name task finished, starting reachability query task");
+            log::trace!("name task finished, starting reachability query task");
             self.current_name_task =
                 Some(spawn_aborted_on_shutdown(Self::query_node_names(config)));
         }
@@ -168,8 +167,10 @@ impl CachingTask {
         }
     }
 
+    #[tracing::instrument(skip_all)]
     async fn query_node_names(config: SectionConfigData<Remote>) {
         for (_name, remote) in &config {
+            log::trace!("update remote {:?}", remote.id);
             if let Err(err) = Self::query_node_names_for_remote(remote).await {
                 log::error!("error updating node name cache - {err:?}");
             }
@@ -184,7 +185,7 @@ impl CachingTask {
 
         // now add new nodes
         for node in &remote.nodes {
-            tracing::debug!("querying remote {:?} node {:?}", remote.id, node.hostname);
+            log::debug!("querying remote {:?} node {:?}", remote.id, node.hostname);
 
             // if the host is new, we need to query its name
             let query_result = match query_node_name(remote, &node.hostname).await {
@@ -215,6 +216,7 @@ impl CachingTask {
 
 /// Calls `/cluster/status` directly on a specific node to find its name.
 async fn query_node_name(remote: &Remote, hostname: &str) -> Result<String, Error> {
+    log::trace!("querying node name {hostname:?} for remote {:?}", remote.id);
     let client = server::connection::make_pve_client_with_endpoint(remote, Some(hostname))?;
     let node_status_list = client.cluster_status().await?;
     for node in node_status_list {

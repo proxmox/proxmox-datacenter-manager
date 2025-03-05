@@ -603,6 +603,7 @@ struct TryClient {
 
 impl TryClient {
     fn reachable(entry: &MultiClientEntry) -> Self {
+        log::trace!("trying reachable client for host {:?}", entry.hostname);
         Self {
             client: Arc::clone(&entry.client),
             hostname: entry.hostname.clone(),
@@ -611,6 +612,10 @@ impl TryClient {
     }
 
     fn unreachable(entry: &MultiClientEntry) -> Self {
+        log::trace!(
+            "trying previouslsy unreachable client for host {:?}",
+            entry.hostname
+        );
         Self {
             client: Arc::clone(&entry.client),
             hostname: entry.hostname.clone(),
@@ -637,6 +642,8 @@ impl MultiClient {
         let mut try_unreachable = None::<std::vec::IntoIter<_>>;
 
         std::iter::from_fn(move || {
+            let _enter = tracing::span!(tracing::Level::TRACE, "multi_client_iterator").entered();
+
             let mut state = state.lock().unwrap();
 
             if let Some(ref mut try_unreachable) = try_unreachable {
@@ -650,6 +657,7 @@ impl MultiClient {
                     // first attempt, just use the current client and remember the starting index
                     let (client, index) = state.get();
                     start_current = Some((index, index));
+                    log::trace!("trying reachable client {index}");
                     Some(TryClient::reachable(client))
                 }
                 Some((start, current)) => {
@@ -674,9 +682,11 @@ impl MultiClient {
                     // remember all the clients we skipped:
                     let mut at = current + 1;
                     while at != new_current {
+                        log::trace!("(remembering unreachable client {at})");
                         unreachable_clients.push(at);
                         at = at.wrapping_add(1);
                     }
+                    log::trace!("trying reachable client {new_current}");
                     Some(TryClient::reachable(client))
                 }
             }
