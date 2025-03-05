@@ -6,6 +6,7 @@ pub mod auth;
 pub mod context;
 pub mod env;
 pub mod metric_collection;
+pub mod remote_cache;
 pub mod resource_cache;
 pub mod task_cache;
 pub mod task_utils;

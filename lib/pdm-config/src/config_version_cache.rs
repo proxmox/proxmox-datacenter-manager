@@ -25,6 +25,8 @@ struct ConfigVersionCacheDataInner {
     user_cache_generation: AtomicUsize,
     // Traffic control (traffic-control.cfg) generation/version.
     traffic_control_generation: AtomicUsize,
+    // Tracks updates to the remote/hostname/nodename mapping cache.
+    remote_mapping_cache: AtomicUsize,
     // Add further atomics here
 }
 
@@ -81,9 +83,21 @@ pub struct ConfigVersionCache {
 static INSTANCE: OnceCell<Arc<ConfigVersionCache>> = OnceCell::new();
 
 impl ConfigVersionCache {
-    /// Open the memory based communication channel singleton.
+    /// Open the memory backed version cache.
     pub fn new() -> Result<Arc<Self>, Error> {
         INSTANCE.get_or_try_init(Self::open).cloned()
+    }
+
+    /// Convenience method to call [`ConfigVersionCache::new`] while turning the error into a log
+    /// message.
+    pub fn new_log_error() -> Option<Arc<Self>> {
+        match Self::new() {
+            Ok(this) => Some(this),
+            Err(err) => {
+                log::error!("failed to open config version cache - {err:?}");
+                None
+            }
+        }
     }
 
     // Actual work of `new`:
@@ -140,5 +154,22 @@ impl ConfigVersionCache {
             .data()
             .traffic_control_generation
             .fetch_add(1, Ordering::AcqRel);
+    }
+
+    /// Return the current remote mapping cache generation.
+    pub fn remote_mapping_cache(&self) -> usize {
+        self.shmem
+            .data()
+            .remote_mapping_cache
+            .load(Ordering::Relaxed)
+    }
+
+    /// Increase the remote mapping cache number.
+    pub fn increase_remote_mapping_cache(&self) -> usize {
+        self.shmem
+            .data()
+            .remote_mapping_cache
+            .fetch_add(1, Ordering::Relaxed)
+            + 1
     }
 }

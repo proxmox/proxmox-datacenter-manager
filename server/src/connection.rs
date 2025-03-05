@@ -214,6 +214,19 @@ pub trait ClientFactory {
         target_endpoint: Option<&str>,
     ) -> Result<Arc<PveClient>, Error>;
 
+    /// Create a new API client for PVE remotes, but with a specific endpoint.
+    ///
+    /// The default implementation ignores the `node` parameter and forwards to
+    /// `make_pve_client()`.
+    fn make_pve_client_with_node(
+        &self,
+        remote: &Remote,
+        node: &str,
+    ) -> Result<Arc<PveClient>, Error> {
+        let _ = node;
+        self.make_pve_client(remote)
+    }
+
     /// Create a new API client for PVE remotes.
     ///
     /// In case the remote has a user configured (instead of an API token), it will connect and get
@@ -343,6 +356,20 @@ impl ClientFactory for DefaultClientFactory {
         Ok(Arc::new(PveClientImpl(client)))
     }
 
+    fn make_pve_client_with_node(
+        &self,
+        remote: &Remote,
+        node: &str,
+    ) -> Result<Arc<PveClient>, Error> {
+        let cache = crate::remote_cache::RemoteMappingCache::get();
+        match cache.info_by_node_name(&remote.id, node) {
+            Some(info) if info.reachable => {
+                self.make_pve_client_with_endpoint(remote, Some(&info.hostname))
+            }
+            _ => self.make_pve_client(remote),
+        }
+    }
+
     async fn make_pve_client_and_login(&self, remote: &Remote) -> Result<Arc<PveClient>, Error> {
         let client = connect_or_login(remote, None).await?;
         Ok(Arc::new(PveClientImpl(client)))
@@ -375,6 +402,11 @@ pub fn make_pve_client_with_endpoint(
     target_endpoint: Option<&str>,
 ) -> Result<Arc<PveClient>, Error> {
     instance().make_pve_client_with_endpoint(remote, target_endpoint)
+}
+
+/// Create a new API client for PVE remotes and try to make it connect to a specific *node*.
+pub fn make_pve_client_with_node(remote: &Remote, node: &str) -> Result<Arc<PveClient>, Error> {
+    instance().make_pve_client_with_node(remote, node)
 }
 
 /// Create a new API client for PBS remotes
