@@ -469,13 +469,15 @@ struct MultiClientEntry {
 /// - For `GET` requests we could also start a 2nd request after a shorter time out (eg. 10s).
 struct MultiClient {
     state: StdMutex<MultiClientState>,
+    remote: String,
     timeout: Duration,
 }
 
 impl MultiClient {
     fn new(remote: String, entries: Vec<MultiClientEntry>) -> Self {
         Self {
-            state: StdMutex::new(MultiClientState::new(remote, entries)),
+            state: StdMutex::new(MultiClientState::new(remote.clone(), entries)),
+            remote,
             timeout: Duration::from_secs(60),
         }
     }
@@ -559,11 +561,16 @@ impl MultiClientState {
         &self.entries[self.index()]
     }
 
-    /// Get the current client and its index which can be passed to `failed()` if the client fails
+    /// Get the current entry and its index which can be passed to `failed()` if the client fails
     /// to connect.
-    fn get(&self) -> (Arc<Client>, usize) {
+    fn get(&self) -> (&MultiClientEntry, usize) {
         let index = self.index();
-        (Arc::clone(&self.entries[index].client), self.current)
+        (&self.entries[index], self.current)
+    }
+
+    /// Get a client at a specific point (which still needs to be converted to an index).
+    fn get_at(&self, at: usize) -> &MultiClientEntry {
+        &self.entries[at % self.entries.len()]
     }
 
     /// Check if we already tried all clients since a specific starting index.
@@ -588,6 +595,30 @@ impl MultiClientState {
     }
 }
 
+struct TryClient {
+    client: Arc<Client>,
+    reachable: bool,
+    hostname: String,
+}
+
+impl TryClient {
+    fn reachable(entry: &MultiClientEntry) -> Self {
+        Self {
+            client: Arc::clone(&entry.client),
+            hostname: entry.hostname.clone(),
+            reachable: true,
+        }
+    }
+
+    fn unreachable(entry: &MultiClientEntry) -> Self {
+        Self {
+            client: Arc::clone(&entry.client),
+            hostname: entry.hostname.clone(),
+            reachable: false,
+        }
+    }
+}
+
 impl MultiClient {
     /// This is the client usage strategy.
     ///
@@ -598,17 +629,28 @@ impl MultiClient {
     /// We might be skipping clients if other tasks already tried "more" clients, but that's fine,
     /// since there's no point in trying the same remote twice simultaneously if it is currently
     /// offline...
-    fn try_clients(&self) -> impl Iterator<Item = Arc<Client>> + '_ {
+    fn try_clients(&self) -> impl Iterator<Item = TryClient> + '_ {
         let mut start_current = None;
         let state = &self.state;
+
+        let mut unreachable_clients = Vec::new();
+        let mut try_unreachable = None::<std::vec::IntoIter<_>>;
+
         std::iter::from_fn(move || {
             let mut state = state.lock().unwrap();
+
+            if let Some(ref mut try_unreachable) = try_unreachable {
+                return Some(TryClient::unreachable(
+                    state.get_at(try_unreachable.next()?),
+                ));
+            }
+
             match start_current {
                 None => {
                     // first attempt, just use the current client and remember the starting index
                     let (client, index) = state.get();
                     start_current = Some((index, index));
-                    Some(client)
+                    Some(TryClient::reachable(client))
                 }
                 Some((start, current)) => {
                     // If our last request failed, the retry-loop asks for another client, mark the
@@ -618,13 +660,24 @@ impl MultiClient {
                     if state.tried_all_since(start) {
                         // This iterator (and therefore this retry-loop) has tried all clients.
                         // Give up.
-                        return None;
+                        try_unreachable =
+                            Some(std::mem::take(&mut unreachable_clients).into_iter());
+                        return Some(TryClient::unreachable(
+                            state.get_at(try_unreachable.as_mut()?.next()?),
+                        ));
                     }
                     // finally just get the new current client and update `current` for the later
                     // call to `failed()`
-                    let (client, current) = state.get();
-                    start_current = Some((start, current));
-                    Some(client)
+                    let (client, new_current) = state.get();
+                    start_current = Some((start, new_current));
+
+                    // remember all the clients we skipped:
+                    let mut at = current + 1;
+                    while at != new_current {
+                        unreachable_clients.push(at);
+                        at = at.wrapping_add(1);
+                    }
+                    Some(TryClient::reachable(client))
                 }
             }
         })
@@ -647,7 +700,12 @@ macro_rules! try_request {
             let mut timed_out = false;
             // The iterator in use here will automatically mark a client as faulty if we move on to
             // the `next()` one.
-            for client in $self.try_clients() {
+            for TryClient {
+                client,
+                hostname,
+                reachable,
+            } in $self.try_clients()
+            {
                 if let Some(err) = last_err.take() {
                     log::error!("API client error, trying another remote - {err:?}");
                 }
@@ -661,7 +719,17 @@ macro_rules! try_request {
                     Ok(Err(proxmox_client::Error::Client(err))) => {
                         last_err = Some(err);
                     }
-                    Ok(result) => return result,
+                    Ok(result) => {
+                        if !reachable {
+                            log::error!("marking {hostname:?} as reachable again!");
+                            if let Ok(mut cache) = crate::remote_cache::RemoteMappingCache::write()
+                            {
+                                cache.mark_host_reachable(&$self.remote, &hostname, true);
+                                let _ = cache.save();
+                            }
+                        }
+                        return result;
+                    }
                     Err(_) => {
                         timed_out = true;
                     }
