@@ -55,7 +55,8 @@ pub fn client() -> Result<PdmClient<Client>, Error> {
     }));
 
     let userid = env().query_userid(&address)?;
-    let client = Client::with_options(address.clone(), options, Default::default())?;
+    let mut client = Client::with_options(address.clone(), options, Default::default())?;
+    client.set_cookie_name("__Host-PDMAuthCookie");
 
     if let Some(ticket) = env().load_ticket(&address, &userid)? {
         let auth: proxmox_client::Authentication = serde_json::from_slice(&ticket)?;
