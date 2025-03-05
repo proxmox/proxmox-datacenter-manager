@@ -29,43 +29,29 @@ static INSTANCE: OnceLock<Box<dyn ClientFactory + Send + Sync>> = OnceLock::new(
 
 /// Connection Info returned from [`prepare_connect_client`]
 struct ConnectInfo {
-    pub client: Client,
-    pub prefix: String,
-    pub perl_compat: bool,
+    prefix: String,
+    perl_compat: bool,
+    pve_compat: bool,
+    default_port: u16,
 }
 
-/// Returns a [`proxmox_client::Client`] and a token prefix for the specified
-/// [`pdm_api_types::Remote`]
-fn prepare_connect_client(
-    remote: &Remote,
-    target_endpoint: Option<&str>,
-) -> Result<ConnectInfo, Error> {
-    let node = remote
-        .nodes
-        .iter()
-        .find(|endpoint| match target_endpoint {
-            Some(target) => target == endpoint.hostname,
-            None => true,
-        })
-        .ok_or_else(|| match target_endpoint {
-            Some(endpoint) => format_err!("{endpoint} not configured for remote"),
-            None => format_err!("no nodes configured for remote"),
-        })?;
+impl ConnectInfo {
+    fn for_remote(remote: &Remote) -> Self {
+        let (default_port, prefix, perl_compat, pve_compat) = match remote.ty {
+            RemoteType::Pve => (8006, "PVEAPIToken".to_string(), true, true),
+            RemoteType::Pbs => (8007, "PBSAPIToken".to_string(), false, false),
+        };
 
-    let (default_port, prefix, perl_compat, pve_compat) = match remote.ty {
-        RemoteType::Pve => (8006, "PVEAPIToken".to_string(), true, true),
-        RemoteType::Pbs => (8007, "PBSAPIToken".to_string(), false, false),
-    };
-
-    let client = prepare_connect_client_to_node(node, default_port, pve_compat)?;
-
-    Ok(ConnectInfo {
-        client,
-        prefix,
-        perl_compat,
-    })
+        ConnectInfo {
+            prefix,
+            perl_compat,
+            pve_compat,
+            default_port,
+        }
+    }
 }
-
+///
+/// Returns a [`proxmox_client::Client`] set up to connect to a specific node.
 fn prepare_connect_client_to_node(
     node: &NodeUrl,
     default_port: u16,
@@ -92,51 +78,82 @@ fn prepare_connect_client_to_node(
     Ok(client)
 }
 
+/// Returns a [`proxmox_client::Client`] and connection info required to set token authentication
+/// data for the [`pdm_api_types::Remote`].
+fn prepare_connect_client(
+    remote: &Remote,
+    target_endpoint: Option<&str>,
+) -> Result<(Client, ConnectInfo), Error> {
+    let node = remote
+        .nodes
+        .iter()
+        .find(|endpoint| match target_endpoint {
+            Some(target) => target == endpoint.hostname,
+            None => true,
+        })
+        .ok_or_else(|| match target_endpoint {
+            Some(endpoint) => format_err!("{endpoint} not configured for remote"),
+            None => format_err!("no nodes configured for remote"),
+        })?;
+
+    let info = ConnectInfo::for_remote(remote);
+
+    let client = prepare_connect_client_to_node(node, info.default_port, info.pve_compat)?;
+
+    Ok((client, info))
+}
+
 /// Constructs a [`Client`] for the given [`Remote`] for an API token
 ///
 /// It does not actually opens a connection there, but prepares the client with the correct
 /// authentication information and settings for the [`RemoteType`]
 fn connect(remote: &Remote, target_endpoint: Option<&str>) -> Result<Client, anyhow::Error> {
-    let ConnectInfo {
-        client,
-        perl_compat,
-        prefix,
-    } = prepare_connect_client(remote, target_endpoint)?;
+    let (client, info) = prepare_connect_client(remote, target_endpoint)?;
     client.set_authentication(proxmox_client::Token {
         userid: remote.authid.to_string(),
-        prefix,
         value: remote.token.to_string(),
-        perl_compat,
+        prefix: info.prefix,
+        perl_compat: info.perl_compat,
     });
-
     Ok(client)
 }
 
-/// Like [`connect()`], but for remotes which have multiple clients.
-fn multi_connect(remote: &Remote) -> Result<MultiClient, anyhow::Error> {
-    let (default_port, prefix, perl_compat, pve_compat) = match remote.ty {
-        RemoteType::Pve => (8006, "PVEAPIToken".to_string(), true, true),
-        RemoteType::Pbs => (8007, "PBSAPIToken".to_string(), false, false),
+/// Returns a [`MultiClient`] and connection info required to set token authentication
+/// data for the [`pdm_api_types::Remote`].
+fn prepare_connect_multi_client(remote: &Remote) -> Result<(MultiClient, ConnectInfo), Error> {
+    if remote.nodes.is_empty() {
+        bail!("no nodes configured for remote");
     };
+
+    let info = ConnectInfo::for_remote(remote);
 
     let mut clients = Vec::new();
 
     for node in &remote.nodes {
-        let client = prepare_connect_client_to_node(node, default_port, pve_compat)?;
+        clients.push(Arc::new(prepare_connect_client_to_node(
+            node,
+            info.default_port,
+            info.pve_compat,
+        )?));
+    }
+
+    Ok((MultiClient::new(clients), info))
+}
+
+/// Like [`connect()`], but with failover support for remotes which can have multiple nodes.
+fn multi_connect(remote: &Remote) -> Result<MultiClient, anyhow::Error> {
+    let (client, info) = prepare_connect_multi_client(remote)?;
+
+    client.for_each_client(|client| {
         client.set_authentication(proxmox_client::Token {
             userid: remote.authid.to_string(),
-            prefix: prefix.clone(),
             value: remote.token.to_string(),
-            perl_compat,
+            prefix: info.prefix.clone(),
+            perl_compat: info.perl_compat,
         });
-        clients.push(Arc::new(client));
-    }
+    });
 
-    if clients.is_empty() {
-        bail!("no nodes configured for remote");
-    }
-
-    Ok(MultiClient::new(clients))
+    Ok(client)
 }
 
 /// Constructs a [`Client`] for the given [`Remote`] for an API token or user
@@ -155,8 +172,7 @@ async fn connect_or_login(
     if remote.authid.is_token() {
         connect(remote, target_endpoint)
     } else {
-        let info = prepare_connect_client(remote, target_endpoint)?;
-        let client = info.client;
+        let (client, _info) = prepare_connect_client(remote, target_endpoint)?;
         match client
             .login(proxmox_login::Login::new(
                 client.api_url().to_string(),
@@ -422,6 +438,15 @@ impl MultiClient {
         Self {
             state: StdMutex::new(MultiClientState::new(clients)),
             timeout: Duration::from_secs(60),
+        }
+    }
+
+    fn for_each_client<F>(&self, func: F)
+    where
+        F: Fn(&Arc<Client>),
+    {
+        for client in &self.state.lock().unwrap().clients {
+            func(client);
         }
     }
 }
