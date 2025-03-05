@@ -218,6 +218,12 @@ impl RemoteMappingCache {
             remote.set_node_name(hostname, node_name);
         }
     }
+
+    /// Check if a host is reachable.
+    pub fn host_is_reachable(&self, remote: &str, hostname: &str) -> bool {
+        self.info_by_hostname(remote, hostname)
+            .is_none_or(|info| info.reachable)
+    }
 }
 
 /// An entry for a remote in a [`RemoteMappingCache`].

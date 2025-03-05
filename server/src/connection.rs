@@ -130,14 +130,17 @@ fn prepare_connect_multi_client(remote: &Remote) -> Result<(MultiClient, Connect
     let mut clients = Vec::new();
 
     for node in &remote.nodes {
-        clients.push(Arc::new(prepare_connect_client_to_node(
-            node,
-            info.default_port,
-            info.pve_compat,
-        )?));
+        clients.push(MultiClientEntry {
+            client: Arc::new(prepare_connect_client_to_node(
+                node,
+                info.default_port,
+                info.pve_compat,
+            )?),
+            hostname: node.hostname.clone(),
+        });
     }
 
-    Ok((MultiClient::new(clients), info))
+    Ok((MultiClient::new(remote.id.clone(), clients), info))
 }
 
 /// Like [`connect()`], but with failover support for remotes which can have multiple nodes.
@@ -449,6 +452,14 @@ pub fn init(instance: Box<dyn ClientFactory + Send + Sync>) {
     }
 }
 
+/// In order to allow the [`MultiClient`] to check the cached reachability state of a client, we
+/// need to know which remote it belongs to, so store the metadata alongside the actual `Client`
+/// struct.
+struct MultiClientEntry {
+    client: Arc<Client>,
+    hostname: String,
+}
+
 /// This is another wrapper around the actual HTTP client responsible for dealing with connection
 /// problems: if we cannot reach a node of a cluster, this will attempt to retry a request on
 /// another node.
@@ -456,19 +467,15 @@ pub fn init(instance: Box<dyn ClientFactory + Send + Sync>) {
 /// # Possible improvements
 ///
 /// - For `GET` requests we could also start a 2nd request after a shorter time out (eg. 10s).
-/// - We could use RRD data for a "best guess" where to start eg. if we know a node was offline on
-///   the last rrd polling we'd start with a different one.
-///   For this, we still need to include the node names in the clients here somehow so that we can
-///   actually manage/re-shuffle them from the outside after this struct is already created.
 struct MultiClient {
     state: StdMutex<MultiClientState>,
     timeout: Duration,
 }
 
 impl MultiClient {
-    fn new(clients: Vec<Arc<Client>>) -> Self {
+    fn new(remote: String, entries: Vec<MultiClientEntry>) -> Self {
         Self {
-            state: StdMutex::new(MultiClientState::new(clients)),
+            state: StdMutex::new(MultiClientState::new(remote, entries)),
             timeout: Duration::from_secs(60),
         }
     }
@@ -477,8 +484,8 @@ impl MultiClient {
     where
         F: Fn(&Arc<Client>),
     {
-        for client in &self.state.lock().unwrap().clients {
-            func(client);
+        for entry in &self.state.lock().unwrap().entries {
+            func(&entry.client);
         }
     }
 }
@@ -488,15 +495,24 @@ impl MultiClient {
 struct MultiClientState {
     /// The current index *not* modulo the client count.
     current: usize,
-    clients: Vec<Arc<Client>>,
+    remote: String,
+    entries: Vec<MultiClientEntry>,
 }
 
 impl MultiClientState {
-    fn new(clients: Vec<Arc<Client>>) -> Self {
-        Self {
+    fn new(remote: String, entries: Vec<MultiClientEntry>) -> Self {
+        let mut this = Self {
             current: 0,
-            clients,
-        }
+            remote,
+            entries,
+        };
+        this.skip_unreachable();
+        this
+    }
+
+    /// Moving to the next entry must wrap.
+    fn next(&mut self) {
+        self.current = self.current.wrapping_add(1);
     }
 
     /// Whenever a request fails with the *current* client we move the current entry forward.
@@ -507,20 +523,47 @@ impl MultiClientState {
     /// the strategy, we may want to change this to something like `1 + max(current, failed)`.
     fn failed(&mut self, failed_index: usize) {
         if self.current == failed_index {
-            self.current = self.current.wrapping_add(1);
+            let entry = self.get_entry();
+            log::error!("marking client {} as unreachable", entry.hostname);
+            if let Ok(mut cache) = crate::remote_cache::RemoteMappingCache::write() {
+                cache.mark_host_reachable(&self.remote, &entry.hostname, false);
+                let _ = cache.save();
+            }
+            self.next();
+            self.skip_unreachable();
         }
     }
 
-    /// Get `current` as an *index* (i.e. modulo `clients.len()`).
+    /// Skip ahead as long as we're pointing to an unreachable.
+    fn skip_unreachable(&mut self) {
+        let cache = crate::remote_cache::RemoteMappingCache::get();
+        // loop at most as many times as we have entries...
+        for _ in 0..self.entries.len() {
+            let entry = self.get_entry();
+            if !cache.host_is_reachable(&self.remote, &entry.hostname) {
+                log::error!("skipping host {} - marked unreachable", entry.hostname);
+                self.next();
+            } else {
+                return;
+            }
+        }
+    }
+
+    /// Get `current` as an *index* (i.e. modulo `entries.len()`).
     fn index(&self) -> usize {
-        self.current % self.clients.len()
+        self.current % self.entries.len()
+    }
+
+    /// Get the current entry.
+    fn get_entry(&self) -> &MultiClientEntry {
+        &self.entries[self.index()]
     }
 
     /// Get the current client and its index which can be passed to `failed()` if the client fails
     /// to connect.
     fn get(&self) -> (Arc<Client>, usize) {
         let index = self.index();
-        (Arc::clone(&self.clients[index]), self.current)
+        (Arc::clone(&self.entries[index].client), self.current)
     }
 
     /// Check if we already tried all clients since a specific starting index.
@@ -533,11 +576,11 @@ impl MultiClientState {
     /// request-retry-loop will fail as soon as the same *number* of clients since its starting
     /// point were marked as faulty without retrying them all.
     fn tried_all_since(&self, start: usize) -> bool {
-        self.tried_clients(start) >= self.clients.len()
+        self.tried_clients(start) >= self.entries.len()
     }
 
     /// We store the current index continuously without wrapping it modulo the client count (and
-    /// only do that when indexing the `clients` array), so that we can easily check if "all
+    /// only do that when indexing the `entries` array), so that we can easily check if "all
     /// currently running tasks taken together" have already tried all clients by comparing our
     /// starting point to the current index.
     fn tried_clients(&self, start: usize) -> usize {
