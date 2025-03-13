@@ -96,13 +96,14 @@ $(DEB): $(BUILDDIR)
 	@echo $(DEB)
 
 .PHONY: dsc
-dsc:
+dsc: $(BUILDDIR)
 	rm -rf $(DSC) $(BUILDDIR)
 	$(MAKE) $(DSC)
 	lintian $(DSC)
 
 $(DSC): $(BUILDDIR) $(ORIG_SRC_TAR)
-	cd $(BUILDDIR); dpkg-buildpackage -S -us -uc -d
+	cd $(BUILDDIR)/ui; dpkg-buildpackage -S -us -uc -d
+	dcmd mv $(BUILDDIR)/*.dsc ./
 
 sbuild: $(DSC)
 	sbuild $(DSC)

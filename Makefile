@@ -150,3 +150,8 @@ dinstall: deb
 deb-ui: $(UI_DIR)
 	$(MAKE) -C $(UI_DIR) deb
 	mv $(UI_DIR)/proxmox-datacenter-manager-ui*.deb .
+
+.PHONY: dsc-ui
+dsc-ui: $(UI_DIR)
+	$(MAKE) -C $(UI_DIR) dsc
+	dcmd mv $(UI_DIR)/proxmox-datacenter-manager-ui*.dsc .
