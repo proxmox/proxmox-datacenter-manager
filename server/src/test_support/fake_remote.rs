@@ -40,6 +40,7 @@ impl RemoteConfig for FakeRemoteConfig {
                     nodes: Vec::new(),
                     authid: Authid::root_auth_id().clone(),
                     token: "".into(),
+                    web_url: None,
                 },
             );
 
@@ -83,6 +84,14 @@ impl ClientFactory for FakeClientFactory {
             nr_of_storages: self.config.storages_per_pve_remote,
             api_delay_ms: self.config.api_delay,
         }))
+    }
+
+    fn make_pve_client_with_endpoint(
+        &self,
+        _remote: &Remote,
+        _target_endpoint: Option<&str>,
+    ) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
+        bail!("not implemented")
     }
 
     fn make_pbs_client(&self, _remote: &Remote) -> Result<Box<PbsClient>, Error> {
@@ -148,6 +157,8 @@ impl PveClient for FakePveClient {
                 ty: ClusterResourceType::Qemu,
                 uptime: Some(1234),
                 vmid: Some(vmid),
+                lock: None,
+                tags: None,
             });
         }
 
@@ -179,6 +190,8 @@ impl PveClient for FakePveClient {
                 ty: ClusterResourceType::Lxc,
                 uptime: Some(1234),
                 vmid: Some(vmid),
+                lock: None,
+                tags: None,
             });
         }
 
@@ -209,6 +222,8 @@ impl PveClient for FakePveClient {
                 ty: ClusterResourceType::Node,
                 uptime: Some(1234),
                 vmid: Some(vmid),
+                lock: None,
+                tags: None,
             });
         }
 
@@ -239,6 +254,8 @@ impl PveClient for FakePveClient {
                 ty: ClusterResourceType::Storage,
                 uptime: None,
                 vmid: None,
+                lock: None,
+                tags: None,
             });
         }
 
