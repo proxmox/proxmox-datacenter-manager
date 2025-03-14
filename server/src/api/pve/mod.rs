@@ -29,7 +29,7 @@ use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage}
 
 use crate::connection;
 use crate::connection::PveClient;
-use crate::task_cache;
+use crate::remote_tasks;
 
 mod lxc;
 mod node;
@@ -78,7 +78,7 @@ const STATUS_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_STATUS);
 // converts a remote + PveUpid into a RemoteUpid and starts tracking it
 fn new_remote_upid(remote: String, upid: PveUpid) -> Result<RemoteUpid, Error> {
     let remote_upid: RemoteUpid = (remote, upid.to_string()).try_into()?;
-    task_cache::track_running_task(remote_upid.clone());
+    remote_tasks::track_running_task(remote_upid.clone());
     Ok(remote_upid)
 }
 

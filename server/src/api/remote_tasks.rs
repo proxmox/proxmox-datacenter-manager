@@ -4,7 +4,7 @@ use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use crate::task_cache;
+use crate::remote_tasks;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -37,7 +37,7 @@ const SUBDIRS: SubdirMap = &sorted!([("list", &Router::new().get(&API_METHOD_LIS
 )]
 /// Get the list of tasks for all remotes.
 async fn list_tasks(max_age: i64, filters: TaskFilters) -> Result<Vec<TaskListItem>, Error> {
-    let tasks = task_cache::get_tasks(max_age, filters).await?;
+    let tasks = remote_tasks::get_tasks(max_age, filters).await?;
 
     Ok(tasks)
 }
