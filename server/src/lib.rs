@@ -14,7 +14,7 @@ pub mod task_utils;
 pub mod connection;
 pub mod pbs_client;
 
-#[cfg(remote_config = "faked")]
+#[cfg(any(remote_config = "faked", test))]
 pub mod test_support;
 
 use anyhow::Error;
