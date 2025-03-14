@@ -31,3 +31,30 @@ impl Drop for NamedTempFile {
         let _ = std::fs::remove_file(&self.path);
     }
 }
+
+/// Temporary directory that is cleaned up when dropped.
+pub struct NamedTempDir {
+    path: PathBuf,
+}
+
+impl NamedTempDir {
+    /// Create a new temporary directory.
+    ///
+    /// The directory will be created with `0o700` permissions.
+    pub fn new() -> Result<Self, Error> {
+        let path = proxmox_sys::fs::make_tmp_dir("/tmp", None)?;
+
+        Ok(Self { path })
+    }
+
+    /// Return the [`Path`] to the temporary directory.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for NamedTempDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
+    }
+}
