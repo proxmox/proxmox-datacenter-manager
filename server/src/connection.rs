@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::{pin, Pin};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use std::sync::Once;
