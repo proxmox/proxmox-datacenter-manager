@@ -538,9 +538,19 @@ impl UseColor {
         match self {
             Self::No => false,
             Self::Always => true,
-            Self::Auto => std::io::stdout().is_terminal(),
+            Self::Auto => guess_color(),
         }
     }
+}
+
+fn guess_color() -> bool {
+    if let Some(val) = std::env::var_os("NO_COLOR") {
+        if val.len() > 0 {
+            return false;
+        }
+    }
+
+    std::io::stdout().is_terminal()
 }
 
 /// Terminal size.
