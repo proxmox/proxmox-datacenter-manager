@@ -15,12 +15,12 @@ use proxmox_yew_comp::{
     TaskViewer, Tasks,
 };
 use pwt::{
-    css::FlexFit,
+    css::{FlexFit, JustifyContent},
     props::{ContainerBuilder, WidgetBuilder},
     tr,
     widget::{
         data_table::{DataTableColumn, DataTableHeader},
-        Column,
+        Column, Fa, Row,
     },
 };
 
@@ -47,7 +47,10 @@ fn columns() -> Rc<Vec<DataTableHeader<TaskListItem>>> {
             .width("130px")
             .render(|item: &TaskListItem| match item.endtime {
                 Some(endtime) => render_epoch_short(endtime).into(),
-                None => html! {},
+                None => Row::new()
+                    .class(JustifyContent::Center)
+                    .with_child(Fa::new("").class("pwt-loading-icon"))
+                    .into(),
             })
             .into(),
         DataTableColumn::new(tr!("User name"))
@@ -89,9 +92,12 @@ fn columns() -> Rc<Vec<DataTableHeader<TaskListItem>>> {
             .into(),
         DataTableColumn::new(tr!("Status"))
             .width("minmax(200px, 1fr)")
-            .render(|item: &TaskListItem| {
-                let text = item.status.as_deref().unwrap_or("");
-                html! {text}
+            .render(|item: &TaskListItem| match item.status.as_deref() {
+                Some("RUNNING") | None => Row::new()
+                    .class(JustifyContent::Center)
+                    .with_child(Fa::new("").class("pwt-loading-icon"))
+                    .into(),
+                Some(text) => html! {text},
             })
             .into(),
     ])
