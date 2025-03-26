@@ -12,7 +12,7 @@ use pve_api_types::StartQemuMigrationType;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use proxmox_client::{Error, HttpApiClient};
+use proxmox_client::{ApiPathBuilder, Error, HttpApiClient};
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 
 use types::*;
@@ -134,13 +134,9 @@ impl<T: HttpApiClient> PdmClient<T> {
     }
 
     pub async fn list_users(&self, include_api_tokens: bool) -> Result<Vec<UserWithTokens>, Error> {
-        let mut path = "/api2/extjs/access/users".to_string();
-        add_query_arg(
-            &mut path,
-            &mut '?',
-            "include_tokens",
-            &Some(include_api_tokens),
-        );
+        let path = ApiPathBuilder::new("/api2/extjs/access/users")
+            .arg("include_tokens", include_api_tokens)
+            .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -221,8 +217,9 @@ impl<T: HttpApiClient> PdmClient<T> {
         password: Option<&str>,
         id: &str,
     ) -> Result<(), proxmox_client::Error> {
-        let mut path = format!("/api2/extjs/access/tfa/{userid}/{id}");
-        add_query_arg(&mut path, &mut '?', "password", &password);
+        let path = ApiPathBuilder::new(format!("/api2/extjs/access/tfa/{userid}/{id}"))
+            .maybe_arg("password", &password)
+            .build();
         self.0.delete(&path).await?.nodata()
     }
 
@@ -346,8 +343,9 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         kind: Option<pve_api_types::ClusterResourceKind>,
     ) -> Result<Vec<PveResource>, Error> {
-        let mut query = format!("/api2/extjs/pve/remotes/{remote}/resources");
-        add_query_arg(&mut query, &mut '?', "kind", &kind);
+        let query = ApiPathBuilder::new(format!("/api2/extjs/pve/remotes/{remote}/resources"))
+            .maybe_arg("kind", &kind)
+            .build();
         Ok(self.0.get(&query).await?.expect_json()?.data)
     }
 
@@ -356,8 +354,9 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         target_endpoint: Option<&str>,
     ) -> Result<Vec<ClusterNodeStatus>, Error> {
-        let mut query = format!("/api2/extjs/pve/remotes/{remote}/cluster-status");
-        add_query_arg(&mut query, &mut '?', "target-endpoint", &target_endpoint);
+        let query = ApiPathBuilder::new(format!("/api2/extjs/pve/remotes/{remote}/cluster-status"))
+            .maybe_arg("target-endpoint", &target_endpoint)
+            .build();
         Ok(self.0.get(&query).await?.expect_json()?.data)
     }
 
@@ -366,8 +365,9 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         node: Option<&str>,
     ) -> Result<Vec<pve_api_types::VmEntry>, Error> {
-        let mut path = format!("/api2/extjs/pve/remotes/{remote}/qemu");
-        add_query_arg(&mut path, &mut '?', "node", &node);
+        let path = ApiPathBuilder::new(format!("/api2/extjs/pve/remotes/{remote}/qemu"))
+            .maybe_arg("node", &node)
+            .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -376,8 +376,9 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         node: Option<&str>,
     ) -> Result<Vec<pve_api_types::VmEntry>, Error> {
-        let mut path = format!("/api2/extjs/pve/remotes/{remote}/lxc");
-        add_query_arg(&mut path, &mut '?', "node", &node);
+        let path = ApiPathBuilder::new(format!("/api2/extjs/pve/remotes/{remote}/lxc"))
+            .maybe_arg("node", &node)
+            .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -389,11 +390,13 @@ impl<T: HttpApiClient> PdmClient<T> {
         state: ConfigurationState,
         snapshot: Option<&str>,
     ) -> Result<pve_api_types::QemuConfig, Error> {
-        let mut path = format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/config");
-        let mut sep = '?';
-        add_query_arg(&mut path, &mut sep, "state", &Some(&state));
-        add_query_arg(&mut path, &mut sep, "node", &node);
-        add_query_arg(&mut path, &mut sep, "snapshot", &snapshot);
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/config"
+        ))
+        .arg("state", state)
+        .maybe_arg("node", &node)
+        .maybe_arg("snapshot", &snapshot)
+        .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -403,9 +406,11 @@ impl<T: HttpApiClient> PdmClient<T> {
         node: Option<&str>,
         vmid: u32,
     ) -> Result<pve_api_types::QemuStatus, Error> {
-        let mut path = format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/status");
-        let mut sep = '?';
-        add_query_arg(&mut path, &mut sep, "node", &node);
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/status"
+        ))
+        .maybe_arg("node", &node)
+        .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -415,9 +420,11 @@ impl<T: HttpApiClient> PdmClient<T> {
         node: Option<&str>,
         vmid: u32,
     ) -> Result<pve_api_types::LxcStatus, Error> {
-        let mut path = format!("/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/status");
-        let mut sep = '?';
-        add_query_arg(&mut path, &mut sep, "node", &node);
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/status"
+        ))
+        .maybe_arg("node", &node)
+        .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -526,11 +533,13 @@ impl<T: HttpApiClient> PdmClient<T> {
         state: ConfigurationState,
         snapshot: Option<&str>,
     ) -> Result<pve_api_types::LxcConfig, Error> {
-        let mut path = format!("/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/config");
-        let mut sep = '?';
-        add_query_arg(&mut path, &mut sep, "node", &node);
-        add_query_arg(&mut path, &mut sep, "state", &Some(&state));
-        add_query_arg(&mut path, &mut sep, "snapshot", &snapshot);
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/config"
+        ))
+        .maybe_arg("node", &node)
+        .arg("state", state)
+        .maybe_arg("snapshot", &snapshot)
+        .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -620,9 +629,9 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         node: Option<&str>,
     ) -> Result<Vec<pve_api_types::ListTasksResponse>, Error> {
-        let mut query = format!("/api2/extjs/pve/remotes/{remote}/tasks");
-        let mut sep = '?';
-        pve_api_types::client::add_query_arg(&mut query, &mut sep, "node", &node);
+        let query = ApiPathBuilder::new(format!("/api2/extjs/pve/remotes/{remote}/tasks"))
+            .maybe_arg("node", &node)
+            .build();
         Ok(self.0.get(&query).await?.expect_json()?.data)
     }
 
@@ -657,9 +666,10 @@ impl<T: HttpApiClient> PdmClient<T> {
         path: Option<&str>,
         exact: bool,
     ) -> Result<(Vec<AclListItem>, Option<ConfigDigest>), Error> {
-        let mut query = format!("/api2/extjs/access/acl?exact={}", exact as u8);
-        let mut sep = '?';
-        pve_api_types::client::add_query_arg(&mut query, &mut sep, "path", &path);
+        let query = ApiPathBuilder::new("/api2/extjs/access/acl")
+            .arg("exact", exact as u8)
+            .maybe_arg("path", &path)
+            .build();
         let mut res = self.0.get(&query).await?.expect_json()?;
         Ok((res.data, res.attribs.remove("digest").map(ConfigDigest)))
     }
@@ -747,8 +757,11 @@ impl<T: HttpApiClient> PdmClient<T> {
         store: &str,
         namespace: Option<&str>,
     ) -> Result<Vec<pbs_api_types::SnapshotListItem>, Error> {
-        let mut path = format!("/api2/extjs/pbs/remotes/{remote}/datastore/{store}/snapshots");
-        add_query_arg(&mut path, &mut '?', "ns", &namespace);
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pbs/remotes/{remote}/datastore/{store}/snapshots"
+        ))
+        .maybe_arg("ns", &namespace)
+        .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -770,16 +783,19 @@ impl<T: HttpApiClient> PdmClient<T> {
         mode: RrdMode,
         timeframe: RrdTimeframe,
     ) -> Result<Vec<PbsDatastoreDataPoint>, Error> {
-        let mut path = format!("/api2/extjs/pbs/remotes/{remote}/datastore/{store}/rrddata");
-        let mut sep = '?';
-        add_query_arg(&mut path, &mut sep, "cf", &Some(mode));
-        add_query_arg(&mut path, &mut sep, "timeframe", &Some(timeframe));
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pbs/remotes/{remote}/datastore/{store}/rrddata"
+        ))
+        .arg("cf", mode)
+        .arg("timeframe", timeframe)
+        .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn resources(&self, max_age: Option<u64>) -> Result<Vec<RemoteResources>, Error> {
-        let mut path = "/api2/extjs/resources/list".to_string();
-        add_query_arg(&mut path, &mut '?', "max-age", &max_age);
+        let path = ApiPathBuilder::new("/api2/extjs/resources/list")
+            .maybe_arg("max-age", &max_age)
+            .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -789,9 +805,11 @@ impl<T: HttpApiClient> PdmClient<T> {
         node: &str,
         interface_type: Option<ListNetworksType>,
     ) -> Result<Vec<NetworkInterface>, Error> {
-        let mut path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/network");
-        let mut sep = '?';
-        add_query_arg(&mut path, &mut sep, "interface-type", &interface_type);
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/nodes/{node}/network"
+        ))
+        .maybe_arg("interface-type", &interface_type)
+        .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -805,17 +823,20 @@ impl<T: HttpApiClient> PdmClient<T> {
         storage: Option<String>,
         target: Option<String>,
     ) -> Result<Vec<StorageInfo>, Error> {
-        let mut path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/storage");
-        let mut sep = '?';
-        add_query_arg(&mut path, &mut sep, "enabled", &enabled);
-        add_query_arg(&mut path, &mut sep, "format", &format);
-        add_query_arg(&mut path, &mut sep, "storage", &storage);
-        add_query_arg(&mut path, &mut sep, "target", &target);
+        let mut builder = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/nodes/{node}/storage"
+        ))
+        .maybe_arg("enabled", &enabled)
+        .maybe_arg("format", &format)
+        .maybe_arg("storage", &storage)
+        .maybe_arg("target", &target);
         if let Some(content) = content {
             for ty in content {
-                add_query_arg(&mut path, &mut sep, "content", &Some(ty));
+                builder = builder.arg("content", ty);
             }
         }
+        let path = builder.build();
+
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -836,10 +857,12 @@ impl<T: HttpApiClient> PdmClient<T> {
         vmid: u32,
         target: Option<String>,
     ) -> Result<QemuMigratePreconditions, Error> {
-        let mut path = format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/migrate");
-        let mut sep = '?';
-        add_query_arg(&mut path, &mut sep, "node", &node);
-        add_query_arg(&mut path, &mut sep, "target", &target);
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/migrate"
+        ))
+        .maybe_arg("node", &node)
+        .maybe_arg("target", &target)
+        .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 }
@@ -1147,23 +1170,6 @@ impl AddTfaEntry {
             challenge: None,
             password: None,
         }
-    }
-}
-
-/// Add an optional string parameter to the query, and if it was added, change `separator` to `&`.
-pub fn add_query_arg<T>(query: &mut String, separator: &mut char, name: &str, value: &Option<T>)
-where
-    T: std::fmt::Display,
-{
-    if let Some(value) = value {
-        query.push(*separator);
-        *separator = '&';
-        query.push_str(name);
-        query.push('=');
-        query.extend(percent_encoding::percent_encode(
-            value.to_string().as_bytes(),
-            percent_encoding::NON_ALPHANUMERIC,
-        ));
     }
 }
 
