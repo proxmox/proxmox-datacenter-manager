@@ -7,7 +7,7 @@
 use anyhow::bail; // don't import Error as default error in here
 use serde::Deserialize;
 
-use proxmox_client::{Error, HttpApiClient};
+use proxmox_client::{ApiPathBuilder, Error, HttpApiClient};
 use proxmox_router::stream::JsonRecords;
 use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
@@ -100,8 +100,10 @@ impl PbsClient {
         datastore: &str,
         namespace: Option<&str>,
     ) -> Result<JsonRecords<pbs_api_types::SnapshotListItem>, anyhow::Error> {
-        let mut path = format!("/api2/extjs/admin/datastore/{datastore}/snapshots");
-        add_query_arg(&mut path, &mut '?', "ns", &namespace);
+        let path =
+            ApiPathBuilder::new(format!("/api2/extjs/admin/datastore/{datastore}/snapshots"))
+                .maybe_arg("ns", &namespace)
+                .build();
         let response = self
             .0
             .streaming_request(http::Method::GET, &path, None::<()>)
@@ -169,10 +171,10 @@ impl PbsClient {
         history: Option<bool>,
         start_time: Option<i64>,
     ) -> Result<pbs_api_types::Metrics, Error> {
-        let mut path = "/api2/extjs/status/metrics".to_string();
-        let mut sep = '?';
-        add_query_arg(&mut path, &mut sep, "history", &history);
-        add_query_arg(&mut path, &mut sep, "start-time", &start_time);
+        let path = ApiPathBuilder::new("/api2/extjs/status/metrics")
+            .maybe_arg("history", &history)
+            .maybe_arg("start-time", &start_time)
+            .build();
 
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
@@ -191,21 +193,4 @@ impl PbsClient {
 #[derive(Deserialize)]
 struct JsonData<T> {
     data: T,
-}
-
-/// Add an optional string parameter to the query, and if it was added, change `separator` to `&`.
-fn add_query_arg<T>(query: &mut String, separator: &mut char, name: &str, value: &Option<T>)
-where
-    T: std::fmt::Display,
-{
-    if let Some(value) = value {
-        query.push(*separator);
-        *separator = '&';
-        query.push_str(name);
-        query.push('=');
-        query.extend(percent_encoding::percent_encode(
-            value.to_string().as_bytes(),
-            percent_encoding::NON_ALPHANUMERIC,
-        ));
-    }
 }
