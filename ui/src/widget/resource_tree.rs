@@ -12,7 +12,10 @@ use pwt::{
     props::ExtractPrimaryKey,
     state::{Selection, TreeStore},
     widget::{
-        data_table::{DataTable, DataTableColumn, DataTableHeader},
+        data_table::{
+            DataTable, DataTableColumn, DataTableHeader, DataTableKeyboardEvent,
+            DataTableMouseEvent,
+        },
         ActionIcon, Column, Container, Fa, Panel, Progress, Row, Tooltip,
     },
 };
@@ -118,28 +121,8 @@ impl Component for PdmResourceTree {
         }
 
         let store = TreeStore::new().view_root(false);
-        let selection = Selection::new().on_select({
-            let store = store.clone();
-            let link = ctx.link().clone();
-            move |selection: Selection| {
-                let store = store.read();
-                let root = store.root().unwrap();
+        let selection = Selection::new();
 
-                if let Some(key) = selection.selected_key() {
-                    if let Some(node) = root.find_node_by_key(&key) {
-                        match node.record() {
-                            PdmTreeEntry::Resource(remote, resource) => {
-                                crate::navigate_to(&link, remote, Some(resource));
-                            }
-                            PdmTreeEntry::Remote(remote, _) => {
-                                crate::navigate_to(&link, remote, None);
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-        });
         Self {
             loading: false,
             last_error: None,
@@ -231,8 +214,36 @@ impl Component for PdmResourceTree {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
-        let table = DataTable::new(columns(&ctx.link(), self.store.clone()), self.store.clone())
+        let table = DataTable::new(columns(ctx.link(), self.store.clone()), self.store.clone())
             .selection(self.selection.clone())
+            .on_row_click({
+                let store = self.store.clone();
+                let link = ctx.link().clone();
+                move |event: &mut DataTableMouseEvent| {
+                    let store = store.read();
+                    let root = store.root().unwrap();
+
+                    if let Some(node) = root.find_node_by_key(&event.record_key) {
+                        navigate_to_entry(&link, node.record());
+                    }
+                }
+            })
+            .on_row_keydown({
+                let store = self.store.clone();
+                let link = ctx.link().clone();
+                move |event: &mut DataTableKeyboardEvent| {
+                    let store = store.read();
+                    let root = store.root().unwrap();
+
+                    if event.key().as_str() != "Enter" {
+                        return;
+                    }
+
+                    if let Some(node) = root.find_node_by_key(&event.record_key) {
+                        navigate_to_entry(&link, node.record());
+                    }
+                }
+            })
             .class(FlexFit)
             .hover(true)
             .borderless(true);
@@ -272,6 +283,18 @@ impl Component for PdmResourceTree {
                     })),
             )
             .into()
+    }
+}
+
+fn navigate_to_entry(link: &html::Scope<PdmResourceTree>, record: &PdmTreeEntry) {
+    match record {
+        PdmTreeEntry::Root => {}
+        PdmTreeEntry::Resource(remote, resource) => {
+            crate::navigate_to(link, remote, Some(resource));
+        }
+        PdmTreeEntry::Remote(remote, _) => {
+            crate::navigate_to(link, remote, None);
+        }
     }
 }
 
@@ -316,14 +339,15 @@ fn columns(
                     .into()
             })
             .into(),
-        DataTableColumn::new(tr!("Node"))
+        DataTableColumn::new(tr!("Node/Error"))
             .flex(2)
             .render(|item: &PdmTreeEntry| {
                 match item {
                     PdmTreeEntry::Root => "",
                     PdmTreeEntry::Resource(_, resource) => {
-                        get_resource_node(&resource).unwrap_or("")
+                        get_resource_node(resource).unwrap_or("")
                     }
+                    PdmTreeEntry::Remote(_, Some(err)) => err,
                     PdmTreeEntry::Remote(_, _) => "",
                 }
                 .into()
