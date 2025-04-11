@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{fmt::Display, rc::Rc};
 
 use gloo_utils::window;
 use proxmox_client::Error;
@@ -70,6 +70,15 @@ impl std::fmt::Display for Action {
 pub enum GuestType {
     Qemu,
     Lxc,
+}
+
+impl Display for GuestType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GuestType::Qemu => f.write_str("qemu"),
+            GuestType::Lxc => f.write_str("lxc"),
+        }
+    }
 }
 
 #[derive(PartialEq, Clone, Copy)]

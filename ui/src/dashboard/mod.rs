@@ -7,7 +7,7 @@ use yew::{
     Component,
 };
 
-use proxmox_yew_comp::{http_get, GuestState, Status};
+use proxmox_yew_comp::{http_get, Status};
 use pwt::{
     css::{AlignItems, FlexFit, FlexWrap, JustifyContent},
     prelude::*,
@@ -18,7 +18,7 @@ use pwt::{
 use pdm_api_types::resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus};
 use pdm_client::types::TopEntity;
 
-use crate::{remotes::AddWizard, RemoteList};
+use crate::{pve::GuestType, remotes::AddWizard, RemoteList};
 
 mod top_entities;
 pub use top_entities::TopEntities;
@@ -28,6 +28,9 @@ pub use subscription_info::SubscriptionInfo;
 
 mod remote_panel;
 use remote_panel::RemotePanel;
+
+mod guest_panel;
+use guest_panel::GuestPanel;
 
 #[derive(Properties, PartialEq)]
 pub struct Dashboard {
@@ -120,48 +123,20 @@ impl PdmDashboard {
             )
     }
 
-    fn create_guest_panel(&self, icon: &str, title: String, status: &GuestStatusCount) -> Panel {
+    fn create_guest_panel(&self, guest_type: GuestType, status: &GuestStatusCount) -> Panel {
+        let (icon, title) = match guest_type {
+            GuestType::Qemu => ("desktop", tr!("Virtual Machines")),
+            GuestType::Lxc => ("cubses", tr!("Linux Container")),
+        };
         Panel::new()
             .flex(1.0)
             .width(300)
             .title(self.create_title_with_icon(icon, title))
             .border(true)
-            .with_child(if self.loading {
-                loading_column()
-            } else {
-                Column::new()
-                    .padding(4)
-                    .gap(2)
-                    .class(FlexFit)
-                    .class(JustifyContent::Center)
-                    .with_child(
-                        Row::new()
-                            .gap(2)
-                            .with_child(GuestState::Running.to_fa_icon().fixed_width())
-                            .with_child(tr!("running"))
-                            .with_flex_spacer()
-                            .with_child(Container::from_tag("span").with_child(status.running)),
-                    )
-                    .with_child(
-                        Row::new()
-                            .gap(2)
-                            .with_child(GuestState::Stopped.to_fa_icon().fixed_width())
-                            .with_child(tr!("stopped"))
-                            .with_flex_spacer()
-                            .with_child(Container::from_tag("span").with_child(status.stopped)),
-                    )
-                    // FIXME: show templates?
-                    .with_optional_child(
-                        (self.status.qemu.unknown > 0).then_some(
-                            Row::new()
-                                .gap(2)
-                                .with_child(GuestState::Unknown.to_fa_icon().fixed_width())
-                                .with_child(tr!("unknown"))
-                                .with_flex_spacer()
-                                .with_child(Container::from_tag("span").with_child(status.unknown)),
-                        ),
-                    )
-            })
+            .with_child(GuestPanel::new(
+                guest_type,
+                (!self.loading).then_some(status.clone()),
+            ))
     }
 
     fn create_top_entities_panel(
@@ -292,16 +267,8 @@ impl Component for PdmDashboard {
                         tr!("Virtual Environment Nodes"),
                         &self.status.pve_nodes,
                     ))
-                    .with_child(self.create_guest_panel(
-                        "desktop",
-                        tr!("Virtual Machines"),
-                        &self.status.qemu,
-                    ))
-                    .with_child(self.create_guest_panel(
-                        "cubes",
-                        tr!("Linux Container"),
-                        &self.status.lxc,
-                    ))
+                    .with_child(self.create_guest_panel(GuestType::Qemu, &self.status.qemu))
+                    .with_child(self.create_guest_panel(GuestType::Lxc, &self.status.lxc))
                     // FIXME: add PBS support
                     //.with_child(self.create_node_panel(
                     //    "building-o",
