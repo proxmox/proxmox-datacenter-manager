@@ -55,7 +55,7 @@ proxmox-shared-memory = "0.3.0"
 proxmox-simple-config = "0.1"
 proxmox-sortable-macro = "0.1.2"
 proxmox-subscription = { version = "0.5", features = [ "api-types"], default-features = false }
-proxmox-sys = "0.6.0"
+proxmox-sys = "0.6.6"
 proxmox-systemd = "0.1"
 proxmox-tfa = { version = "5", features = [ "api-types" ], default-features = false }
 proxmox-time = "2"

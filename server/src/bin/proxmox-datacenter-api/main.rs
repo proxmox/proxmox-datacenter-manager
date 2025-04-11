@@ -174,23 +174,20 @@ async fn run(debug: bool) -> Result<(), Error> {
         //.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
         .enable_access_log(
             pdm_buildcfg::API_ACCESS_LOG_FN,
-            Some(dir_opts.clone()),
-            Some(file_opts.clone()),
+            Some(dir_opts),
+            Some(file_opts),
             &mut command_sock,
         )?
         .enable_auth_log(
             pdm_buildcfg::API_AUTH_LOG_FN,
-            Some(dir_opts.clone()),
-            Some(file_opts.clone()),
+            Some(dir_opts),
+            Some(file_opts),
             &mut command_sock,
         )?;
 
     let rest_server = RestServer::new(config);
     let redirector = proxmox_rest_server::Redirector::new();
-    proxmox_rest_server::init_worker_tasks(
-        pdm_buildcfg::PDM_LOG_DIR_M!().into(),
-        file_opts.clone(),
-    )?;
+    proxmox_rest_server::init_worker_tasks(pdm_buildcfg::PDM_LOG_DIR_M!().into(), file_opts)?;
 
     //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/api.key -out /etc/proxmox-backup/api.pem -nodes
 

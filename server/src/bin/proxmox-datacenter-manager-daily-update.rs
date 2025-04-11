@@ -94,10 +94,7 @@ async fn check_acme_certificates(rpcenv: &mut dyn RpcEnvironment) -> Result<(), 
 async fn run(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let api_user = pdm_config::api_user()?;
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
-    proxmox_rest_server::init_worker_tasks(
-        pdm_buildcfg::PDM_LOG_DIR_M!().into(),
-        file_opts.clone(),
-    )?;
+    proxmox_rest_server::init_worker_tasks(pdm_buildcfg::PDM_LOG_DIR_M!().into(), file_opts)?;
 
     let mut command_sock = proxmox_daemon::command_socket::CommandSocket::new(api_user.gid);
     proxmox_rest_server::register_task_control_commands(&mut command_sock)?;

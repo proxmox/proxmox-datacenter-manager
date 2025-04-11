@@ -126,22 +126,19 @@ async fn run() -> Result<(), Error> {
         .formatted_router(&["api2"], &server::api::ROUTER)
         .enable_access_log(
             pdm_buildcfg::API_ACCESS_LOG_FN,
-            Some(dir_opts.clone()),
-            Some(file_opts.clone()),
+            Some(dir_opts),
+            Some(file_opts),
             &mut command_sock,
         )?
         .enable_auth_log(
             pdm_buildcfg::API_AUTH_LOG_FN,
-            Some(dir_opts.clone()),
-            Some(file_opts.clone()),
+            Some(dir_opts),
+            Some(file_opts),
             &mut command_sock,
         )?;
 
     let rest_server = RestServer::new(config);
-    proxmox_rest_server::init_worker_tasks(
-        pdm_buildcfg::PDM_LOG_DIR_M!().into(),
-        file_opts.clone(),
-    )?;
+    proxmox_rest_server::init_worker_tasks(pdm_buildcfg::PDM_LOG_DIR_M!().into(), file_opts)?;
 
     let server = proxmox_daemon::server::create_daemon(
         std::os::unix::net::SocketAddr::from_pathname(pdm_buildcfg::PDM_PRIVILEGED_API_SOCKET_FN)

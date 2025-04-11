@@ -112,7 +112,7 @@ impl ConfigVersionCache {
         let file_path = Path::new(FILE_PATH);
         let dir_path = file_path.parent().unwrap();
 
-        create_path(dir_path, Some(dir_opts.clone()), Some(dir_opts))?;
+        create_path(dir_path, Some(dir_opts), Some(dir_opts))?;
 
         let file_opts = CreateOptions::new()
             .perm(Mode::from_bits_truncate(0o660))

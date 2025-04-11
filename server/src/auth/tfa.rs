@@ -208,14 +208,15 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
     /// if it does not exist), and keep a lock on the file.
     fn open(&self, userid: &str) -> Result<Box<dyn UserChallengeAccess>, Error> {
         let options = CreateOptions::new().perm(Mode::from_bits_truncate(0o0600));
-        proxmox_sys::fs::create_path(CHALLENGE_DATA_PATH, Some(options.clone()), Some(options))
-            .map_err(|err| {
+        proxmox_sys::fs::create_path(CHALLENGE_DATA_PATH, Some(options), Some(options)).map_err(
+            |err| {
                 format_err!(
                     "failed to crate challenge data dir {:?}: {}",
                     CHALLENGE_DATA_PATH,
                     err
                 )
-            })?;
+            },
+        )?;
 
         let path = challenge_data_path_str(userid);
 
