@@ -26,6 +26,9 @@ pub use top_entities::TopEntities;
 mod subscription_info;
 pub use subscription_info::SubscriptionInfo;
 
+mod remote_panel;
+use remote_panel::RemotePanel;
+
 #[derive(Properties, PartialEq)]
 pub struct Dashboard {
     #[prop_or(60)]
@@ -260,19 +263,7 @@ impl Component for PdmDashboard {
         }
     }
 
-    fn view(&self, _ctx: &yew::Context<Self>) -> yew::Html {
-        let (remote_icon, remote_text) = match (self.status.failed_remotes, self.status.remotes) {
-            (0, 0) => (Status::Warning.to_fa_icon(), tr!("No remotes configured.")),
-            (0, _) => (
-                Status::Success.to_fa_icon(),
-                tr!("Could reach all remotes."),
-            ),
-            (failed, _) => (
-                Status::Error.to_fa_icon(),
-                tr!("{0} remotes failed to reach.", failed),
-            ),
-        };
-
+    fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let content = Column::new()
             .class(FlexFit)
             .with_child(
@@ -290,22 +281,11 @@ impl Component for PdmDashboard {
                             .with_tool(
                                 Button::new(tr!("Add"))
                                     .icon_class("fa fa-plus-circle")
-                                    .onclick(_ctx.link().callback(|_| Msg::CreateWizard(true))),
+                                    .onclick(ctx.link().callback(|_| Msg::CreateWizard(true))),
                             )
-                            .with_child(
-                                Column::new()
-                                    .padding(4)
-                                    .class(FlexFit)
-                                    .class(AlignItems::Center)
-                                    .class(JustifyContent::Center)
-                                    .gap(2)
-                                    .with_child(if self.loading {
-                                        html! {<i class={"pwt-loading-icon"} />}
-                                    } else {
-                                        remote_icon.large_4x().into()
-                                    })
-                                    .with_optional_child((!self.loading).then_some(remote_text)),
-                            ),
+                            .with_child(RemotePanel::new(
+                                (!self.loading).then_some(self.status.clone()),
+                            )),
                     )
                     .with_child(self.create_node_panel(
                         "building",
@@ -423,7 +403,7 @@ impl Component for PdmDashboard {
             .with_optional_child(
                 self.show_wizard.then_some(
                     AddWizard::new(pdm_api_types::remotes::RemoteType::Pve)
-                        .on_close(_ctx.link().callback(|_| Msg::CreateWizard(false)))
+                        .on_close(ctx.link().callback(|_| Msg::CreateWizard(false)))
                         .on_submit(move |ctx| {
                             crate::remotes::create_remote(
                                 ctx,
