@@ -23,7 +23,10 @@ fn main() -> Result<(), Error> {
 
     server::env::sanitize_environment_vars();
 
-    proxmox_log::init_logger("PROXMOX_DEBUG", LevelFilter::INFO)?;
+    proxmox_log::Logger::from_env("PROXMOX_DEBUG", LevelFilter::INFO)
+        .journald_on_no_workertask()
+        .tasklog_pbs()
+        .init()?;
 
     create_directories()?;
 

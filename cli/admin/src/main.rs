@@ -4,7 +4,10 @@ mod remotes;
 
 fn main() {
     //pbs_tools::setup_libc_malloc_opts(); // TODO: move from PBS to proxmox-sys and uncomment
-    proxmox_log::init_cli_logger("PDM_LOG", proxmox_log::LevelFilter::INFO)
+
+    proxmox_log::Logger::from_env("PDM_LOG", proxmox_log::LevelFilter::INFO)
+        .stderr()
+        .init()
         .expect("failed to set up logger");
 
     server::context::init().expect("could not set up server context");

@@ -46,7 +46,11 @@ fn main() -> Result<(), Error> {
     server::env::sanitize_environment_vars();
 
     let debug = std::env::var("PROXMOX_DEBUG").is_ok();
-    proxmox_log::init_logger("PROXMOX_DEBUG", LevelFilter::INFO)?;
+
+    proxmox_log::Logger::from_env("PROXMOX_DEBUG", LevelFilter::INFO)
+        .journald_on_no_workertask()
+        .tasklog_pbs()
+        .init()?;
 
     if std::env::args().nth(1).is_some() {
         bail!("unexpected command line parameters");
