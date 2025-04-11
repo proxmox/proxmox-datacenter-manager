@@ -747,13 +747,17 @@ macro_rules! try_request {
 
             if let Some(err) = last_err {
                 log::error!("API client error (giving up) - {err:?}");
+                Err(proxmox_client::Error::Client(err))
             } else if timed_out {
                 log::error!("API client timed out, no remotes reachable, giving up");
+                Err(proxmox_client::Error::Other(
+                    "failed to perform API request: timed out",
+                ))
+            } else {
+                Err(proxmox_client::Error::Other(
+                    "failed to perform API request: unknown error",
+                ))
             }
-
-            Err(proxmox_client::Error::Other(
-                "failed to perform API request",
-            ))
         })
     };
 }
