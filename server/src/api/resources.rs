@@ -191,14 +191,14 @@ pub async fn get_status(
                     _ => counts.storages.unknown += 1,
                 },
                 Resource::PveQemu(r) => match r.status.as_str() {
+                    _ if r.template => counts.qemu.template += 1,
                     "running" => counts.qemu.running += 1,
-                    // FIXME: handle templates
                     "stopped" => counts.qemu.stopped += 1,
                     _ => counts.qemu.unknown += 1,
                 },
                 Resource::PveLxc(r) => match r.status.as_str() {
+                    _ if r.template => counts.lxc.template += 1,
                     "running" => counts.lxc.running += 1,
-                    // FIXME: handle templates
                     "stopped" => counts.lxc.stopped += 1,
                     _ => counts.lxc.unknown += 1,
                 },
