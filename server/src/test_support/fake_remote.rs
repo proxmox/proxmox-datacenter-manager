@@ -27,13 +27,12 @@ pub struct FakeRemoteConfig {
 
 impl RemoteConfig for FakeRemoteConfig {
     fn config(&self) -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
-        let mut order = Vec::new();
-        let mut sections = HashMap::new();
+        let mut section_config = SectionConfigData::default();
 
         for i in 0..self.nr_of_pve_remotes {
             let name = format!("pve-{i}");
 
-            sections.insert(
+            section_config.insert(
                 name.clone(),
                 Remote {
                     ty: pdm_api_types::remotes::RemoteType::Pve,
@@ -44,13 +43,11 @@ impl RemoteConfig for FakeRemoteConfig {
                     web_url: None,
                 },
             );
-
-            order.push(name);
         }
 
         let digest = [0u8; 32].into();
 
-        Ok((SectionConfigData { sections, order }, digest))
+        Ok((section_config, digest))
     }
 
     fn lock_config(&self) -> Result<ApiLockGuard, Error> {

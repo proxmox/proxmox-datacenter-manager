@@ -36,10 +36,10 @@ pub async fn get_tasks(max_age: i64, filters: TaskFilters) -> Result<Vec<TaskLis
     // Room for improvements in the future.
     invalidate_cache_for_finished_tasks(&mut cache);
 
-    for (remote_name, remote) in &remotes.sections {
+    for (remote_name, remote) in remotes.iter() {
         let now = proxmox_time::epoch_i64();
 
-        if let Some(tasks) = cache.get_tasks(remote_name.as_str(), now, max_age) {
+        if let Some(tasks) = cache.get_tasks(remote_name, now, max_age) {
             // Data in cache is recent enough and has not been invalidated.
             all_tasks.extend(tasks);
         } else {
@@ -50,7 +50,7 @@ pub async fn get_tasks(max_age: i64, filters: TaskFilters) -> Result<Vec<TaskLis
                     continue;
                 }
             };
-            cache.set_tasks(remote_name.as_str(), tasks.clone(), now);
+            cache.set_tasks(remote_name, tasks.clone(), now);
 
             all_tasks.extend(tasks);
         }

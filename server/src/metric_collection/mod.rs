@@ -49,14 +49,14 @@ async fn metric_collection_task() -> Result<(), Error> {
             }
         };
 
-        for (remote_name, remote) in &remotes.sections {
-            let start_time = *most_recent_timestamps.get(remote_name).unwrap_or(&0);
+        for (remote_name, remote) in remotes.into_iter() {
+            let start_time = *most_recent_timestamps.get(&remote_name).unwrap_or(&0);
             let remote_name_clone = remote_name.clone();
 
             let res = async {
                 let most_recent_timestamp = match remote.ty {
                     RemoteType::Pve => {
-                        let client = connection::make_pve_client(remote)?;
+                        let client = connection::make_pve_client(&remote)?;
                         let metrics = client
                             .cluster_metrics_export(Some(true), Some(false), Some(start_time))
                             .await?;
@@ -76,7 +76,7 @@ async fn metric_collection_task() -> Result<(), Error> {
                         .await
                     }
                     RemoteType::Pbs => {
-                        let client = connection::make_pbs_client(remote)?;
+                        let client = connection::make_pbs_client(&remote)?;
                         let metrics = client.metrics(Some(true), Some(start_time)).await?;
 
                         // Involves some blocking file IO
