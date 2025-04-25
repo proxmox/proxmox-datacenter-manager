@@ -16,7 +16,8 @@ use pwt::state::{KeyedSlabTree, NavigationContext, NavigationContextExt, Selecti
 use pwt::widget::{
     data_table::{DataTable, DataTableColumn, DataTableHeader},
     form::Field,
-    ActionIcon, Column, Container, Fa, MessageBox, MessageBoxButtons, Row, Toolbar, Trigger,
+    ActionIcon, Column, Container, Fa, MessageBox, MessageBoxButtons, Row, Toolbar, Tooltip,
+    Trigger,
 };
 use pwt::{prelude::*, widget::Button};
 
@@ -609,54 +610,67 @@ fn columns(
                     .class(JustifyContent::FlexEnd)
                     .with_optional_child(guest_info.map(|(_, status)| {
                         let disabled = status != "running";
-                        ActionIcon::new("fa fa-fw fa-power-off")
-                            .disabled(disabled)
-                            .on_activate({
-                                let id = id.to_string();
-                                let link = link.clone();
-                                move |_| {
-                                    link.change_view(Some(ViewState::Confirm(
-                                        Action::Shutdown,
-                                        id.to_string(),
-                                    )))
-                                }
-                            })
-                            .class((!disabled).then_some(ColorScheme::Error))
+                        Tooltip::new(
+                            ActionIcon::new("fa fa-fw fa-power-off")
+                                .disabled(disabled)
+                                .on_activate({
+                                    let id = id.to_string();
+                                    let link = link.clone();
+                                    move |_| {
+                                        link.change_view(Some(ViewState::Confirm(
+                                            Action::Shutdown,
+                                            id.to_string(),
+                                        )))
+                                    }
+                                })
+                                .class((!disabled).then_some(ColorScheme::Error)),
+                        )
+                        .tip(tr!("Shutdown"))
                     }))
                     .with_optional_child(guest_info.map(|(_, status)| {
                         let disabled = status == "running";
-                        ActionIcon::new("fa fa-fw fa-play")
-                            .disabled(disabled)
-                            .on_activate({
-                                let id = id.to_string();
-                                let link = link.clone();
-                                move |_| {
-                                    link.change_view(Some(ViewState::Confirm(
-                                        Action::Start,
-                                        id.to_string(),
-                                    )));
-                                }
-                            })
-                            .class((!disabled).then_some(ColorScheme::Success))
+                        Tooltip::new(
+                            ActionIcon::new("fa fa-fw fa-play")
+                                .disabled(disabled)
+                                .on_activate({
+                                    let id = id.to_string();
+                                    let link = link.clone();
+                                    move |_| {
+                                        link.change_view(Some(ViewState::Confirm(
+                                            Action::Start,
+                                            id.to_string(),
+                                        )));
+                                    }
+                                })
+                                .class((!disabled).then_some(ColorScheme::Success)),
+                        )
+                        .tip(tr!("Start"))
                     }))
                     .with_optional_child(guest_info.map(|(guest_info, _)| {
-                        ActionIcon::new("fa fa-fw fa-paper-plane-o").on_activate({
+                        Tooltip::new(ActionIcon::new("fa fa-fw fa-paper-plane-o").on_activate({
                             let link = link.clone();
                             move |_| link.change_view(Some(ViewState::MigrateWindow(guest_info)))
-                        })
+                        }))
+                        .tip(tr!("Migrate"))
                     }))
-                    .with_child(ActionIcon::new("fa fa-external-link").on_activate({
-                        let link = link.clone();
-                        let remote = remote.clone();
-                        move |()| {
-                            // there must be a remote with a connections config if were already here
-                            if let Some(url) =
-                                get_deep_url(link.yew_link(), &remote, node.as_deref(), &local_id)
-                            {
-                                let _ = window().open_with_url(&url.href());
+                    .with_child(
+                        Tooltip::new(ActionIcon::new("fa fa-external-link").on_activate({
+                            let link = link.clone();
+                            let remote = remote.clone();
+                            move |()| {
+                                // there must be a remote with a connections config if were already here
+                                if let Some(url) = get_deep_url(
+                                    link.yew_link(),
+                                    &remote,
+                                    node.as_deref(),
+                                    &local_id,
+                                ) {
+                                    let _ = window().open_with_url(&url.href());
+                                }
                             }
-                        }
-                    }))
+                        }))
+                        .tip(tr!("Open in PVE UI")),
+                    )
                     .into()
             })
             .into(),
