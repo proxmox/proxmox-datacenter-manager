@@ -10,7 +10,7 @@ use pwt::css;
 use pwt::prelude::*;
 use pwt::widget::{
     form::{Checkbox, DisplayField, FormContext, Number},
-    Column, Container, InputPanel, Row,
+    Column, Container, Fa, InputPanel, Row,
 };
 use pwt::AsyncPool;
 use pwt_macros::{builder, widget};
@@ -318,7 +318,7 @@ impl PdmMigrateWindow {
                     warnings.push(
                         Row::new()
                             .gap(2)
-                            .with_child(Status::Warning.to_fa_icon())
+                            .with_child(Fa::from(Status::Warning))
                             .with_child(tr!(
                                 "Migration with local disk might take long: {0} ({1})",
                                 disk.volid,
@@ -333,7 +333,7 @@ impl PdmMigrateWindow {
                     warnings.push(
                         Row::new()
                             .gap(2)
-                            .with_child(Status::Error.to_fa_icon())
+                            .with_child(Fa::from(Status::Error))
                             .with_child(tr!("Cannot migrate with local resource: {0}", resource))
                             .into(),
                     );

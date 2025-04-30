@@ -278,7 +278,7 @@ impl Component for PdmResourceTree {
                             .border_top(true)
                             .padding(4)
                             .gap(2)
-                            .with_child(Status::Error.to_fa_icon().large())
+                            .with_child(Fa::from(Status::Error).large())
                             .with_child(err.to_string())
                     })),
             )
@@ -322,14 +322,9 @@ fn columns(
                         Container::new()
                             .class("pdm-type-icon")
                             .with_child(Fa::new("server").fixed_width())
-                            .with_optional_child(
-                                err.is_some().then_some(
-                                    Status::Error
-                                        .to_fa_icon()
-                                        .fixed_width()
-                                        .class("status-icon"),
-                                ),
-                            ),
+                            .with_optional_child(err.is_some().then_some(
+                                Fa::from(Status::Error).fixed_width().class("status-icon"),
+                            )),
                         remote.clone(),
                         err.as_ref().map(|err| err.to_string()),
                     ),

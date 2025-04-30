@@ -13,7 +13,7 @@ use pwt::widget::form::{Field, ManagedFieldContext, ManagedFieldMaster, ManagedF
 use pwt::widget::{ActionIcon, Button, Column, Container, Fa, Row};
 use pwt::{css, prelude::*};
 
-use proxmox_yew_comp::SchemaValidation;
+use proxmox_yew_comp::{SchemaValidation, Status};
 
 use pdm_api_types::remotes::NodeUrl;
 use proxmox_schema::property_string::PropertyString;
@@ -218,7 +218,7 @@ impl ManagedField for PdmNodeUrlField {
                 Row::new()
                     .class(css::AlignItems::Center)
                     .gap(2)
-                    .with_child(Fa::new("exclamation-triangle").class(css::FontColor::Error))
+                    .with_child(Fa::from(Status::Warning).class(css::FontColor::Error))
                     .with_child(err)
             }));
 

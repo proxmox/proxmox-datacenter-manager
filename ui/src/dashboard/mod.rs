@@ -81,26 +81,25 @@ impl PdmDashboard {
     }
 
     fn create_node_panel(&self, icon: &str, title: String, status: &NodeStatusCount) -> Panel {
-        let (status_icon, text) = match status {
+        let (status_icon, text): (Fa, String) = match status {
             NodeStatusCount {
                 online, offline, ..
             } if *offline > 0 => (
-                Status::Error.to_fa_icon(),
+                Status::Error.into(),
                 tr!("{0} of {1} nodes are offline", offline, online),
             ),
             NodeStatusCount { unknown, .. } if *unknown > 0 => (
-                Status::Warning.to_fa_icon(),
+                Status::Warning.into(),
                 tr!("{0} nodes have an unknown status", unknown),
             ),
             // FIXME, get more detailed status about the failed remotes (name, type, error)?
             NodeStatusCount { online, .. } if self.status.failed_remotes > 0 => (
-                Status::Unknown.to_fa_icon(),
+                Status::Unknown.into(),
                 tr!("{0} of an unknown number of nodes online", online),
             ),
-            NodeStatusCount { online, .. } => (
-                Status::Success.to_fa_icon(),
-                tr!("{0} nodes online", online),
-            ),
+            NodeStatusCount { online, .. } => {
+                (Status::Success.into(), tr!("{0} nodes online", online))
+            }
         };
         Panel::new()
             .flex(1.0)

@@ -60,17 +60,17 @@ impl Component for PdmRemotePanel {
 
         let (remote_icon, remote_text, failure) = match (status.failed_remotes, status.remotes) {
             (0, 0) => (
-                Status::Warning.to_fa_icon(),
+                Fa::from(Status::Warning),
                 tr!("No remotes configured."),
                 false,
             ),
             (0, _) => (
-                Status::Success.to_fa_icon(),
+                Fa::from(Status::Success),
                 tr!("Could reach all remotes."),
                 false,
             ),
             (failed, _) => (
-                Status::Error.to_fa_icon(),
+                Fa::from(Status::Error),
                 tr!("{0} remotes failed to reach.", failed),
                 true,
             ),

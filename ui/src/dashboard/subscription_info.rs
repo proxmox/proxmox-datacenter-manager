@@ -88,7 +88,7 @@ a list of available options. ",
         .class(AlignItems::Center)
         .class(FlexFit)
         .padding(4)
-        .with_child(status.to_fa_icon().large_4x().padding(4))
+        .with_child(Fa::from(status).large_4x().padding(4))
         .with_child(
             Column::new()
                 .class(FlexFit)

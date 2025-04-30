@@ -17,7 +17,7 @@ use pwt::{
     widget::{
         data_table::{DataTable, DataTableColumn, DataTableHeader},
         form::{Selector, SelectorRenderArgs},
-        GridPicker, Row,
+        Fa, GridPicker, Row,
     },
     AsyncPool,
 };
@@ -123,7 +123,7 @@ impl Component for PveNodeSelectorComp {
             move |args: &SelectorRenderArgs<Store<ClusterNodeIndexResponse>>| {
                 if let Some(err) = &err {
                     return Row::new()
-                        .with_child(Status::Error.to_fa_icon())
+                        .with_child(Fa::from(Status::Error))
                         .with_child(err)
                         .into();
                 }

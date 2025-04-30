@@ -174,9 +174,9 @@ impl yew::Component for RemotePanelComp {
                 .with_child(make_row(
                     tr!("Subscription Status"),
                     if status.level.is_empty() {
-                        Status::Error.to_fa_icon()
+                        Status::Error.into()
                     } else {
-                        Status::Success.to_fa_icon()
+                        Status::Success.into()
                     },
                     status.level.to_string(),
                     None,

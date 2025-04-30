@@ -63,7 +63,7 @@ fn columns(guest_type: GuestType) -> Rc<Vec<DataTableHeader<StatusRow>>> {
             .width("3em")
             .render(move |item: &StatusRow| {
                 match item {
-                    StatusRow::State(state, _) => state.to_fa_icon(),
+                    StatusRow::State(state, _) => (*state).into(),
                     StatusRow::All(_) => match guest_type {
                         GuestType::Qemu => Fa::new("desktop"),
                         GuestType::Lxc => Fa::new("cubes"),

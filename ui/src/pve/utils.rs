@@ -46,8 +46,7 @@ fn render_guest_status_icon(base: &str, status: &str, template: bool) -> Contain
     let (status, extra_class) = match (status, template) {
         ("running", false) => (
             Some(
-                GuestState::Running
-                    .to_fa_icon()
+                Fa::from(GuestState::Running)
                     .fixed_width()
                     .class("status-icon"),
             ),
@@ -56,15 +55,14 @@ fn render_guest_status_icon(base: &str, status: &str, template: bool) -> Contain
         ("stopped", false) => (None, Some(Opacity::Quarter)),
         ("paused", false) => (
             Some(
-                GuestState::Paused
-                    .to_fa_icon()
+                Fa::from(GuestState::Paused)
                     .fixed_width()
                     .class("status-icon"),
             ),
             None,
         ),
         (_, true) => (Some(Fa::new(base).fixed_width().class("status-icon")), None),
-        _ => (Some(GuestState::Unknown.to_fa_icon()), None),
+        _ => (Some(GuestState::Unknown.into()), None),
     };
     Container::new()
         .class("pve-guest-icon")
@@ -86,7 +84,7 @@ pub fn render_node_status_icon(node: &PveNodeResource) -> Container {
     Container::new()
         .class("pdm-type-icon")
         .with_child(Fa::new("building").fixed_width())
-        .with_child(extra.to_fa_icon().fixed_width().class("status-icon"))
+        .with_child(Fa::from(extra).fixed_width().class("status-icon"))
 }
 
 /// Renders the status icon for a PveStorage
@@ -98,7 +96,7 @@ pub fn render_storage_status_icon(node: &PveStorageResource) -> Container {
     Container::new()
         .class("pdm-type-icon")
         .with_child(Fa::new("database").fixed_width())
-        .with_child(extra.to_fa_icon().fixed_width().class("status-icon"))
+        .with_child(Fa::from(extra).fixed_width().class("status-icon"))
 }
 
 /// Returns a [`pwt::widget::Row`] with an element for each tag
