@@ -387,7 +387,7 @@ pub fn load_config() -> Result<SectionConfigData<ConfigEntry>, Error> {
     let config_path_str = config_path.as_os_str().to_string_lossy();
 
     match std::fs::read_to_string(&config_path) {
-        Ok(content) => ConfigEntry::parse_section_config(&config_path_str, &content),
+        Ok(content) => ConfigEntry::parse_section_config(&*config_path_str, &content),
         Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(SectionConfigData::default()),
         Err(err) => {
             Err(Error::from(err).context(format!("failed to load config from {config_path:?}")))
