@@ -274,6 +274,7 @@ impl yew::Component for QemuPanelComp {
                 qmpstatus: None,
                 running_machine: None,
                 running_qemu: None,
+                serial: None,
                 spice: None,
                 status: serde_json::from_value(serde_json::Value::String(
                     props.info.status.clone(),
