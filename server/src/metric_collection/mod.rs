@@ -49,7 +49,7 @@ async fn metric_collection_task() -> Result<(), Error> {
             }
         };
 
-        for (remote_name, remote) in remotes.into_iter() {
+        for (remote_name, remote) in remotes {
             let start_time = *most_recent_timestamps.get(&remote_name).unwrap_or(&0);
             let remote_name_clone = remote_name.clone();
 
