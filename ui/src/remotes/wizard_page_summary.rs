@@ -95,27 +95,31 @@ impl Component for PdmWizardPageSummary {
             .padding(4)
             .with_field(
                 tr!("Remote ID"),
-                DisplayField::new(data["id"].as_str().unwrap_or_default().to_string())
+                DisplayField::new()
+                    .value(data["id"].as_str().unwrap_or_default().to_string())
                     .key("remote-id"),
             )
             .with_field(
                 tr!("Auth ID"),
-                DisplayField::new(data["authid"].as_str().unwrap_or_default().to_string())
+                DisplayField::new()
+                    .value(data["authid"].as_str().unwrap_or_default().to_string())
                     .key("auth-id"),
             )
             .with_right_field(
                 tr!("Create Token"),
-                DisplayField::new(match data["create-token"].as_str() {
-                    Some(name) => format!("{} ({})", tr!("Yes"), name),
-                    None => tr!("No"),
-                })
-                .key("create-token-display"),
+                DisplayField::new()
+                    .value(match data["create-token"].as_str() {
+                        Some(name) => format!("{} ({})", tr!("Yes"), name),
+                        None => tr!("No"),
+                    })
+                    .key("create-token-display"),
             );
 
         if props.remote_type == RemoteType::Pbs {
             input = input.with_right_field(
                 tr!("Hostname"),
-                DisplayField::new(data["hostname"].as_str().unwrap_or_default().to_string())
+                DisplayField::new()
+                    .value(data["hostname"].as_str().unwrap_or_default().to_string())
                     .key("hostname"),
             );
         } else {

@@ -364,7 +364,7 @@ fn columns(
 
                     match get_deep_url(&link, remote, node, &id) {
                         Some(url) => ActionIcon::new("fa fa-external-link")
-                            .on_activate(move |()| {
+                            .on_activate(move |_| {
                                 let _ = window().unwrap().open_with_url(&url.href());
                             })
                             .into(),

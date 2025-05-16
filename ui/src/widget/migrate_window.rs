@@ -349,7 +349,9 @@ impl PdmMigrateWindow {
             // hidden field for migration status
             .with_field(
                 tr!("Source Remote"),
-                DisplayField::new(source_remote).key("source_remote"),
+                DisplayField::new()
+                    .value(source_remote)
+                    .key("source_remote"),
             )
             .with_right_field(
                 tr!("Target Remote"),
@@ -362,7 +364,7 @@ impl PdmMigrateWindow {
             )
             .with_field(
                 tr!("Mode"),
-                DisplayField::new("").name("migrate-mode").key("mode"),
+                DisplayField::new().name("migrate-mode").key("mode"),
             )
             .with_field_and_options(
                 pwt::widget::FieldPosition::Right,

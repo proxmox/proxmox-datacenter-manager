@@ -657,7 +657,7 @@ fn columns(
                         Tooltip::new(ActionIcon::new("fa fa-external-link").on_activate({
                             let link = link.clone();
                             let remote = remote.clone();
-                            move |()| {
+                            move |_| {
                                 // there must be a remote with a connections config if were already here
                                 if let Some(url) = get_deep_url(
                                     link.yew_link(),
