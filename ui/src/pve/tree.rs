@@ -441,7 +441,7 @@ impl LoadableComponent for PveTreeComp {
                                 } else {
                                     ""
                                 })
-                                .onclick(link.callback(|_| Msg::Filter(String::new()))),
+                                .on_activate(link.callback(|_| Msg::Filter(String::new()))),
                                 true,
                             )
                             .placeholder(tr!("Filter"))
