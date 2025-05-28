@@ -65,6 +65,7 @@ install: $(COMPILED_OUTPUT) index.hbs
 
 	install -dm0755 $(DESTDIR)$(UIDIR)/fonts
 	install -m0644 pwt-assets/assets/fonts/RobotoFlexVariableFont.ttf $(DESTDIR)$(UIDIR)/fonts
+	install -m0644 pwt-assets/assets/fonts/RobotoFlexVariableFont.woff2 $(DESTDIR)$(UIDIR)/fonts
 
 	install -m0644 dist/pdm-ui_bundle.js $(DESTDIR)$(UIDIR)/js
 	install -m0644 dist/pdm-ui_bg.wasm.gz $(DESTDIR)$(UIDIR)/js
