@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use anyhow::Error;
+use futures::future::join;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use yew::{
@@ -60,9 +61,13 @@ pub struct DashboardConfig {
     max_age: Option<u64>,
 }
 
+pub type LoadingResult = (
+    Result<ResourcesStatus, Error>,
+    Result<pdm_client::types::TopEntities, proxmox_client::Error>,
+);
+
 pub enum Msg {
-    LoadingFinished(Result<ResourcesStatus, Error>),
-    TopEntitiesLoadResult(Result<pdm_client::types::TopEntities, proxmox_client::Error>),
+    LoadingFinished(LoadingResult),
     RemoteListChanged(RemoteList),
     CreateWizard(bool),
 }
@@ -76,8 +81,8 @@ pub struct PdmDashboard {
     remote_list: RemoteList,
     show_wizard: bool,
     _context_listener: ContextHandle<RemoteList>,
-    _async_pool: AsyncPool,
-    _config: PersistentState<DashboardConfig>,
+    async_pool: AsyncPool,
+    config: PersistentState<DashboardConfig>,
 }
 
 impl PdmDashboard {
@@ -171,6 +176,22 @@ impl PdmDashboard {
                     .map(|err| error_message(&err.to_string())),
             )
     }
+
+    fn reload(&mut self, ctx: &yew::Context<Self>) {
+        let link = ctx.link().clone();
+        let max_age = self.config.max_age.unwrap_or(DEFAULT_MAX_AGE_S);
+
+        self.async_pool.spawn(async move {
+            let client = crate::pdm_client();
+
+            let top_entities_future = client.get_top_entities();
+            let status_future = http_get("/resources/status", Some(json!({"max-age": max_age})));
+
+            let (top_entities_res, status_res) = join(top_entities_future, status_future).await;
+
+            link.send_message(Msg::LoadingFinished((status_res, top_entities_res)));
+        });
+    }
 }
 
 impl Component for PdmDashboard {
@@ -178,30 +199,15 @@ impl Component for PdmDashboard {
     type Properties = Dashboard;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
-        let link = ctx.link().clone();
-        let _config: PersistentState<DashboardConfig> =
-            PersistentState::new(StorageLocation::local("dashboard-config"));
-        let max_age = _config.max_age.unwrap_or(DEFAULT_MAX_AGE_S);
-
+        let config = PersistentState::new(StorageLocation::local("dashboard-config"));
         let async_pool = AsyncPool::new();
 
-        async_pool.spawn(async move {
-            let result = http_get("/resources/status", Some(json!({"max-age": max_age}))).await;
-            link.send_message(Msg::LoadingFinished(result));
-        });
-        async_pool.spawn({
-            let link = ctx.link().clone();
-            async move {
-                let result = crate::pdm_client().get_top_entities().await;
-                link.send_message(Msg::TopEntitiesLoadResult(result));
-            }
-        });
         let (remote_list, _context_listener) = ctx
             .link()
             .context(ctx.link().callback(Msg::RemoteListChanged))
             .expect("No Remote list context provided");
 
-        Self {
+        let mut this = Self {
             status: ResourcesStatus::default(),
             last_error: None,
             top_entities: None,
@@ -210,14 +216,18 @@ impl Component for PdmDashboard {
             remote_list,
             show_wizard: false,
             _context_listener,
-            _async_pool: async_pool,
-            _config,
-        }
+            async_pool,
+            config,
+        };
+
+        this.reload(ctx);
+
+        this
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::LoadingFinished(resources_status) => {
+            Msg::LoadingFinished((resources_status, top_entities)) => {
                 match resources_status {
                     Ok(status) => {
                         self.last_error = None;
@@ -225,17 +235,14 @@ impl Component for PdmDashboard {
                     }
                     Err(err) => self.last_error = Some(err),
                 }
-                self.loading = false;
-                true
-            }
-            Msg::TopEntitiesLoadResult(res) => {
-                match res {
+                match top_entities {
                     Ok(data) => {
                         self.last_top_entities_error = None;
                         self.top_entities = Some(data);
                     }
                     Err(err) => self.last_top_entities_error = Some(err),
                 }
+                self.loading = false;
                 true
             }
             Msg::RemoteListChanged(remote_list) => {
