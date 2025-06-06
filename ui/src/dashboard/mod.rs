@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use anyhow::Error;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use yew::{
     virtual_dom::{VComp, VNode},
@@ -11,6 +12,8 @@ use proxmox_yew_comp::{http_get, Status};
 use pwt::{
     css::{AlignItems, FlexDirection, FlexFit, FlexWrap, JustifyContent},
     prelude::*,
+    props::StorageLocation,
+    state::PersistentState,
     widget::{error_message, Button, Column, Container, Fa, Panel, Row},
     AsyncPool,
 };
@@ -32,12 +35,11 @@ use remote_panel::RemotePanel;
 mod guest_panel;
 use guest_panel::GuestPanel;
 
+/// The default 'max-age' parameter in seconds.
+pub const DEFAULT_MAX_AGE_S: u64 = 60;
+
 #[derive(Properties, PartialEq)]
-pub struct Dashboard {
-    #[prop_or(60)]
-    /// The time (in seconds) to not refresh cached data. (Default: 60)
-    max_age_seconds: u64,
-}
+pub struct Dashboard {}
 
 impl Dashboard {
     pub fn new() -> Self {
@@ -49,6 +51,13 @@ impl Default for Dashboard {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[serde(rename_all = "kebab-case")]
+pub struct DashboardConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_age: Option<u64>,
 }
 
 pub enum Msg {
@@ -68,6 +77,7 @@ pub struct PdmDashboard {
     show_wizard: bool,
     _context_listener: ContextHandle<RemoteList>,
     _async_pool: AsyncPool,
+    _config: PersistentState<DashboardConfig>,
 }
 
 impl PdmDashboard {
@@ -169,7 +179,9 @@ impl Component for PdmDashboard {
 
     fn create(ctx: &yew::Context<Self>) -> Self {
         let link = ctx.link().clone();
-        let max_age = ctx.props().max_age_seconds;
+        let _config: PersistentState<DashboardConfig> =
+            PersistentState::new(StorageLocation::local("dashboard-config"));
+        let max_age = _config.max_age.unwrap_or(DEFAULT_MAX_AGE_S);
 
         let async_pool = AsyncPool::new();
 
@@ -199,6 +211,7 @@ impl Component for PdmDashboard {
             show_wizard: false,
             _context_listener,
             _async_pool: async_pool,
+            _config,
         }
     }
 
