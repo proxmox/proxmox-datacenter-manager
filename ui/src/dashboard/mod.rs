@@ -327,7 +327,7 @@ impl Component for PdmDashboard {
                             .with_tool(
                                 Button::new(tr!("Add"))
                                     .icon_class("fa fa-plus-circle")
-                                    .onclick(ctx.link().callback(|_| Msg::CreateWizard(true))),
+                                    .on_activate(ctx.link().callback(|_| Msg::CreateWizard(true))),
                             )
                             .with_child(RemotePanel::new(
                                 (!self.loading).then_some(self.status.clone()),

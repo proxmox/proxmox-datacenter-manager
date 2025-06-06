@@ -197,12 +197,12 @@ impl Component for PdmTopNavBar {
                     .buttons(vec![
                         Button::new(tr!("Show Local Tasks"))
                             .class(ColorScheme::Primary)
-                            .onclick(move |_| {
+                            .on_activate(move |_| {
                                 set_location_href("#/administration/tasks");
                             }),
                         Button::new(tr!("Show Remote Tasks"))
                             .class(ColorScheme::Primary)
-                            .onclick(move |_| {
+                            .on_activate(move |_| {
                                 set_location_href("#/remotes/tasks");
                             }),
                     ])

@@ -344,7 +344,7 @@ impl Component for PdmWizardPageInfo {
                     .with_child(
                         Button::new("Scan")
                             .disabled(self.credentials.is_none())
-                            .onclick(ctx.link().callback(|_| Msg::Connect)),
+                            .on_activate(ctx.link().callback(|_| Msg::Connect)),
                     ),
             );
         Mask::new(content)

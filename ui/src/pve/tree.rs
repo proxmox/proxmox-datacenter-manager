@@ -448,7 +448,7 @@ impl LoadableComponent for PveTreeComp {
                             .on_input(link.callback(Msg::Filter)),
                     )
                     .with_flex_spacer()
-                    .with_child(Button::refresh(ctx.props().loading).onclick({
+                    .with_child(Button::refresh(ctx.props().loading).on_activate({
                         let on_reload_click = ctx.props().on_reload_click.clone();
                         move |_| {
                             on_reload_click.emit(());

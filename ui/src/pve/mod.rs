@@ -186,7 +186,7 @@ impl LoadableComponent for PveRemoteComp {
                     .with_tool(
                         Button::new(tr!("Open Web UI"))
                             .icon_class("fa fa-external-link")
-                            .onclick({
+                            .on_activate({
                                 let link = ctx.link().clone();
                                 let remote = ctx.props().remote.clone();
                                 move |_| {

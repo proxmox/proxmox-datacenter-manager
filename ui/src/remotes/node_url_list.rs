@@ -197,7 +197,7 @@ impl ManagedField for PdmNodeUrlField {
                 Button::new(tr!("Add"))
                     .class(css::ColorScheme::Primary)
                     .icon_class("fa fa-plus-circle")
-                    .onclick({
+                    .on_activate({
                         let nodes = self.store.clone();
                         move |_| {
                             let mut nodes = nodes.write();

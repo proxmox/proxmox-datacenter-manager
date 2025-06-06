@@ -175,7 +175,9 @@ impl LoadableComponent for PbsRemoteConfigPanel {
             .with_child({
                 Button::new(tr!("Add Proxmox VE"))
                     .icon_class("fa fa-building")
-                    .onclick(link.change_view_callback(|_| Some(ViewState::Add(RemoteType::Pve))))
+                    .on_activate(
+                        link.change_view_callback(|_| Some(ViewState::Add(RemoteType::Pve))),
+                    )
                 // FIXME: add PBS support
                 //MenuButton::new(tr!("Add")).show_arrow(true).menu(
                 //    Menu::new()

@@ -124,7 +124,7 @@ impl Component for PdmWebauthnConfigEditor {
                     Button::new(tr!("Auto-fill"))
                         .class(ColorScheme::Primary)
                         .icon_class("fa fa-fw fa-pencil-square-o")
-                        .onclick(ctx.link().callback(move |event: MouseEvent| {
+                        .on_activate(ctx.link().callback(move |event: MouseEvent| {
                             event.stop_propagation();
                             Msg::AutoFill
                         })),

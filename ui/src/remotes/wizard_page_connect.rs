@@ -223,7 +223,7 @@ impl Component for PdmWizardPageConnect {
                         .with_child(
                             Button::new("Connect")
                                 .disabled(!self.form_valid)
-                                .onclick(ctx.link().callback(|_| Msg::Connect)),
+                                .on_activate(ctx.link().callback(|_| Msg::Connect)),
                         ),
                 ),
             );
