@@ -272,7 +272,7 @@ impl Component for PdmMainMenu {
             tr!("Remotes"),
             "remotes",
             Some(if props.remote_list_loading {
-                "fa fa-fw pwt-loading-icon"
+                "fa fa-refresh fa-spin"
             } else {
                 "fa fa-server"
             }),
