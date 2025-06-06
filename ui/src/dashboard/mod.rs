@@ -1,7 +1,8 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use anyhow::Error;
 use futures::future::join;
+use js_sys::Date;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use yew::{
@@ -9,18 +10,23 @@ use yew::{
     Component,
 };
 
-use proxmox_yew_comp::{http_get, Status};
+use proxmox_yew_comp::{http_get, EditWindow, Status};
 use pwt::{
     css::{AlignItems, FlexDirection, FlexFit, FlexWrap, JustifyContent},
     prelude::*,
     props::StorageLocation,
     state::PersistentState,
-    widget::{error_message, Button, Column, Container, Fa, Panel, Row},
+    widget::{
+        error_message,
+        form::{DisplayField, FormContext, Number},
+        Button, Column, Container, Fa, InputPanel, Panel, Row,
+    },
     AsyncPool,
 };
 
 use pdm_api_types::resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus};
 use pdm_client::types::TopEntity;
+use proxmox_client::ApiResponseData;
 
 use crate::{pve::GuestType, remotes::AddWizard, RemoteList};
 
@@ -36,8 +42,14 @@ use remote_panel::RemotePanel;
 mod guest_panel;
 use guest_panel::GuestPanel;
 
+mod status_row;
+use status_row::DashboardStatusRow;
+
 /// The default 'max-age' parameter in seconds.
 pub const DEFAULT_MAX_AGE_S: u64 = 60;
+
+/// The default refresh interval
+pub const DEFAULT_REFRESH_INTERVAL_S: u64 = DEFAULT_MAX_AGE_S / 2;
 
 #[derive(Properties, PartialEq)]
 pub struct Dashboard {}
@@ -58,6 +70,8 @@ impl Default for Dashboard {
 #[serde(rename_all = "kebab-case")]
 pub struct DashboardConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
+    refresh_interval: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     max_age: Option<u64>,
 }
 
@@ -70,6 +84,9 @@ pub enum Msg {
     LoadingFinished(LoadingResult),
     RemoteListChanged(RemoteList),
     CreateWizard(bool),
+    Reload,
+    UpdateConfig(DashboardConfig),
+    ConfigWindow(bool),
 }
 
 pub struct PdmDashboard {
@@ -78,8 +95,10 @@ pub struct PdmDashboard {
     top_entities: Option<pdm_client::types::TopEntities>,
     last_top_entities_error: Option<proxmox_client::Error>,
     loading: bool,
+    load_finished_time: Option<f64>,
     remote_list: RemoteList,
     show_wizard: bool,
+    show_config_window: bool,
     _context_listener: ContextHandle<RemoteList>,
     async_pool: AsyncPool,
     config: PersistentState<DashboardConfig>,
@@ -181,6 +200,7 @@ impl PdmDashboard {
         let link = ctx.link().clone();
         let max_age = self.config.max_age.unwrap_or(DEFAULT_MAX_AGE_S);
 
+        self.load_finished_time = None;
         self.async_pool.spawn(async move {
             let client = crate::pdm_client();
 
@@ -213,8 +233,10 @@ impl Component for PdmDashboard {
             top_entities: None,
             last_top_entities_error: None,
             loading: true,
+            load_finished_time: None,
             remote_list,
             show_wizard: false,
+            show_config_window: false,
             _context_listener,
             async_pool,
             config,
@@ -225,7 +247,7 @@ impl Component for PdmDashboard {
         this
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::LoadingFinished((resources_status, top_entities)) => {
                 match resources_status {
@@ -243,6 +265,7 @@ impl Component for PdmDashboard {
                     Err(err) => self.last_top_entities_error = Some(err),
                 }
                 self.loading = false;
+                self.load_finished_time = Some(Date::now() / 1000.0);
                 true
             }
             Msg::RemoteListChanged(remote_list) => {
@@ -254,6 +277,19 @@ impl Component for PdmDashboard {
                 self.show_wizard = show;
                 true
             }
+            Msg::Reload => {
+                self.reload(ctx);
+                true
+            }
+            Msg::ConfigWindow(show) => {
+                self.show_config_window = show;
+                true
+            }
+            Msg::UpdateConfig(dashboard_config) => {
+                self.config.update(dashboard_config);
+                self.show_config_window = false;
+                true
+            }
         }
     }
 
@@ -262,9 +298,25 @@ impl Component for PdmDashboard {
             .class(FlexFit)
             .with_child(
                 Container::new()
+                    .class("pwt-content-spacer-padding")
+                    .class("pwt-content-spacer-colors")
+                    .style("color", "var(--pwt-color)")
+                    .style("background-color", "var(--pwt-color-background)")
+                    .with_child(DashboardStatusRow::new(
+                        self.load_finished_time,
+                        self.config
+                            .refresh_interval
+                            .unwrap_or(DEFAULT_REFRESH_INTERVAL_S),
+                        ctx.link().callback(|_| Msg::Reload),
+                        ctx.link().callback(|_| Msg::ConfigWindow(true)),
+                    )),
+            )
+            .with_child(
+                Container::new()
                     .class("pwt-content-spacer")
                     .class(FlexDirection::Row)
                     .class(FlexWrap::Wrap)
+                    .padding_top(0)
                     .with_child(
                         Panel::new()
                             .title(self.create_title_with_icon("server", tr!("Remotes")))
@@ -395,6 +447,67 @@ impl Component for PdmDashboard {
                                 ctx,
                                 pdm_api_types::remotes::RemoteType::Pve,
                             )
+                        }),
+                ),
+            )
+            .with_optional_child(
+                self.show_config_window.then_some(
+                    EditWindow::new(tr!("Dashboard Configuration"))
+                        .submit_text(tr!("Save"))
+                        .loader({
+                            || {
+                                let data: PersistentState<DashboardConfig> = PersistentState::new(
+                                    StorageLocation::local("dashboard-config"),
+                                );
+
+                                async move {
+                                    let data = serde_json::to_value(data.into_inner())?;
+                                    Ok(ApiResponseData {
+                                        attribs: HashMap::new(),
+                                        data,
+                                    })
+                                }
+                            }
+                        })
+                        .renderer(|_ctx: &FormContext| {
+                            InputPanel::new()
+                                .width(600)
+                                .padding(2)
+                                .with_field(
+                                    tr!("Refresh Interval (seconds)"),
+                                    Number::new()
+                                        .name("refresh-interval")
+                                        .min(5u64)
+                                        .step(5)
+                                        .placeholder(DEFAULT_REFRESH_INTERVAL_S.to_string()),
+                                )
+                                .with_field(
+                                    tr!("Max Age (seconds)"),
+                                    Number::new()
+                                        .name("max-age")
+                                        .min(0u64)
+                                        .step(5)
+                                        .placeholder(DEFAULT_MAX_AGE_S.to_string()),
+                                )
+                                .with_field(
+                                    "",
+                                    DisplayField::new()
+                                        .key("max-age-explanation")
+                                        .value(tr!("If a response from a remote is older than 'Max Age', it will be updated on the next refresh.")))
+                                .into()
+                        })
+                        .on_close(ctx.link().callback(|_| Msg::ConfigWindow(false)))
+                        .on_submit({
+                            let link = ctx.link().clone();
+                            move |ctx: FormContext| {
+                                let link = link.clone();
+                                async move {
+                                    let data: DashboardConfig =
+                                        serde_json::from_value(ctx.get_submit_data())?;
+                                    link.send_message(Msg::UpdateConfig(data));
+                                    Ok(())
+                                }
+                            }
                         }),
                 ),
             )
