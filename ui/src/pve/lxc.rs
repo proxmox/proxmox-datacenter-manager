@@ -9,7 +9,7 @@ use yew::{
 };
 
 use proxmox_human_byte::HumanByte;
-use proxmox_yew_comp::{RRDGraph, Series};
+use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
 use pwt::{
     css::{AlignItems, ColorScheme, FlexFit},
     prelude::*,
@@ -69,6 +69,7 @@ pub enum Msg {
     ReloadRrd,
     StatusResult(Result<LxcStatus, proxmox_client::Error>),
     RrdResult(Result<Vec<LxcDataPoint>, proxmox_client::Error>),
+    UpdateRrdTimeframe(RRDTimeframe),
 }
 
 pub struct LxcanelComp {
@@ -78,6 +79,8 @@ pub struct LxcanelComp {
     _status_timeout: Option<Timeout>,
     _rrd_timeout: Option<Timeout>,
     _async_pool: AsyncPool,
+
+    rrd_time_frame: RRDTimeframe,
 
     time: Rc<Vec<i64>>,
     cpu: Rc<Series>,
@@ -100,14 +103,10 @@ impl LxcanelComp {
     async fn reload_rrd(
         remote: &str,
         vmid: u32,
+        rrd_time_frame: RRDTimeframe,
     ) -> Result<Vec<LxcDataPoint>, proxmox_client::Error> {
         let rrd = crate::pdm_client()
-            .pve_lxc_rrddata(
-                remote,
-                vmid,
-                proxmox_rrd_api_types::RrdMode::Average,
-                proxmox_rrd_api_types::RrdTimeframe::Hour,
-            )
+            .pve_lxc_rrddata(remote, vmid, rrd_time_frame.mode, rrd_time_frame.timeframe)
             .await?;
         Ok(rrd)
     }
@@ -128,6 +127,8 @@ impl yew::Component for LxcanelComp {
             _async_pool: AsyncPool::new(),
             last_rrd_error: None,
             last_status_error: None,
+
+            rrd_time_frame: RRDTimeframe::load(),
 
             time: Rc::new(Vec::new()),
             cpu: Rc::new(Series::new("", Vec::new())),
@@ -153,8 +154,9 @@ impl yew::Component for LxcanelComp {
                 false
             }
             Msg::ReloadRrd => {
+                let timeframe = self.rrd_time_frame;
                 self._async_pool.send_future(link, async move {
-                    Msg::RrdResult(Self::reload_rrd(&remote, vmid).await)
+                    Msg::RrdResult(Self::reload_rrd(&remote, vmid, timeframe).await)
                 });
                 false
             }
@@ -213,6 +215,11 @@ impl yew::Component for LxcanelComp {
                     link.send_message(Msg::ReloadRrd)
                 }));
                 true
+            }
+            Msg::UpdateRrdTimeframe(rrd_time_frame) => {
+                self.rrd_time_frame = rrd_time_frame;
+                ctx.link().send_message(Msg::ReloadRrd);
+                false
             }
         }
     }
@@ -356,6 +363,9 @@ impl yew::Component for LxcanelComp {
         Panel::new()
             .class(FlexFit)
             .title(title)
+            .with_tool(
+                RRDTimeframeSelector::new().on_change(ctx.link().callback(Msg::UpdateRrdTimeframe)),
+            )
             .class(ColorScheme::Neutral)
             .with_child(
                 // FIXME: add some 'visible' or 'active' property to the progress
