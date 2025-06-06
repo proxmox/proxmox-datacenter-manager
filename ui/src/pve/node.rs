@@ -6,8 +6,7 @@ use yew::{
 };
 
 use proxmox_human_byte::HumanByte;
-use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
-use proxmox_yew_comp::{RRDGraph, Series};
+use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
 use pwt::{
     css::{AlignItems, ColorScheme, FlexFit},
     prelude::*,
@@ -51,10 +50,11 @@ impl Into<VNode> for NodePanel {
 }
 
 pub enum Msg {
-    Reload,
+    ReloadRrd,
     ReloadStatus,
     LoadFinished(Result<Vec<NodeDataPoint>, proxmox_client::Error>),
     StatusLoadFinished(Result<NodeStatus, proxmox_client::Error>),
+    UpdateRrdTimeframe(RRDTimeframe),
 }
 
 pub struct NodePanelComp {
@@ -65,6 +65,8 @@ pub struct NodePanelComp {
     mem_total_data: Rc<Series>,
     status: Option<NodeStatus>,
 
+    rrd_time_frame: RRDTimeframe,
+
     last_error: Option<proxmox_client::Error>,
     last_status_error: Option<proxmox_client::Error>,
 
@@ -74,9 +76,9 @@ pub struct NodePanelComp {
 }
 
 impl NodePanelComp {
-    async fn reload(remote: &str, node: &str) -> Msg {
+    async fn reload_rrd(remote: &str, node: &str, rrd_time_frame: RRDTimeframe) -> Msg {
         let res = crate::pdm_client()
-            .pve_node_rrddata(remote, node, RrdMode::Average, RrdTimeframe::Hour)
+            .pve_node_rrddata(remote, node, rrd_time_frame.mode, rrd_time_frame.timeframe)
             .await;
 
         Msg::LoadFinished(res)
@@ -93,7 +95,7 @@ impl yew::Component for NodePanelComp {
     type Properties = NodePanel;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
-        ctx.link().send_message(Msg::Reload);
+        ctx.link().send_message(Msg::ReloadRrd);
         ctx.link().send_message(Msg::ReloadStatus);
         Self {
             time_data: Rc::new(Vec::new()),
@@ -101,6 +103,7 @@ impl yew::Component for NodePanelComp {
             load_data: Rc::new(Series::new("", Vec::new())),
             mem_data: Rc::new(Series::new("", Vec::new())),
             mem_total_data: Rc::new(Series::new("", Vec::new())),
+            rrd_time_frame: RRDTimeframe::load(),
             status: None,
             last_error: None,
             last_status_error: None,
@@ -112,13 +115,14 @@ impl yew::Component for NodePanelComp {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::Reload => {
+            Msg::ReloadRrd => {
                 self._timeout = None;
                 let props = ctx.props();
                 let remote = props.remote.clone();
                 let node = props.node.clone();
+                let timeframe = self.rrd_time_frame;
                 self.async_pool.send_future(ctx.link().clone(), async move {
-                    Self::reload(&remote, &node).await
+                    Self::reload_rrd(&remote, &node, timeframe).await
                 });
             }
             Msg::ReloadStatus => {
@@ -156,12 +160,11 @@ impl yew::Component for NodePanelComp {
                     let link = ctx.link().clone();
                     self._timeout = Some(gloo_timers::callback::Timeout::new(
                         ctx.props().rrd_interval,
-                        move || link.send_message(Msg::Reload),
+                        move || link.send_message(Msg::ReloadRrd),
                     ))
                 }
                 Err(err) => self.last_error = Some(err),
             },
-
             Msg::StatusLoadFinished(res) => {
                 match res {
                     Ok(status) => {
@@ -175,6 +178,11 @@ impl yew::Component for NodePanelComp {
                     ctx.props().status_interval,
                     move || link.send_message(Msg::ReloadStatus),
                 ))
+            }
+            Msg::UpdateRrdTimeframe(rrd_time_frame) => {
+                self.rrd_time_frame = rrd_time_frame;
+                ctx.link().send_message(Msg::ReloadRrd);
+                return false;
             }
         }
         true
@@ -194,7 +202,7 @@ impl yew::Component for NodePanelComp {
             self.mem_total_data = Rc::new(Series::new("", Vec::new()));
             self.async_pool = AsyncPool::new();
             ctx.link()
-                .send_message_batch(vec![Msg::Reload, Msg::ReloadStatus]);
+                .send_message_batch(vec![Msg::ReloadRrd, Msg::ReloadStatus]);
             true
         } else {
             false
@@ -286,6 +294,9 @@ impl yew::Component for NodePanelComp {
         Panel::new()
             .class(FlexFit)
             .title(title)
+            .with_tool(
+                RRDTimeframeSelector::new().on_change(ctx.link().callback(Msg::UpdateRrdTimeframe)),
+            )
             .class(ColorScheme::Neutral)
             .with_child(
                 // FIXME: add some 'visible' or 'active' property to the progress
