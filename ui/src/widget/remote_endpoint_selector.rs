@@ -84,7 +84,6 @@ impl Component for PdmEndpointSelector {
 
     fn changed(&mut self, ctx: &yew::Context<Self>, old_props: &Self::Properties) -> bool {
         if ctx.props().remote != old_props.remote {
-            log::info!("{} {}", ctx.props().remote, old_props.remote);
             self.update_endpoint_list(ctx);
         }
         true
