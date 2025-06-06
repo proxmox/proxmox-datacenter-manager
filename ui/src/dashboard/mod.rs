@@ -9,7 +9,7 @@ use yew::{
 
 use proxmox_yew_comp::{http_get, Status};
 use pwt::{
-    css::{AlignItems, FlexFit, FlexWrap, JustifyContent},
+    css::{AlignItems, FlexDirection, FlexFit, FlexWrap, JustifyContent},
     prelude::*,
     widget::{error_message, Button, Column, Container, Fa, Panel, Row},
     AsyncPool,
@@ -243,7 +243,7 @@ impl Component for PdmDashboard {
             .with_child(
                 Container::new()
                     .class("pwt-content-spacer")
-                    .class("pwt-flex-direction-row")
+                    .class(FlexDirection::Row)
                     .class(FlexWrap::Wrap)
                     .with_child(
                         Panel::new()
@@ -336,10 +336,10 @@ impl Component for PdmDashboard {
             .with_child(
                 Container::new()
                     .class("pwt-content-spacer")
-                    .class("pwt-flex-direction-row")
+                    .class(FlexDirection::Row)
                     .class("pwt-align-content-start")
                     .class(pwt::css::Flex::Fill)
-                    .style("padding-top", "0")
+                    .padding_top(0)
                     .class(FlexWrap::Wrap)
                     //.min_height(175)
                     .with_child(self.create_top_entities_panel(
