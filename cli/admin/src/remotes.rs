@@ -92,7 +92,6 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Err
 #[api(
     input: {
         properties: {
-            type: { type: RemoteType },
             remote: {
                 flatten: true,
                 type: Remote,
@@ -101,17 +100,10 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Err
     }
 )]
 /// Add a new remote.
-fn add_remote(
-    r#type: RemoteType,
-    remote: pdm_api_types::remotes::Remote,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-    let mut param = serde_json::to_value(remote)?;
-    param["type"] = serde_json::to_value(r#type)?;
-
+async fn add_remote(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let info = &dc_api::remotes::API_METHOD_ADD_REMOTE;
     match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv).map(drop),
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await.map(drop),
         _ => unreachable!(),
     }
 }
