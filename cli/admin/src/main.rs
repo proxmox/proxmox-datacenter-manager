@@ -5,6 +5,10 @@ mod remotes;
 fn main() {
     //pbs_tools::setup_libc_malloc_opts(); // TODO: move from PBS to proxmox-sys and uncomment
 
+    let api_user = pdm_config::api_user().expect("cannot get api user");
+    let priv_user = pdm_config::priv_user().expect("cannot get privileged user");
+    proxmox_product_config::init(api_user, priv_user);
+
     proxmox_log::Logger::from_env("PDM_LOG", proxmox_log::LevelFilter::INFO)
         .stderr()
         .init()
