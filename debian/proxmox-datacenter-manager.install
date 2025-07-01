@@ -1,10 +1,10 @@
 debian/grub/proxmox-datacenter-manager.cfg etc/default/grub.d/
 debian/pdm-test.list etc/apt/sources.list.d/
-lib/systemd/system/proxmox-datacenter-api.service
-lib/systemd/system/proxmox-datacenter-manager-banner.service
-lib/systemd/system/proxmox-datacenter-manager-daily-update.service
-lib/systemd/system/proxmox-datacenter-manager-daily-update.timer
-lib/systemd/system/proxmox-datacenter-privileged-api.service
+usr/lib/systemd/system/proxmox-datacenter-api.service
+usr/lib/systemd/system/proxmox-datacenter-manager-banner.service
+usr/lib/systemd/system/proxmox-datacenter-manager-daily-update.service
+usr/lib/systemd/system/proxmox-datacenter-manager-daily-update.timer
+usr/lib/systemd/system/proxmox-datacenter-privileged-api.service
 usr/libexec/proxmox/proxmox-datacenter-api
 usr/libexec/proxmox/proxmox-datacenter-manager-banner
 usr/libexec/proxmox/proxmox-datacenter-manager-daily-update
