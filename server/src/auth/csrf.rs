@@ -21,7 +21,7 @@ pub fn csrf_secret() -> &'static HMACKey {
             // legacy fall back to load legacy csrf secrets
             // TODO: remove once we move away from legacy token verification
             .unwrap_or_else(|_| {
-                let key_as_b64 = base64::encode_config(bytes, base64::STANDARD_NO_PAD);
+                let key_as_b64 = proxmox_base64::encode_no_pad(bytes);
                 HMACKey::from_base64(&key_as_b64).unwrap()
             })
     })

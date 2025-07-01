@@ -100,7 +100,9 @@ h2 = { version = "0.4", features = [ "stream" ] }
 handlebars = "5.1"
 hex = "0.4.3"
 http = "1"
+http-body-util = "0.1.2"
 hyper = { version = "1", features = [ "full" ] }
+hyper-util = "0.1"
 libc = "0.2"
 log = "0.4.17"
 nix = "0.29"

@@ -5,6 +5,7 @@
 //! the PBS repo, which is huge and messy...
 
 use anyhow::bail; // don't import Error as default error in here
+use http_body_util::BodyExt;
 use serde::Deserialize;
 
 use proxmox_client::{ApiPathBuilder, Error, HttpApiClient};
@@ -120,12 +121,25 @@ impl PbsClient {
             {
                 Ok(JsonRecords::from_body(body))
             } else {
-                let response: JsonData<_> =
-                    serde_json::from_slice(&hyper::body::to_bytes(body).await?)?;
+                let response: JsonData<_> = serde_json::from_slice(
+                    &body
+                        .collect()
+                        .await
+                        .map_err(|err| {
+                            Error::Anyhow(Box::new(err).context("failed to retrieve response body"))
+                        })?
+                        .to_bytes(),
+                )?;
                 Ok(JsonRecords::from_vec(response.data))
             }
         } else {
-            let data = hyper::body::to_bytes(body).await?;
+            let data = body
+                .collect()
+                .await
+                .map_err(|err| {
+                    Error::Anyhow(Box::new(err).context("failed to retrieve response body"))
+                })?
+                .to_bytes();
             let error = String::from_utf8_lossy(&data).into_owned();
             Err(anyhow::Error::msg(error))
         }

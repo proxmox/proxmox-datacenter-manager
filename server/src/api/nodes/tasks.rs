@@ -1,11 +1,11 @@
 use anyhow::{bail, format_err, Error};
 use http::request::Parts;
 use http::{header, Response, StatusCode};
-use hyper::Body;
 use serde_json::{json, Value};
 
 use proxmox_access_control::CachedUserInfo;
 use proxmox_async::stream::AsyncReaderStream;
+use proxmox_http::Body;
 use proxmox_rest_server::{upid_log_path, upid_read_status, TaskState};
 use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::{api, Schema};
@@ -352,7 +352,7 @@ pub const API_METHOD_READ_TASK_LOG: proxmox_router::ApiMethod = proxmox_router::
 );
 fn read_task_log(
     _parts: Parts,
-    _req_body: Body,
+    _req_body: hyper::body::Incoming,
     param: Value,
     _info: &proxmox_router::ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,

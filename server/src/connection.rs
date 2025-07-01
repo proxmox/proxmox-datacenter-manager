@@ -773,7 +773,7 @@ impl HttpApiClient for MultiClient {
                 + 'a,
         >,
     >;
-    type Body = hyper::Body;
+    type Body = proxmox_http::Body;
 
     fn request<'a, T>(
         &'a self,
