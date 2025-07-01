@@ -10,5 +10,5 @@ all:
 
 .PHONY: install
 install: $(SERVICES)
-	install -d $(DESTDIR)/lib/systemd/system
-	install -m 0644 $(SERVICES) $(DESTDIR)/lib/systemd/system
+	install -d $(DESTDIR)/usr/lib/systemd/system
+	install -m 0644 $(SERVICES) $(DESTDIR)/usr/lib/systemd/system
