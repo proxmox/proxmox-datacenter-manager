@@ -4,8 +4,9 @@ use std::pin::pin;
 use anyhow::{bail, format_err, Context as _, Error};
 use futures::*;
 use hyper_util::server::graceful::GracefulShutdown;
+use nix::fcntl::AtFlags;
 use nix::sys::stat::{fchmodat, FchmodatFlags, Mode};
-use nix::unistd::{fchownat, FchownatFlags};
+use nix::unistd::fchownat;
 use tracing::level_filters::LevelFilter;
 
 use proxmox_lang::try_block;
@@ -165,7 +166,7 @@ async fn run() -> Result<(), Error> {
                 sockpath,
                 None,
                 Some(api_user.gid),
-                FchownatFlags::FollowSymlink,
+                AtFlags::AT_SYMLINK_FOLLOW,
             )
             .map_err(|err| {
                 format_err!("unable to set ownership for api socket '{sockpath}' - {err}")
