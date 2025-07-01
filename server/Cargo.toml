@@ -12,7 +12,6 @@ repository.workspace = true
 anyhow.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
-base64.workspace = true
 const_format.workspace = true
 futures.workspace = true
 hex.workspace = true
@@ -35,6 +34,7 @@ url.workspace = true
 proxmox-access-control = { workspace = true, features = [ "impl" ] }
 proxmox-async.workspace = true
 proxmox-auth-api = { workspace = true, features = [ "api", "ticket", "pam-authenticator", "password-authenticator" ] }
+proxmox-base64.workspace = true
 proxmox-daemon.workspace = true
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
 proxmox-lang.workspace = true

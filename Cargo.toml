@@ -28,36 +28,37 @@ members = [
 
 [workspace.dependencies]
 # proxmox workspace
-proxmox-access-control = "0.2"
+proxmox-access-control = "1"
 proxmox-api-macro = "1.3"
-proxmox-apt = "0.11"
-proxmox-apt-api-types = "1.0"
-proxmox-async = "0.4"
-proxmox-auth-api = "0.4"
-proxmox-client = "0.5"
-proxmox-daemon = "0.1.2"
-proxmox-http = { version = "0.9", features = [ "client", "http-helpers", "websocket" ] } # see below
-proxmox-human-byte = "0.1"
+proxmox-apt = "0.99"
+proxmox-apt-api-types = "2"
+proxmox-async = "0.5"
+proxmox-auth-api = "1"
+proxmox-base64 = "1"
+proxmox-client = "1"
+proxmox-daemon = "1"
+proxmox-http = { version = "1", features = [ "client", "http-helpers", "websocket" ] } # see below
+proxmox-human-byte = "1"
 proxmox-io = "1.0.1" # tools and client use "tokio" feature
 proxmox-lang = "1.1"
-proxmox-log = "0.2"
-proxmox-login = "0.2"
-proxmox-rest-server = "0.8"
+proxmox-log = "1"
+proxmox-login = "1"
+proxmox-rest-server = "1"
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
 proxmox-router = { version = "3.0.0", default-features = false }
-proxmox-rrd = { version = "0.4", default-features = false}
+proxmox-rrd = { version = "1", default-features = false}
 proxmox-rrd-api-types = "1.0.2"
 # everything but pbs-config and pbs-client use "api-macro"
 proxmox-schema = "4"
 proxmox-section-config = "3"
-proxmox-serde = "0.1.1"
-proxmox-shared-memory = "0.3.0"
-proxmox-simple-config = "0.1"
-proxmox-sortable-macro = "0.1.2"
-proxmox-subscription = { version = "0.5", features = [ "api-types"], default-features = false }
-proxmox-sys = "0.6.6"
-proxmox-systemd = "0.1"
-proxmox-tfa = { version = "5", features = [ "api-types" ], default-features = false }
+proxmox-serde = "1"
+proxmox-shared-memory = "1"
+proxmox-simple-config = "1"
+proxmox-sortable-macro = "1"
+proxmox-subscription = { version = "1", features = [ "api-types"], default-features = false }
+proxmox-sys = "1"
+proxmox-systemd = "1"
+proxmox-tfa = { version = "6", features = [ "api-types" ], default-features = false }
 proxmox-time = "2"
 proxmox-uuid = "1"
 
@@ -66,18 +67,18 @@ proxmox-acme = "0.5"
 proxmox-openid = "0.10"
 
 # api implementation creates
-proxmox-config-digest = "0.1"
-proxmox-product-config = "0.2"
-proxmox-dns-api = "0.1"
-proxmox-time-api = "0.1"
-proxmox-network-api = "0.1"
-proxmox-syslog-api = "0.1"
-proxmox-acme-api = "0.1"
+proxmox-config-digest = "1"
+proxmox-product-config = "1"
+proxmox-dns-api = "1"
+proxmox-time-api = "1"
+proxmox-network-api = "1"
+proxmox-syslog-api = "1"
+proxmox-acme-api = "1"
 
 # API types for PVE (and later PMG?)
 pve-api-types = { path = "lib/proxmox-api-types/pve-api-types" }
 # API types for PBS
-pbs-api-types = "0.2.0"
+pbs-api-types = "1"
 
 # PDM workspace
 server = { path = "server" }
@@ -92,18 +93,17 @@ proxmox-fido2 = { path = "cli/proxmox-fido2" }
 anyhow = "1.0"
 async-stream = "0.3"
 async-trait = "0.1"
-base64 = "0.13"
 bitflags = "2.4"
 const_format = "0.2"
 futures = "0.3"
 h2 = { version = "0.4", features = [ "stream" ] }
-handlebars = "3.0"
+handlebars = "5.1"
 hex = "0.4.3"
-http = "0.2"
-hyper = { version = "0.14", features = [ "full" ] }
+http = "1"
+hyper = { version = "1", features = [ "full" ] }
 libc = "0.2"
 log = "0.4.17"
-nix = "0.26.1"
+nix = "0.29"
 once_cell = "1.3.1"
 openssl = "0.10.40"
 percent-encoding = "2.1"
@@ -124,7 +124,7 @@ tower-service = "0.3.0"
 tracing = "0.1"
 url = "2.1"
 walkdir = "2"
-webauthn-rs = "0.3.2"
+webauthn-rs = "0.5"
 xdg = "2.2"
 zstd = { version = "0.12", features = [ "bindgen" ] }
 

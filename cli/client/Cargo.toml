@@ -10,7 +10,6 @@ repository.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-base64.workspace = true
 hex.workspace = true
 http.workspace = true
 libc.workspace = true
@@ -35,6 +34,7 @@ pdm-ui-shared.workspace = true
 
 proxmox-access-control.workspace = true
 proxmox-async.workspace = true
+proxmox-base64.workspace = true
 proxmox-client = { workspace = true, features = [ "hyper-client", "webauthn" ] }
 proxmox-config-digest.workspace = true
 proxmox-fido2.workspace = true
