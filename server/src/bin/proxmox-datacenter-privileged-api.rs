@@ -3,12 +3,13 @@ use std::pin::pin;
 
 use anyhow::{bail, format_err, Context as _, Error};
 use futures::*;
+use hyper_util::server::graceful::GracefulShutdown;
 use nix::sys::stat::{fchmodat, FchmodatFlags, Mode};
 use nix::unistd::{fchownat, FchownatFlags};
 use tracing::level_filters::LevelFilter;
 
 use proxmox_lang::try_block;
-use proxmox_rest_server::{ApiConfig, RestServer, UnixAcceptor};
+use proxmox_rest_server::{ApiConfig, RestServer};
 use proxmox_router::RpcEnvironmentType;
 use proxmox_sys::fs::CreateOptions;
 
@@ -172,16 +173,34 @@ async fn run() -> Result<(), Error> {
 
             log::info!("created socket, notifying readiness to systemd and starting API server");
 
-            let incoming = UnixAcceptor::from(listener);
-
-            Ok(async {
+            Ok(async move {
                 proxmox_systemd::notify::SystemdNotify::Ready.notify()?;
 
+                let graceful = GracefulShutdown::new();
+                loop {
+                    tokio::select! {
+                        incoming = listener.accept() => {
+                            let (conn, _) = incoming?;
+                            let api_service = rest_server.api_service(&conn)?;
+                            let watcher = graceful.watcher();
+                            tokio::spawn(async move { api_service.serve(conn, Some(watcher)).await });
+                        },
+                        _shutdown = proxmox_daemon::shutdown_future() => {
+                            break;
+                        },
+                    }
+                }
+                log::info!("shutting down..");
+                graceful.shutdown().await;
+                Ok(())
+
+                /*
                 hyper::Server::builder(incoming)
                     .serve(rest_server)
                     .with_graceful_shutdown(proxmox_daemon::shutdown_future())
                     .map_err(Error::from)
                     .await
+                */
             })
         },
         Some(pdm_buildcfg::PDM_PRIVILEGED_API_PID_FN),

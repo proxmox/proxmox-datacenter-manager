@@ -9,7 +9,8 @@ use futures::*;
 use http::request::Parts;
 use http::Response;
 use hyper::header;
-use hyper::{Body, StatusCode};
+use hyper::StatusCode;
+use hyper_util::server::graceful::GracefulShutdown;
 use openssl::ssl::SslAcceptor;
 use serde_json::{json, Value};
 use tracing::level_filters::LevelFilter;
@@ -71,7 +72,7 @@ fn main() -> Result<(), Error> {
     proxmox_async::runtime::main(run(debug))
 }
 
-async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> {
+async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<proxmox_http::Body> {
     let auth_id = env.get_auth_id();
     let api = env.api_config();
 
@@ -218,6 +219,7 @@ async fn run(debug: bool) -> Result<(), Error> {
     let connections = proxmox_rest_server::connection::AcceptBuilder::new().debug(debug);
     let server = proxmox_daemon::server::create_daemon(
         PDM_LISTEN_ADDR,
+        /*
         move |listener| {
             let (secure_connections, insecure_connections) =
                 connections.accept_tls_optional(listener, acceptor);
@@ -258,6 +260,84 @@ async fn run(debug: bool) -> Result<(), Error> {
                     bail!(err_msg);
                 }
                 Ok(())
+            })
+        },
+        */
+        move |listener| {
+            let (mut secure_connections, mut insecure_connections) =
+                connections.accept_tls_optional(listener, acceptor);
+
+            Ok(async {
+                log::info!("service ready and listening at {PDM_LISTEN_ADDR}");
+                proxmox_systemd::notify::SystemdNotify::Ready.notify()?;
+
+                let secure_server = async move {
+                    let graceful = GracefulShutdown::new();
+                    loop {
+                        tokio::select! {
+                            Some(conn) = secure_connections.next() => {
+                                match conn {
+                                    Ok(conn) => {
+                                        let api_service = rest_server.api_service(&conn)?;
+                            let watcher = graceful.watcher();
+                                        tokio::spawn(async move {
+                                            api_service.serve(conn, Some(watcher)).await
+                                        });
+                                    },
+                                    Err(err) => { log::warn!("Failed to accept insecure connection: {err:?}"); }
+                                }
+                            },
+                            _shutdown = proxmox_daemon::shutdown_future() => {
+                                break;
+                            }
+                        }
+                    }
+                    graceful.shutdown().await;
+                    Ok::<(), Error>(())
+                };
+
+                let insecure_server = async move {
+                    let graceful = GracefulShutdown::new();
+                    loop {
+                        tokio::select! {
+                            Some(conn) = insecure_connections.next() => {
+                                match conn {
+                                    Ok(conn) => {
+                                        let redirect_service = redirector.redirect_service();
+                            let watcher = graceful.watcher();
+                                        tokio::spawn(async move {
+                                            redirect_service.serve(conn, Some(watcher)).await
+                                        });
+                                    },
+                                    Err(err) => { log::warn!("Failed to accept insecure connection: {err:?}"); }
+                                }
+                            },
+                            _shutdown = proxmox_daemon::shutdown_future() => {
+                                break;
+                            }
+                        }
+                    }
+                    graceful.shutdown().await;
+                    Ok::<(), Error>(())
+                };
+
+                let (secure_res, insecure_res) =
+                    try_join!(tokio::spawn(secure_server), tokio::spawn(insecure_server))
+                        .context("failed to complete REST server task")?;
+
+                let results: [Result<(), Error>; 2] = [secure_res, insecure_res];
+
+                if results.iter().any(Result::is_err) {
+                    let cat_errors = results
+                        .into_iter()
+                        .filter_map(|res| res.err().map(|err| err.to_string()))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+
+                    bail!(cat_errors);
+                }
+
+                Ok::<(), Error>(())
             })
         },
         Some(pdm_buildcfg::PDM_API_PID_FN),
