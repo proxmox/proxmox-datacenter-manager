@@ -391,7 +391,7 @@ fn perform_fido_creation(
 ) -> Result<String, Error> {
     let public_key = &challenge.public_key;
     let raw_challenge: &[u8] = public_key.challenge.as_ref();
-    let b64u_challenge = base64::encode_config(raw_challenge, base64::URL_SAFE_NO_PAD);
+    let b64u_challenge = proxmox_base64::url::encode_no_pad(raw_challenge);
     let client_data_json = serde_json::to_string(&serde_json::json!({
         "type": "webauthn.create",
         "origin": api_url.to_string().trim_end_matches('/'),
@@ -601,7 +601,7 @@ fn finish_fido_auth(
 
     let response = webauthn_rs::proto::RegisterPublicKeyCredential {
         type_: "public-key".to_string(),
-        id: base64::encode_config(id, base64::URL_SAFE_NO_PAD),
+        id: proxmox_base64::url::encode_no_pad(id),
         raw_id: Base64UrlSafeData(id.to_vec()),
         response: webauthn_rs::proto::AuthenticatorAttestationResponseRaw {
             attestation_object: Base64UrlSafeData(attestation_object),
