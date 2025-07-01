@@ -22,7 +22,7 @@ serde_cbor.workspace = true
 serde_json.workspace = true
 serde_plain.workspace = true
 tokio = { workspace = true, features = [ "time" ] }
-webauthn-rs.workspace = true
+webauthn-rs-core.workspace = true
 xdg.workspace = true
 
 pbs-api-types.workspace = true

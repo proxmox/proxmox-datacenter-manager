@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io::Write;
 
 use anyhow::{bail, format_err, Context as _, Error};
@@ -344,7 +345,7 @@ async fn add_webauthn(
         .add_webauthn_finish(
             &userid,
             password.as_deref(),
-            &challenge.public_key.challenge.to_string(),
+            &DisplayFromSerialize(&challenge.public_key.challenge).to_string(),
             &response,
         )
         .await?;
@@ -352,6 +353,14 @@ async fn add_webauthn(
     println!("created entry with id {id:?}");
 
     Ok(())
+}
+
+struct DisplayFromSerialize<T: serde::Serialize>(T);
+
+impl<T: serde::Serialize> fmt::Display for DisplayFromSerialize<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.serialize(f)
+    }
 }
 
 #[api(
@@ -387,7 +396,7 @@ async fn delete_tfa(userid: Option<String>, id: String) -> Result<(), Error> {
 
 fn perform_fido_creation(
     api_url: &http::Uri,
-    challenge: &webauthn_rs::proto::CreationChallengeResponse,
+    challenge: &webauthn_rs_core::proto::CreationChallengeResponse,
 ) -> Result<String, Error> {
     let public_key = &challenge.public_key;
     let raw_challenge: &[u8] = public_key.challenge.as_ref();
@@ -483,12 +492,12 @@ fn perform_fido_creation(
 
 fn prepare_cerds(
     libfido: &std::sync::Arc<proxmox_fido2::Lib>,
-    public_key: &webauthn_rs::proto::PublicKeyCredentialCreationOptions,
+    public_key: &webauthn_rs_core::proto::PublicKeyCredentialCreationOptions,
     clientdata_hash: &[u8; 32],
     options: &proxmox_fido2::DeviceOptions,
     alg: i32,
 ) -> Result<Option<proxmox_fido2::FidoCred>, Error> {
-    use webauthn_rs::proto::UserVerificationPolicy;
+    use webauthn_rs_core::proto::UserVerificationPolicy;
 
     let mut cred = libfido
         .cred_new()?
@@ -512,7 +521,7 @@ fn prepare_cerds(
                     "webauthn creation challenge misses 'id' property in excluded credentials"
                 )
             })?;
-        let excluded_cred: webauthn_rs::base64_data::Base64UrlSafeData =
+        let excluded_cred: webauthn_rs_core::proto::Base64UrlSafeData =
             serde_json::from_value(excluded_cred)
                 .context("failed to extract excluded credential id in creation challenge")?;
         cred = cred.exclude_cred(excluded_cred.as_ref())?;
@@ -529,14 +538,14 @@ fn prepare_cerds(
                 FidoOpt::False
             })?
             .set_user_verification(match criteria.user_verification {
-                UserVerificationPolicy::Discouraged => {
+                UserVerificationPolicy::Discouraged_DO_NOT_USE => {
                     if options.user_verification {
                         FidoOpt::False
                     } else {
                         FidoOpt::Omit
                     }
                 }
-                UserVerificationPolicy::Preferred_DO_NOT_USE => FidoOpt::Omit,
+                UserVerificationPolicy::Preferred => FidoOpt::Omit,
                 UserVerificationPolicy::Required => {
                     if !options.user_verification {
                         return Ok(None);
@@ -559,7 +568,7 @@ fn finish_fido_auth(
     b64u_challenge: String,
     alg: i32,
 ) -> Result<String, Error> {
-    use webauthn_rs::base64_data::Base64UrlSafeData;
+    use webauthn_rs_core::proto::Base64UrlSafeData;
 
     let id = cred.id()?;
     let sig = cred.signature()?;
@@ -599,14 +608,16 @@ fn finish_fido_auth(
     let attestation_object =
         serde_cbor::to_vec(&obj).context("failed to CBOR-encode attestation object")?;
 
-    let response = webauthn_rs::proto::RegisterPublicKeyCredential {
+    let response = webauthn_rs_core::proto::RegisterPublicKeyCredential {
         type_: "public-key".to_string(),
         id: proxmox_base64::url::encode_no_pad(id),
-        raw_id: Base64UrlSafeData(id.to_vec()),
-        response: webauthn_rs::proto::AuthenticatorAttestationResponseRaw {
-            attestation_object: Base64UrlSafeData(attestation_object),
-            client_data_json: Base64UrlSafeData(client_data_json.into_bytes()),
+        raw_id: Base64UrlSafeData::from(id.to_vec()),
+        response: webauthn_rs_core::proto::AuthenticatorAttestationResponseRaw {
+            attestation_object: Base64UrlSafeData::from(attestation_object),
+            client_data_json: Base64UrlSafeData::from(client_data_json.into_bytes()),
+            transports: None,
         },
+        extensions: Default::default(),
     };
 
     let mut response = serde_json::to_value(response)?;

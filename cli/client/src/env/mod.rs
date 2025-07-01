@@ -357,10 +357,10 @@ impl Env {
 
 fn perform_fido_auth(
     api_url: &http::Uri,
-    challenge: &webauthn_rs::proto::RequestChallengeResponse,
+    challenge: &webauthn_rs_core::proto::RequestChallengeResponse,
 ) -> Result<String, Error> {
     use proxmox_fido2::FidoOpt;
-    use webauthn_rs::proto::UserVerificationPolicy;
+    use webauthn_rs_core::proto::UserVerificationPolicy;
 
     let public_key = &challenge.public_key;
     let raw_challenge: &[u8] = public_key.challenge.as_ref();
@@ -412,14 +412,14 @@ fn perform_fido_auth(
             .assert_new()?
             .set_relying_party(public_key.rp_id.as_str())?
             .set_user_verification_required(match public_key.user_verification {
-                UserVerificationPolicy::Discouraged => {
+                UserVerificationPolicy::Discouraged_DO_NOT_USE => {
                     if options.user_verification {
                         FidoOpt::False
                     } else {
                         FidoOpt::Omit
                     }
                 }
-                UserVerificationPolicy::Preferred_DO_NOT_USE => FidoOpt::Omit,
+                UserVerificationPolicy::Preferred => FidoOpt::Omit,
                 UserVerificationPolicy::Required => FidoOpt::True,
             })?
             .set_clientdata_hash(&hash)?;
@@ -460,7 +460,7 @@ fn finish_fido_auth(
     client_data_json: String,
     b64u_challenge: String,
 ) -> Result<String, Error> {
-    use webauthn_rs::base64_data::Base64UrlSafeData;
+    use webauthn_rs_core::proto::Base64UrlSafeData;
 
     let id = assert.id()?;
     let sig = assert.signature()?;
@@ -470,16 +470,16 @@ fn finish_fido_auth(
         _ => bail!("auth data has invalid format"),
     };
 
-    let response = webauthn_rs::proto::PublicKeyCredential {
+    let response = webauthn_rs_core::proto::PublicKeyCredential {
         type_: "public-key".to_string(),
         id: proxmox_base64::url::encode_no_pad(id),
-        raw_id: Base64UrlSafeData(id.to_vec()),
-        extensions: None,
-        response: webauthn_rs::proto::AuthenticatorAssertionResponseRaw {
-            authenticator_data: Base64UrlSafeData(auth_data),
-            signature: Base64UrlSafeData(sig.to_vec()),
+        raw_id: Base64UrlSafeData::from(id.to_vec()),
+        extensions: Default::default(),
+        response: webauthn_rs_core::proto::AuthenticatorAssertionResponseRaw {
+            authenticator_data: Base64UrlSafeData::from(auth_data),
+            signature: Base64UrlSafeData::from(sig.to_vec()),
             user_handle: None,
-            client_data_json: Base64UrlSafeData(client_data_json.into_bytes()),
+            client_data_json: Base64UrlSafeData::from(client_data_json.into_bytes()),
         },
     };
 

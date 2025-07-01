@@ -124,7 +124,7 @@ tower-service = "0.3.0"
 tracing = "0.1"
 url = "2.1"
 walkdir = "2"
-webauthn-rs = "0.5"
+webauthn-rs-core = "0.5"
 xdg = "2.2"
 zstd = { version = "0.12", features = [ "bindgen" ] }
 
