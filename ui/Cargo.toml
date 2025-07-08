@@ -14,7 +14,7 @@ futures = "0.3"
 gloo-net = "0.4"
 gloo-timers = "0.3"
 gloo-utils = "0.2"
-http = "0.2.9"
+http = "1"
 js-sys = "0.3.69"
 log = "0.4.6"
 percent-encoding = "2.1"
@@ -27,17 +27,17 @@ web-sys = { version = "0.3", features = ["Location"] }
 yew = { version = "0.21",  features = ["csr"] }
 yew-router = { version = "0.18" }
 
-pwt = "0.5.0"
-pwt-macros = "0.3"
+pwt = "0.6.0"
+pwt-macros = "0.4"
 
-proxmox-yew-comp = { version = "0.4.5", features = ["apt", "dns", "network", "rrd"] }
+proxmox-yew-comp = { version = "0.5", features = ["apt", "dns", "network", "rrd"] }
 
-proxmox-client = "0.5"
-proxmox-human-byte = "0.1.3"
-proxmox-login = "0.2"
+proxmox-client = "1"
+proxmox-human-byte = "1"
+proxmox-login = "1"
 proxmox-schema = "4"
 proxmox-rrd-api-types = "1"
-pbs-api-types = "0.2.0"
+pbs-api-types = "1"
 
 pdm-api-types = { version = "0.1", path = "../lib/pdm-api-types" }
 pdm-ui-shared = { version = "0.1", path = "../lib/pdm-ui-shared" }
