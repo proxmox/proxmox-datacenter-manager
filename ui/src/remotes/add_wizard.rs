@@ -96,6 +96,7 @@ impl Component for AddWizardState {
                 TabBarItem::new()
                     .key("connection")
                     .label(if remote_type == RemoteType::Pve {
+                        // TRANSLATORS: Probe is a verb here
                         tr!("Probe Remote")
                     } else {
                         tr!("Connection")

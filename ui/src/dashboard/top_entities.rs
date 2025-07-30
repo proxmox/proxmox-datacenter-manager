@@ -238,6 +238,7 @@ fn create_tooltip(
     Column::new()
         .min_width(200)
         .gap(2)
+        // TRANSLATORS: For example "resource on Remote 'HAL 9000'"
         .with_child(Container::from_tag("h6").with_child(tr! {
             "{0} on Remote '{1}'",
             render_resource_name(resource, false),

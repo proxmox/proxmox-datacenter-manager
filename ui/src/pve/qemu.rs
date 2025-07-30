@@ -203,7 +203,9 @@ impl yew::Component for QemuPanelComp {
                         self.cpu = Rc::new(Series::new(tr!("CPU usage"), cpu));
                         self.memory = Rc::new(Series::new(tr!("RAM usage"), memory));
                         self.memory_max = Rc::new(Series::new(tr!("Total"), memory_max));
+                        // TRANSLATORS: As in amount of incoming network traffic
                         self.netin = Rc::new(Series::new(tr!("Net In"), netin));
+                        // TRANSLATORS: As in amount of outgoing network traffic
                         self.netout = Rc::new(Series::new(tr!("Net Out"), netout));
                         self.diskread = Rc::new(Series::new(tr!("Disk Read"), diskread));
                         self.diskwrite = Rc::new(Series::new(tr!("Disk Write"), diskwrite));
