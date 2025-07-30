@@ -81,7 +81,7 @@ impl Component for PdmRemotePanel {
             ),
             (failed, _) => (
                 Fa::from(Status::Error),
-                tr!("{0} remotes failed to reach.", failed),
+                tr!("Failed to reach one remote." | "Failed to reach {n} remotes." % failed),
                 true,
             ),
         };
