@@ -18,7 +18,7 @@ use proxmox_yew_comp::{SchemaValidation, Status};
 use pdm_api_types::remotes::NodeUrl;
 use proxmox_schema::property_string::PropertyString;
 
-use pbs_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
+use proxmox_schema::api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
 use pwt_macros::{builder, widget};
 
