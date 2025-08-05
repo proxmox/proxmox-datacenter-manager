@@ -27,15 +27,15 @@ web-sys = { version = "0.3", features = ["Location"] }
 yew = { version = "0.21",  features = ["csr"] }
 yew-router = { version = "0.18" }
 
-pwt = "0.6.0"
+pwt = "0.6"
 pwt-macros = "0.4"
 
-proxmox-yew-comp = { version = "0.5", features = ["apt", "dns", "network", "rrd"] }
+proxmox-yew-comp = { version = "0.5.5", features = ["apt", "dns", "network", "rrd"] }
 
 proxmox-client = "1"
 proxmox-human-byte = "1"
 proxmox-login = "1"
-proxmox-schema = "4"
+proxmox-schema = "4.1"
 proxmox-rrd-api-types = "1"
 pbs-api-types = "1"
 
