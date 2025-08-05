@@ -1,3 +1,9 @@
+proxmox-datacenter-manager (0.2.0) trixie; urgency=medium
+
+  * initial upgrade for Debian 13 "Trixie" based release.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 05 Aug 2025 21:38:34 +0200
+
 proxmox-datacenter-manager (0.1.11) bookworm; urgency=medium
 
   * privileged-api: create /var/cache/proxmox-datacenter-manager/ on startup
