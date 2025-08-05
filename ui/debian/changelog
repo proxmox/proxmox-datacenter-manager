@@ -1,3 +1,9 @@
+proxmox-datacenter-manager-ui (0.2.0) trixie; urgency=medium
+
+  * initial upgrade for Debian 13 "Trixie" based releases.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 05 Aug 2025 21:44:37 +0200
+
 proxmox-datacenter-manager-ui (0.1.10) bookworm; urgency=medium
 
   * fix #6016: remote migrate: submit 'target-vmid' property for CT
