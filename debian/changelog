@@ -1,3 +1,10 @@
+proxmox-datacenter-manager (0.2.1) trixie; urgency=medium
+
+  * re-enable PBS integration again after fixing compilation issues in crates
+    shared with UI.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 Aug 2025 20:14:35 +0200
+
 proxmox-datacenter-manager (0.2.0) trixie; urgency=medium
 
   * initial upgrade for Debian 13 "Trixie" based release.
