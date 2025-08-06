@@ -21,7 +21,7 @@ proxmox-rrd-api-types.workspace = true
 proxmox-tfa = { workspace = true, features = [ "types" ] }
 
 pve-api-types = { workspace = true, features = [ "client" ] }
-#pbs-api-types.workspace = true
+pbs-api-types.workspace = true
 
 [features]
 default = []

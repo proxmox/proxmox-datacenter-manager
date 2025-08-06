@@ -743,7 +743,6 @@ impl<T: HttpApiClient> PdmClient<T> {
             .nodata()
     }
 
-    /*
     pub async fn pbs_list_datastores(
         &self,
         remote: &str,
@@ -792,7 +791,6 @@ impl<T: HttpApiClient> PdmClient<T> {
         .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
-    */
 
     pub async fn resources(&self, max_age: Option<u64>) -> Result<Vec<RemoteResources>, Error> {
         let path = ApiPathBuilder::new("/api2/extjs/resources/list")

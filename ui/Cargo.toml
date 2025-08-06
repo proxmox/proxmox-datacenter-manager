@@ -37,7 +37,7 @@ proxmox-human-byte = "1"
 proxmox-login = "1"
 proxmox-schema = "4.1"
 proxmox-rrd-api-types = "1"
-#pbs-api-types = "1"
+pbs-api-types = "1.0.3"
 
 pdm-api-types = { version = "0.2", path = "../lib/pdm-api-types" }
 pdm-ui-shared = { version = "0.2", path = "../lib/pdm-ui-shared" }

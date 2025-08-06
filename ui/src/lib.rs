@@ -27,8 +27,7 @@ use yew_router::prelude::RouterScopeExt;
 
 mod widget;
 
-// TODO: re-enable once pbs-abi-types (and its s3 client) compiles again for WASM.
-//pub mod pbs;
+pub mod pbs;
 pub mod pve;
 
 pub mod renderer;

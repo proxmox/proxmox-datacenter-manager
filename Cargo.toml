@@ -78,7 +78,7 @@ proxmox-acme-api = "1"
 # API types for PVE (and later PMG?)
 pve-api-types = { path = "lib/proxmox-api-types/pve-api-types" }
 # API types for PBS
-pbs-api-types = "1"
+pbs-api-types = "1.0.3"
 
 # PDM workspace
 server = { path = "server" }
