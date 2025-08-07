@@ -166,7 +166,7 @@ async fn run() -> Result<(), Error> {
                 sockpath,
                 None,
                 Some(api_user.gid),
-                AtFlags::AT_SYMLINK_FOLLOW,
+                AtFlags::AT_SYMLINK_NOFOLLOW,
             )
             .map_err(|err| {
                 format_err!("unable to set ownership for api socket '{sockpath}' - {err}")
