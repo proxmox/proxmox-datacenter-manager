@@ -279,7 +279,7 @@ async fn run(debug: bool) -> Result<(), Error> {
                                 match conn {
                                     Ok(conn) => {
                                         let api_service = rest_server.api_service(&conn)?;
-                            let watcher = graceful.watcher();
+                                        let watcher = graceful.watcher();
                                         tokio::spawn(async move {
                                             api_service.serve(conn, Some(watcher)).await
                                         });
