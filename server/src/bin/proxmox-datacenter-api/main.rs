@@ -278,13 +278,17 @@ async fn run(debug: bool) -> Result<(), Error> {
                             Some(conn) = secure_connections.next() => {
                                 match conn {
                                     Ok(conn) => {
-                                        let api_service = rest_server.api_service(&conn)?;
-                                        let watcher = graceful.watcher();
-                                        tokio::spawn(async move {
-                                            api_service.serve(conn, Some(watcher)).await
-                                        });
+                                        match rest_server.api_service(&conn) {
+                                            Ok(api_service) => {
+                                                let watcher = graceful.watcher();
+                                                tokio::spawn(async move {
+                                                    api_service.serve(conn, Some(watcher)).await
+                                                });
+                                            }
+                                            Err(err) => log::warn!("Failed to get api service: {err:?}"),
+                                        }
                                     },
-                                    Err(err) => { log::warn!("Failed to accept insecure connection: {err:?}"); }
+                                    Err(err) => { log::warn!("Failed to accept secure connection: {err:?}"); }
                                 }
                             },
                             _shutdown = proxmox_daemon::shutdown_future() => {
