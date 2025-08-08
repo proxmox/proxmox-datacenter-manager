@@ -304,7 +304,7 @@ async fn run(debug: bool) -> Result<(), Error> {
                                 match conn {
                                     Ok(conn) => {
                                         let redirect_service = redirector.redirect_service();
-                            let watcher = graceful.watcher();
+                                        let watcher = graceful.watcher();
                                         tokio::spawn(async move {
                                             redirect_service.serve(conn, Some(watcher)).await
                                         });
