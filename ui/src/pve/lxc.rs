@@ -267,6 +267,11 @@ impl yew::Component for LxcanelComp {
                 name: None,
                 netin: None,
                 netout: None,
+                pressurecpusome: None,
+                pressurememoryfull: None,
+                pressurememorysome: None,
+                pressureiosome: None,
+                pressureiofull: None,
                 status: serde_json::from_value(serde_json::Value::String(
                     props.info.status.clone(),
                 ))
