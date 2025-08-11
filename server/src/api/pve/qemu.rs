@@ -373,6 +373,7 @@ pub async fn qemu_migrate(
         target,
         targetstorage: target_storage,
         with_local_disks,
+        with_conntrack_state: None,
     };
     let upid = pve.migrate_qemu(&node, vmid, params).await?;
 
