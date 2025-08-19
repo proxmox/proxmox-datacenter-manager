@@ -30,7 +30,7 @@ yew-router = { version = "0.18" }
 pwt = "0.6"
 pwt-macros = "0.4"
 
-proxmox-yew-comp = { version = "0.5.5", features = ["apt", "dns", "network", "rrd"] }
+proxmox-yew-comp = { version = "0.5.6", features = ["apt", "dns", "network", "rrd"] }
 
 proxmox-client = "1"
 proxmox-human-byte = "1"
