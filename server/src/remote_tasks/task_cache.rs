@@ -214,11 +214,24 @@ impl ReadableTaskCache {
 }
 
 impl WritableTaskCache {
-    /// Create initial task archives that can be backfilled with the
+    /// Create initial task archive files that can be backfilled with the
     /// recent task history from a remote.
     ///
     /// This function only has an effect if there are no archive files yet.
     pub fn init(&self, now: i64) -> Result<(), Error> {
+        let active_filename = self.cache.base_path.join(ACTIVE_FILENAME);
+
+        if !active_filename.exists() {
+            let mut file = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(&active_filename)?;
+
+            self.cache
+                .create_options
+                .apply_to(&mut file, &active_filename)?;
+        }
+
         if self.cache.archive_files(&self.lock)?.is_empty() {
             for i in 0..self.cache.max_files {
                 self.new_file(
