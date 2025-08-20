@@ -91,7 +91,7 @@ pub async fn get_tasks(filters: TaskFilters) -> Result<Vec<TaskListItem>, Error>
                     }
                 }
 
-                let state = item.status.as_ref().map(|status| tasktype(status));
+                let state = item.status.as_deref().map(TaskStateType::new_from_str);
 
                 match (state, &filters.statusfilter) {
                     (Some(TaskStateType::OK), _) if filters.errors => return false,
@@ -151,17 +151,4 @@ pub fn get_cache() -> Result<TaskCache, Error> {
     )?;
 
     Ok(cache)
-}
-
-/// Parses a task status string into a TaskStateType
-pub fn tasktype(status: &str) -> TaskStateType {
-    if status == "unknown" || status.is_empty() {
-        TaskStateType::Unknown
-    } else if status == "OK" {
-        TaskStateType::OK
-    } else if status.starts_with("WARNINGS: ") {
-        TaskStateType::Warning
-    } else {
-        TaskStateType::Error
-    }
 }

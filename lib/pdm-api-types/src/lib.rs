@@ -232,6 +232,21 @@ pub enum TaskStateType {
     Unknown,
 }
 
+impl TaskStateType {
+    /// Construct a new instance from a `&str`.
+    pub fn new_from_str(status: &str) -> Self {
+        if status == "unknown" || status.is_empty() {
+            TaskStateType::Unknown
+        } else if status == "OK" {
+            TaskStateType::OK
+        } else if status.starts_with("WARNINGS: ") {
+            TaskStateType::Warning
+        } else {
+            TaskStateType::Error
+        }
+    }
+}
+
 #[api(
     properties: {
         upid: { schema: UPID::API_SCHEMA },
