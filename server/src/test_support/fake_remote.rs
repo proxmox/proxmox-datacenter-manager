@@ -1,18 +1,22 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use anyhow::{bail, Error};
+use serde::Deserialize;
+
 use pdm_api_types::{remotes::Remote, Authid, ConfigDigest};
 use pdm_config::remotes::RemoteConfig;
 use proxmox_product_config::ApiLockGuard;
 use proxmox_section_config::typed::SectionConfigData;
 use pve_api_types::{
-    client::PveClient, ClusterMetrics, ClusterMetricsData, ClusterNodeIndexResponse,
-    ClusterNodeIndexResponseStatus, ClusterResource, ClusterResourceKind, ClusterResourceType,
-    ListTasks, ListTasksResponse, PveUpid, StorageContent,
+    ClusterMetrics, ClusterMetricsData, ClusterNodeIndexResponse, ClusterNodeIndexResponseStatus,
+    ClusterResource, ClusterResourceKind, ClusterResourceType, ListTasks, ListTasksResponse,
+    PveUpid, StorageContent,
 };
-use serde::Deserialize;
 
-use crate::{connection::ClientFactory, pbs_client::PbsClient};
+use crate::{
+    connection::{ClientFactory, PveClient},
+    pbs_client::PbsClient,
+};
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -74,8 +78,8 @@ impl FakeRemoteConfig {
 
 #[async_trait::async_trait]
 impl ClientFactory for FakeClientFactory {
-    fn make_pve_client(&self, _remote: &Remote) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
-        Ok(Box::new(FakePveClient {
+    fn make_pve_client(&self, _remote: &Remote) -> Result<Arc<PveClient>, Error> {
+        Ok(Arc::new(FakePveClient {
             nr_of_vms: self.config.vms_per_pve_remote,
             nr_of_cts: self.config.cts_per_pve_remote,
             nr_of_nodes: self.config.nodes_per_pve_remote,
@@ -88,7 +92,7 @@ impl ClientFactory for FakeClientFactory {
         &self,
         _remote: &Remote,
         _target_endpoint: Option<&str>,
-    ) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
+    ) -> Result<Arc<PveClient>, Error> {
         bail!("not implemented")
     }
 
@@ -96,10 +100,7 @@ impl ClientFactory for FakeClientFactory {
         bail!("not implemented")
     }
 
-    async fn make_pve_client_and_login(
-        &self,
-        _remote: &Remote,
-    ) -> Result<Box<dyn PveClient + Send + Sync>, Error> {
+    async fn make_pve_client_and_login(&self, _remote: &Remote) -> Result<Arc<PveClient>, Error> {
         bail!("not implemented")
     }
 
@@ -118,7 +119,7 @@ struct FakePveClient {
 }
 
 #[async_trait::async_trait]
-impl PveClient for FakePveClient {
+impl pve_api_types::client::PveClient for FakePveClient {
     async fn cluster_resources(
         &self,
         _ty: Option<ClusterResourceKind>,
@@ -143,6 +144,7 @@ impl PveClient for FakePveClient {
                 maxdisk: Some(100 * 1024 * 1024),
                 maxmem: Some(8 * 1024 * 1024 * 1024),
                 mem: Some(3 * 1024 * 1024 * 1024),
+                memhost: Some(4 * 1024 * 1024),
                 name: Some(format!("vm-{vmid}")),
                 netin: Some(1034),
                 netout: Some(1034),
@@ -175,6 +177,7 @@ impl PveClient for FakePveClient {
                 maxcpu: Some(4.),
                 maxdisk: Some(100 * 1024 * 1024),
                 maxmem: Some(8 * 1024 * 1024 * 1024),
+                memhost: Some(4 * 1024 * 1024),
                 mem: Some(3 * 1024 * 1024 * 1024),
                 name: Some(format!("ct-{vmid}")),
                 netin: Some(1034),
@@ -208,6 +211,7 @@ impl PveClient for FakePveClient {
                 maxdisk: Some(100 * 1024 * 1024),
                 maxmem: Some(8 * 1024 * 1024 * 1024),
                 mem: Some(3 * 1024 * 1024 * 1024),
+                memhost: None,
                 name: None,
                 netin: None,
                 netout: None,
@@ -240,6 +244,7 @@ impl PveClient for FakePveClient {
                 maxdisk: Some(100 * 1024 * 1024),
                 maxmem: None,
                 mem: None,
+                memhost: None,
                 name: None,
                 netin: None,
                 netout: None,
