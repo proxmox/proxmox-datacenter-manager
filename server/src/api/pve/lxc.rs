@@ -209,7 +209,7 @@ pub async fn lxc_start(
 
     let upid = pve.start_lxc_async(&node, vmid, Default::default()).await?;
 
-    new_remote_upid(remote, upid)
+    new_remote_upid(remote, upid).await
 }
 
 #[api(
@@ -242,7 +242,7 @@ pub async fn lxc_stop(
 
     let upid = pve.stop_lxc_async(&node, vmid, Default::default()).await?;
 
-    new_remote_upid(remote, upid)
+    new_remote_upid(remote, upid).await
 }
 
 #[api(
@@ -277,7 +277,7 @@ pub async fn lxc_shutdown(
         .shutdown_lxc_async(&node, vmid, Default::default())
         .await?;
 
-    new_remote_upid(remote, upid)
+    new_remote_upid(remote, upid).await
 }
 
 #[api(
@@ -357,7 +357,7 @@ pub async fn lxc_migrate(
     };
     let upid = pve.migrate_lxc(&node, vmid, params).await?;
 
-    new_remote_upid(remote, upid)
+    new_remote_upid(remote, upid).await
 }
 
 #[api(
@@ -518,5 +518,5 @@ pub async fn lxc_remote_migrate(
     log::info!("migrating vm {vmid} of node {node:?}");
     let upid = source_conn.remote_migrate_lxc(&node, vmid, params).await?;
 
-    new_remote_upid(source, upid)
+    new_remote_upid(source, upid).await
 }

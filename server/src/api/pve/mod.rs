@@ -76,9 +76,9 @@ const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES
 const STATUS_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_STATUS);
 
 // converts a remote + PveUpid into a RemoteUpid and starts tracking it
-fn new_remote_upid(remote: String, upid: PveUpid) -> Result<RemoteUpid, Error> {
+async fn new_remote_upid(remote: String, upid: PveUpid) -> Result<RemoteUpid, Error> {
     let remote_upid: RemoteUpid = (remote, upid.to_string()).try_into()?;
-    remote_tasks::track_running_task(remote_upid.clone());
+    remote_tasks::track_running_task(remote_upid.clone()).await?;
     Ok(remote_upid)
 }
 

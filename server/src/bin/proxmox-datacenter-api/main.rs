@@ -376,6 +376,7 @@ async fn run(debug: bool) -> Result<(), Error> {
     metric_collection::start_task();
     tasks::remote_node_mapping::start_task();
     resource_cache::start_task();
+    tasks::remote_tasks::start_task()?;
 
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");

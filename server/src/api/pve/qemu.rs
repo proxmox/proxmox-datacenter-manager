@@ -216,7 +216,7 @@ pub async fn qemu_start(
         .start_qemu_async(&node, vmid, Default::default())
         .await?;
 
-    new_remote_upid(remote, upid)
+    new_remote_upid(remote, upid).await
 }
 
 #[api(
@@ -377,7 +377,7 @@ pub async fn qemu_migrate(
     };
     let upid = pve.migrate_qemu(&node, vmid, params).await?;
 
-    new_remote_upid(remote, upid)
+    new_remote_upid(remote, upid).await
 }
 
 #[api(
@@ -564,5 +564,5 @@ pub async fn qemu_remote_migrate(
     log::info!("migrating vm {vmid} of node {node:?}");
     let upid = source_conn.remote_migrate_qemu(&node, vmid, params).await?;
 
-    new_remote_upid(source, upid)
+    new_remote_upid(source, upid).await
 }

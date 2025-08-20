@@ -1,0 +1,559 @@
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::{Duration, Instant},
+};
+
+use anyhow::{format_err, Error};
+use nix::sys::stat::Mode;
+use tokio::{sync::Semaphore, task::JoinSet};
+
+use pdm_api_types::{
+    remotes::{Remote, RemoteType},
+    RemoteUpid,
+};
+use proxmox_section_config::typed::SectionConfigData;
+use pve_api_types::{ListTasks, ListTasksResponse, ListTasksSource};
+
+use server::{
+    api::pve,
+    remote_tasks::{
+        self,
+        task_cache::{NodeFetchSuccessMap, State, TaskCache, TaskCacheItem},
+        KEEP_OLD_FILES, REMOTE_TASKS_DIR, ROTATE_AFTER,
+    },
+    task_utils,
+};
+
+/// Tick interval for the remote task fetching task.
+/// This is also the rate at which we check on tracked tasks.
+const POLL_INTERVAL: Duration = Duration::from_secs(10);
+
+/// Interval in seconds at which to fetch the newest tasks from remotes (if there is no tracked
+/// task for this remote).
+const TASK_FETCH_INTERVAL: Duration = Duration::from_secs(600);
+
+/// Interval at which to check for task cache rotation.
+const CHECK_ROTATE_INTERVAL: Duration = Duration::from_secs(3600);
+
+/// Interval at which the task cache journal should be applied.
+///
+/// Choosing a value here is a trade-off between performance and avoiding unnecessary writes.
+/// Letting the journal grow large avoids writes, but since the journal is not sorted, accessing
+/// it will be slower than the task archive itself, as the entire journal must be loaded into
+/// memory and then sorted by task starttime. Applying the journal more often might
+/// lead to more writes, but should yield better performance.
+const APPLY_JOURNAL_INTERVAL: Duration = Duration::from_secs(3600);
+
+/// Maximum number of concurrent connections per remote.
+const CONNECTIONS_PER_PVE_REMOTE: usize = 5;
+
+/// Maximum number of total concurrent connections.
+const MAX_CONNECTIONS: usize = 20;
+
+/// Maximum number of tasks to fetch from a single remote in one API call.
+const MAX_TASKS_TO_FETCH: u64 = 5000;
+
+/// (Ephemeral) Remote task fetching task state.
+struct TaskState {
+    /// Time at which we last checked for archive rotation.
+    last_rotate_check: Instant,
+    /// Time at which we fetch tasks the last time.
+    last_fetch: Instant,
+    /// Time at which we last applied the journal.
+    last_journal_apply: Instant,
+}
+
+impl TaskState {
+    fn new() -> Self {
+        let now = Instant::now();
+
+        Self {
+            last_rotate_check: now - CHECK_ROTATE_INTERVAL,
+            last_fetch: now - TASK_FETCH_INTERVAL,
+            last_journal_apply: now - APPLY_JOURNAL_INTERVAL,
+        }
+    }
+
+    /// Reset the task archive rotation timestamp.
+    fn reset_rotate_check(&mut self) {
+        self.last_rotate_check = Instant::now();
+    }
+
+    /// Reset the task fetch timestamp.
+    fn reset_fetch(&mut self) {
+        self.last_fetch = Instant::now();
+    }
+
+    /// Reset the journal apply timestamp.
+    fn reset_journal_apply(&mut self) {
+        self.last_journal_apply = Instant::now();
+    }
+
+    /// Should we check for archive rotation?
+    fn is_due_for_rotate_check(&self) -> bool {
+        Instant::now().duration_since(self.last_rotate_check) > CHECK_ROTATE_INTERVAL
+    }
+
+    /// Should we fetch tasks?
+    fn is_due_for_fetch(&self) -> bool {
+        Instant::now().duration_since(self.last_fetch) > TASK_FETCH_INTERVAL
+    }
+
+    /// Should we apply the task archive's journal?
+    fn is_due_for_journal_apply(&self) -> bool {
+        Instant::now().duration_since(self.last_journal_apply) > APPLY_JOURNAL_INTERVAL
+    }
+}
+
+/// Start the remote task fetching task
+pub fn start_task() -> Result<(), Error> {
+    let dir_options =
+        proxmox_product_config::default_create_options().perm(Mode::from_bits_truncate(0o0750));
+
+    proxmox_sys::fs::create_path(REMOTE_TASKS_DIR, None, Some(dir_options))?;
+
+    tokio::spawn(async move {
+        let task_scheduler = std::pin::pin!(remote_task_fetching_task());
+        let abort_future = std::pin::pin!(proxmox_daemon::shutdown_future());
+        futures::future::select(task_scheduler, abort_future).await;
+    });
+
+    Ok(())
+}
+
+/// Task which handles fetching remote tasks and task archive rotation.
+/// This function never returns.
+async fn remote_task_fetching_task() -> ! {
+    let mut task_state = TaskState::new();
+
+    let mut interval = tokio::time::interval(POLL_INTERVAL);
+    interval.reset_at(task_utils::next_aligned_instant(POLL_INTERVAL.as_secs()).into());
+
+    // We don't really care about catching up to missed tick, we just want
+    // a steady tick rate.
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+    if let Err(err) = init_cache().await {
+        log::error!("error when initialized task cache: {err:#}");
+    }
+
+    loop {
+        interval.tick().await;
+        if let Err(err) = do_tick(&mut task_state).await {
+            log::error!("error when fetching remote tasks: {err:#}");
+        }
+    }
+}
+
+/// Handle a single timer tick.
+/// Will handle archive file rotation, polling of tracked tasks and fetching or remote tasks.
+async fn do_tick(task_state: &mut TaskState) -> Result<(), Error> {
+    let cache = remote_tasks::get_cache()?;
+
+    if task_state.is_due_for_rotate_check() {
+        log::debug!("checking if remote task archive should be rotated");
+        if rotate_cache(cache.clone()).await? {
+            log::info!("rotated remote task archive");
+        }
+
+        task_state.reset_rotate_check();
+    }
+
+    if task_state.is_due_for_journal_apply() {
+        apply_journal(cache.clone()).await?;
+        task_state.reset_journal_apply();
+    }
+
+    let (remote_config, _) = tokio::task::spawn_blocking(pdm_config::remotes::config).await??;
+
+    let total_connections_semaphore = Arc::new(Semaphore::new(MAX_CONNECTIONS));
+
+    let cache_state = cache.read_state();
+    let poll_results = poll_tracked_tasks(
+        &remote_config,
+        cache_state.tracked_tasks(),
+        Arc::clone(&total_connections_semaphore),
+    )
+    .await?;
+
+    // Get a list of remotes that we should poll in this cycle.
+    let remotes = if task_state.is_due_for_fetch() {
+        task_state.reset_fetch();
+        get_all_remotes(&remote_config)
+    } else {
+        get_remotes_with_finished_tasks(&remote_config, &poll_results)
+    };
+
+    let (all_tasks, update_state_for_remote) = fetch_remotes(
+        remotes,
+        Arc::new(cache_state),
+        Arc::clone(&total_connections_semaphore),
+    )
+    .await;
+
+    if !all_tasks.is_empty() {
+        update_task_cache(cache, all_tasks, update_state_for_remote, poll_results).await?;
+    }
+
+    Ok(())
+}
+
+/// Initialize the remote task cache with initial archive files, in case there are not
+/// any archive files yet.
+///
+/// This allows us to immediately backfill remote task history when setting up a new PDM instance
+/// without any prior task archive rotation.
+async fn init_cache() -> Result<(), Error> {
+    tokio::task::spawn_blocking(|| {
+        let cache = remote_tasks::get_cache()?;
+        cache.write()?.init(proxmox_time::epoch_i64())?;
+        Ok(())
+    })
+    .await?
+}
+
+/// Fetch tasks from a list of remotes.
+///
+/// Returns a list of tasks and a map that shows whether we want to update the
+/// cutoff timestamp in the statefile. We don't want to update the cutoff if
+/// the connection to one remote failed or if we could not reach all remotes in a cluster.
+async fn fetch_remotes(
+    remotes: Vec<Remote>,
+    cache_state: Arc<State>,
+    total_connections_semaphore: Arc<Semaphore>,
+) -> (Vec<TaskCacheItem>, NodeFetchSuccessMap) {
+    let mut join_set = JoinSet::new();
+
+    for remote in remotes {
+        let semaphore = Arc::clone(&total_connections_semaphore);
+        let state_clone = Arc::clone(&cache_state);
+
+        join_set.spawn(async move {
+            log::debug!("fetching remote tasks for '{}'", remote.id);
+            fetch_tasks(&remote, state_clone, semaphore)
+                .await
+                .map_err(|err| {
+                    format_err!("could not fetch tasks from remote '{}': {err}", remote.id)
+                })
+        });
+    }
+
+    let mut all_tasks = Vec::new();
+    let mut update_state_for_remote = NodeFetchSuccessMap::default();
+
+    while let Some(res) = join_set.join_next().await {
+        match res {
+            Ok(Ok(FetchedTasks {
+                tasks,
+                node_results,
+            })) => {
+                all_tasks.extend(tasks);
+                update_state_for_remote.merge(node_results);
+            }
+            Ok(Err(err)) => log::error!("{err:#}"),
+            Err(err) => log::error!("could not join task fetching future: {err:#}"),
+        }
+    }
+
+    (all_tasks, update_state_for_remote)
+}
+
+/// Return all remotes from the given config.
+fn get_all_remotes(remote_config: &SectionConfigData<Remote>) -> Vec<Remote> {
+    remote_config
+        .into_iter()
+        .map(|(_, section)| section)
+        .cloned()
+        .collect()
+}
+
+/// Return all remotes that correspond to a list of finished tasks.
+fn get_remotes_with_finished_tasks(
+    remote_config: &SectionConfigData<Remote>,
+    poll_results: &HashMap<RemoteUpid, PollResult>,
+) -> Vec<Remote> {
+    let remotes_with_finished_tasks: HashSet<&str> = poll_results
+        .iter()
+        .filter_map(|(upid, status)| (*status == PollResult::Finished).then_some(upid.remote()))
+        .collect();
+
+    remote_config
+        .into_iter()
+        .filter_map(|(name, remote)| {
+            remotes_with_finished_tasks
+                .contains(&name)
+                .then_some(remote)
+        })
+        .cloned()
+        .collect()
+}
+
+/// Rotate the task cache if necessary.
+///
+/// Returns Ok(true) the cache's files were rotated.
+async fn rotate_cache(cache: TaskCache) -> Result<bool, Error> {
+    tokio::task::spawn_blocking(move || cache.write()?.rotate(proxmox_time::epoch_i64())).await?
+}
+
+/// Apply the task cache journal.
+async fn apply_journal(cache: TaskCache) -> Result<(), Error> {
+    tokio::task::spawn_blocking(move || cache.write()?.apply_journal()).await?
+}
+
+/// Fetched tasks from a single remote.
+struct FetchedTasks {
+    /// List of tasks.
+    tasks: Vec<TaskCacheItem>,
+    /// Contains whether a cluster node was fetched successfully.
+    node_results: NodeFetchSuccessMap,
+}
+
+/// Fetch tasks (active and finished) from a remote.
+async fn fetch_tasks(
+    remote: &Remote,
+    state: Arc<State>,
+    total_connections_semaphore: Arc<Semaphore>,
+) -> Result<FetchedTasks, Error> {
+    let mut tasks = Vec::new();
+
+    let mut node_results = NodeFetchSuccessMap::default();
+
+    match remote.ty {
+        RemoteType::Pve => {
+            let client = pve::connect(remote)?;
+
+            let nodes = {
+                // This permit *must* be dropped before we acquire the permits for the
+                // per-node connections - otherwise we risk a deadlock.
+                let _permit = total_connections_semaphore.acquire().await.unwrap();
+                client.list_nodes().await?
+            };
+
+            // This second semaphore is used to limit the number of concurrent connections
+            // *per remote*, not in total.
+            let per_remote_semaphore = Arc::new(Semaphore::new(CONNECTIONS_PER_PVE_REMOTE));
+            let mut join_set = JoinSet::new();
+
+            for node in nodes {
+                let node_name = node.node.to_string();
+
+                let since = state
+                    .cutoff_timestamp(&remote.id, &node_name)
+                    .unwrap_or_else(|| {
+                        proxmox_time::epoch_i64() - (KEEP_OLD_FILES as u64 * ROTATE_AFTER) as i64
+                    });
+
+                let params = ListTasks {
+                    source: Some(ListTasksSource::Archive),
+                    since: Some(since),
+                    // If `limit` is not provided, we only receive 50 tasks
+                    limit: Some(MAX_TASKS_TO_FETCH),
+                    ..Default::default()
+                };
+
+                let per_remote_permit = Arc::clone(&per_remote_semaphore)
+                    .acquire_owned()
+                    .await
+                    .unwrap();
+
+                let total_connections_permit = Arc::clone(&total_connections_semaphore)
+                    .acquire_owned()
+                    .await
+                    .unwrap();
+
+                let remote_clone = remote.clone();
+
+                join_set.spawn(async move {
+                    let res = async {
+                        let client = pve::connect(&remote_clone)?;
+                        let task_list =
+                            client
+                                .get_task_list(&node.node, params)
+                                .await
+                                .map_err(|err| {
+                                    format_err!(
+                                        "remote '{}', node '{}': {err}",
+                                        remote_clone.id,
+                                        node.node
+                                    )
+                                })?;
+                        Ok::<Vec<_>, Error>(task_list)
+                    }
+                    .await;
+
+                    drop(total_connections_permit);
+                    drop(per_remote_permit);
+
+                    (node_name, res)
+                });
+            }
+
+            while let Some(result) = join_set.join_next().await {
+                match result {
+                    Ok((node_name, result)) => match result {
+                        Ok(task_list) => {
+                            let mapped =
+                                task_list.into_iter().filter_map(|task| {
+                                    match map_pve_task(task, &remote.id) {
+                                        Ok(task) => Some(task),
+                                        Err(err) => {
+                                            log::error!(
+                                                "could not map task data, skipping: {err:#}"
+                                            );
+                                            None
+                                        }
+                                    }
+                                });
+
+                            tasks.extend(mapped);
+                            node_results.set_node_success(remote.id.clone(), node_name);
+                        }
+                        Err(error) => {
+                            log::error!("could not fetch tasks: {error:#}");
+                            node_results.set_node_failure(remote.id.clone(), node_name);
+                        }
+                    },
+                    Err(err) => return Err(err.into()),
+                }
+            }
+        }
+        RemoteType::Pbs => {
+            // TODO: Add code for PBS
+        }
+    }
+
+    Ok(FetchedTasks {
+        tasks,
+        node_results,
+    })
+}
+
+#[derive(PartialEq, Debug)]
+/// Outcome from polling a tracked task.
+enum PollResult {
+    /// Tasks is still running.
+    Running,
+    /// Task is finished, poll remote tasks to get final status/endtime.
+    Finished,
+    /// Should be dropped from the active file.
+    RequestError,
+    /// Remote does not exist any more -> remove immediately from tracked task list.
+    RemoteGone,
+}
+
+/// Poll all tracked tasks.
+async fn poll_tracked_tasks(
+    remote_config: &SectionConfigData<Remote>,
+    tracked_tasks: impl Iterator<Item = &RemoteUpid>,
+    total_connections_semaphore: Arc<Semaphore>,
+) -> Result<HashMap<RemoteUpid, PollResult>, Error> {
+    let mut join_set = JoinSet::new();
+
+    for task in tracked_tasks.cloned() {
+        let permit = Arc::clone(&total_connections_semaphore)
+            .acquire_owned()
+            .await
+            .unwrap();
+
+        let remote = remote_config.get(task.remote()).cloned();
+
+        join_set.spawn(async move {
+            // Move permit into this async block.
+            let _permit = permit;
+
+            match remote {
+                Some(remote) => poll_single_tracked_task(remote, task).await,
+                None => {
+                    log::info!(
+                        "remote {} does not exist any more, dropping tracked task",
+                        task.remote()
+                    );
+                    (task, PollResult::RemoteGone)
+                }
+            }
+        });
+    }
+
+    let mut results = HashMap::new();
+    while let Some(task_result) = join_set.join_next().await {
+        let (upid, result) = task_result?;
+        results.insert(upid, result);
+    }
+
+    Ok(results)
+}
+
+/// Poll a single tracked task.
+async fn poll_single_tracked_task(remote: Remote, task: RemoteUpid) -> (RemoteUpid, PollResult) {
+    match remote.ty {
+        RemoteType::Pve => {
+            log::debug!("polling tracked task {}", task);
+
+            let status = match server::api::pve::tasks::get_task_status(
+                remote.id.clone(),
+                task.clone(),
+                false,
+            )
+            .await
+            {
+                Ok(status) => status,
+                Err(err) => {
+                    log::error!("could not get status from remote: {err:#}");
+                    return (task, PollResult::RequestError);
+                }
+            };
+
+            let result = if status.exitstatus.is_some() {
+                PollResult::Finished
+            } else {
+                PollResult::Running
+            };
+
+            (task, result)
+        }
+        RemoteType::Pbs => {
+            // TODO: Implement for PBS
+            (task, PollResult::RequestError)
+        }
+    }
+}
+
+/// Map a `ListTasksResponse` to `TaskCacheItem`
+fn map_pve_task(task: ListTasksResponse, remote: &str) -> Result<TaskCacheItem, Error> {
+    let remote_upid: RemoteUpid = (remote.to_string(), task.upid.to_string()).try_into()?;
+
+    Ok(TaskCacheItem {
+        upid: remote_upid,
+        starttime: task.starttime,
+        endtime: task.endtime,
+        status: task.status,
+    })
+}
+
+/// Update task cache with results from tracked task polling & regular task fetching.
+async fn update_task_cache(
+    cache: TaskCache,
+    new_tasks: Vec<TaskCacheItem>,
+    update_state_for_remote: NodeFetchSuccessMap,
+    poll_results: HashMap<RemoteUpid, PollResult>,
+) -> Result<(), Error> {
+    tokio::task::spawn_blocking(move || {
+        let drop_tracked = poll_results
+            .into_iter()
+            .filter_map(|(upid, result)| match result {
+                PollResult::Running => None,
+                PollResult::Finished | PollResult::RequestError | PollResult::RemoteGone => {
+                    Some(upid)
+                }
+            })
+            .collect();
+
+        cache
+            .write()?
+            .update(new_tasks, &update_state_for_remote, drop_tracked)?;
+
+        Ok(())
+    })
+    .await?
+}

@@ -21,13 +21,6 @@ const SUBDIRS: SubdirMap = &sorted!([("list", &Router::new().get(&API_METHOD_LIS
     },
     input: {
         properties: {
-            "max-age": {
-                type: Integer,
-                optional: true,
-                // TODO: sensible default max-age
-                default: 300,
-                description: "Maximum age of cached task data",
-            },
             filters: {
                 type: TaskFilters,
                 flatten: true,
@@ -36,8 +29,8 @@ const SUBDIRS: SubdirMap = &sorted!([("list", &Router::new().get(&API_METHOD_LIS
     },
 )]
 /// Get the list of tasks for all remotes.
-async fn list_tasks(max_age: i64, filters: TaskFilters) -> Result<Vec<TaskListItem>, Error> {
-    let tasks = remote_tasks::get_tasks(max_age, filters).await?;
+async fn list_tasks(filters: TaskFilters) -> Result<Vec<TaskListItem>, Error> {
+    let tasks = remote_tasks::get_tasks(filters).await?;
 
     Ok(tasks)
 }
