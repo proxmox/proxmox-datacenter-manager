@@ -411,10 +411,11 @@ async fn fetch_tasks(
                         }
                         Err(error) => {
                             log::error!("could not fetch tasks: {error:#}");
-                            node_results.set_node_failure(remote.id.clone(), node_name);
                         }
                     },
-                    Err(err) => return Err(err.into()),
+                    Err(error) => {
+                        log::error!("could not join task fetching task: {error:#}");
+                    }
                 }
             }
         }

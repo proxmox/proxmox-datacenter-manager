@@ -188,11 +188,6 @@ impl NodeFetchSuccessMap {
         self.0.insert((remote, node), true);
     }
 
-    /// Mark a node of a given remote as failed.
-    pub fn set_node_failure(&mut self, remote: String, node: String) {
-        self.0.insert((remote, node), false);
-    }
-
     /// Returns whether tasks from a given node of a remote were successfully fetched.
     pub fn node_successful(&self, remote: &str, node: &str) -> bool {
         matches!(self.0.get(&(remote.into(), node.into())), Some(true))
