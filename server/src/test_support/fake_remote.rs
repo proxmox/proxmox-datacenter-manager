@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use anyhow::{bail, Error};
 use serde::Deserialize;
@@ -129,7 +129,7 @@ impl pve_api_types::client::PveClient for FakePveClient {
         let mut vmid = 100;
 
         for _ in 0..self.nr_of_vms {
-            vmid = vmid + 1;
+            vmid += 1;
             result.push(ClusterResource {
                 cgroup_mode: None,
                 content: None,
@@ -163,7 +163,7 @@ impl pve_api_types::client::PveClient for FakePveClient {
         }
 
         for _ in 0..self.nr_of_cts {
-            vmid = vmid + 1;
+            vmid += 1;
             result.push(ClusterResource {
                 cgroup_mode: None,
                 content: None,
@@ -358,7 +358,6 @@ impl pve_api_types::client::PveClient for FakePveClient {
     async fn list_nodes(&self) -> Result<Vec<ClusterNodeIndexResponse>, proxmox_client::Error> {
         tokio::time::sleep(Duration::from_millis(self.api_delay_ms as u64)).await;
         Ok((0..self.nr_of_nodes)
-            .into_iter()
             .map(|i| ClusterNodeIndexResponse {
                 node: format!("pve-{i}"),
                 cpu: None,
@@ -415,7 +414,6 @@ impl pve_api_types::client::PveClient for FakePveClient {
         let number_of_tasks = limit.min(number_of_tasks as u64);
 
         Ok((0..number_of_tasks)
-            .into_iter()
             .map(|i| make_task(now - i as i64 * NEW_TASK_EVERY * 60))
             .collect())
     }
