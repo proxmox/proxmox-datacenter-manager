@@ -18,6 +18,8 @@ use tokio::task::JoinHandle;
 
 use crate::{api::pve, task_utils};
 
+mod task_cache;
+
 /// Get tasks for all remotes
 // FIXME: filter for privileges
 pub async fn get_tasks(max_age: i64, filters: TaskFilters) -> Result<Vec<TaskListItem>, Error> {

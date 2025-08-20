@@ -32,6 +32,7 @@ tokio = { workspace = true, features = [ "fs", "io-util", "io-std", "macros", "n
 tokio-stream.workspace = true
 tracing.workspace = true
 url.workspace = true
+zstd.workspace = true
 
 proxmox-access-control = { workspace = true, features = [ "impl" ] }
 proxmox-async.workspace = true
