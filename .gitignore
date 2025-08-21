@@ -13,3 +13,6 @@
 Cargo.lock
 proxmox-datacenter-manager-[0-9].*/
 /ui/proxmox-datacenter-manager-ui-[0-9].*/
+/docs/*/synopsis.rst
+/docs/config/*/config.rst
+/docs/output1
