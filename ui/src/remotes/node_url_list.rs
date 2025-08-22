@@ -10,7 +10,7 @@ use pwt::state::Store;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::form::ManagedField;
 use pwt::widget::form::{Field, ManagedFieldContext, ManagedFieldMaster, ManagedFieldState};
-use pwt::widget::{ActionIcon, Button, Column, Container, Fa, Row};
+use pwt::widget::{ActionIcon, Button, Column, Container, Fa, Row, Trigger};
 use pwt::{css, prelude::*};
 
 use proxmox_yew_comp::{SchemaValidation, Status};
@@ -267,7 +267,22 @@ fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader
                     };
                     Field::new()
                         .schema(&CERT_FINGERPRINT_SHA256_SCHEMA)
+                        .placeholder(tr!("Use trusted certificate"))
                         .on_change(link.callback(move |value| Msg::UpdateFingerprint(index, value)))
+                        .with_trigger(
+                            Trigger::new(
+                                (!fingerprint.is_empty())
+                                    .then_some("fa fa-times")
+                                    .unwrap_or_default(),
+                            )
+                            .tip(tr!("Clear"))
+                            .on_activate(
+                                link.callback(move |_| {
+                                    Msg::UpdateFingerprint(index, "".to_string())
+                                }),
+                            ),
+                            true,
+                        )
                         .value(fingerprint.to_string())
                         .into()
                 }
