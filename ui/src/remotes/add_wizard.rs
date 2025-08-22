@@ -77,8 +77,8 @@ impl Component for AddWizardState {
             Msg::ServerChange(server_info) => {
                 self.server_info = server_info;
             }
-            Msg::ConnectChange(realms) => {
-                self.connect_info = realms;
+            Msg::ConnectChange(info) => {
+                self.connect_info = info;
             }
         }
         true
@@ -110,11 +110,11 @@ impl Component for AddWizardState {
                 },
             )
             .with_page(TabBarItem::new().key("info").label(tr!("Settings")), {
-                let realms = self.connect_info.clone();
+                let info = self.connect_info.clone();
                 let link = ctx.link().clone();
                 move |p: &WizardPageRenderInfo| {
                     WizardPageInfo::new(p.clone())
-                        .connect_info(realms.clone())
+                        .connect_info(info.clone())
                         .on_server_change(link.callback(Msg::ServerChange))
                         .into()
                 }
