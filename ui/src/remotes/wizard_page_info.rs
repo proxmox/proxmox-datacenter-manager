@@ -94,15 +94,21 @@ async fn scan(connection_params: ConnectParams, form_ctx: FormContext) -> Result
         data["fingerprint"] = fp.into();
     }
 
-    let data: ScanParams = serde_json::from_value(data.clone())?;
+    let ScanParams {
+        hostname,
+        authid,
+        token,
+        fingerprint,
+    } = serde_json::from_value(data.clone())?;
 
-    let params = serde_json::to_value(&data)?;
-    let mut result: Remote = proxmox_yew_comp::http_post("/pve/scan", Some(params)).await?;
+    let mut result = crate::pdm_client()
+        .pve_scan_remote(&hostname, fingerprint.as_deref(), &authid, &token)
+        .await?;
     result.nodes.insert(
         0,
         PropertyString::new(NodeUrl {
-            hostname: data.hostname,
-            fingerprint: data.fingerprint,
+            hostname,
+            fingerprint,
         }),
     );
     result.nodes.sort_by(|a, b| a.hostname.cmp(&b.hostname));
