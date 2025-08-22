@@ -239,7 +239,7 @@ fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader
     let link = ctx.link();
 
     Rc::new(vec![
-        DataTableColumn::new(tr!("Hostname"))
+        DataTableColumn::new(tr!("Hostname/IP"))
             .flex(1)
             .render({
                 let link = link.clone();
