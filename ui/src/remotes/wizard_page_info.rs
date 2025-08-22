@@ -186,6 +186,14 @@ impl Component for PdmWizardPageInfo {
             .form_ctx
             .add_listener(ctx.link().callback(|_| Msg::FormChange));
 
+        props.info.on_next({
+            let link = ctx.link().clone();
+            move |_| {
+                link.send_message(Msg::Connect);
+                false
+            }
+        });
+
         Self {
             server_info: None,
             user_mode: true,
@@ -221,6 +229,7 @@ impl Component for PdmWizardPageInfo {
                 } else {
                     self.credentials = None;
                 }
+                props.info.page_lock(self.credentials.is_none());
             }
             Msg::Connect => {
                 let link = ctx.link().clone();
@@ -228,6 +237,7 @@ impl Component for PdmWizardPageInfo {
                 let form_ctx = props.info.form_ctx.clone();
                 self.loading = true;
                 self.last_error = None;
+                props.info.page_lock(true);
 
                 if let Some(connection_info) = props.connect_info.clone() {
                     self.async_pool.spawn(async move {
@@ -240,19 +250,27 @@ impl Component for PdmWizardPageInfo {
             }
             Msg::ConnectResult(server_info) => {
                 self.loading = false;
+                props.info.page_lock(false);
                 match server_info {
                     Ok(server_info) => {
                         self.update_server_info(ctx, Some(server_info));
                     }
                     Err(err) => {
                         self.last_error = Some(err);
+                        props.info.page_lock(true);
                     }
                 }
 
                 if let Some(form_ctx) = props.info.lookup_form_context(&Key::from("nodes")) {
-                    form_ctx.write().reset_form();
+                    let mut form = form_ctx.write();
+                    form.set_field_value("nodes", serde_json::Value::Null);
+                    form.reset_form();
                 }
                 props.info.reset_remaining_valid_pages();
+
+                if self.last_error.is_none() {
+                    props.info.go_to_next_page();
+                }
             }
         }
         true
@@ -364,16 +382,6 @@ impl Component for PdmWizardPageInfo {
                         self.last_error
                             .as_deref()
                             .map(|err| error_message(&err.to_string())),
-                    )
-                    .with_flex_spacer()
-                    .with_optional_child(
-                        (self.last_error.is_none() && self.server_info.is_some())
-                            .then_some(Container::new().with_child(tr!("Scan OK"))),
-                    )
-                    .with_child(
-                        Button::new("Scan")
-                            .disabled(self.credentials.is_none())
-                            .on_activate(ctx.link().callback(|_| Msg::Connect)),
                     ),
             );
         Mask::new(content)
