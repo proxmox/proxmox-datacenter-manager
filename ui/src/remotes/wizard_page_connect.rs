@@ -47,7 +47,7 @@ async fn list_realms(
     if let Some(fp) = fingerprint {
         params["fingerprint"] = fp.into();
     }
-    let result: Vec<ListRealm> = proxmox_yew_comp::http_post("/pve/realms", Some(params)).await?;
+    let result: Vec<ListRealm> = proxmox_yew_comp::http_get("/pve/realms", Some(params)).await?;
 
     Ok(result)
 }

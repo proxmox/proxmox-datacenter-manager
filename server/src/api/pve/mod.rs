@@ -47,7 +47,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("scan", &Router::new().post(&API_METHOD_SCAN_REMOTE_PVE)),
     (
         "realms",
-        &Router::new().post(&API_METHOD_LIST_REALM_REMOTE_PVE)
+        &Router::new().get(&API_METHOD_LIST_REALM_REMOTE_PVE)
     )
 ]);
 
