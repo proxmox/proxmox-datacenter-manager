@@ -214,9 +214,19 @@ impl Component for PdmWizardPageInfo {
                 } else {
                     self.credentials = None;
                 }
+                if let Some(form_ctx) = props.info.lookup_form_context(&Key::from("nodes")) {
+                    let mut form = form_ctx.write();
+                    form.set_field_value("nodes", serde_json::Value::Null);
+                    form.reset_form();
+                }
                 props.info.page_lock(self.credentials.is_none());
             }
             Msg::Connect => {
+                if self.server_info.is_some() {
+                    props.info.page_lock(false);
+                    props.info.go_to_next_page();
+                    return true;
+                }
                 let link = ctx.link().clone();
                 self.update_server_info(ctx, None);
                 let form_ctx = props.info.form_ctx.clone();
@@ -246,11 +256,6 @@ impl Component for PdmWizardPageInfo {
                     }
                 }
 
-                if let Some(form_ctx) = props.info.lookup_form_context(&Key::from("nodes")) {
-                    let mut form = form_ctx.write();
-                    form.set_field_value("nodes", serde_json::Value::Null);
-                    form.reset_form();
-                }
                 props.info.reset_remaining_valid_pages();
 
                 if self.last_error.is_none() {

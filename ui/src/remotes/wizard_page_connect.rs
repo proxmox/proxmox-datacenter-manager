@@ -145,6 +145,11 @@ impl Component for PdmWizardPageConnect {
                     }
                 }
                 props.info.page_lock(!self.form_valid);
+                for page in ["nodes", "info"] {
+                    if let Some(form_ctx) = props.info.lookup_form_context(&Key::from(page)) {
+                        form_ctx.write().reset_form();
+                    }
+                }
             }
             Msg::Connect => {
                 let link = ctx.link().clone();
@@ -170,9 +175,6 @@ impl Component for PdmWizardPageConnect {
                     }
                 }
 
-                if let Some(form_ctx) = props.info.lookup_form_context(&Key::from("nodes")) {
-                    form_ctx.write().reset_form();
-                }
                 props.info.reset_remaining_valid_pages();
                 if self.connect_info.is_some() {
                     props.info.go_to_next_page();
