@@ -1,10 +1,15 @@
 Source: proxmox-datacenter-manager
 Section: admin
 Priority: optional
-Build-Depends: cargo:native,
-               debhelper-compat (= 13),
+Build-Depends: debhelper-compat (= 13),
                dh-cargo (>= 25),
+               cargo:native,
+               fonts-dejavu-core <!nodoc>,
+               fonts-lato <!nodoc>,
+               fonts-open-sans <!nodoc>,
                git,
+               graphviz <!nodoc>,
+               latexmk <!nodoc>,
                libproxmox-acme-plugins,
                librust-anyhow-1+default-dev,
                librust-async-stream-0.3+default-dev,
@@ -71,8 +76,8 @@ Build-Depends: cargo:native,
                librust-proxmox-rest-server-1+templates-dev,
                librust-proxmox-router-3+cli-dev,
                librust-proxmox-router-3+server-dev,
-               librust-proxmox-rrd-api-types-1+default-dev (>= 1.0.2-~~),
                librust-proxmox-rrd-1-dev,
+               librust-proxmox-rrd-api-types-1+default-dev (>= 1.0.2-~~),
                librust-proxmox-schema-5+api-macro-dev,
                librust-proxmox-schema-5+default-dev,
                librust-proxmox-section-config-3+default-dev,
@@ -128,8 +133,13 @@ Build-Depends: cargo:native,
                librust-zstd-0.13+default-dev,
                libstd-rust-dev,
                libsystemd-dev,
-               proxmox-widget-toolkit-dev,
+               proxmox-widget-toolkit-dev <!nodoc>,
+               python3-sphinx <!nodoc>,
                rustc:native,
+               texlive-fonts-extra <!nodoc>,
+               texlive-fonts-recommended <!nodoc>,
+               texlive-xetex <!nodoc>,
+               xindy <!nodoc>,
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.6.1
 Vcs-Git: git://git.proxmox.com/git/proxmox-datacenter-manager.git
@@ -140,14 +150,15 @@ Rules-Requires-Root: no
 Package: proxmox-datacenter-manager
 Architecture: any
 Multi-Arch: allowed
-Depends: proxmox-mini-journalreader,
-         libproxmox-acme-plugins,
+Depends: libproxmox-acme-plugins,
+         proxmox-mini-journalreader,
          proxmox-termproxy,
          pve-xtermjs,
          ${misc:Depends},
          ${shlibs:Depends},
-Recommends: proxmox-datacenter-manager-client, proxmox-datacenter-manager-ui,
-Suggests: proxmox-datacenter-manager-api-viewer,
+Recommends: proxmox-datacenter-manager-client,
+            proxmox-datacenter-manager-docs,
+            proxmox-datacenter-manager-ui,
 Description: Manage multiple Proxmox VE cluster and other Proxmox projects
  This package provides the API daemons of the Proxmox Datacenter Manager (PDM)
  which allows one to add multiple Proxmox VE and Proxmox Backup Server
@@ -161,13 +172,14 @@ Description: CLI Client for the Proxmox Datacenter Manager
  This package provides the CLI client that can interface with a Proxmox
  Datacenter Manager (PDM) instance.
 
-Package: proxmox-datacenter-manager-api-viewer
-Architecture: any
-Multi-Arch: allowed
+Package: proxmox-datacenter-manager-docs
+Build-Profiles: <!nodoc>
+Architecture: all
 Depends: fonts-font-awesome,
          libjs-extjs (>= 7~),
-         proxmox-widget-toolkit,
+         libjs-mathjax,
          ${misc:Depends},
          ${shlibs:Depends},
 Recommends: proxmox-datacenter-manager,
-Description: API Viewer for the Proxmox Datacenter Manager.
+Description: Documentation for the Proxmox Datacenter Manager.
+ This package contains the Proxmox Datacenter Manager files.

@@ -1,4 +1,5 @@
 include /usr/share/dpkg/default.mk
+include defines.mk
 
 PACKAGE=proxmox-datacenter-manager
 CRATENAME=proxmox-datacenter-manager
@@ -8,6 +9,7 @@ ORIG_SRC_TAR=$(PACKAGE)_$(DEB_VERSION_UPSTREAM).orig.tar.gz
 
 DEB=$(PACKAGE)_$(DEB_VERSION)_$(DEB_HOST_ARCH).deb
 DBG_DEB=$(PACKAGE)-dbgsym_$(DEB_VERSION)_$(DEB_HOST_ARCH).deb
+DOC_DEB=$(PACKAGE)-docs_$(DEB_VERSION)_all.deb
 DSC=$(PACKAGE)_$(DEB_VERSION).dsc
 
 CARGO ?= cargo
@@ -21,12 +23,6 @@ endif
 COMPLETION_DIR := cli/completions
 
 DESTDIR =
-PREFIX = /usr
-BINDIR = $(PREFIX)/bin
-SBINDIR = $(PREFIX)/sbin
-LIBEXECDIR = $(PREFIX)/libexec
-BASHCOMPDIR = $(PREFIX)/share/bash-completion/completions
-ZSHCOMPDIR = $(PREFIX)/share/zsh/vendor-completions
 
 UI_DIR = ui
 
@@ -82,12 +78,10 @@ install: $(COMPILED_BINS) $(SHELL_COMPLETION_FILES)
 	$(foreach i,$(ZSH_COMPLETIONS), \
 	    install -m644 $(COMPLETION_DIR)/$(i) $(DESTDIR)$(ZSHCOMPDIR)/ ;)
 	make -C services install
-	make -C docs/api-viewer install
+	$(MAKE) -C docs install
 
-$(COMPILED_BINS): .do-cargo-build
-.do-cargo-build:
+$(COMPILED_BINS) $(COMPILEDIR)/docgen &:
 	$(CARGO) build $(CARGO_BUILD_ARGS)
-	touch .do-cargo-build
 
 
 $(SHELL_COMPLETION_FILES): create-shell-completions
@@ -95,15 +89,17 @@ $(SHELL_COMPLETION_FILES): create-shell-completions
 create-shell-completions:
 	$(MAKE) -C $(COMPLETION_DIR) $(BASH_COMPLETIONS) $(ZSH_COMPLETIONS)
 
+# make sure we build binaries before docs
+docs: $(COMPILEDIR)/docgen
+
 .PHONY: cargo-build
 cargo-build:
-	rm -f .do-cargo-build
 	$(MAKE) $(COMPILED_BINS)
 
 $(BUILDDIR):
 	rm -rf $@ $@.tmp
 	mkdir $@.tmp
-	cp -a debian/ server/ services/ cli/ lib/ docs/ ui/ Makefile Cargo.toml $@.tmp
+	cp -a debian/ server/ services/ cli/ lib/ docs/ ui/ defines.mk Makefile Cargo.toml $@.tmp
 	echo "git clone git://git.proxmox.com/git/$(PACKAGE).git\\ngit checkout $$(git rev-parse HEAD)" \
 	    > $@.tmp/debian/SOURCE
 	mv $@.tmp $@
@@ -114,10 +110,9 @@ $(ORIG_SRC_TAR): $(BUILDDIR)
 .PHONY: deb
 deb: deb-api deb-ui
 deb-api: $(DEB)
-$(DBG_DEB): $(DEB)
-$(DEB): $(BUILDDIR)
+$(DEB) $(DBG_DEB) $(DOC_DEB) &: $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -b -uc -us
-	lintian $(DEB)
+	lintian $(DEB) $(DOC_DEB)
 	@echo $(DEB)
 
 .PHONY: dsc
@@ -141,6 +136,7 @@ upload: $(DEB) $(DBG_DEB)
 distclean: clean
 clean: clean-deb
 	$(CARGO) clean
+	$(MAKE) -C docs clean
 	$(MAKE) -C $(COMPLETION_DIR) clean
 	$(MAKE) -C $(UI_DIR) clean
 

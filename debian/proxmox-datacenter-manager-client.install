@@ -1,3 +1,4 @@
 usr/bin/proxmox-datacenter-manager-client
 usr/share/bash-completion/completions/proxmox-datacenter-manager-client.bc
+usr/share/man/man1/proxmox-datacenter-manager-client.1
 usr/share/zsh/vendor-completions/_proxmox-datacenter-manager-client

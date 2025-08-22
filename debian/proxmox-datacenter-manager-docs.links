@@ -1,0 +1,6 @@
+/usr/share/doc/proxmox-datacenter-manager/proxmox-datacenter-manager.pdf /usr/share/doc/proxmox-datacenter-manager/html/proxmox-datacenter-manager.pdf
+/usr/share/fonts-font-awesome/ /usr/share/doc/proxmox-datacenter-manager/html/lto-barcode/font-awesome
+/usr/share/javascript/extjs /usr/share/doc/proxmox-datacenter-manager/html/api-viewer/extjs
+/usr/share/javascript/extjs /usr/share/doc/proxmox-datacenter-manager/html/lto-barcode/extjs
+/usr/share/javascript/extjs /usr/share/doc/proxmox-datacenter-manager/html/prune-simulator/extjs
+/usr/share/javascript/mathjax /usr/share/doc/proxmox-datacenter-manager/html/_static/mathjax
