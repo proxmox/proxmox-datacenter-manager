@@ -13,7 +13,7 @@ use proxmox_schema::property_string::PropertyString;
 use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA};
 use pdm_api_types::resource::PveResource;
 use pdm_api_types::{
     Authid, RemoteUpid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE,
@@ -27,8 +27,8 @@ use pve_api_types::{ClusterResourceKind, ClusterResourceType};
 
 use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage};
 
-use crate::connection;
 use crate::connection::PveClient;
+use crate::connection::{self, probe_tls_connection};
 use crate::remote_tasks;
 
 mod lxc;
@@ -44,6 +44,7 @@ pub const ROUTER: Router = Router::new()
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("remotes", &REMOTES_ROUTER),
+    ("probe-tls", &Router::new().post(&API_METHOD_PROBE_TLS)),
     ("scan", &Router::new().post(&API_METHOD_SCAN_REMOTE_PVE)),
     (
         "realms",
@@ -297,6 +298,37 @@ fn check_guest_delete_perms(
         PRIV_RESOURCE_DELETE,
         false,
     )
+}
+
+#[api(
+    input: {
+        properties: {
+            hostname: {
+                type: String,
+                format: &HOST_OPTIONAL_PORT_FORMAT,
+                description: "Hostname (with optional port) of the target remote",
+            },
+            fingerprint: {
+                type: String,
+                description: "Fingerprint of the target remote.",
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission:
+            &Permission::Privilege(&["/"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Probe the hosts TLS certificate.
+///
+/// If the certificate is not trusted with the given parameters, returns the certificate
+/// information.
+async fn probe_tls(
+    hostname: String,
+    fingerprint: Option<String>,
+) -> Result<TlsProbeOutcome, Error> {
+    probe_tls_connection(RemoteType::Pve, hostname, fingerprint).await
 }
 
 #[api(
