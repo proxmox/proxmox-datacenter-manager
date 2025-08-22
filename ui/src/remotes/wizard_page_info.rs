@@ -104,13 +104,36 @@ async fn scan(connection_params: ConnectParams, form_ctx: FormContext) -> Result
     let mut result = crate::pdm_client()
         .pve_scan_remote(&hostname, fingerprint.as_deref(), &authid, &token)
         .await?;
-    result.nodes.insert(
-        0,
-        PropertyString::new(NodeUrl {
-            hostname,
-            fingerprint,
-        }),
-    );
+
+    // try to deduplicate the entered info from the first page with the nodelist here
+    // either via the hostname or the fingerprint. if none matches the entered info will
+    // be an extra entry in the first position
+    let mut found_matching_host = false;
+    for node in result.nodes.iter_mut() {
+        if node.hostname == hostname {
+            if fingerprint.is_none() {
+                node.fingerprint = None;
+            }
+            found_matching_host = true;
+            continue;
+        }
+        if node.fingerprint.as_ref().map(|fp| fp.to_uppercase())
+            == fingerprint.as_ref().map(|fp| fp.to_uppercase())
+        {
+            found_matching_host = true;
+            node.hostname = hostname.clone();
+            continue;
+        }
+    }
+    if !found_matching_host {
+        result.nodes.insert(
+            0,
+            PropertyString::new(NodeUrl {
+                hostname,
+                fingerprint: fingerprint.map(|fp| fp.to_uppercase()),
+            }),
+        );
+    }
     result.nodes.sort_by(|a, b| a.hostname.cmp(&b.hostname));
     Ok(result)
 }
