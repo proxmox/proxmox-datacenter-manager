@@ -2,22 +2,19 @@ use std::rc::Rc;
 
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use yew::html::IntoEventCallback;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::FlexFit;
 use pwt::widget::form::{Field, FormContext, FormContextObserver};
 use pwt::widget::{error_message, Column, InputPanel, Mask};
-use pwt::{prelude::*, AsyncPool};
+use pwt::{prelude::*, AsyncAbortGuard};
+use pwt_macros::builder;
 
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
 
-use pdm_api_types::remotes::RemoteType;
+use pdm_api_types::remotes::{RemoteType, TlsProbeOutcome};
 use pdm_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
-use pdm_client::types::ListRealm;
-
-use pwt_macros::builder;
 
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
@@ -37,69 +34,46 @@ impl WizardPageConnect {
     }
 }
 
-async fn list_realms(
-    hostname: String,
-    fingerprint: Option<String>,
-) -> Result<Vec<ListRealm>, Error> {
-    let mut params = json!({
-        "hostname": hostname,
-    });
-    if let Some(fp) = fingerprint {
-        params["fingerprint"] = fp.into();
-    }
-    let result: Vec<ListRealm> = proxmox_yew_comp::http_get("/pve/realms", Some(params)).await?;
-
-    Ok(result)
-}
-
 #[derive(PartialEq, Clone, Deserialize, Serialize)]
 /// Parameters for connect call.
 pub struct ConnectParams {
     pub hostname: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-    #[serde(default)]
-    pub realms: Vec<ListRealm>,
 }
 
-async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<ConnectParams, Error> {
-    let data = form_ctx.get_submit_data();
-    let mut data: ConnectParams = serde_json::from_value(data.clone())?;
-    data.hostname = normalize_hostname(data.hostname);
+async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<TlsProbeOutcome, Error> {
+    match remote_type {
+        RemoteType::Pve => {
+            let hostname = normalize_hostname(form_ctx.read().get_field_text("hostname"));
+            let fingerprint = get_fingerprint(&form_ctx);
+            let res = crate::pdm_client()
+                .pve_probe_tls(&hostname, fingerprint.as_deref())
+                .await
+                .map_err(Error::from);
 
-    let realms = match remote_type {
-        RemoteType::Pve => list_realms(data.hostname.clone(), data.fingerprint.clone()).await?,
+            if let Ok(TlsProbeOutcome::UntrustedCertificate(_)) = &res {
+                bail!("Untrusted Certificate, please enter fingerprint");
+            }
+
+            res
+        }
         RemoteType::Pbs => bail!("not implemented"),
-    };
-
-    data.realms = realms;
-    Ok(data)
+    }
 }
 
 pub enum Msg {
     FormChange,
     Connect,
-    ConnectResult(Result<ConnectParams, Error>),
+    ConnectResult(Result<TlsProbeOutcome, Error>),
 }
 pub struct PdmWizardPageConnect {
-    connect_info: Option<ConnectParams>,
     _form_observer: FormContextObserver,
-    form_valid: bool,
     loading: bool,
-    last_error: Option<Error>,
-    async_pool: AsyncPool,
+    scan_result: Option<Result<TlsProbeOutcome, Error>>,
+    scan_guard: Option<AsyncAbortGuard>,
 }
 
-impl PdmWizardPageConnect {
-    fn update_connect_info(&mut self, ctx: &Context<Self>, info: Option<ConnectParams>) {
-        let props = ctx.props();
-        self.connect_info = info.clone();
-        props.info.page_lock(info.is_none());
-        if let Some(on_connect_change) = &props.on_connect_change {
-            on_connect_change.emit(info);
-        }
-    }
-}
 impl Component for PdmWizardPageConnect {
     type Message = Msg;
     type Properties = WizardPageConnect;
@@ -122,12 +96,10 @@ impl Component for PdmWizardPageConnect {
         });
 
         Self {
-            connect_info: None,
             _form_observer,
-            form_valid: false,
             loading: false,
-            last_error: None,
-            async_pool: AsyncPool::new(),
+            scan_result: None,
+            scan_guard: None,
         }
     }
 
@@ -135,49 +107,43 @@ impl Component for PdmWizardPageConnect {
         let props = ctx.props();
         match msg {
             Msg::FormChange => {
-                self.form_valid = props.info.form_ctx.read().is_valid();
-                match props.remote_type {
-                    RemoteType::Pve => {
-                        self.update_connect_info(ctx, None);
-                    }
-                    RemoteType::Pbs => {
-                        return <Self as yew::Component>::update(self, ctx, Msg::Connect)
-                    }
-                }
-                props.info.page_lock(!self.form_valid);
+                props.info.page_lock(!props.info.form_ctx.read().is_valid());
+                props.info.reset_remaining_valid_pages();
                 for page in ["nodes", "info"] {
                     if let Some(form_ctx) = props.info.lookup_form_context(&Key::from(page)) {
                         form_ctx.write().reset_form();
                     }
                 }
+                self.scan_result = None;
             }
             Msg::Connect => {
-                let link = ctx.link().clone();
-                self.update_connect_info(ctx, None);
-                let form_ctx = props.info.form_ctx.clone();
                 self.loading = true;
-                self.last_error = None;
+                props.info.page_lock(true);
 
-                let remote_type = props.remote_type;
-                self.async_pool.spawn(async move {
-                    let result = connect(form_ctx, remote_type).await;
-                    link.send_message(Msg::ConnectResult(result));
-                });
+                self.scan_guard = Some(AsyncAbortGuard::spawn({
+                    let link = ctx.link().clone();
+                    let form_ctx = props.info.form_ctx.clone();
+                    let remote_type = props.remote_type;
+
+                    async move {
+                        let result = connect(form_ctx, remote_type).await;
+                        link.send_message(Msg::ConnectResult(result));
+                    }
+                }));
             }
-            Msg::ConnectResult(server_info) => {
+            Msg::ConnectResult(scan_result) => {
                 self.loading = false;
-                match server_info {
-                    Ok(connect_info) => {
-                        self.update_connect_info(ctx, Some(connect_info));
+                props.info.page_lock(false);
+                self.scan_result = Some(scan_result);
+                match &self.scan_result {
+                    Some(Ok(TlsProbeOutcome::TrustedCertificate)) => {
+                        call_on_connect_change(props);
+                        self.scan_result = None;
+                        props.info.reset_remaining_valid_pages();
+                        props.info.go_to_next_page();
                     }
-                    Err(err) => {
-                        self.last_error = Some(err);
-                    }
-                }
-
-                props.info.reset_remaining_valid_pages();
-                if self.connect_info.is_some() {
-                    props.info.go_to_next_page();
+                    Some(Err(_)) => props.info.page_lock(true),
+                    _ => {}
                 }
             }
         }
@@ -185,7 +151,10 @@ impl Component for PdmWizardPageConnect {
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
-        let error = self.last_error.as_ref();
+        let error = match &self.scan_result {
+            Some(Err(err)) => Some(err),
+            _ => None,
+        };
         let input_panel = InputPanel::new()
             .class(FlexFit)
             // FIXME: input panel css style is not optimal here...
@@ -214,6 +183,26 @@ impl Component for PdmWizardPageConnect {
             .class(FlexFit)
             .visible(self.loading)
             .into()
+    }
+}
+
+fn get_fingerprint(form_ctx: &FormContext) -> Option<String> {
+    let fingerprint = form_ctx.read().get_field_text("fingerprint");
+    let fingerprint = if fingerprint.is_empty() {
+        None
+    } else {
+        Some(fingerprint)
+    };
+    fingerprint
+}
+
+fn call_on_connect_change(props: &WizardPageConnect) {
+    if let Some(on_connect_change) = &props.on_connect_change {
+        let fingerprint = get_fingerprint(&props.info.form_ctx);
+        on_connect_change.emit(Some(ConnectParams {
+            hostname: normalize_hostname(props.info.form_ctx.read().get_field_text("hostname")),
+            fingerprint,
+        }));
     }
 }
 
