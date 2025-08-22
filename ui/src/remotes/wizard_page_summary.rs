@@ -168,7 +168,10 @@ fn columns() -> Vec<DataTableHeader<PropertyString<NodeUrl>>> {
         DataTableColumn::new(tr!("Fingerprint"))
             .flex(2)
             .render(move |item: &PropertyString<NodeUrl>| {
-                item.fingerprint.as_deref().unwrap_or_default().into()
+                item.fingerprint
+                    .as_deref()
+                    .unwrap_or(&tr!("Use trusted certificate"))
+                    .into()
             })
             .into(),
     ]
