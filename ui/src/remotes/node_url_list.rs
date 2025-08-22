@@ -136,6 +136,20 @@ impl ManagedField for PdmNodeUrlField {
         this
     }
 
+    fn changed(&mut self, ctx: &ManagedFieldContext<Self>, old_props: &Self::Properties) -> bool {
+        let props = ctx.props();
+        if old_props.default != props.default {
+            let default: Value = props
+                .default
+                .iter()
+                .filter_map(|n| serde_json::to_value(n).ok())
+                .collect();
+            ctx.link().update_default(default.clone());
+            self.sync_from_value(default);
+        }
+        true
+    }
+
     fn value_changed(&mut self, ctx: &ManagedFieldContext<Self>) {
         match ctx.state().value {
             Value::Null => self.sync_from_value(ctx.state().default.clone()),
