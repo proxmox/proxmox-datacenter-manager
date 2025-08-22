@@ -65,15 +65,7 @@ pub struct ConnectParams {
 async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<ConnectParams, Error> {
     let data = form_ctx.get_submit_data();
     let mut data: ConnectParams = serde_json::from_value(data.clone())?;
-    if let Some(hostname) = data.hostname.strip_prefix("http://") {
-        data.hostname = hostname.to_string();
-    }
-    if let Some(hostname) = data.hostname.strip_prefix("https://") {
-        data.hostname = hostname.to_string();
-    }
-    if let Some(hostname) = data.hostname.strip_suffix("/") {
-        data.hostname = hostname.to_string();
-    }
+    data.hostname = normalize_hostname(data.hostname);
 
     let realms = match remote_type {
         RemoteType::Pve => list_realms(data.hostname.clone(), data.fingerprint.clone()).await?,
@@ -232,6 +224,20 @@ impl Component for PdmWizardPageConnect {
             .visible(self.loading)
             .into()
     }
+}
+
+fn normalize_hostname(hostname: String) -> String {
+    let mut result = hostname;
+    if let Some(hostname) = result.strip_prefix("http://") {
+        result = hostname.to_string();
+    }
+    if let Some(hostname) = result.strip_prefix("https://") {
+        result = hostname.to_string();
+    }
+    if let Some(hostname) = result.strip_suffix("/") {
+        result = hostname.to_string();
+    }
+    result
 }
 
 impl Into<VNode> for WizardPageConnect {
