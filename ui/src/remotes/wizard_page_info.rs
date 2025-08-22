@@ -2,18 +2,18 @@ use std::rc::Rc;
 
 use anyhow::Error;
 use html::IntoEventCallback;
-use proxmox_schema::property_string::PropertyString;
 use serde::{Deserialize, Serialize};
 use yew::virtual_dom::{Key, VComp, VNode};
 
+use proxmox_schema::property_string::PropertyString;
 use proxmox_yew_comp::WizardPageRenderInfo;
 use pwt::{
     css::{self, FlexFit},
     prelude::*,
     widget::{
         error_message,
-        form::{Combobox, Field, FormContext, FormContextObserver, InputType, RadioButton},
-        Button, Column, Container, InputPanel, Mask, Row,
+        form::{Field, FormContext, FormContextObserver, InputType, RadioButton},
+        Column, Container, InputPanel, Mask, Row,
     },
     AsyncPool,
 };
@@ -23,6 +23,7 @@ use pdm_api_types::remotes::{NodeUrl, Remote};
 use pwt_macros::builder;
 
 use super::wizard_page_connect::ConnectParams;
+use crate::widget::PveRealmSelector;
 
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
@@ -46,7 +47,6 @@ impl WizardPageInfo {
 
 pub struct PdmWizardPageInfo {
     user_mode: bool,
-    realms: Rc<Vec<AttrValue>>,
     server_info: Option<Remote>,
     last_error: Option<Error>,
     credentials: Option<(String, String)>,
@@ -70,20 +70,6 @@ pub struct ScanParams {
     token: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     fingerprint: Option<String>,
-}
-
-fn create_realm_list(props: &WizardPageInfo) -> Rc<Vec<AttrValue>> {
-    if let Some(info) = &props.connect_info {
-        let realms = Rc::new(
-            info.realms
-                .iter()
-                .map(|realm| AttrValue::from(realm.realm.clone()))
-                .collect(),
-        );
-        realms
-    } else {
-        Rc::new(Vec::new())
-    }
 }
 
 async fn scan(connection_params: ConnectParams, form_ctx: FormContext) -> Result<Remote, Error> {
@@ -197,7 +183,6 @@ impl Component for PdmWizardPageInfo {
         Self {
             server_info: None,
             user_mode: true,
-            realms: create_realm_list(props),
             _form_observer,
             last_error: None,
             loading: false,
@@ -276,12 +261,12 @@ impl Component for PdmWizardPageInfo {
         true
     }
 
-    fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
-        self.realms = create_realm_list(ctx.props());
-        true
-    }
-
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let props = ctx.props();
+        let (hostname, fingerprint) = match props.connect_info.clone() {
+            Some(info) => (info.hostname, info.fingerprint),
+            None => (Default::default(), None),
+        };
         let input_panel = InputPanel::new()
             .class(FlexFit)
             .padding(4)
@@ -316,12 +301,10 @@ impl Component for PdmWizardPageInfo {
             )
             .with_field(
                 tr!("Realm"),
-                Combobox::new()
+                PveRealmSelector::new(hostname, fingerprint)
                     .name("realm")
                     .disabled(!self.user_mode)
-                    .required(self.user_mode)
-                    .items(self.realms.clone())
-                    .submit(false),
+                    .required(self.user_mode),
             )
             .with_field(
                 tr!("API Token Name"),
