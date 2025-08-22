@@ -48,6 +48,15 @@ pub enum RemoteType {
     Pbs,
 }
 
+impl RemoteType {
+    pub fn default_port(&self) -> u16 {
+        match self {
+            RemoteType::Pve => 8006,
+            RemoteType::Pbs => 8007,
+        }
+    }
+}
+
 serde_plain::derive_display_from_serialize!(RemoteType);
 serde_plain::derive_fromstr_from_deserialize!(RemoteType);
 

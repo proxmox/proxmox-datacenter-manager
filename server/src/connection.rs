@@ -36,16 +36,16 @@ struct ConnectInfo {
 
 impl ConnectInfo {
     fn for_remote(remote: &Remote) -> Self {
-        let (default_port, prefix, perl_compat, pve_compat) = match remote.ty {
-            RemoteType::Pve => (8006, "PVEAPIToken".to_string(), true, true),
-            RemoteType::Pbs => (8007, "PBSAPIToken".to_string(), false, false),
+        let (prefix, perl_compat, pve_compat) = match remote.ty {
+            RemoteType::Pve => ("PVEAPIToken".to_string(), true, true),
+            RemoteType::Pbs => ("PBSAPIToken".to_string(), false, false),
         };
 
         ConnectInfo {
             prefix,
             perl_compat,
             pve_compat,
-            default_port,
+            default_port: remote.ty.default_port(),
         }
     }
 }
