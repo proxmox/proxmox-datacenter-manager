@@ -2,19 +2,21 @@ use std::rc::Rc;
 
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use yew::html::IntoEventCallback;
 use yew::virtual_dom::{Key, VComp, VNode};
 
-use pwt::css::FlexFit;
+use pwt::css::{FlexFit, JustifyContent};
 use pwt::widget::form::{Field, FormContext, FormContextObserver};
-use pwt::widget::{error_message, Column, InputPanel, Mask};
+use pwt::widget::{error_message, Button, Column, Container, Dialog, InputPanel, Mask, Row};
 use pwt::{prelude::*, AsyncAbortGuard};
 use pwt_macros::builder;
 
-use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
+use proxmox_yew_comp::{KVGrid, KVGridRow, SchemaValidation, WizardPageRenderInfo};
 
 use pdm_api_types::remotes::{RemoteType, TlsProbeOutcome};
 use pdm_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
+use proxmox_acme_api::CertificateInfo;
 
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
@@ -47,16 +49,10 @@ async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<TlsPr
         RemoteType::Pve => {
             let hostname = normalize_hostname(form_ctx.read().get_field_text("hostname"));
             let fingerprint = get_fingerprint(&form_ctx);
-            let res = crate::pdm_client()
+            crate::pdm_client()
                 .pve_probe_tls(&hostname, fingerprint.as_deref())
                 .await
-                .map_err(Error::from);
-
-            if let Ok(TlsProbeOutcome::UntrustedCertificate(_)) = &res {
-                bail!("Untrusted Certificate, please enter fingerprint");
-            }
-
-            res
+                .map_err(Error::from)
         }
         RemoteType::Pbs => bail!("not implemented"),
     }
@@ -64,6 +60,7 @@ async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<TlsPr
 
 pub enum Msg {
     FormChange,
+    ConfirmResult(bool), // accept or dismiss
     Connect,
     ConnectResult(Result<TlsProbeOutcome, Error>),
 }
@@ -72,6 +69,58 @@ pub struct PdmWizardPageConnect {
     loading: bool,
     scan_result: Option<Result<TlsProbeOutcome, Error>>,
     scan_guard: Option<AsyncAbortGuard>,
+    rows: Rc<Vec<KVGridRow>>,
+}
+
+impl PdmWizardPageConnect {
+    fn create_certificate_confirmation_dialog(&self, ctx: &Context<Self>) -> Option<Dialog> {
+        let link = ctx.link();
+        let certificate = match &self.scan_result {
+            Some(Ok(TlsProbeOutcome::UntrustedCertificate(info))) => info.clone(),
+            _ => return None,
+        };
+        Some(
+            Dialog::new(tr!("Connection Certificate"))
+                .on_close(link.callback(|_| Msg::ConfirmResult(false)))
+                .with_child(
+                    Column::new()
+                        .padding(2)
+                        .gap(2)
+                        .class(FlexFit)
+                        .with_child(Container::new().with_child(tr!(
+                            "The certificate of the remote server is not trusted."
+                        )))
+                        .with_child(
+                            Container::new().with_child(tr!(
+                                "Do you want to trust it by saving it's fingerprint?"
+                            )),
+                        )
+                        .with_child(
+                            KVGrid::new()
+                                .class(FlexFit)
+                                .borderless(true)
+                                .striped(false)
+                                .rows(self.rows.clone())
+                                .data(Rc::new(
+                                    serde_json::to_value(certificate).unwrap_or_default(),
+                                )),
+                        )
+                        .with_child(
+                            Row::new()
+                                .gap(2)
+                                .class(JustifyContent::Center)
+                                .with_child(
+                                    Button::new(tr!("Yes"))
+                                        .onclick(link.callback(|_| Msg::ConfirmResult(true))),
+                                )
+                                .with_child(
+                                    Button::new(tr!("No"))
+                                        .onclick(link.callback(|_| Msg::ConfirmResult(false))),
+                                ),
+                        ),
+                ),
+        )
+    }
 }
 
 impl Component for PdmWizardPageConnect {
@@ -100,6 +149,7 @@ impl Component for PdmWizardPageConnect {
             loading: false,
             scan_result: None,
             scan_guard: None,
+            rows: Rc::new(rows()),
         }
     }
 
@@ -137,20 +187,39 @@ impl Component for PdmWizardPageConnect {
                 self.scan_result = Some(scan_result);
                 match &self.scan_result {
                     Some(Ok(TlsProbeOutcome::TrustedCertificate)) => {
-                        call_on_connect_change(props);
-                        self.scan_result = None;
-                        props.info.reset_remaining_valid_pages();
-                        props.info.go_to_next_page();
+                        return <Self as Component>::update(self, ctx, Msg::ConfirmResult(true));
                     }
                     Some(Err(_)) => props.info.page_lock(true),
                     _ => {}
+                }
+            }
+            Msg::ConfirmResult(confirm) => {
+                if !confirm {
+                    self.scan_result = None;
+                    return true;
+                }
+                if let Some(Ok(result)) = &self.scan_result {
+                    let connection = match result {
+                        TlsProbeOutcome::TrustedCertificate => None,
+                        TlsProbeOutcome::UntrustedCertificate(info) => {
+                            props.info.form_ctx.write().set_field_value(
+                                "fingerprint",
+                                info.fingerprint.clone().unwrap_or_default().into(),
+                            );
+                            Some(info.clone())
+                        }
+                    };
+                    call_on_connect_change(props, connection);
+                    self.scan_result = None;
+                    props.info.reset_remaining_valid_pages();
+                    props.info.go_to_next_page();
                 }
             }
         }
         true
     }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         let error = match &self.scan_result {
             Some(Err(err)) => Some(err),
             _ => None,
@@ -177,7 +246,8 @@ impl Component for PdmWizardPageConnect {
         let content = Column::new()
             .class(FlexFit)
             .with_child(input_panel)
-            .with_optional_child(error.map(|err| error_message(&err.to_string())));
+            .with_optional_child(error.map(|err| error_message(&err.to_string())))
+            .with_optional_child(self.create_certificate_confirmation_dialog(ctx));
 
         Mask::new(content)
             .class(FlexFit)
@@ -196,12 +266,14 @@ fn get_fingerprint(form_ctx: &FormContext) -> Option<String> {
     fingerprint
 }
 
-fn call_on_connect_change(props: &WizardPageConnect) {
+fn call_on_connect_change(props: &WizardPageConnect, certificate_info: Option<CertificateInfo>) {
     if let Some(on_connect_change) = &props.on_connect_change {
         let fingerprint = get_fingerprint(&props.info.form_ctx);
         on_connect_change.emit(Some(ConnectParams {
             hostname: normalize_hostname(props.info.form_ctx.read().get_field_text("hostname")),
-            fingerprint,
+            fingerprint: certificate_info
+                .and_then(|cert| cert.fingerprint)
+                .or(fingerprint),
         }));
     }
 }
@@ -218,6 +290,36 @@ fn normalize_hostname(hostname: String) -> String {
         result = hostname.to_string();
     }
     result
+}
+
+fn rows() -> Vec<KVGridRow> {
+    let render_date = |_name: &str, value: &Value, _record: &Value| -> Html {
+        match value.as_i64() {
+            Some(value) => html! {proxmox_yew_comp::utils::render_epoch(value)},
+            None => html! {value.to_string()},
+        }
+    };
+    let value = vec![
+        KVGridRow::new("fingerprint", tr!("Fingerprint")),
+        KVGridRow::new("issuer", tr!("Issuer")),
+        KVGridRow::new("subject", tr!("Subject")),
+        KVGridRow::new("public-key-type", tr!("Public Key Alogrithm")),
+        KVGridRow::new("public-key-bits", tr!("Public Key Size")),
+        KVGridRow::new("notbefore", tr!("Valid Since")).renderer(render_date),
+        KVGridRow::new("notafter", tr!("Expires")).renderer(render_date),
+        KVGridRow::new("san", tr!("Subject Alternative Names")).renderer(
+            |_name, value, _record| {
+                let list: Result<Vec<String>, _> = serde_json::from_value(value.clone());
+                match list {
+                    Ok(value) => {
+                        html! {<pre>{&value.join("\n")}</pre>}
+                    }
+                    _ => html! {value.to_string()},
+                }
+            },
+        ),
+    ];
+    value
 }
 
 impl Into<VNode> for WizardPageConnect {
