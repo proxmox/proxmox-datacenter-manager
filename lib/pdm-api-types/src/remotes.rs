@@ -179,3 +179,13 @@ mod serde_option_uri {
         }
     }
 }
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, PartialEq, Deserialize, Serialize)]
+/// Represents the outcome of TLS probing.
+pub enum TlsProbeOutcome {
+    /// The certificate is trusted with the given hostname/fingerprint
+    TrustedCertificate,
+    /// The certificate is untrusted with the given hostname/fingerprint
+    UntrustedCertificate(proxmox_acme_api::CertificateInfo),
+}

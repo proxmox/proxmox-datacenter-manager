@@ -15,11 +15,13 @@ use std::time::{Duration, SystemTime};
 use anyhow::{bail, format_err, Error};
 use http::uri::Authority;
 use http::Method;
+use openssl::x509::X509StoreContextRef;
 use serde::Serialize;
 
+use proxmox_acme_api::CertificateInfo;
 use proxmox_client::{Client, HttpApiClient, HttpApiResponse, HttpApiResponseStream, TlsOptions};
 
-use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType};
+use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, TlsProbeOutcome};
 use pve_api_types::client::PveClientImpl;
 
 use crate::pbs_client::PbsClient;
@@ -798,4 +800,83 @@ impl HttpApiClient for MultiClient {
     {
         try_request! { self, method, path_and_query, params, streaming_request }
     }
+}
+
+/// Checks TLS connection to the given remote
+///
+/// Returns `Ok(TlsProbeOutcome::TrustedCertificate)` if connecting with the given parameters works
+/// Returns `Ok(TlsProbeOutcome::UntrustedCertificate)` if no fingerprint was given and some certificate could not be validated
+/// Returns `Err(err)` if some other error occurred
+///
+/// # Example
+///
+/// ```
+/// use server::connection::probe_tls_connection;
+/// use pdm_api_types::remotes::{RemoteType, TlsProbeOutcome};
+///
+/// # async fn function() {
+/// let result = probe_tls_connection(RemoteType::Pve, "192.168.2.100".to_string(), None).await;
+/// match result {
+///     Ok(TlsProbeOutcome::TrustedCertificate) => { /* everything ok */ },
+///     Ok(TlsProbeOutcome::UntrustedCertificate(cert)) => { /* do something with cert */ },
+///     Err(err) => { /* do something with error */ },
+/// }
+/// # }
+/// ```
+pub async fn probe_tls_connection(
+    remote_type: RemoteType,
+    hostname: String,
+    fingerprint: Option<String>,
+) -> Result<TlsProbeOutcome, Error> {
+    let host_port: Authority = hostname.parse()?;
+
+    let uri: http::uri::Uri = format!(
+        "https://{}:{}",
+        host_port.host(),
+        host_port.port_u16().unwrap_or(remote_type.default_port())
+    )
+    .parse()?;
+
+    // to save the invalid cert we find
+    let invalid_cert = Arc::new(StdMutex::new(None));
+
+    let options = if let Some(fp) = &fingerprint {
+        TlsOptions::parse_fingerprint(fp)?
+    } else {
+        TlsOptions::Callback(Box::new({
+            let invalid_cert = invalid_cert.clone();
+            move |valid: bool, chain: &mut X509StoreContextRef| {
+                if let Some(cert) = chain.current_cert() {
+                    if !valid {
+                        let cert = cert
+                            .to_pem()
+                            .map_err(Error::from)
+                            .and_then(|pem| CertificateInfo::from_pem("", &pem));
+                        *invalid_cert.lock().unwrap() = Some(cert);
+                    }
+                }
+                true
+            }
+        }))
+    };
+    let client = proxmox_client::Client::with_options(uri, options, Default::default())?;
+
+    // set fake auth info. we don't need any, but the proxmox client will return unauthenticated if
+    // none is set.
+    client.set_authentication(proxmox_client::Token {
+        userid: "".to_string(),
+        value: "".to_string(),
+        prefix: "".to_string(),
+        perl_compat: false,
+    });
+
+    client.request(Method::GET, "/", None::<()>).await?;
+
+    let cert = invalid_cert.lock().unwrap().take();
+    let outcome = if let Some(cert) = cert {
+        TlsProbeOutcome::UntrustedCertificate(cert?)
+    } else {
+        TlsProbeOutcome::TrustedCertificate
+    };
+    Ok(outcome)
 }

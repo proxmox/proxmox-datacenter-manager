@@ -13,6 +13,7 @@ regex.workspace = true
 serde.workspace = true
 serde_plain.workspace = true
 
+proxmox-acme-api.workspace = true
 proxmox-auth-api = { workspace = true, features = ["api-types"] }
 proxmox-lang.workspace = true
 proxmox-config-digest.workspace = true
