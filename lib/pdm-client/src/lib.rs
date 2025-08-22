@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use pdm_api_types::remotes::TlsProbeOutcome;
 use pdm_api_types::resource::{PveResource, RemoteResources, TopEntities};
 use pdm_api_types::rrddata::{
     LxcDataPoint, NodeDataPoint, PbsDatastoreDataPoint, PbsNodeDataPoint, QemuDataPoint,
@@ -864,6 +865,50 @@ impl<T: HttpApiClient> PdmClient<T> {
         .maybe_arg("target", &target)
         .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    /// uses /pve/probe-tls to probe the tls connection to the given host
+    pub async fn pve_probe_tls(
+        &self,
+        hostname: &str,
+        fingerprint: Option<&str>,
+    ) -> Result<TlsProbeOutcome, Error> {
+        let mut params = json!({
+            "hostname": hostname,
+        });
+        if let Some(fp) = fingerprint {
+            params["fingerprint"] = fp.into();
+        }
+        Ok(self
+            .0
+            .post("/api2/extjs/pve/probe-tls", &params)
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Uses /pve/scan to scan the remote cluster for node/fingerprint information
+    pub async fn pve_scan_remote(
+        &self,
+        hostname: &str,
+        fingerprint: Option<&str>,
+        authid: &str,
+        token: &str,
+    ) -> Result<Remote, Error> {
+        let mut params = json!({
+            "hostname": hostname,
+            "authid": authid,
+            "token": token,
+        });
+        if let Some(fp) = fingerprint {
+            params["fingerprint"] = fp.into();
+        }
+        Ok(self
+            .0
+            .post("/api2/extjs/pve/scan", &params)
+            .await?
+            .expect_json()?
+            .data)
     }
 }
 
