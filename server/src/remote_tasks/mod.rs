@@ -38,8 +38,6 @@ pub async fn get_tasks(filters: TaskFilters) -> Result<Vec<TaskListItem>, Error>
 
         let returned_tasks = cache
             .get_tasks(which)?
-            .skip(filters.start as usize)
-            .take(filters.limit as usize)
             .filter_map(|task| {
                 // TODO: Handle PBS tasks
                 let pve_upid: Result<PveUpid, Error> = task.upid.upid.parse();
@@ -106,6 +104,8 @@ pub async fn get_tasks(filters: TaskFilters) -> Result<Vec<TaskListItem>, Error>
 
                 true
             })
+            .skip(filters.start as usize)
+            .take(filters.limit as usize)
             .collect();
 
         Ok(returned_tasks)
