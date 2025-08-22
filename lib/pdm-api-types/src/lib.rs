@@ -79,6 +79,8 @@ pub use proxmox_dns_api::THIRD_DNS_SERVER_SCHEMA;
 pub use proxmox_config_digest::ConfigDigest;
 pub use proxmox_config_digest::PROXMOX_CONFIG_DIGEST_SCHEMA;
 
+pub use proxmox_acme_api::CertificateInfo;
+
 #[macro_use]
 mod user;
 pub use user::*;

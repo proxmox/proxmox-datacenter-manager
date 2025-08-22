@@ -359,6 +359,9 @@ async fn probe_tls(
     },
 )]
 /// Scans the given connection info for pve cluster information
+///
+/// For each node that is returned, the TLS connection is probed, to check if using
+/// a fingerprint is necessary.
 pub async fn scan_remote_pve(
     hostname: String,
     fingerprint: Option<String>,
@@ -381,18 +384,23 @@ pub async fn scan_remote_pve(
         .await
         .map_err(|err| format_err!("could not login: {err}"))?;
 
-    let nodes: Vec<_> = client
-        .list_nodes()
-        .await?
-        .into_iter()
-        .map(|node| {
-            let url = NodeUrl {
-                hostname: node.node,
-                fingerprint: node.ssl_fingerprint,
-            };
-            PropertyString::new(url)
-        })
-        .collect();
+    let mut nodes = Vec::new();
+
+    for node in client.list_nodes().await? {
+        // probe without fingerprint to see if the certificate is trusted
+        // TODO: how can we get the fqdn here?, otherwise it'll fail in most scenarios...
+        let fingerprint = match probe_tls_connection(RemoteType::Pve, node.node.clone(), None).await
+        {
+            Ok(TlsProbeOutcome::UntrustedCertificate(cert)) => cert.fingerprint,
+            Ok(TlsProbeOutcome::TrustedCertificate) => None,
+            Err(_) => node.ssl_fingerprint,
+        };
+
+        nodes.push(PropertyString::new(NodeUrl {
+            hostname: node.node,
+            fingerprint,
+        }));
+    }
 
     if nodes.is_empty() {
         bail!("no node list returned");
