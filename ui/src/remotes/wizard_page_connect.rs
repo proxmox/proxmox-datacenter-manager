@@ -6,9 +6,9 @@ use serde_json::json;
 use yew::html::IntoEventCallback;
 use yew::virtual_dom::{Key, VComp, VNode};
 
-use pwt::css::{AlignItems, FlexFit};
+use pwt::css::FlexFit;
 use pwt::widget::form::{Field, FormContext, FormContextObserver};
-use pwt::widget::{error_message, Button, Column, Container, InputPanel, Mask, Row};
+use pwt::widget::{error_message, Column, InputPanel, Mask};
 use pwt::{prelude::*, AsyncPool};
 
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
@@ -113,6 +113,13 @@ impl Component for PdmWizardPageConnect {
             .add_listener(ctx.link().callback(|_| Msg::FormChange));
 
         props.info.page_lock(true);
+        props.info.on_next({
+            let link = ctx.link().clone();
+            move |_| {
+                link.send_message(Msg::Connect);
+                false
+            }
+        });
 
         Self {
             connect_info: None,
@@ -137,6 +144,7 @@ impl Component for PdmWizardPageConnect {
                         return <Self as yew::Component>::update(self, ctx, Msg::Connect)
                     }
                 }
+                props.info.page_lock(!self.form_valid);
             }
             Msg::Connect => {
                 let link = ctx.link().clone();
@@ -166,13 +174,16 @@ impl Component for PdmWizardPageConnect {
                     form_ctx.write().reset_form();
                 }
                 props.info.reset_remaining_valid_pages();
+                if self.connect_info.is_some() {
+                    props.info.go_to_next_page();
+                }
             }
         }
         true
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        let props = ctx.props();
+    fn view(&self, _ctx: &Context<Self>) -> Html {
+        let error = self.last_error.as_ref();
         let input_panel = InputPanel::new()
             .class(FlexFit)
             // FIXME: input panel css style is not optimal here...
@@ -192,33 +203,11 @@ impl Component for PdmWizardPageConnect {
                     .placeholder(tr!("Server certificate SHA-256 fingerprint, required for self-signed certificates"))
                     .schema(&CERT_FINGERPRINT_SHA256_SCHEMA),
             );
-
         let content = Column::new()
             .class(FlexFit)
             .with_child(input_panel)
-            .with_optional_child(
-                (props.remote_type == RemoteType::Pve).then_some(
-                    Row::new()
-                        .padding(2)
-                        .gap(2)
-                        .class(AlignItems::Center)
-                        .with_optional_child(
-                            self.last_error
-                                .as_deref()
-                                .map(|err| error_message(&err.to_string())),
-                        )
-                        .with_flex_spacer()
-                        .with_optional_child(
-                            (self.last_error.is_none() && self.connect_info.is_some())
-                                .then_some(Container::new().with_child(tr!("Connection OK"))),
-                        )
-                        .with_child(
-                            Button::new("Connect")
-                                .disabled(!self.form_valid)
-                                .on_activate(ctx.link().callback(|_| Msg::Connect)),
-                        ),
-                ),
-            );
+            .with_optional_child(error.map(|err| error_message(&err.to_string())));
+
         Mask::new(content)
             .class(FlexFit)
             .visible(self.loading)
