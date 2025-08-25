@@ -6,8 +6,7 @@ Installation
 `Proxmox Datacenter Manager`_ can either be installed with a graphical
 installer or on top of Debian_ from the provided package repository.
 
-.. todo
-  .. include:: system-requirements.rst
+.. include:: system-requirements.rst
 
 .. todo
   .. include:: installation-media.rst
