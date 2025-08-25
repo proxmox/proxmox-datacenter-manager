@@ -8,8 +8,7 @@ installer or on top of Debian_ from the provided package repository.
 
 .. include:: system-requirements.rst
 
-.. todo
-  .. include:: installation-media.rst
+.. include:: installation-media.rst
 
 Using our provided disk image (ISO file) is the recommended installation
 method, as it includes a convenient installer, a complete Debian system as well
