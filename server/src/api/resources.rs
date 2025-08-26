@@ -26,6 +26,7 @@ use proxmox_subscription::SubscriptionStatus;
 use pve_api_types::{ClusterResource, ClusterResourceType};
 
 use crate::connection;
+use crate::metric_collection::top_entities;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -320,7 +321,7 @@ async fn get_top_entities(timeframe: Option<RrdTimeframe>) -> Result<TopEntities
     let (remotes_config, _) = pdm_config::remotes::config()?;
 
     let timeframe = timeframe.unwrap_or(RrdTimeframe::Day);
-    let res = crate::metric_collection::calculate_top(&remotes_config, timeframe, 10);
+    let res = top_entities::calculate_top(&remotes_config, timeframe, 10);
     Ok(res)
 }
 
