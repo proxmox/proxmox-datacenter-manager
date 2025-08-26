@@ -23,9 +23,11 @@ pub fn create_datapoints_from_rrd<T: DataPoint>(
     let mut timemap = BTreeMap::new();
     let mut last_resolution = None;
 
+    let cache = rrd_cache::get_cache();
+
     for name in T::fields() {
         let (start, resolution, data) =
-            match rrd_cache::extract_data(basedir, name, timeframe, mode)? {
+            match rrd_cache::extract_data(&cache, basedir, name, timeframe, mode)? {
                 Some(data) => data.into(),
                 None => continue,
             };

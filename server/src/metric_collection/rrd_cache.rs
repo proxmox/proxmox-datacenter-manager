@@ -5,6 +5,7 @@
 //! and update RRD data inside `proxmox-datacenter-api`.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::{format_err, Error};
 use once_cell::sync::OnceCell;
@@ -16,32 +17,45 @@ use proxmox_sys::fs::CreateOptions;
 
 use pdm_buildcfg::PDM_STATE_DIR_M;
 
-const RRD_CACHE_BASEDIR: &str = concat!(PDM_STATE_DIR_M!(), "/rrdb");
+pub(super) const RRD_CACHE_BASEDIR: &str = concat!(PDM_STATE_DIR_M!(), "/rrdb");
 
-static RRD_CACHE: OnceCell<Cache> = OnceCell::new();
+// This is an `Arc` because this makes it easier to do dependency injection
+// in test contexts.
+//
+// For DI in testing, we want to pass in a reference to the Cache
+// as a function parameter. In a couple of these functions we
+// spawn tokio tasks which need access to the reference, hence the
+// reference needs to be 'static. In a test context, we kind of have a
+// hard time to come up with a 'static reference, so we just
+// wrap the cache in an `Arc` for now, solving the
+// lifetime problem via refcounting.
+static RRD_CACHE: OnceCell<Arc<Cache>> = OnceCell::new();
 
 /// Get the RRD cache instance
-fn get_cache() -> Result<&'static Cache, Error> {
+pub fn get_cache() -> Arc<Cache> {
+    RRD_CACHE.get().cloned().expect("rrd cache not initialized")
+}
+
+pub fn set_cache(cache: Arc<Cache>) -> Result<(), Error> {
     RRD_CACHE
-        .get()
-        .ok_or_else(|| format_err!("RRD cache not initialized!"))
+        .set(cache)
+        .map_err(|_| format_err!("RRD cache already initialized!"))?;
+
+    Ok(())
 }
 
 /// Initialize the RRD cache instance
 ///
 /// Note: Only a single process must do this (proxmox-datacenter-api)
-pub fn init() -> Result<&'static Cache, Error> {
-    let api_uid = pdm_config::api_user()?.uid;
-    let api_gid = pdm_config::api_group()?.gid;
-
-    let file_options = CreateOptions::new().owner(api_uid).group(api_gid);
-
-    let dir_options = CreateOptions::new().owner(api_uid).group(api_gid);
-
+pub fn init<P: AsRef<Path>>(
+    base_path: P,
+    dir_options: CreateOptions,
+    file_options: CreateOptions,
+) -> Result<Arc<Cache>, Error> {
     let apply_interval = 30.0 * 60.0; // 30 minutes
 
     let cache = Cache::new(
-        RRD_CACHE_BASEDIR,
+        base_path,
         Some(file_options),
         Some(dir_options),
         apply_interval,
@@ -51,11 +65,7 @@ pub fn init() -> Result<&'static Cache, Error> {
 
     cache.apply_journal()?;
 
-    RRD_CACHE
-        .set(cache)
-        .map_err(|_| format_err!("RRD cache already initialized!"))?;
-
-    Ok(RRD_CACHE.get().unwrap())
+    Ok(Arc::new(cache))
 }
 
 fn load_callback(path: &Path, _rel_path: &str) -> Option<Database> {
@@ -91,6 +101,7 @@ fn create_callback(dst: DataSourceType) -> Database {
 
 /// Extracts data for the specified time frame from RRD cache
 pub fn extract_data(
+    rrd_cache: &Cache,
     basedir: &str,
     name: &str,
     timeframe: RrdTimeframe,
@@ -112,26 +123,28 @@ pub fn extract_data(
         RrdMode::Average => AggregationFn::Average,
     };
 
-    let rrd_cache = get_cache()?;
-
     rrd_cache.extract_cached_data(basedir, name, cf, resolution, Some(start), Some(end))
 }
 
 /// Sync/Flush the RRD journal
 pub fn sync_journal() {
-    if let Ok(rrd_cache) = get_cache() {
-        if let Err(err) = rrd_cache.sync_journal() {
-            log::error!("rrd_sync_journal failed - {err}");
-        }
+    let rrd_cache = get_cache();
+    if let Err(err) = rrd_cache.sync_journal() {
+        log::error!("rrd_sync_journal failed - {err}");
     }
 }
+
 /// Update RRD Gauge values
-pub fn update_value(name: &str, value: f64, timestamp: i64, datasource_type: DataSourceType) {
-    if let Ok(rrd_cache) = get_cache() {
-        if let Err(err) =
-            rrd_cache.update_value_ignore_old(name, timestamp as f64, value, datasource_type)
-        {
-            log::error!("rrd::update_value '{name}' failed - {err}");
-        }
+pub fn update_value(
+    rrd_cache: &Cache,
+    name: &str,
+    value: f64,
+    timestamp: i64,
+    datasource_type: DataSourceType,
+) {
+    if let Err(err) =
+        rrd_cache.update_value_ignore_old(name, timestamp as f64, value, datasource_type)
+    {
+        log::error!("rrd::update_value '{name}' failed - {err}");
     }
 }

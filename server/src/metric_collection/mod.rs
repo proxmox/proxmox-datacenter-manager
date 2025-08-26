@@ -4,6 +4,8 @@ use std::sync::OnceLock;
 use anyhow::{bail, Error};
 use tokio::sync::mpsc::{self, Sender};
 
+use proxmox_sys::fs::CreateOptions;
+
 mod collection_task;
 pub mod rrd_cache;
 mod rrd_task;
@@ -16,7 +18,14 @@ static CONTROL_MESSAGE_TX: OnceLock<Sender<ControlMsg>> = OnceLock::new();
 
 /// Initialize the RRD cache
 pub fn init() -> Result<(), Error> {
-    rrd_cache::init()?;
+    let api_uid = pdm_config::api_user()?.uid;
+    let api_gid = pdm_config::api_group()?.gid;
+
+    let file_options = CreateOptions::new().owner(api_uid).group(api_gid);
+    let dir_options = CreateOptions::new().owner(api_uid).group(api_gid);
+
+    let cache = rrd_cache::init(rrd_cache::RRD_CACHE_BASEDIR, dir_options, file_options)?;
+    rrd_cache::set_cache(cache)?;
 
     Ok(())
 }
@@ -42,8 +51,10 @@ pub fn start_task() -> Result<(), Error> {
         futures::future::select(metric_collection_task_future, abort_future).await;
     });
 
+    let cache = rrd_cache::get_cache();
+
     tokio::spawn(async move {
-        let rrd_task_future = pin!(rrd_task::store_in_rrd_task(metric_data_rx));
+        let rrd_task_future = pin!(rrd_task::store_in_rrd_task(cache, metric_data_rx));
         let abort_future = pin!(proxmox_daemon::shutdown_future());
         futures::future::select(rrd_task_future, abort_future).await;
     });

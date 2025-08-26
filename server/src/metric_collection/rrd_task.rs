@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use anyhow::Error;
 use tokio::sync::{mpsc::Receiver, oneshot};
 
-use proxmox_rrd::rrd::DataSourceType;
+use proxmox_rrd::{rrd::DataSourceType, Cache};
 
 use pbs_api_types::{MetricDataPoint, MetricDataType, Metrics};
 use pve_api_types::{ClusterMetrics, ClusterMetricsData, ClusterMetricsDataType};
@@ -39,9 +41,11 @@ pub(super) struct RrdStoreResult {
 /// Task which stores received metrics in the RRD. Metric data is fed into
 /// this task via a MPSC channel.
 pub(super) async fn store_in_rrd_task(
+    cache: Arc<Cache>,
     mut receiver: Receiver<RrdStoreRequest>,
 ) -> Result<(), Error> {
     while let Some(msg) = receiver.recv().await {
+        let cache_clone = Arc::clone(&cache);
         // Involves some blocking file IO
         let res = tokio::task::spawn_blocking(move || {
             let mut most_recent_timestamp = 0;
@@ -53,7 +57,7 @@ pub(super) async fn store_in_rrd_task(
                 } => {
                     for data_point in metrics.data {
                         most_recent_timestamp = most_recent_timestamp.max(data_point.timestamp);
-                        store_metric_pve(&remote, &data_point);
+                        store_metric_pve(&cache_clone, &remote, &data_point);
                     }
 
                     channel
@@ -65,7 +69,7 @@ pub(super) async fn store_in_rrd_task(
                 } => {
                     for data_point in metrics.data {
                         most_recent_timestamp = most_recent_timestamp.max(data_point.timestamp);
-                        store_metric_pbs(&remote, &data_point);
+                        store_metric_pbs(&cache_clone, &remote, &data_point);
                     }
 
                     channel
@@ -91,7 +95,7 @@ pub(super) async fn store_in_rrd_task(
     Ok(())
 }
 
-fn store_metric_pve(remote_name: &str, data_point: &ClusterMetricsData) {
+fn store_metric_pve(cache: &Cache, remote_name: &str, data_point: &ClusterMetricsData) {
     let name = format!(
         "pve/{remote_name}/{id}/{metric}",
         id = data_point.id,
@@ -105,6 +109,7 @@ fn store_metric_pve(remote_name: &str, data_point: &ClusterMetricsData) {
     };
 
     rrd_cache::update_value(
+        cache,
         &name,
         data_point.value,
         data_point.timestamp,
@@ -112,7 +117,7 @@ fn store_metric_pve(remote_name: &str, data_point: &ClusterMetricsData) {
     );
 }
 
-fn store_metric_pbs(remote_name: &str, data_point: &MetricDataPoint) {
+fn store_metric_pbs(cache: &Cache, remote_name: &str, data_point: &MetricDataPoint) {
     let name = format!(
         "pbs/{remote_name}/{id}/{metric}",
         id = data_point.id,
@@ -126,6 +131,7 @@ fn store_metric_pbs(remote_name: &str, data_point: &MetricDataPoint) {
     };
 
     rrd_cache::update_value(
+        cache,
         &name,
         data_point.value,
         data_point.timestamp,
