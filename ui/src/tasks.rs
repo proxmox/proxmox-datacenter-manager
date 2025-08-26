@@ -125,3 +125,82 @@ pub fn format_optional_remote_upid(upid: &str, include_remote: bool) -> String {
         format_upid(upid)
     }
 }
+
+/// Map worker types to sensible categories (that can also be used as filter for the api)
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
+/// Map worker types to sensible categories
+pub enum TaskWorkerType {
+    Migrate,
+    Qemu,
+    Lxc,
+    Ceph,
+    Ha,
+    Backup,
+    Other(String),
+    Remote(String),
+}
+
+/// Map a category from [`map_worker_type`] to a title text.
+impl TaskWorkerType {
+    /// Create new from a given worker type string, e.g. from a UPID
+    pub fn new_from_str<A: AsRef<str>>(worker_type: A) -> Self {
+        match worker_type.as_ref() {
+            task_type if task_type.contains("migrate") => TaskWorkerType::Migrate,
+            task_type if task_type.starts_with("qm") => TaskWorkerType::Qemu,
+            task_type if task_type.starts_with("vz") && task_type != "vzdump" => {
+                TaskWorkerType::Lxc
+            }
+            task_type if task_type == "vzdump" => TaskWorkerType::Backup,
+            task_type if task_type.starts_with("ceph") => TaskWorkerType::Ceph,
+            task_type if task_type.starts_with("ha") => TaskWorkerType::Ha,
+            other => TaskWorkerType::Other(other.to_string()),
+        }
+    }
+
+    /// Create title from the categories
+    pub fn to_title(&self) -> String {
+        match self {
+            TaskWorkerType::Migrate => tr!("Guest Migrations"),
+            TaskWorkerType::Qemu => tr!("Virtual Machine related Tasks"),
+            TaskWorkerType::Lxc => tr!("Container related Tasks"),
+            TaskWorkerType::Ceph => tr!("Ceph related Tasks"),
+            TaskWorkerType::Ha => tr!("HA related Tasks"),
+            TaskWorkerType::Backup => tr!("Backups and Backup Jobs"),
+            TaskWorkerType::Other(other) => other.to_string(),
+            TaskWorkerType::Remote(remote) => remote.to_string(),
+        }
+    }
+
+    /// Create filter string for the api
+    ///
+    /// Note: The result has to be filtered with this again, since more records will be returned.
+    /// E.g. using 'vz' will also return 'vzdump' tasks which are not desired.
+    pub fn to_filter<'a>(&'a self) -> &'a str {
+        match self {
+            TaskWorkerType::Migrate => "migrate",
+            TaskWorkerType::Qemu => "qm",
+            TaskWorkerType::Lxc => "vz",
+            TaskWorkerType::Ceph => "ceph",
+            TaskWorkerType::Ha => "ha",
+            TaskWorkerType::Backup => "vzdump",
+            TaskWorkerType::Other(other) => other.as_str(),
+            TaskWorkerType::Remote(remote) => remote.as_str(),
+        }
+    }
+}
+
+impl From<TaskWorkerType> for Key {
+    fn from(value: TaskWorkerType) -> Self {
+        match value {
+            TaskWorkerType::Migrate => Key::from("migrate"),
+            TaskWorkerType::Qemu => Key::from("qm"),
+            TaskWorkerType::Lxc => Key::from("vz"),
+            TaskWorkerType::Ceph => Key::from("ceph"),
+            TaskWorkerType::Ha => Key::from("ha"),
+            TaskWorkerType::Backup => Key::from("vzdump"),
+            // use `__` prefix here so that they can't clash with the statically defined ones
+            TaskWorkerType::Other(other) => Key::from(format!("__{other}")),
+            TaskWorkerType::Remote(remote) => Key::from(format!("__remote_{remote}")),
+        }
+    }
+}
