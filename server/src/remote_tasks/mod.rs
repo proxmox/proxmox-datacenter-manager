@@ -36,6 +36,11 @@ pub async fn get_tasks(filters: TaskFilters) -> Result<Vec<TaskListItem>, Error>
             GetTasks::All
         };
 
+        let limit = match filters.limit {
+            0 => usize::MAX,
+            limit => limit as usize,
+        };
+
         let returned_tasks = cache
             .get_tasks(which)?
             .filter_map(|task| {
@@ -105,7 +110,7 @@ pub async fn get_tasks(filters: TaskFilters) -> Result<Vec<TaskListItem>, Error>
                 true
             })
             .skip(filters.start as usize)
-            .take(filters.limit as usize)
+            .take(limit)
             .collect();
 
         Ok(returned_tasks)
