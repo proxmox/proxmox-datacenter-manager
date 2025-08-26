@@ -26,7 +26,10 @@ const NUMBER_OF_UNCOMPRESSED_FILES: u32 = 2;
 
 /// Get tasks for all remotes
 // FIXME: filter for privileges
-pub async fn get_tasks(filters: TaskFilters) -> Result<Vec<TaskListItem>, Error> {
+pub async fn get_tasks(
+    filters: TaskFilters,
+    remote_filter: Option<String>,
+) -> Result<Vec<TaskListItem>, Error> {
     tokio::task::spawn_blocking(move || {
         let cache = get_cache()?.read()?;
 
@@ -44,6 +47,11 @@ pub async fn get_tasks(filters: TaskFilters) -> Result<Vec<TaskListItem>, Error>
         let returned_tasks = cache
             .get_tasks(which)?
             .filter_map(|task| {
+                if let Some(remote_filter) = &remote_filter {
+                    if task.upid.remote() != remote_filter {
+                        return None;
+                    }
+                }
                 // TODO: Handle PBS tasks
                 let pve_upid: Result<PveUpid, Error> = task.upid.upid.parse();
                 match pve_upid {

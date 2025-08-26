@@ -1,5 +1,6 @@
 use anyhow::Error;
-use pdm_api_types::{TaskFilters, TaskListItem};
+
+use pdm_api_types::{remotes::REMOTE_ID_SCHEMA, TaskFilters, TaskListItem};
 use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
@@ -24,13 +25,20 @@ const SUBDIRS: SubdirMap = &sorted!([("list", &Router::new().get(&API_METHOD_LIS
             filters: {
                 type: TaskFilters,
                 flatten: true,
-            }
+            },
+            remote: {
+                schema: REMOTE_ID_SCHEMA,
+                optional: true,
+            },
         },
     },
 )]
 /// Get the list of tasks for all remotes.
-async fn list_tasks(filters: TaskFilters) -> Result<Vec<TaskListItem>, Error> {
-    let tasks = remote_tasks::get_tasks(filters).await?;
+async fn list_tasks(
+    filters: TaskFilters,
+    remote: Option<String>,
+) -> Result<Vec<TaskListItem>, Error> {
+    let tasks = remote_tasks::get_tasks(filters, remote).await?;
 
     Ok(tasks)
 }
