@@ -2,17 +2,17 @@ use std::collections::HashMap;
 use std::pin::pin;
 
 use anyhow::Error;
-
-use pbs_api_types::{MetricDataPoint, MetricDataType};
-use proxmox_rrd::rrd::DataSourceType;
+use tokio::sync::mpsc::{self, Sender};
 
 use pdm_api_types::remotes::RemoteType;
-use pve_api_types::{ClusterMetricsData, ClusterMetricsDataType};
 
 use crate::{connection, task_utils};
 
 pub mod rrd_cache;
+mod rrd_task;
 pub mod top_entities;
+
+use rrd_task::RrdStoreRequest;
 
 const COLLECTION_INTERVAL: u64 = 60;
 
@@ -25,14 +25,22 @@ pub fn init() -> Result<(), Error> {
 
 /// Start the metric collection task.
 pub fn start_task() {
+    let (tx, rx) = mpsc::channel(128);
+
     tokio::spawn(async move {
-        let task_scheduler = pin!(metric_collection_task());
+        let task_scheduler = pin!(metric_collection_task(tx));
+        let abort_future = pin!(proxmox_daemon::shutdown_future());
+        futures::future::select(task_scheduler, abort_future).await;
+    });
+
+    tokio::spawn(async move {
+        let task_scheduler = pin!(rrd_task::store_in_rrd_task(rx));
         let abort_future = pin!(proxmox_daemon::shutdown_future());
         futures::future::select(task_scheduler, abort_future).await;
     });
 }
 
-async fn metric_collection_task() -> Result<(), Error> {
+async fn metric_collection_task(sender: Sender<RrdStoreRequest>) -> Result<(), Error> {
     let mut most_recent_timestamps: HashMap<String, i64> = HashMap::new();
 
     loop {
@@ -59,37 +67,33 @@ async fn metric_collection_task() -> Result<(), Error> {
                             .cluster_metrics_export(Some(true), Some(false), Some(start_time))
                             .await?;
 
-                        //// Involves some blocking file IO
-                        tokio::task::spawn_blocking(move || {
-                            let mut most_recent_timestamp = 0;
+                        let most_recent =
+                            metrics.data.iter().fold(0, |acc, x| acc.max(x.timestamp));
 
-                            for data_point in metrics.data {
-                                most_recent_timestamp =
-                                    most_recent_timestamp.max(data_point.timestamp);
-                                store_metric_pve(&remote_name_clone, &data_point);
-                            }
+                        sender
+                            .send(RrdStoreRequest::Pve {
+                                remote: remote_name_clone,
+                                metrics,
+                            })
+                            .await?;
 
-                            most_recent_timestamp
-                        })
-                        .await
+                        Ok::<i64, Error>(most_recent)
                     }
                     RemoteType::Pbs => {
                         let client = connection::make_pbs_client(&remote)?;
                         let metrics = client.metrics(Some(true), Some(start_time)).await?;
 
-                        // Involves some blocking file IO
-                        tokio::task::spawn_blocking(move || {
-                            let mut most_recent_timestamp = 0;
+                        let most_recent =
+                            metrics.data.iter().fold(0, |acc, x| acc.max(x.timestamp));
 
-                            for data_point in metrics.data {
-                                most_recent_timestamp =
-                                    most_recent_timestamp.max(data_point.timestamp);
-                                store_metric_pbs(&remote_name_clone, &data_point);
-                            }
+                        sender
+                            .send(RrdStoreRequest::Pbs {
+                                remote: remote_name_clone,
+                                metrics,
+                            })
+                            .await?;
 
-                            most_recent_timestamp
-                        })
-                        .await
+                        Ok::<i64, Error>(most_recent)
                     }
                 }?;
 
@@ -105,46 +109,4 @@ async fn metric_collection_task() -> Result<(), Error> {
             }
         }
     }
-}
-
-fn store_metric_pve(remote_name: &str, data_point: &ClusterMetricsData) {
-    let name = format!(
-        "pve/{remote_name}/{id}/{metric}",
-        id = data_point.id,
-        metric = data_point.metric,
-    );
-
-    let data_source_type = match data_point.ty {
-        ClusterMetricsDataType::Gauge => DataSourceType::Gauge,
-        ClusterMetricsDataType::Counter => DataSourceType::Counter,
-        ClusterMetricsDataType::Derive => DataSourceType::Derive,
-    };
-
-    rrd_cache::update_value(
-        &name,
-        data_point.value,
-        data_point.timestamp,
-        data_source_type,
-    );
-}
-
-fn store_metric_pbs(remote_name: &str, data_point: &MetricDataPoint) {
-    let name = format!(
-        "pbs/{remote_name}/{id}/{metric}",
-        id = data_point.id,
-        metric = data_point.metric,
-    );
-
-    let data_source_type = match data_point.ty {
-        MetricDataType::Gauge => DataSourceType::Gauge,
-        MetricDataType::Counter => DataSourceType::Counter,
-        MetricDataType::Derive => DataSourceType::Derive,
-    };
-
-    rrd_cache::update_value(
-        &name,
-        data_point.value,
-        data_point.timestamp,
-        data_source_type,
-    );
 }
