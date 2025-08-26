@@ -20,6 +20,10 @@ pub(super) enum RrdStoreRequest {
         metrics: ClusterMetrics,
         /// Oneshot channel to return the [`RrdStoreResult`].
         channel: oneshot::Sender<RrdStoreResult>,
+        /// Reponse time in ms for the API request.
+        response_time: f64,
+        /// Timestamp at which the request was done (UNIX epoch).
+        request_at: i64,
     },
     /// Store PBS metrics.
     Pbs {
@@ -29,6 +33,10 @@ pub(super) enum RrdStoreRequest {
         metrics: Metrics,
         /// Oneshot channel to return the [`RrdStoreResult`].
         channel: oneshot::Sender<RrdStoreResult>,
+        /// Reponse time in ms for the API request.
+        response_time: f64,
+        /// Timestamp at which the request was done (UNIX epoch).
+        request_at: i64,
     },
 }
 
@@ -54,11 +62,14 @@ pub(super) async fn store_in_rrd_task(
                     remote,
                     metrics,
                     channel,
+                    response_time,
+                    request_at,
                 } => {
                     for data_point in metrics.data {
                         most_recent_timestamp = most_recent_timestamp.max(data_point.timestamp);
                         store_metric_pve(&cache_clone, &remote, &data_point);
                     }
+                    store_response_time(&cache_clone, &remote, response_time, request_at);
 
                     channel
                 }
@@ -66,11 +77,14 @@ pub(super) async fn store_in_rrd_task(
                     remote,
                     metrics,
                     channel,
+                    response_time,
+                    request_at,
                 } => {
                     for data_point in metrics.data {
                         most_recent_timestamp = most_recent_timestamp.max(data_point.timestamp);
                         store_metric_pbs(&cache_clone, &remote, &data_point);
                     }
+                    store_response_time(&cache_clone, &remote, response_time, request_at);
 
                     channel
                 }
@@ -137,6 +151,12 @@ fn store_metric_pbs(cache: &RrdCache, remote_name: &str, data_point: &MetricData
     );
 }
 
+fn store_response_time(cache: &RrdCache, remote_name: &str, response_time: f64, timestamp: i64) {
+    let name = format!("remotes/{remote_name}/metric-collection-response-time");
+
+    cache.update_value(&name, response_time, timestamp, DataSourceType::Gauge);
+}
+
 #[cfg(test)]
 mod tests {
     use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
@@ -199,6 +219,8 @@ mod tests {
             remote: "some-remote".into(),
             metrics,
             channel: tx_back,
+            response_time: 10.0,
+            request_at: now,
         };
 
         // Act
@@ -221,6 +243,15 @@ mod tests {
         )? {
             // Only assert that there are some data points, the exact position in the vec
             // might vary due to changed boundaries.
+            assert!(data.data.iter().any(Option::is_some));
+        }
+
+        if let Some(data) = cache.extract_data(
+            "remotes/some-remote",
+            "metric-collection-response-time",
+            RrdTimeframe::Hour,
+            RrdMode::Max,
+        )? {
             assert!(data.data.iter().any(Option::is_some));
         }
 

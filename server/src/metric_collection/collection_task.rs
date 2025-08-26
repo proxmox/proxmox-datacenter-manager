@@ -266,6 +266,7 @@ impl MetricCollectionTask {
         let (result_tx, result_rx) = oneshot::channel();
 
         let now = proxmox_time::epoch_i64();
+        let start = Instant::now();
 
         let res: Result<RrdStoreResult, Error> = async {
             match remote.ty {
@@ -279,11 +280,16 @@ impl MetricCollectionTask {
                         )
                         .await?;
 
+                    let duration = start.elapsed();
+
                     sender
                         .send(RrdStoreRequest::Pve {
                             remote: remote.id.clone(),
                             metrics,
                             channel: result_tx,
+                            // TODO: use as_millis_f64 once stabilized
+                            response_time: duration.as_secs_f64() * 1000.,
+                            request_at: now,
                         })
                         .await?;
                 }
@@ -293,15 +299,20 @@ impl MetricCollectionTask {
                         .metrics(Some(true), Some(status.most_recent_datapoint))
                         .await?;
 
+                    let duration = start.elapsed();
+
                     sender
                         .send(RrdStoreRequest::Pbs {
                             remote: remote.id.clone(),
                             metrics,
                             channel: result_tx,
+                            // TODO: use as_millis_f64 once stabilized
+                            response_time: duration.as_secs_f64() * 1000.,
+                            request_at: now,
                         })
                         .await?;
                 }
-            }
+            };
 
             result_rx.await.map_err(Error::from)
         }
