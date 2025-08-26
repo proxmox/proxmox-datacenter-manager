@@ -9,6 +9,7 @@ use proxmox_sortable_macro::sortable;
 
 pub mod access;
 pub mod config;
+pub mod metric_collection;
 pub mod nodes;
 pub mod pbs;
 pub mod pve;
@@ -21,6 +22,7 @@ mod rrd_common;
 const SUBDIRS: SubdirMap = &sorted!([
     ("access", &access::ROUTER),
     ("config", &config::ROUTER),
+    ("metric-collection", &metric_collection::ROUTER),
     ("ping", &Router::new().get(&API_METHOD_PING)),
     ("pve", &pve::ROUTER),
     ("pbs", &pbs::ROUTER),
