@@ -19,6 +19,9 @@ pub use acl::*;
 mod node_config;
 pub use node_config::*;
 
+mod metric_collection;
+pub use metric_collection::*;
+
 mod proxy;
 pub use proxy::HTTP_PROXY_SCHEMA;
 

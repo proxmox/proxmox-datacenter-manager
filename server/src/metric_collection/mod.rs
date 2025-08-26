@@ -6,6 +6,7 @@ use anyhow::{bail, Error};
 use nix::sys::stat::Mode;
 use tokio::sync::mpsc::{self, Sender};
 
+use pdm_api_types::MetricCollectionStatus;
 use pdm_buildcfg::PDM_STATE_DIR_M;
 
 mod collection_task;
@@ -77,4 +78,24 @@ pub async fn trigger_metric_collection(remote: Option<String>) -> Result<(), Err
     }
 
     Ok(())
+}
+
+/// Get each remote's metric collection status.
+pub fn get_status() -> Result<Vec<MetricCollectionStatus>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let state = collection_task::load_state()?;
+
+    let mut result = Vec::new();
+
+    for (remote, _) in remotes.into_iter() {
+        if let Some(status) = state.get_status(&remote) {
+            result.push(MetricCollectionStatus {
+                remote,
+                error: status.error.clone(),
+                last_collection: status.last_collection,
+            })
+        }
+    }
+
+    Ok(result)
 }
