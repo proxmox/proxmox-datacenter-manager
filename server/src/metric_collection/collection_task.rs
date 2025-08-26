@@ -9,6 +9,7 @@ use tokio::{
         mpsc::{Receiver, Sender},
         oneshot, OwnedSemaphorePermit, Semaphore,
     },
+    task::JoinSet,
     time::{Interval, MissedTickBehavior},
 };
 
@@ -200,7 +201,8 @@ impl MetricCollectionTask {
         remotes_to_fetch: &[String],
     ) {
         let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
-        let mut handles = Vec::new();
+        let mut handles = JoinSet::new();
+
         let now = proxmox_time::epoch_i64();
 
         for remote_name in remotes_to_fetch {
@@ -223,29 +225,22 @@ impl MetricCollectionTask {
 
             if let Some(remote) = remote_config.get(remote_name).cloned() {
                 log::debug!("fetching remote '{}'", remote.id);
-                let handle = tokio::spawn(Self::fetch_single_remote(
+                handles.spawn(Self::fetch_single_remote(
                     remote,
                     status,
                     self.metric_data_tx.clone(),
                     permit,
                 ));
-
-                handles.push((remote_name.clone(), handle));
             }
         }
 
-        for (remote_name, handle) in handles {
-            let res = handle.await;
-
+        while let Some(res) = handles.join_next().await {
             match res {
-                Ok(Ok(ts)) => {
-                    self.state.set_status(remote_name, ts);
+                Ok((name, status)) => {
+                    self.state.set_status(name, status);
                 }
-                Ok(Err(err)) => log::error!("failed to collect metrics for {remote_name}: {err}"),
                 Err(err) => {
-                    log::error!(
-                        "join error for metric collection task for remote {remote_name}: {err}"
-                    )
+                    log::error!("join error for metric collection task for remote: {err}")
                 }
             }
         }
@@ -292,7 +287,7 @@ impl MetricCollectionTask {
         mut status: RemoteStatus,
         sender: Sender<RrdStoreRequest>,
         _permit: OwnedSemaphorePermit,
-    ) -> Result<RemoteStatus, Error> {
+    ) -> (String, RemoteStatus) {
         let (result_tx, result_rx) = oneshot::channel();
 
         let now = proxmox_time::epoch_i64();
@@ -360,7 +355,7 @@ impl MetricCollectionTask {
             }
         }
 
-        Ok(status)
+        (remote.id, status)
     }
 }
 
