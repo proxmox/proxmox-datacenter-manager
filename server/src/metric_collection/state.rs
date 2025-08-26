@@ -87,24 +87,16 @@ impl MetricCollectionState {
 
 #[cfg(test)]
 mod tests {
-    use proxmox_sys::fs::CreateOptions;
+    use crate::metric_collection::collection_task::tests::get_create_options;
+    use crate::test_support::temp::NamedTempFile;
 
     use super::*;
 
-    use crate::test_support::temp::NamedTempFile;
-
-    fn get_options() -> CreateOptions {
-        CreateOptions::new()
-            .owner(nix::unistd::Uid::effective())
-            .group(nix::unistd::Gid::effective())
-            .perm(nix::sys::stat::Mode::from_bits_truncate(0o600))
-    }
-
     #[test]
     fn save_and_load() -> Result<(), Error> {
-        let file = NamedTempFile::new(get_options())?;
-        let options = get_options();
-        let mut state = MetricCollectionState::new(file.path().into(), options.clone());
+        let file = NamedTempFile::new(get_create_options())?;
+        let options = get_create_options();
+        let mut state = MetricCollectionState::new(file.path().into(), options);
 
         state.set_status(
             "some-remote".into(),

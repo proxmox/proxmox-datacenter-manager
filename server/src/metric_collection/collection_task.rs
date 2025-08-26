@@ -333,3 +333,229 @@ pub(super) fn load_state() -> Result<MetricCollectionState, Error> {
         file_options,
     ))
 }
+
+#[cfg(test)]
+pub(super) mod tests {
+    use std::sync::Once;
+
+    use anyhow::bail;
+    use http::StatusCode;
+
+    use pdm_api_types::Authid;
+    use pve_api_types::{ClusterMetrics, ClusterMetricsData};
+
+    use crate::{
+        connection::{ClientFactory, PveClient},
+        metric_collection::rrd_task::RrdStoreResult,
+        pbs_client::PbsClient,
+        test_support::temp::NamedTempFile,
+    };
+
+    use super::*;
+
+    pub(crate) fn get_create_options() -> CreateOptions {
+        CreateOptions::new()
+            .owner(nix::unistd::Uid::effective())
+            .group(nix::unistd::Gid::effective())
+            .perm(nix::sys::stat::Mode::from_bits_truncate(0o600))
+    }
+
+    struct TestClientFactory {
+        now: i64,
+    }
+
+    #[async_trait::async_trait]
+    impl ClientFactory for TestClientFactory {
+        fn make_pve_client(&self, remote: &Remote) -> Result<Arc<PveClient>, Error> {
+            Ok(Arc::new(TestPveClient {
+                fail: remote.id.contains("fail"),
+                now: self.now,
+            }))
+        }
+        /// Create a new API client for PVE remotes, but with a specific endpoint.
+        fn make_pve_client_with_endpoint(
+            &self,
+            _remote: &Remote,
+            _target_endpoint: Option<&str>,
+        ) -> Result<Arc<PveClient>, Error> {
+            bail!("not implemented")
+        }
+
+        fn make_pbs_client(&self, _remote: &Remote) -> Result<Box<PbsClient>, Error> {
+            bail!("not implemented")
+        }
+
+        async fn make_pve_client_and_login(
+            &self,
+            _remote: &Remote,
+        ) -> Result<Arc<PveClient>, Error> {
+            bail!("not implemented")
+        }
+
+        async fn make_pbs_client_and_login(
+            &self,
+            _remote: &Remote,
+        ) -> Result<Box<PbsClient>, Error> {
+            bail!("not implemented")
+        }
+    }
+
+    struct TestPveClient {
+        now: i64,
+        fail: bool,
+    }
+
+    #[async_trait::async_trait]
+    impl pve_api_types::client::PveClient for TestPveClient {
+        /// Retrieve metrics of the cluster.
+        async fn cluster_metrics_export(
+            &self,
+            _history: Option<bool>,
+            _local_only: Option<bool>,
+            start_time: Option<i64>,
+        ) -> Result<ClusterMetrics, proxmox_client::Error> {
+            if self.fail {
+                return Err(proxmox_client::Error::Api(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "internal server error".into(),
+                ));
+            }
+
+            let mut time = start_time.unwrap_or(0);
+            time = time.max(self.now - (30 * 60));
+            let mut data = Vec::new();
+
+            use pve_api_types::ClusterMetricsDataType::*;
+
+            while time < self.now {
+                let point = |id: &str, metric: &str, timestamp, ty| ClusterMetricsData {
+                    id: id.into(),
+                    metric: metric.into(),
+                    timestamp,
+                    ty,
+                    value: 0.1,
+                };
+
+                for i in 0..5 {
+                    let id = format!("node/node-{i}");
+                    data.push(point(&id, "cpu_current", time, Gauge));
+                }
+
+                // Advance time by 10 seconds
+                time += 10;
+            }
+
+            Ok(ClusterMetrics { data })
+        }
+    }
+
+    fn make_remote_config() -> SectionConfigData<Remote> {
+        let mut sections = SectionConfigData::default();
+
+        for i in 0..4 {
+            let status = if i >= 2 { "fail" } else { "pass" };
+            let name = format!("pve-{i}-{status}");
+
+            sections.insert(
+                name.clone(),
+                Remote {
+                    ty: pdm_api_types::remotes::RemoteType::Pve,
+                    id: name.clone(),
+                    nodes: Vec::new(),
+                    authid: Authid::root_auth_id().clone(),
+                    token: "".into(),
+                    web_url: None,
+                },
+            );
+        }
+
+        sections
+    }
+
+    async fn fake_rrd_task(mut rx: Receiver<RrdStoreRequest>) -> u32 {
+        let mut number_of_requests = 0;
+
+        while let Some(request) = rx.recv().await {
+            number_of_requests += 1;
+
+            if let RrdStoreRequest::Pve {
+                metrics, channel, ..
+            } = request
+            {
+                let most_recent_timestamp =
+                    metrics.data.iter().map(|e| e.timestamp).max().unwrap_or(0);
+
+                let _ = channel.send(RrdStoreResult {
+                    most_recent_timestamp,
+                });
+            }
+        }
+
+        number_of_requests
+    }
+
+    static START: Once = Once::new();
+
+    fn test_init() -> i64 {
+        let now = 10000;
+        START.call_once(|| {
+            // TODO: the client factory is currently stored in a OnceLock -
+            // we can only set it from one test... Ideally we'd like to have the
+            // option to set it in every single test if needed - task/thread local?
+            connection::init(Box::new(TestClientFactory { now }));
+        });
+
+        now
+    }
+
+    #[tokio::test]
+    async fn test_fetch_remotes_updates_state() {
+        // Arrange
+        let now = test_init();
+
+        let (tx, rx) = tokio::sync::mpsc::channel(10);
+        let handle = tokio::task::spawn(fake_rrd_task(rx));
+
+        let config = make_remote_config();
+
+        let state_file = NamedTempFile::new(get_create_options()).unwrap();
+        let state = MetricCollectionState::new(state_file.path().into(), get_create_options());
+
+        let (_control_tx, control_rx) = tokio::sync::mpsc::channel(10);
+
+        let mut task = MetricCollectionTask {
+            state,
+            metric_data_tx: tx,
+            control_message_rx: control_rx,
+        };
+
+        // Act
+        let to_fetch = config
+            .iter()
+            .map(|(name, _)| name.into())
+            .collect::<Vec<String>>();
+        task.fetch_remotes(&config, &to_fetch).await;
+
+        // Assert
+        for remote in &to_fetch {
+            let status = task.state.get_status(remote).unwrap();
+
+            // Our faked PVE client will return an error if the remote name contains
+            // 'fail'.
+            if remote.contains("fail") {
+                assert!(status
+                    .error
+                    .as_ref()
+                    .unwrap()
+                    .contains("internal server error"));
+                assert_eq!(status.last_collection, None);
+            } else {
+                assert!(now - status.most_recent_datapoint <= 10);
+                assert!(status.error.is_none());
+            }
+        }
+
+        drop(task);
+        assert_eq!(handle.await.unwrap(), 2);
+    }
+}
