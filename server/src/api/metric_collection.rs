@@ -34,7 +34,7 @@ const SUBDIRS: SubdirMap = &sorted!([
 )]
 /// Trigger metric collection for a provided remote or for all remotes if no remote is passed.
 pub async fn trigger_metric_collection(remote: Option<String>) -> Result<(), Error> {
-    crate::metric_collection::trigger_metric_collection(remote).await?;
+    crate::metric_collection::trigger_metric_collection(remote, false).await?;
 
     Ok(())
 }

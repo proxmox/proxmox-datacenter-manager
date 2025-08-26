@@ -5,6 +5,7 @@ use std::sync::OnceLock;
 use anyhow::{bail, Error};
 use nix::sys::stat::Mode;
 use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::oneshot;
 
 use pdm_api_types::MetricCollectionStatus;
 use pdm_buildcfg::PDM_STATE_DIR_M;
@@ -66,15 +67,26 @@ pub fn start_task() -> Result<(), Error> {
     Ok(())
 }
 
-/// Schedule metric collection for a given remote as soon as possible.
+/// Schedule metric collection as soon as possible.
+///
+/// If `remote` is `Some(String)`, then the remote with the given ID is
+/// collected. If remote is `None`, all remotes are scheduled for collection.
+/// If `wait` is `true`, this function waits for the completion of the requested
+/// metric collection run.
 ///
 /// Has no effect if the tx end of the channel has not been initialized yet.
 /// Returns an error if the mpsc channel has been closed already.
-pub async fn trigger_metric_collection(remote: Option<String>) -> Result<(), Error> {
+pub async fn trigger_metric_collection(remote: Option<String>, wait: bool) -> Result<(), Error> {
+    let (done_sender, done_receiver) = oneshot::channel();
+
     if let Some(sender) = CONTROL_MESSAGE_TX.get() {
         sender
-            .send(ControlMsg::TriggerMetricCollection(remote))
+            .send(ControlMsg::TriggerMetricCollection(remote, done_sender))
             .await?;
+
+        if wait {
+            done_receiver.await?;
+        }
     }
 
     Ok(())

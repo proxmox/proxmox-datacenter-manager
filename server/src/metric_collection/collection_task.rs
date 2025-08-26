@@ -41,7 +41,7 @@ pub const MIN_COLLECTION_INTERVAL: u64 = 10;
 
 /// Control messages for the metric collection task.
 pub(super) enum ControlMsg {
-    TriggerMetricCollection(Option<String>),
+    TriggerMetricCollection(Option<String>, oneshot::Sender<()>),
 }
 
 /// Task which periodically collects metrics from all remotes and stores
@@ -136,20 +136,26 @@ impl MetricCollectionTask {
     /// Handle a control message for force-triggered collection.
     async fn handle_control_message(&mut self, message: ControlMsg) {
         if let Some(remotes) = Self::load_remote_config() {
-            match message {
-                ControlMsg::TriggerMetricCollection(Some(remote)) => {
+            let done_tx = match message {
+                ControlMsg::TriggerMetricCollection(Some(remote), done_tx) => {
                     log::debug!("starting metric collection for remote '{remote}'- triggered by control message");
                     self.fetch_remotes(&remotes, &[remote]).await;
+                    done_tx
                 }
-                ControlMsg::TriggerMetricCollection(None) => {
+                ControlMsg::TriggerMetricCollection(None, done_tx) => {
                     log::debug!("starting metric collection from all remotes - triggered by control message");
                     let to_fetch = remotes
                         .iter()
                         .map(|(name, _)| name.into())
                         .collect::<Vec<String>>();
                     self.fetch_remotes(&remotes, &to_fetch).await;
+                    done_tx
                 }
-            }
+            };
+
+            // We don't care about the result, if the caller does not wait for the result, it
+            // might have dropped the receiver already.
+            let _ = done_tx.send(());
         }
     }
 
