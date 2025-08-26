@@ -9,7 +9,7 @@ use tokio::{
         mpsc::{Receiver, Sender},
         oneshot, OwnedSemaphorePermit, Semaphore,
     },
-    time::Interval,
+    time::{Interval, MissedTickBehavior},
 };
 
 use proxmox_section_config::typed::SectionConfigData;
@@ -165,6 +165,13 @@ impl MetricCollectionTask {
     fn setup_timer(interval: u64) -> (Interval, Instant) {
         log::debug!("setting metric collection interval timer to {interval} seconds.",);
         let mut timer = tokio::time::interval(Duration::from_secs(interval));
+
+        // If we miss a tick because a previous collection run took too long, we want to
+        // tick as soon as possible, but we do not need to repeat missing ticks.
+        // We do want to stay aligned, though.
+        // https://docs.rs/tokio/latest/tokio/time/enum.MissedTickBehavior.html#variant.Skip
+        timer.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
         let first_run = task_utils::next_aligned_instant(interval);
         timer.reset_at(first_run.into());
 
