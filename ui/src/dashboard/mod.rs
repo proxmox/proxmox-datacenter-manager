@@ -46,6 +46,8 @@ use guest_panel::GuestPanel;
 mod status_row;
 use status_row::DashboardStatusRow;
 
+mod filtered_tasks;
+
 /// The default 'max-age' parameter in seconds.
 pub const DEFAULT_MAX_AGE_S: u64 = 60;
 

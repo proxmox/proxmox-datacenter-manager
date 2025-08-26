@@ -554,9 +554,14 @@ pub struct TaskFilters {
     pub errors: bool,
     #[serde(default)]
     pub running: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub userfilter: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub since: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub until: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub typefilter: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub statusfilter: Option<Vec<TaskStateType>>,
 }
