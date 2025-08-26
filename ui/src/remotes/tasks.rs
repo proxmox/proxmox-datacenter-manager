@@ -7,12 +7,9 @@ use yew::{
 };
 
 use pdm_api_types::RemoteUpid;
-use pdm_client::types::PveUpid;
 
 use proxmox_yew_comp::{
-    common_api_types::TaskListItem,
-    utils::{format_task_description, format_upid, render_epoch_short},
-    TaskViewer, Tasks,
+    common_api_types::TaskListItem, utils::render_epoch_short, TaskViewer, Tasks,
 };
 use pwt::{
     css::{FlexFit, JustifyContent},
@@ -23,6 +20,8 @@ use pwt::{
         Column, Fa, Row,
     },
 };
+
+use crate::tasks::format_optional_remote_upid;
 
 #[derive(PartialEq, Properties)]
 pub struct RemoteTaskList;
@@ -77,17 +76,7 @@ fn columns() -> Rc<Vec<DataTableHeader<TaskListItem>>> {
         DataTableColumn::new(tr!("Description"))
             .flex(4)
             .render(move |item: &TaskListItem| {
-                if let Ok(remote_upid) = item.upid.parse::<RemoteUpid>() {
-                    match remote_upid.upid.parse::<PveUpid>() {
-                        Ok(upid) => {
-                            format_task_description(&upid.worker_type, upid.worker_id.as_deref())
-                        }
-                        Err(_) => format_upid(&remote_upid.upid),
-                    }
-                } else {
-                    format_upid(&item.upid)
-                }
-                .into()
+                format_optional_remote_upid(&item.upid, false).into()
             })
             .into(),
         DataTableColumn::new(tr!("Status"))

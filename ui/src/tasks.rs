@@ -1,5 +1,9 @@
-use proxmox_yew_comp::utils::register_task_description;
+use proxmox_yew_comp::utils::{format_task_description, format_upid, register_task_description};
 use pwt::tr;
+
+use pdm_api_types::RemoteUpid;
+use pdm_client::types::PveUpid;
+use yew::virtual_dom::Key;
 
 pub fn register_pve_tasks() {
     register_task_description("qmstart", ("VM", tr!("Start")));
@@ -102,4 +106,22 @@ pub fn register_pve_tasks() {
     register_task_description("vzumount", ("CT", tr!("Unmount")));
     register_task_description("zfscreate", (tr!("ZFS Storage"), tr!("Create")));
     register_task_description("zfsremove", ("ZFS Pool", tr!("Remove")));
+}
+
+/// Format a UPID that is either [`RemoteUpid`] or a [`UPID`]
+/// If it's a [`RemoteUpid`], prefixes it with the remote name
+pub fn format_optional_remote_upid(upid: &str, include_remote: bool) -> String {
+    if let Ok(remote_upid) = upid.parse::<RemoteUpid>() {
+        let description = match remote_upid.upid.parse::<PveUpid>() {
+            Ok(upid) => format_task_description(&upid.worker_type, upid.worker_id.as_deref()),
+            Err(_) => format_upid(&remote_upid.upid),
+        };
+        if include_remote {
+            format!("{} - {}", remote_upid.remote(), description)
+        } else {
+            description
+        }
+    } else {
+        format_upid(upid)
+    }
 }

@@ -13,15 +13,15 @@ use pwt::state::{Loader, Theme, ThemeObserver};
 use pwt::widget::{Button, Container, Row, ThemeModeSelector, Tooltip};
 
 use proxmox_yew_comp::common_api_types::TaskListItem;
-use proxmox_yew_comp::utils::{format_task_description, format_upid, set_location_href};
+use proxmox_yew_comp::utils::set_location_href;
 use proxmox_yew_comp::RunningTasksButton;
 use proxmox_yew_comp::{http_get, HelpButton, LanguageDialog, TaskViewer, ThemeDialog};
 
 use pwt_macros::builder;
 
 use pdm_api_types::RemoteUpid;
-use pdm_client::types::PveUpid;
 
+use crate::tasks::format_optional_remote_upid;
 use crate::widget::SearchBox;
 
 #[derive(Deserialize)]
@@ -207,19 +207,7 @@ impl Component for PdmTopNavBar {
                             }),
                     ])
                     .render(|item: &TaskListItem| {
-                        if let Ok(remote_upid) = (&item.upid).parse::<RemoteUpid>() {
-                            let description = match remote_upid.upid.parse::<PveUpid>() {
-                                Ok(upid) => format_task_description(
-                                    &upid.worker_type,
-                                    upid.worker_id.as_deref(),
-                                ),
-                                Err(_) => format_upid(&remote_upid.upid),
-                            };
-                            format!("{} - {}", remote_upid.remote(), description)
-                        } else {
-                            format_upid(&item.upid)
-                        }
-                        .into()
+                        format_optional_remote_upid(&item.upid, true).into()
                     }),
             );
 
