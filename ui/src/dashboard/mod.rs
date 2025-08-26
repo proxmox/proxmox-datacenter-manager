@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use anyhow::Error;
-use futures::future::join;
+use futures::join;
 use js_sys::Date;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -24,7 +24,10 @@ use pwt::{
     AsyncPool,
 };
 
-use pdm_api_types::resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus};
+use pdm_api_types::{
+    resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus},
+    TaskStatistics,
+};
 use pdm_client::types::TopEntity;
 use pdm_search::{Search, SearchTerm};
 use proxmox_client::ApiResponseData;
@@ -47,6 +50,9 @@ mod status_row;
 use status_row::DashboardStatusRow;
 
 mod filtered_tasks;
+
+mod tasks;
+use tasks::TaskSummary;
 
 /// The default 'max-age' parameter in seconds.
 pub const DEFAULT_MAX_AGE_S: u64 = 60;
@@ -81,6 +87,7 @@ pub struct DashboardConfig {
 pub type LoadingResult = (
     Result<ResourcesStatus, Error>,
     Result<pdm_client::types::TopEntities, proxmox_client::Error>,
+    Result<TaskStatistics, Error>,
 );
 
 pub enum Msg {
@@ -93,11 +100,19 @@ pub enum Msg {
     Search(Search),
 }
 
+struct StatisticsOptions {
+    hours: u32,
+    since: i64,
+    data: Option<TaskStatistics>,
+    error: Option<Error>,
+}
+
 pub struct PdmDashboard {
     status: ResourcesStatus,
     last_error: Option<Error>,
     top_entities: Option<pdm_client::types::TopEntities>,
     last_top_entities_error: Option<proxmox_client::Error>,
+    statistics: StatisticsOptions,
     loading: bool,
     load_finished_time: Option<f64>,
     remote_list: RemoteList,
@@ -208,6 +223,47 @@ impl PdmDashboard {
             ))
     }
 
+    fn create_task_summary_panel(
+        &self,
+        statistics: &StatisticsOptions,
+        remotes: Option<u32>,
+    ) -> Panel {
+        let title = match remotes {
+            Some(count) => tr!(
+                "Task Summary for Top {0} Remotes (Last {1}h)",
+                count,
+                statistics.hours
+            ),
+            None => tr!("Task Summary by Category (Last {0}h)", statistics.hours),
+        };
+        Panel::new()
+            .flex(1.0)
+            .width(500)
+            .border(true)
+            .title(self.create_title_with_icon("list", title))
+            .with_child(
+                Container::new()
+                    .class(FlexFit)
+                    .padding(2)
+                    .with_optional_child(
+                        statistics
+                            .data
+                            .clone()
+                            .map(|data| TaskSummary::new(data, statistics.since, remotes)),
+                    )
+                    .with_optional_child(
+                        (statistics.error.is_none() && statistics.data.is_none())
+                            .then_some(loading_column()),
+                    )
+                    .with_optional_child(
+                        statistics
+                            .error
+                            .as_ref()
+                            .map(|err| error_message(&err.to_string())),
+                    ),
+            )
+    }
+
     fn create_top_entities_panel(
         &self,
         icon: &str,
@@ -243,9 +299,23 @@ impl PdmDashboard {
             let top_entities_future = client.get_top_entities();
             let status_future = http_get("/resources/status", Some(json!({"max-age": max_age})));
 
-            let (top_entities_res, status_res) = join(top_entities_future, status_future).await;
+            let since = (Date::now() / 1000.0) as i64 - (24 * 60 * 60);
+            let params = Some(json!({
+                "since": since,
+                "limit": 0,
+            }));
 
-            link.send_message(Msg::LoadingFinished((status_res, top_entities_res)));
+            // TODO replace with pdm client call
+            let statistics_future = http_get("/remote-tasks/statistics", params);
+
+            let (top_entities_res, status_res, statistics_res) =
+                join!(top_entities_future, status_future, statistics_future);
+
+            link.send_message(Msg::LoadingFinished((
+                status_res,
+                top_entities_res,
+                statistics_res,
+            )));
         });
     }
 }
@@ -263,11 +333,20 @@ impl Component for PdmDashboard {
             .context(ctx.link().callback(Msg::RemoteListChanged))
             .expect("No Remote list context provided");
 
+        let since = (Date::now() / 1000.0) as i64 - (24 * 60 * 60);
+        let statistics = StatisticsOptions {
+            hours: 24,
+            since,
+            data: None,
+            error: None,
+        };
+
         let mut this = Self {
             status: ResourcesStatus::default(),
             last_error: None,
             top_entities: None,
             last_top_entities_error: None,
+            statistics,
             loading: true,
             load_finished_time: None,
             remote_list,
@@ -285,7 +364,7 @@ impl Component for PdmDashboard {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::LoadingFinished((resources_status, top_entities)) => {
+            Msg::LoadingFinished((resources_status, top_entities, task_statistics)) => {
                 match resources_status {
                     Ok(status) => {
                         self.last_error = None;
@@ -299,6 +378,13 @@ impl Component for PdmDashboard {
                         self.top_entities = Some(data);
                     }
                     Err(err) => self.last_top_entities_error = Some(err),
+                }
+                match task_statistics {
+                    Ok(statistics) => {
+                        self.statistics.error = None;
+                        self.statistics.data = Some(statistics);
+                    }
+                    Err(err) => self.statistics.error = Some(err),
                 }
                 self.loading = false;
                 self.load_finished_time = Some(Date::now() / 1000.0);
@@ -453,7 +539,6 @@ impl Component for PdmDashboard {
                     .class("pwt-content-spacer")
                     .class(FlexDirection::Row)
                     .class("pwt-align-content-start")
-                    .class(pwt::css::Flex::Fill)
                     .padding_top(0)
                     .class(FlexWrap::Wrap)
                     //.min_height(175)
@@ -475,6 +560,17 @@ impl Component for PdmDashboard {
                         tr!("Memory usage"),
                         self.top_entities.as_ref().map(|e| &e.node_memory),
                     )),
+            )
+            .with_child(
+                Container::new()
+                    .class("pwt-content-spacer")
+                    .class(FlexDirection::Row)
+                    .class("pwt-align-content-start")
+                    .style("padding-top", "0")
+                    .class(pwt::css::Flex::Fill)
+                    .class(FlexWrap::Wrap)
+                    .with_child(self.create_task_summary_panel(&self.statistics, None))
+                    .with_child(self.create_task_summary_panel(&self.statistics, Some(5))),
             );
 
         Panel::new()
