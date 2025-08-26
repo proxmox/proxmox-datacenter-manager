@@ -60,6 +60,9 @@ pub const DEFAULT_MAX_AGE_S: u64 = 60;
 /// The default refresh interval
 pub const DEFAULT_REFRESH_INTERVAL_S: u64 = DEFAULT_MAX_AGE_S / 2;
 
+/// The default hours to show for task summaries
+pub const DEFAULT_TASK_SUMMARY_HOURS: u32 = 24;
+
 #[derive(Properties, PartialEq)]
 pub struct Dashboard {}
 
@@ -82,6 +85,8 @@ pub struct DashboardConfig {
     refresh_interval: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     max_age: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    task_last_hours: Option<u32>,
 }
 
 pub type LoadingResult = (
@@ -101,8 +106,6 @@ pub enum Msg {
 }
 
 struct StatisticsOptions {
-    hours: u32,
-    since: i64,
     data: Option<TaskStatistics>,
     error: Option<Error>,
 }
@@ -228,13 +231,10 @@ impl PdmDashboard {
         statistics: &StatisticsOptions,
         remotes: Option<u32>,
     ) -> Panel {
+        let (hours, since) = Self::get_task_options(&self.config);
         let title = match remotes {
-            Some(count) => tr!(
-                "Task Summary for Top {0} Remotes (Last {1}h)",
-                count,
-                statistics.hours
-            ),
-            None => tr!("Task Summary by Category (Last {0}h)", statistics.hours),
+            Some(count) => tr!("Task Summary for Top {0} Remotes (Last {1}h)", count, hours),
+            None => tr!("Task Summary by Category (Last {0}h)", hours),
         };
         Panel::new()
             .flex(1.0)
@@ -249,7 +249,7 @@ impl PdmDashboard {
                         statistics
                             .data
                             .clone()
-                            .map(|data| TaskSummary::new(data, statistics.since, remotes)),
+                            .map(|data| TaskSummary::new(data, since, remotes)),
                     )
                     .with_optional_child(
                         (statistics.error.is_none() && statistics.data.is_none())
@@ -291,6 +291,7 @@ impl PdmDashboard {
     fn reload(&mut self, ctx: &yew::Context<Self>) {
         let link = ctx.link().clone();
         let max_age = self.config.max_age.unwrap_or(DEFAULT_MAX_AGE_S);
+        let (_, since) = Self::get_task_options(&self.config);
 
         self.load_finished_time = None;
         self.async_pool.spawn(async move {
@@ -299,7 +300,6 @@ impl PdmDashboard {
             let top_entities_future = client.get_top_entities();
             let status_future = http_get("/resources/status", Some(json!({"max-age": max_age})));
 
-            let since = (Date::now() / 1000.0) as i64 - (24 * 60 * 60);
             let params = Some(json!({
                 "since": since,
                 "limit": 0,
@@ -318,6 +318,12 @@ impl PdmDashboard {
             )));
         });
     }
+
+    fn get_task_options(config: &PersistentState<DashboardConfig>) -> (u32, i64) {
+        let hours = config.task_last_hours.unwrap_or(DEFAULT_TASK_SUMMARY_HOURS);
+        let since = (Date::now() / 1000.0) as i64 - (hours * 60 * 60) as i64;
+        (hours, since)
+    }
 }
 
 impl Component for PdmDashboard {
@@ -325,7 +331,8 @@ impl Component for PdmDashboard {
     type Properties = Dashboard;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
-        let config = PersistentState::new(StorageLocation::local("dashboard-config"));
+        let config: PersistentState<DashboardConfig> =
+            PersistentState::new(StorageLocation::local("dashboard-config"));
         let async_pool = AsyncPool::new();
 
         let (remote_list, _context_listener) = ctx
@@ -333,20 +340,15 @@ impl Component for PdmDashboard {
             .context(ctx.link().callback(Msg::RemoteListChanged))
             .expect("No Remote list context provided");
 
-        let since = (Date::now() / 1000.0) as i64 - (24 * 60 * 60);
-        let statistics = StatisticsOptions {
-            hours: 24,
-            since,
-            data: None,
-            error: None,
-        };
-
         let mut this = Self {
             status: ResourcesStatus::default(),
             last_error: None,
             top_entities: None,
             last_top_entities_error: None,
-            statistics,
+            statistics: StatisticsOptions {
+                data: None,
+                error: None,
+            },
             loading: true,
             load_finished_time: None,
             remote_list,
@@ -408,7 +410,14 @@ impl Component for PdmDashboard {
                 true
             }
             Msg::UpdateConfig(dashboard_config) => {
+                let (old_hours, _) = Self::get_task_options(&self.config);
                 self.config.update(dashboard_config);
+                let (new_hours, _) = Self::get_task_options(&self.config);
+
+                if old_hours != new_hours {
+                    self.reload(ctx);
+                }
+
                 self.show_config_window = false;
                 true
             }
@@ -633,6 +642,13 @@ impl Component for PdmDashboard {
                                     DisplayField::new()
                                         .key("max-age-explanation")
                                         .value(tr!("If a response from a remote is older than 'Max Age', it will be updated on the next refresh.")))
+                                .with_field(
+                                    tr!("Task Summary Time Range (last hours)"),
+                                    Number::new()
+                                        .name("task-last-hours")
+                                        .min(0u64)
+                                        .placeholder(DEFAULT_TASK_SUMMARY_HOURS.to_string()),
+                                )
                                 .into()
                         })
                         .on_close(ctx.link().callback(|_| Msg::ConfigWindow(false)))
