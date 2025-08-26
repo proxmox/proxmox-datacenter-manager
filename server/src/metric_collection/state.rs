@@ -74,6 +74,11 @@ impl MetricCollectionState {
         Ok(())
     }
 
+    /// Retain all remotes for which the predicate holds.
+    pub fn retain(&mut self, check: impl Fn(&str) -> bool) {
+        self.state.remote_status.retain(|remote, _| check(remote));
+    }
+
     fn load_or_default(path: &Path) -> Result<State, Error> {
         let content = proxmox_sys::fs::file_read_optional_string(path)?;
 
@@ -112,6 +117,33 @@ mod tests {
 
         let status = state.get_status("some-remote").unwrap();
         assert_eq!(status.most_recent_datapoint, 1234);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_retain() -> Result<(), Error> {
+        let file = NamedTempFile::new(get_create_options())?;
+        let options = get_create_options();
+        let mut state = MetricCollectionState::new(file.path().into(), options);
+
+        state.set_status(
+            "remote-1".into(),
+            RemoteStatus {
+                ..Default::default()
+            },
+        );
+        state.set_status(
+            "remote-2".into(),
+            RemoteStatus {
+                ..Default::default()
+            },
+        );
+
+        state.retain(|remote| remote == "remote-1");
+
+        assert!(state.get_status("remote-1").is_some());
+        assert!(state.get_status("remote-2").is_none());
 
         Ok(())
     }

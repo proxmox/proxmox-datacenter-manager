@@ -106,6 +106,8 @@ impl MetricCollectionTask {
         log::debug!("starting metric collection from all remotes - triggered by timer");
 
         if let Some(remotes) = Self::load_remote_config() {
+            self.cleanup_removed_remotes_from_state(&remotes);
+
             let now = Instant::now();
             let to_fetch = remotes
                 .iter()
@@ -148,6 +150,10 @@ impl MetricCollectionTask {
                 }
             }
         }
+    }
+
+    fn cleanup_removed_remotes_from_state(&mut self, remotes: &SectionConfigData<Remote>) {
+        self.state.retain(|remote| remotes.get(remote).is_some());
     }
 
     /// Set up a [`tokio::time::Interval`] instance with the provided interval.
