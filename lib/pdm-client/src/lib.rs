@@ -318,6 +318,62 @@ impl<T: HttpApiClient> PdmClient<T> {
             .ok_or_else(|| Error::BadApi("api returned no webauthn entry id".to_string(), None))
     }
 
+    /// Trigger metric collection for a single remote or for all remotes, if no remote is provided.
+    pub async fn trigger_metric_collection(
+        &self,
+        remote: Option<&str>,
+    ) -> Result<(), proxmox_client::Error> {
+        let path = "/api2/extjs/metric-collection/trigger";
+
+        #[derive(Serialize)]
+        struct TriggerParams<'a> {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            remote: Option<&'a str>,
+        }
+
+        self.0
+            .post(path, &TriggerParams { remote })
+            .await?
+            .nodata()?;
+
+        Ok(())
+    }
+
+    /// Get global metric collection status.
+    pub async fn get_metric_collection_status(
+        &self,
+    ) -> Result<Vec<pdm_api_types::MetricCollectionStatus>, Error> {
+        let path = "/api2/extjs/metric-collection/status";
+        Ok(self.0.get(path).await?.expect_json()?.data)
+    }
+
+    /// Get PDM node RRD data.
+    pub async fn get_pdm_node_rrddata(
+        &self,
+        mode: RrdMode,
+        timeframe: RrdTimeframe,
+    ) -> Result<pdm_api_types::rrddata::PdmNodeDatapoint, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/nodes/localhost/rrddata")
+            .arg("cf", mode)
+            .arg("timeframe", timeframe)
+            .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    /// Get per-remote RRD data.
+    pub async fn get_per_remote_rrddata(
+        &self,
+        remote: &str,
+        mode: RrdMode,
+        timeframe: RrdTimeframe,
+    ) -> Result<pdm_api_types::rrddata::RemoteDatapoint, Error> {
+        let path = ApiPathBuilder::new(format!("/api2/extjs/remotes/{remote}/rrddata"))
+            .arg("cf", mode)
+            .arg("timeframe", timeframe)
+            .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
     pub async fn pve_list_nodes(
         &self,
         remote: &str,
