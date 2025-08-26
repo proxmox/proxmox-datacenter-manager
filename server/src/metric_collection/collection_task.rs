@@ -31,6 +31,8 @@ pub const MAX_CONCURRENT_CONNECTIONS: usize = 20;
 
 /// Default metric collection interval.
 pub const DEFAULT_COLLECTION_INTERVAL: u64 = 600;
+/// Minimum metric collection interval.
+pub const MIN_COLLECTION_INTERVAL: u64 = 10;
 
 /// Control messages for the metric collection task.
 pub(super) enum ControlMsg {
@@ -156,6 +158,7 @@ impl MetricCollectionTask {
     ) {
         let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
         let mut handles = Vec::new();
+        let now = proxmox_time::epoch_i64();
 
         for remote_name in remotes_to_fetch {
             let status = self
@@ -163,6 +166,13 @@ impl MetricCollectionTask {
                 .get_status(remote_name)
                 .cloned()
                 .unwrap_or_default();
+
+            if now - status.last_collection.unwrap_or(0) < MIN_COLLECTION_INTERVAL as i64 {
+                log::debug!(
+                    "skipping metric collection for remote '{remote_name}' - data is recent enough"
+                );
+                continue;
+            }
 
             // unwrap is okay here, acquire_* will only fail if `close` has been
             // called on the semaphore.
