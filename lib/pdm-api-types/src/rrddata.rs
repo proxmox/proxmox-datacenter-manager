@@ -216,3 +216,29 @@ pub struct PbsDatastoreDataPoint {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disk_write: Option<f64>,
 }
+
+#[api]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+/// RRD datapoint for statistics about the metric collection loop.
+pub struct PdmNodeDatapoint {
+    /// Timestamp (UNIX epoch)
+    pub time: u64,
+
+    /// Total time in milliseconds needed for full metric collection run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_time: Option<f64>,
+}
+
+#[api]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+/// RRD datapoint for a single remote.
+pub struct RemoteDatapoint {
+    /// Timestamp (UNIX epoch)
+    pub time: u64,
+
+    /// API response time in milliseconds when requesting the metrics from the remote.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric_collection_response_time: Option<f64>,
+}

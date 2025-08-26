@@ -9,6 +9,8 @@ use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
     http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
+use proxmox_rrd_api_types::RrdMode;
+use proxmox_rrd_api_types::RrdTimeframe;
 use proxmox_schema::api;
 use proxmox_schema::Schema;
 use proxmox_section_config::typed::SectionConfigData;
@@ -16,12 +18,15 @@ use proxmox_sortable_macro::sortable;
 use proxmox_time::{epoch_i64, epoch_to_rfc2822};
 
 use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
+use pdm_api_types::rrddata::RemoteDatapoint;
 use pdm_api_types::{Authid, ConfigDigest, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY};
 
 use crate::metric_collection;
 use crate::{connection, pbs_client};
 
 use super::pve;
+use super::rrd_common;
+use super::rrd_common::DataPoint;
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_REMOTES)
@@ -38,6 +43,10 @@ const ITEM_ROUTER: Router = Router::new()
 const SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_REMOTE_CONFIG)),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
+    (
+        "rrddata",
+        &Router::new().get(&API_METHOD_GET_PER_REMOTE_RRD_DATA)
+    ),
 ]);
 
 pub fn get_remote<'a>(
@@ -330,4 +339,48 @@ pub fn remote_config(id: String) -> Result<Remote, Error> {
     // FIXME: proper type here?
     remote.token = String::new(); // mask token in response
     Ok(remote.clone())
+}
+
+impl DataPoint for RemoteDatapoint {
+    fn new(time: u64) -> Self {
+        Self {
+            time,
+            ..Default::default()
+        }
+    }
+
+    fn fields() -> &'static [&'static str] {
+        &["metric-collection-response-time"]
+    }
+
+    fn set_field(&mut self, name: &str, value: f64) {
+        if name == "metric-collection-response-time" {
+            self.metric_collection_response_time = Some(value);
+        }
+    }
+}
+
+#[api(
+    input: {
+        properties: {
+            id: {
+                schema: REMOTE_ID_SCHEMA,
+            },
+            timeframe: {
+                type: RrdTimeframe,
+            },
+            cf: {
+                type: RrdMode,
+            },
+        },
+    },
+)]
+/// Read metric collection RRD data.
+fn get_per_remote_rrd_data(
+    id: String,
+    timeframe: RrdTimeframe,
+    cf: RrdMode,
+) -> Result<Vec<RemoteDatapoint>, Error> {
+    let base = format!("remotes/{id}");
+    rrd_common::create_datapoints_from_rrd(&base, timeframe, cf)
 }

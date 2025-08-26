@@ -1,9 +1,10 @@
 use anyhow::Error;
 
-use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use proxmox_router::{Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
+
+use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 
 pub const ROUTER: Router = Router::new().subdirs(SUBDIRS);
 
