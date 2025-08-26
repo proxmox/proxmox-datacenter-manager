@@ -1,21 +1,31 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use anyhow::Error;
 use tokio::{
     sync::{
         mpsc::{Receiver, Sender},
-        OwnedSemaphorePermit, Semaphore,
+        oneshot, OwnedSemaphorePermit, Semaphore,
     },
     time::Interval,
 };
 
 use proxmox_section_config::typed::SectionConfigData;
+use proxmox_sys::fs::CreateOptions;
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 
 use crate::{connection, task_utils};
 
-use super::rrd_task::RrdStoreRequest;
+use super::{
+    rrd_task::{RrdStoreRequest, RrdStoreResult},
+    state::{MetricCollectionState, RemoteStatus},
+};
+
+/// Location of the metric collection state file.
+const METRIC_COLLECTION_STATE_FILE: &str = concat!(
+    pdm_buildcfg::PDM_STATE_DIR_M!(),
+    "/metric-collection-state.json"
+);
 
 pub const MAX_CONCURRENT_CONNECTIONS: usize = 20;
 
@@ -30,7 +40,7 @@ pub(super) enum ControlMsg {
 /// Task which periodically collects metrics from all remotes and stores
 /// them in the local metrics database.
 pub(super) struct MetricCollectionTask {
-    most_recent_timestamps: HashMap<String, i64>,
+    state: MetricCollectionState,
     metric_data_tx: Sender<RrdStoreRequest>,
     control_message_rx: Receiver<ControlMsg>,
 }
@@ -41,8 +51,10 @@ impl MetricCollectionTask {
         metric_data_tx: Sender<RrdStoreRequest>,
         control_message_rx: Receiver<ControlMsg>,
     ) -> Result<Self, Error> {
+        let state = load_state()?;
+
         Ok(Self {
-            most_recent_timestamps: HashMap::new(),
+            state,
             metric_data_tx,
             control_message_rx,
         })
@@ -69,6 +81,10 @@ impl MetricCollectionTask {
                 Some(message) = self.control_message_rx.recv() => {
                     self.handle_control_message(message).await;
                 }
+            }
+
+            if let Err(err) = self.state.save() {
+                log::error!("could not update metric collection state: {err}");
             }
         }
     }
@@ -142,7 +158,11 @@ impl MetricCollectionTask {
         let mut handles = Vec::new();
 
         for remote_name in remotes_to_fetch {
-            let start_time = *self.most_recent_timestamps.get(remote_name).unwrap_or(&0);
+            let status = self
+                .state
+                .get_status(remote_name)
+                .cloned()
+                .unwrap_or_default();
 
             // unwrap is okay here, acquire_* will only fail if `close` has been
             // called on the semaphore.
@@ -152,7 +172,7 @@ impl MetricCollectionTask {
                 log::debug!("fetching remote '{}'", remote.id);
                 let handle = tokio::spawn(Self::fetch_single_remote(
                     remote,
-                    start_time,
+                    status,
                     self.metric_data_tx.clone(),
                     permit,
                 ));
@@ -166,8 +186,7 @@ impl MetricCollectionTask {
 
             match res {
                 Ok(Ok(ts)) => {
-                    self.most_recent_timestamps
-                        .insert(remote_name.to_string(), ts);
+                    self.state.set_status(remote_name, ts);
                 }
                 Ok(Err(err)) => log::error!("failed to collect metrics for {remote_name}: {err}"),
                 Err(err) => {
@@ -183,45 +202,79 @@ impl MetricCollectionTask {
     #[tracing::instrument(skip_all, fields(remote = remote.id), name = "metric_collection_task")]
     async fn fetch_single_remote(
         remote: Remote,
-        start_time: i64,
+        mut status: RemoteStatus,
         sender: Sender<RrdStoreRequest>,
         _permit: OwnedSemaphorePermit,
-    ) -> Result<i64, Error> {
-        let most_recent_timestamp = match remote.ty {
-            RemoteType::Pve => {
-                let client = connection::make_pve_client(&remote)?;
-                let metrics = client
-                    .cluster_metrics_export(Some(true), Some(false), Some(start_time))
-                    .await?;
+    ) -> Result<RemoteStatus, Error> {
+        let (result_tx, result_rx) = oneshot::channel();
 
-                let most_recent = metrics.data.iter().fold(0, |acc, x| acc.max(x.timestamp));
+        let now = proxmox_time::epoch_i64();
 
-                sender
-                    .send(RrdStoreRequest::Pve {
-                        remote: remote.id.clone(),
-                        metrics,
-                    })
-                    .await?;
+        let res: Result<RrdStoreResult, Error> = async {
+            match remote.ty {
+                RemoteType::Pve => {
+                    let client = connection::make_pve_client(&remote)?;
+                    let metrics = client
+                        .cluster_metrics_export(
+                            Some(true),
+                            Some(false),
+                            Some(status.most_recent_datapoint),
+                        )
+                        .await?;
 
-                most_recent
+                    sender
+                        .send(RrdStoreRequest::Pve {
+                            remote: remote.id.clone(),
+                            metrics,
+                            channel: result_tx,
+                        })
+                        .await?;
+                }
+                RemoteType::Pbs => {
+                    let client = connection::make_pbs_client(&remote)?;
+                    let metrics = client
+                        .metrics(Some(true), Some(status.most_recent_datapoint))
+                        .await?;
+
+                    sender
+                        .send(RrdStoreRequest::Pbs {
+                            remote: remote.id.clone(),
+                            metrics,
+                            channel: result_tx,
+                        })
+                        .await?;
+                }
             }
-            RemoteType::Pbs => {
-                let client = connection::make_pbs_client(&remote)?;
-                let metrics = client.metrics(Some(true), Some(start_time)).await?;
 
-                let most_recent = metrics.data.iter().fold(0, |acc, x| acc.max(x.timestamp));
+            result_rx.await.map_err(Error::from)
+        }
+        .await;
 
-                sender
-                    .send(RrdStoreRequest::Pbs {
-                        remote: remote.id.clone(),
-                        metrics,
-                    })
-                    .await?;
-
-                most_recent
+        match res {
+            Ok(result) => {
+                status.most_recent_datapoint = result.most_recent_timestamp;
+                status.last_collection = Some(now);
+                status.error = None;
             }
-        };
+            Err(err) => {
+                status.error = Some(err.to_string());
+                log::error!("coud not fetch metrics from '{}': {err}", remote.id);
+            }
+        }
 
-        Ok(most_recent_timestamp)
+        Ok(status)
     }
+}
+
+/// Load the metric collection state file.
+pub(super) fn load_state() -> Result<MetricCollectionState, Error> {
+    let api_uid = pdm_config::api_user()?.uid;
+    let api_gid = pdm_config::api_group()?.gid;
+
+    let file_options = CreateOptions::new().owner(api_uid).group(api_gid);
+
+    Ok(MetricCollectionState::new(
+        METRIC_COLLECTION_STATE_FILE.into(),
+        file_options,
+    ))
 }

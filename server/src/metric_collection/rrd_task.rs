@@ -1,8 +1,10 @@
 use anyhow::Error;
-use pbs_api_types::{MetricDataPoint, MetricDataType, Metrics};
+use tokio::sync::{mpsc::Receiver, oneshot};
+
 use proxmox_rrd::rrd::DataSourceType;
+
+use pbs_api_types::{MetricDataPoint, MetricDataType, Metrics};
 use pve_api_types::{ClusterMetrics, ClusterMetricsData, ClusterMetricsDataType};
-use tokio::sync::mpsc::Receiver;
 
 use super::rrd_cache;
 
@@ -14,6 +16,8 @@ pub(super) enum RrdStoreRequest {
         remote: String,
         /// Metric data.
         metrics: ClusterMetrics,
+        /// Oneshot channel to return the [`RrdStoreResult`].
+        channel: oneshot::Sender<RrdStoreResult>,
     },
     /// Store PBS metrics.
     Pbs {
@@ -21,7 +25,15 @@ pub(super) enum RrdStoreRequest {
         remote: String,
         /// Metric data.
         metrics: Metrics,
+        /// Oneshot channel to return the [`RrdStoreResult`].
+        channel: oneshot::Sender<RrdStoreResult>,
     },
+}
+
+/// Result for a [`RrdStoreRequest`].
+pub(super) struct RrdStoreResult {
+    /// Most recent timestamp of any stored metric datapoint (UNIX epoch).
+    pub(super) most_recent_timestamp: i64,
 }
 
 /// Task which stores received metrics in the RRD. Metric data is fed into
@@ -31,17 +43,43 @@ pub(super) async fn store_in_rrd_task(
 ) -> Result<(), Error> {
     while let Some(msg) = receiver.recv().await {
         // Involves some blocking file IO
-        let res = tokio::task::spawn_blocking(move || match msg {
-            RrdStoreRequest::Pve { remote, metrics } => {
-                for data_point in metrics.data {
-                    store_metric_pve(&remote, &data_point);
+        let res = tokio::task::spawn_blocking(move || {
+            let mut most_recent_timestamp = 0;
+            let channel = match msg {
+                RrdStoreRequest::Pve {
+                    remote,
+                    metrics,
+                    channel,
+                } => {
+                    for data_point in metrics.data {
+                        most_recent_timestamp = most_recent_timestamp.max(data_point.timestamp);
+                        store_metric_pve(&remote, &data_point);
+                    }
+
+                    channel
                 }
-            }
-            RrdStoreRequest::Pbs { remote, metrics } => {
-                for data_point in metrics.data {
-                    store_metric_pbs(&remote, &data_point);
+                RrdStoreRequest::Pbs {
+                    remote,
+                    metrics,
+                    channel,
+                } => {
+                    for data_point in metrics.data {
+                        most_recent_timestamp = most_recent_timestamp.max(data_point.timestamp);
+                        store_metric_pbs(&remote, &data_point);
+                    }
+
+                    channel
                 }
-            }
+            };
+
+            if channel
+                .send(RrdStoreResult {
+                    most_recent_timestamp,
+                })
+                .is_err()
+            {
+                log::error!("could not send RrdStoreStoreResult to metric collection task");
+            };
         })
         .await;
 

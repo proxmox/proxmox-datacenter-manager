@@ -7,6 +7,7 @@ use tokio::sync::mpsc::{self, Sender};
 mod collection_task;
 pub mod rrd_cache;
 mod rrd_task;
+mod state;
 pub mod top_entities;
 
 use collection_task::{ControlMsg, MetricCollectionTask};
