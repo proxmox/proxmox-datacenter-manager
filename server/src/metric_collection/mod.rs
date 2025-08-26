@@ -1,10 +1,12 @@
 use std::pin::pin;
+use std::sync::Arc;
 use std::sync::OnceLock;
 
 use anyhow::{bail, Error};
+use nix::sys::stat::Mode;
 use tokio::sync::mpsc::{self, Sender};
 
-use proxmox_sys::fs::CreateOptions;
+use pdm_buildcfg::PDM_STATE_DIR_M;
 
 mod collection_task;
 pub mod rrd_cache;
@@ -13,19 +15,20 @@ mod state;
 pub mod top_entities;
 
 use collection_task::{ControlMsg, MetricCollectionTask};
+use rrd_cache::RrdCache;
+
+const RRD_CACHE_BASEDIR: &str = concat!(PDM_STATE_DIR_M!(), "/rrdb");
 
 static CONTROL_MESSAGE_TX: OnceLock<Sender<ControlMsg>> = OnceLock::new();
 
 /// Initialize the RRD cache
 pub fn init() -> Result<(), Error> {
-    let api_uid = pdm_config::api_user()?.uid;
-    let api_gid = pdm_config::api_group()?.gid;
+    let file_options = proxmox_product_config::default_create_options();
+    let mode = Mode::from_bits_truncate(0o0750);
+    let dir_options = file_options.perm(mode);
 
-    let file_options = CreateOptions::new().owner(api_uid).group(api_gid);
-    let dir_options = CreateOptions::new().owner(api_uid).group(api_gid);
-
-    let cache = rrd_cache::init(rrd_cache::RRD_CACHE_BASEDIR, dir_options, file_options)?;
-    rrd_cache::set_cache(cache)?;
+    let cache = RrdCache::new(RRD_CACHE_BASEDIR, dir_options, file_options)?;
+    rrd_cache::set_cache(Arc::new(cache))?;
 
     Ok(())
 }

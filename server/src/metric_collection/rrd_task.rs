@@ -3,12 +3,12 @@ use std::sync::Arc;
 use anyhow::Error;
 use tokio::sync::{mpsc::Receiver, oneshot};
 
-use proxmox_rrd::{rrd::DataSourceType, Cache};
+use proxmox_rrd::rrd::DataSourceType;
 
 use pbs_api_types::{MetricDataPoint, MetricDataType, Metrics};
 use pve_api_types::{ClusterMetrics, ClusterMetricsData, ClusterMetricsDataType};
 
-use super::rrd_cache;
+use super::rrd_cache::RrdCache;
 
 /// Store request for the RRD task.
 pub(super) enum RrdStoreRequest {
@@ -41,7 +41,7 @@ pub(super) struct RrdStoreResult {
 /// Task which stores received metrics in the RRD. Metric data is fed into
 /// this task via a MPSC channel.
 pub(super) async fn store_in_rrd_task(
-    cache: Arc<Cache>,
+    cache: Arc<RrdCache>,
     mut receiver: Receiver<RrdStoreRequest>,
 ) -> Result<(), Error> {
     while let Some(msg) = receiver.recv().await {
@@ -95,7 +95,7 @@ pub(super) async fn store_in_rrd_task(
     Ok(())
 }
 
-fn store_metric_pve(cache: &Cache, remote_name: &str, data_point: &ClusterMetricsData) {
+fn store_metric_pve(cache: &RrdCache, remote_name: &str, data_point: &ClusterMetricsData) {
     let name = format!(
         "pve/{remote_name}/{id}/{metric}",
         id = data_point.id,
@@ -108,8 +108,7 @@ fn store_metric_pve(cache: &Cache, remote_name: &str, data_point: &ClusterMetric
         ClusterMetricsDataType::Derive => DataSourceType::Derive,
     };
 
-    rrd_cache::update_value(
-        cache,
+    cache.update_value(
         &name,
         data_point.value,
         data_point.timestamp,
@@ -117,7 +116,7 @@ fn store_metric_pve(cache: &Cache, remote_name: &str, data_point: &ClusterMetric
     );
 }
 
-fn store_metric_pbs(cache: &Cache, remote_name: &str, data_point: &MetricDataPoint) {
+fn store_metric_pbs(cache: &RrdCache, remote_name: &str, data_point: &MetricDataPoint) {
     let name = format!(
         "pbs/{remote_name}/{id}/{metric}",
         id = data_point.id,
@@ -130,8 +129,7 @@ fn store_metric_pbs(cache: &Cache, remote_name: &str, data_point: &MetricDataPoi
         MetricDataType::Derive => DataSourceType::Derive,
     };
 
-    rrd_cache::update_value(
-        cache,
+    cache.update_value(
         &name,
         data_point.value,
         data_point.timestamp,
@@ -156,7 +154,7 @@ mod tests {
         // Arrange
         let dir = NamedTempDir::new()?;
         let options = get_create_options().perm(nix::sys::stat::Mode::from_bits_truncate(0o700));
-        let cache = rrd_cache::init(&dir.path(), options.clone(), options.clone())?;
+        let cache = Arc::new(RrdCache::new(dir.path(), options, options)?);
 
         let (tx, rx) = tokio::sync::mpsc::channel(10);
         let task = store_in_rrd_task(Arc::clone(&cache), rx);
@@ -215,8 +213,7 @@ mod tests {
 
         // There is some race condition in proxmox_rrd, in some rare cases
         // extract_data does not return any data directly after writing.
-        if let Some(data) = rrd_cache::extract_data(
-            &cache,
+        if let Some(data) = cache.extract_data(
             "pve/some-remote/node/some-node",
             "cpu_current",
             RrdTimeframe::Hour,

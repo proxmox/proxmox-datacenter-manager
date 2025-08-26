@@ -123,8 +123,7 @@ fn get_entity(
 ) -> Option<(f64, TopEntity)> {
     let cache = rrd_cache::get_cache();
 
-    if let Ok(Some(values)) = rrd_cache::extract_data(
-        &cache,
+    if let Ok(Some(values)) = cache.extract_data(
         &name,
         metric,
         timeframe,
