@@ -1,4 +1,7 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use anyhow::Error;
 use tokio::{
@@ -67,12 +70,17 @@ impl MetricCollectionTask {
     /// This function never returns.
     #[tracing::instrument(skip_all, name = "metric_collection_task")]
     pub(super) async fn run(&mut self) {
-        let mut timer = Self::setup_timer(DEFAULT_COLLECTION_INTERVAL);
+        let (mut timer, first_tick) = Self::setup_timer(DEFAULT_COLLECTION_INTERVAL);
 
         log::debug!(
             "metric collection starting up. Collection interval set to {} seconds.",
             DEFAULT_COLLECTION_INTERVAL,
         );
+        // Check and fetch any remote which would be overdue by the time the
+        // timer first fires.
+        if let Some(remote_config) = Self::load_remote_config() {
+            self.fetch_overdue(&remote_config, first_tick).await;
+        }
 
         loop {
             tokio::select! {
@@ -127,12 +135,16 @@ impl MetricCollectionTask {
     /// Set up a [`tokio::time::Interval`] instance with the provided interval.
     /// The timer will be aligned, e.g. an interval of `60` will let the timer
     /// fire at minute boundaries.
-    fn setup_timer(interval: u64) -> Interval {
+    ///
+    /// The return values are a tuple of the [`tokio::time::Interval`] timer instance
+    /// and the [`std::time::Instant`] at which the timer first fires.
+    fn setup_timer(interval: u64) -> (Interval, Instant) {
+        log::debug!("setting metric collection interval timer to {interval} seconds.",);
         let mut timer = tokio::time::interval(Duration::from_secs(interval));
-        let first_run = task_utils::next_aligned_instant(interval).into();
-        timer.reset_at(first_run);
+        let first_run = task_utils::next_aligned_instant(interval);
+        timer.reset_at(first_run.into());
 
-        timer
+        (timer, first_run)
     }
 
     /// Convenience helper to load `remote.cfg`, logging the error
@@ -206,6 +218,39 @@ impl MetricCollectionTask {
                 }
             }
         }
+    }
+
+    /// Fetch metric data from remotes which are overdue for collection.
+    ///
+    /// Use this on startup of the metric collection loop as well as
+    /// when the collection interval changes.
+    async fn fetch_overdue(
+        &mut self,
+        remote_config: &SectionConfigData<Remote>,
+        next_run: Instant,
+    ) {
+        let left_until_scheduled = next_run - Instant::now();
+        let now = proxmox_time::epoch_i64();
+
+        let mut overdue = Vec::new();
+
+        for (remote, _) in remote_config.iter() {
+            let last_collection = self
+                .state
+                .get_status(remote)
+                .and_then(|s| s.last_collection)
+                .unwrap_or(0);
+
+            let diff = now - last_collection;
+
+            if diff + left_until_scheduled.as_secs() as i64 > DEFAULT_COLLECTION_INTERVAL as i64 {
+                log::debug!(
+                    "starting metric collection for remote '{remote}' - triggered because collection is overdue"
+                );
+                overdue.push(remote.into());
+            }
+        }
+        self.fetch_remotes(remote_config, &overdue).await;
     }
 
     /// Fetch a single remote.
