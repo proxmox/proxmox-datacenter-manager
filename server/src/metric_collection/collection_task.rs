@@ -79,7 +79,8 @@ impl MetricCollectionTask {
         // Check and fetch any remote which would be overdue by the time the
         // timer first fires.
         if let Some(remote_config) = Self::load_remote_config() {
-            self.fetch_overdue(&remote_config, first_tick).await;
+            self.fetch_overdue(&remote_config, first_tick, DEFAULT_COLLECTION_INTERVAL)
+                .await;
         }
 
         loop {
@@ -228,6 +229,7 @@ impl MetricCollectionTask {
         &mut self,
         remote_config: &SectionConfigData<Remote>,
         next_run: Instant,
+        collection_interval: u64,
     ) {
         let left_until_scheduled = next_run - Instant::now();
         let now = proxmox_time::epoch_i64();
@@ -243,7 +245,7 @@ impl MetricCollectionTask {
 
             let diff = now - last_collection;
 
-            if diff + left_until_scheduled.as_secs() as i64 > DEFAULT_COLLECTION_INTERVAL as i64 {
+            if diff + left_until_scheduled.as_secs() as i64 > collection_interval as i64 {
                 log::debug!(
                     "starting metric collection for remote '{remote}' - triggered because collection is overdue"
                 );
@@ -557,5 +559,61 @@ pub(super) mod tests {
 
         drop(task);
         assert_eq!(handle.await.unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_overdue() {
+        // Arrange
+        test_init();
+
+        let (tx, rx) = tokio::sync::mpsc::channel(10);
+        let handle = tokio::task::spawn(fake_rrd_task(rx));
+
+        let config = make_remote_config();
+
+        let state_file = NamedTempFile::new(get_create_options()).unwrap();
+        let mut state = MetricCollectionState::new(state_file.path().into(), get_create_options());
+
+        let now = proxmox_time::epoch_i64();
+
+        // This one should be fetched
+        state.set_status(
+            "pve-0-pass".into(),
+            RemoteStatus {
+                last_collection: Some(now - 35),
+                ..Default::default()
+            },
+        );
+        // This one should *not* be fetched
+        state.set_status(
+            "pve-1-pass".into(),
+            RemoteStatus {
+                last_collection: Some(now - 25),
+                ..Default::default()
+            },
+        );
+
+        let (_control_tx, control_rx) = tokio::sync::mpsc::channel(10);
+
+        let mut task = MetricCollectionTask {
+            state,
+            metric_data_tx: tx,
+            control_message_rx: control_rx,
+        };
+
+        let next_collection = Instant::now() + Duration::from_secs(30);
+
+        // Act
+        task.fetch_overdue(&config, next_collection, 60).await;
+
+        // Assert
+        let status = task.state.get_status("pve-0-pass").unwrap();
+        assert!(status.last_collection.unwrap() - now >= 0);
+
+        let status = task.state.get_status("pve-1-pass").unwrap();
+        assert_eq!(status.last_collection.unwrap(), now - 25);
+
+        drop(task);
+        assert_eq!(handle.await.unwrap(), 1);
     }
 }
