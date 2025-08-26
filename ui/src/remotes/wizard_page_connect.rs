@@ -90,11 +90,9 @@ impl PdmWizardPageConnect {
                         .with_child(Container::new().with_child(tr!(
                             "The certificate of the remote server is not trusted."
                         )))
-                        .with_child(
-                            Container::new().with_child(tr!(
-                                "Do you want to trust it by saving it's fingerprint?"
-                            )),
-                        )
+                        .with_child(Container::new().with_child(tr!(
+                            "Do you want to trust the certificate and save its fingerprint?"
+                        )))
                         .with_child(
                             KVGrid::new()
                                 .class(FlexFit)

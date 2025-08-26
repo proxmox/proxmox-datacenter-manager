@@ -55,14 +55,13 @@ fn render_subscription_status(subs: &[RemoteSubscriptions]) -> Row {
 
     let (status, title, msg) = if none > 0 {
         let msg = tr!(
-        "At least one remote does not have a valid subscription. Please visit <a target=\"_blank\" href=\"https://www.proxmox.com\">www.proxmox.com</a> to get
-a list of available options. ",
-    );
+            "At least one remote does not have a valid subscription. Please visit <a target=\"_blank\" href=\"https://www.proxmox.com\">www.proxmox.com</a> to get a list of available options."
+        );
 
         let msg = Html::from_html_unchecked(msg.into());
         (Status::Error, tr!("No valid subscription"), msg)
     } else if mixed > 0 {
-        (Status::Warning, tr!("Mixed subscriptions"), tr!("At least one remote has mixed levels of subscription. These remotes fall back to the lowest one.").into())
+        (Status::Warning, tr!("Mixed Subscriptions"), tr!("At least one remote has mixed levels of subscription. These remotes fall back to the lowest one.").into())
     } else if unknown > 0 {
         (
             Status::Unknown,
