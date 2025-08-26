@@ -18,6 +18,7 @@ use proxmox_time::{epoch_i64, epoch_to_rfc2822};
 use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
 use pdm_api_types::{Authid, ConfigDigest, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY};
 
+use crate::metric_collection;
 use crate::{connection, pbs_client};
 
 use super::pve;
@@ -171,9 +172,14 @@ pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Resu
         entry.token = token;
     }
 
+    let name = entry.id.clone();
     remotes.insert(entry.id.to_owned(), entry);
 
     pdm_config::remotes::save_config(&remotes)?;
+
+    if let Err(e) = metric_collection::trigger_metric_collection(Some(name)).await {
+        log::error!("could not trigger metric collection after adding remote: {e}");
+    }
 
     Ok(())
 }
