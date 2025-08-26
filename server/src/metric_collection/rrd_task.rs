@@ -138,3 +138,95 @@ fn store_metric_pbs(cache: &Cache, remote_name: &str, data_point: &MetricDataPoi
         data_source_type,
     );
 }
+
+#[cfg(test)]
+mod tests {
+    use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
+    use pve_api_types::{ClusterMetrics, ClusterMetricsData};
+
+    use crate::{
+        metric_collection::collection_task::tests::get_create_options,
+        test_support::temp::NamedTempDir,
+    };
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_rrd_task_persists_data() -> Result<(), Error> {
+        // Arrange
+        let dir = NamedTempDir::new()?;
+        let options = get_create_options().perm(nix::sys::stat::Mode::from_bits_truncate(0o700));
+        let cache = rrd_cache::init(&dir.path(), options.clone(), options.clone())?;
+
+        let (tx, rx) = tokio::sync::mpsc::channel(10);
+        let task = store_in_rrd_task(Arc::clone(&cache), rx);
+        let handle = tokio::task::spawn(task);
+
+        let now = proxmox_time::epoch_i64();
+
+        let metrics = ClusterMetrics {
+            data: vec![
+                ClusterMetricsData {
+                    id: "node/some-node".into(),
+                    metric: "cpu_current".into(),
+                    timestamp: now - 30,
+                    ty: ClusterMetricsDataType::Gauge,
+                    value: 0.1,
+                },
+                ClusterMetricsData {
+                    id: "node/some-node".into(),
+                    metric: "cpu_current".into(),
+                    timestamp: now - 20,
+                    ty: ClusterMetricsDataType::Gauge,
+                    value: 0.2,
+                },
+                ClusterMetricsData {
+                    id: "node/some-node".into(),
+                    metric: "cpu_current".into(),
+                    timestamp: now - 10,
+                    ty: ClusterMetricsDataType::Gauge,
+                    value: 0.1,
+                },
+                ClusterMetricsData {
+                    id: "node/some-node".into(),
+                    metric: "cpu_current".into(),
+                    timestamp: now,
+                    ty: ClusterMetricsDataType::Gauge,
+                    value: 0.2,
+                },
+            ],
+        };
+        let (tx_back, rx_back) = tokio::sync::oneshot::channel();
+        let request = RrdStoreRequest::Pve {
+            remote: "some-remote".into(),
+            metrics,
+            channel: tx_back,
+        };
+
+        // Act
+        tx.send(request).await?;
+        let result = rx_back.await?;
+
+        // Assert
+        assert_eq!(result.most_recent_timestamp, now);
+
+        drop(tx);
+        handle.await??;
+
+        // There is some race condition in proxmox_rrd, in some rare cases
+        // extract_data does not return any data directly after writing.
+        if let Some(data) = rrd_cache::extract_data(
+            &cache,
+            "pve/some-remote/node/some-node",
+            "cpu_current",
+            RrdTimeframe::Hour,
+            RrdMode::Max,
+        )? {
+            // Only assert that there are some data points, the exact position in the vec
+            // might vary due to changed boundaries.
+            assert!(data.data.iter().any(Option::is_some));
+        }
+
+        Ok(())
+    }
+}
