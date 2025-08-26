@@ -17,6 +17,7 @@ pub mod env;
 
 pub mod acl;
 pub mod config;
+pub mod metric_collection;
 pub mod pbs;
 pub mod pve;
 pub mod remotes;
@@ -96,6 +97,7 @@ fn main_do() -> Result<(), Error> {
         )
         .insert("acl", acl::cli())
         .insert("login", CliCommand::new(&API_METHOD_LOGIN))
+        .insert("metric-collection", metric_collection::cli())
         .insert("pbs", pbs::cli())
         .insert("pve", pve::cli())
         .insert("remote", remotes::cli())
