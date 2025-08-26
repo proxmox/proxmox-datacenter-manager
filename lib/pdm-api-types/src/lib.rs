@@ -1,5 +1,6 @@
 //! Basic API types used by most of the PDM code.
 
+use std::collections::HashMap;
 use std::fmt;
 
 use anyhow::{bail, Error};
@@ -283,6 +284,46 @@ pub struct TaskListItem {
     /// Task end status
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
+}
+
+#[api]
+/// Count of tasks by status
+#[derive(Clone, Serialize, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub struct TaskCount {
+    /// The number of successful tasks
+    pub ok: u64,
+    /// The number of tasks with warnings
+    pub warning: u64,
+    /// The number of failed tasks
+    pub error: u64,
+    /// The number of tasks with an unknown status
+    pub unknown: u64,
+}
+
+#[api{
+    properties: {
+        "by-type": {
+            type: Object,
+            properties: {},
+            additional_properties: true,
+        },
+        "by-remote": {
+            type: Object,
+            properties: {},
+            additional_properties: true,
+        },
+    },
+}]
+/// Lists the task status counts by type and by remote
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TaskStatistics {
+    /// A map of worker-types to status counts
+    pub by_type: HashMap<String, TaskCount>,
+    /// A map of remotes to status counts
+    #[serde(default)]
+    pub by_remote: HashMap<String, TaskCount>,
 }
 
 pub const NODE_TASKS_LIST_TASKS_RETURN_TYPE: ReturnType = ReturnType {
