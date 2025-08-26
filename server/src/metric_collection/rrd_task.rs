@@ -38,12 +38,25 @@ pub(super) enum RrdStoreRequest {
         /// Timestamp at which the request was done (UNIX epoch).
         request_at: i64,
     },
+    /// Store collection stats.
+    CollectionStats {
+        /// Timestamp at which the collection took place (UNIX epoch).
+        timestamp: i64,
+        /// Statistics.
+        stats: CollectionStats,
+    },
 }
 
 /// Result for a [`RrdStoreRequest`].
 pub(super) struct RrdStoreResult {
     /// Most recent timestamp of any stored metric datapoint (UNIX epoch).
     pub(super) most_recent_timestamp: i64,
+}
+
+/// Statistics for a (full) metric collection run.
+pub(super) struct CollectionStats {
+    /// Total time in ms.
+    pub(super) total_time: f64,
 }
 
 /// Task which stores received metrics in the RRD. Metric data is fed into
@@ -57,7 +70,8 @@ pub(super) async fn store_in_rrd_task(
         // Involves some blocking file IO
         let res = tokio::task::spawn_blocking(move || {
             let mut most_recent_timestamp = 0;
-            let channel = match msg {
+
+            match msg {
                 RrdStoreRequest::Pve {
                     remote,
                     metrics,
@@ -71,7 +85,13 @@ pub(super) async fn store_in_rrd_task(
                     }
                     store_response_time(&cache_clone, &remote, response_time, request_at);
 
-                    channel
+                    let result = RrdStoreResult {
+                        most_recent_timestamp,
+                    };
+
+                    if channel.send(result).is_err() {
+                        log::error!("could not send RrdStoreStoreResult to metric collection task");
+                    };
                 }
                 RrdStoreRequest::Pbs {
                     remote,
@@ -86,17 +106,17 @@ pub(super) async fn store_in_rrd_task(
                     }
                     store_response_time(&cache_clone, &remote, response_time, request_at);
 
-                    channel
-                }
-            };
+                    let result = RrdStoreResult {
+                        most_recent_timestamp,
+                    };
 
-            if channel
-                .send(RrdStoreResult {
-                    most_recent_timestamp,
-                })
-                .is_err()
-            {
-                log::error!("could not send RrdStoreStoreResult to metric collection task");
+                    if channel.send(result).is_err() {
+                        log::error!("could not send RrdStoreStoreResult to metric collection task");
+                    };
+                }
+                RrdStoreRequest::CollectionStats { timestamp, stats } => {
+                    store_stats(&cache_clone, &stats, timestamp)
+                }
             };
         })
         .await;
@@ -155,6 +175,15 @@ fn store_response_time(cache: &RrdCache, remote_name: &str, response_time: f64, 
     let name = format!("remotes/{remote_name}/metric-collection-response-time");
 
     cache.update_value(&name, response_time, timestamp, DataSourceType::Gauge);
+}
+
+fn store_stats(cache: &RrdCache, stats: &CollectionStats, timestamp: i64) {
+    cache.update_value(
+        "nodes/localhost/metric-collection-total-time",
+        stats.total_time,
+        timestamp,
+        DataSourceType::Gauge,
+    );
 }
 
 #[cfg(test)]

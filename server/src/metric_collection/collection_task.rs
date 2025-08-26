@@ -17,6 +17,7 @@ use proxmox_sys::fs::CreateOptions;
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 
+use crate::metric_collection::rrd_task::CollectionStats;
 use crate::{connection, task_utils};
 
 use super::{
@@ -105,11 +106,27 @@ impl MetricCollectionTask {
         log::debug!("starting metric collection from all remotes - triggered by timer");
 
         if let Some(remotes) = Self::load_remote_config() {
+            let now = Instant::now();
             let to_fetch = remotes
                 .iter()
                 .map(|(name, _)| name.into())
                 .collect::<Vec<String>>();
             self.fetch_remotes(&remotes, &to_fetch).await;
+            let elapsed = now.elapsed();
+
+            if let Err(err) = self
+                .metric_data_tx
+                .send(RrdStoreRequest::CollectionStats {
+                    timestamp: proxmox_time::epoch_i64(),
+                    stats: CollectionStats {
+                        // TODO: use as_millis_f64 once stabilized
+                        total_time: elapsed.as_secs_f64() * 1000.,
+                    },
+                })
+                .await
+            {
+                log::error!("could not send collection stats to rrd task: {err}");
+            }
         }
     }
 
