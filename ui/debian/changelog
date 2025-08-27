@@ -1,3 +1,31 @@
+proxmox-datacenter-manager-ui (0.2.2) trixie; urgency=medium
+
+  * VM and container: support new metrics for guest that Proxmox VE 9+
+    exposes, like pressure stall information (PSI).
+
+  * VM, container and nodes: add time-frame selector for RRD metric views.
+
+  * remotes: node url list: add placeholder and clear trigger.
+
+  * PVE remote wizard improvements:
+    + probe hosts to verify fingerprint settings, ensuring that either the
+      provided ones match or ask the user on-demand for a trust on first use
+      like confirmation similar to how host keys for SSH connections get
+      confirmed.
+    + avoid duplicated entry for the initial provided host in the remote
+      config.
+    + rename 'realm' variable to 'info' to avoid confusion, as this is not
+      just for the authentication realm.
+    + improve various texts.
+    + connect: reset later pages when form changes, as they need to be
+      revisited in this case.
+
+  * improve translatable strings.
+
+  * main menu: make remote loading icon prettier.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 27 Aug 2025 19:57:07 +0200
+
 proxmox-datacenter-manager-ui (0.2.1) trixie; urgency=medium
 
   * re-enable (basic) PBS integration again after fixing compilation issues
