@@ -270,7 +270,7 @@ fn spawn_certificate_worker(
     let acme_config = if let Some(cfg) = cert_config.acme_config().transpose()? {
         cfg
     } else {
-        proxmox_acme_api::parse_acme_config_string("default")?
+        proxmox_acme_api::parse_acme_config_string("account=default")?
     };
 
     WorkerTask::spawn(name, None, auth_id, true, move |worker| async move {
