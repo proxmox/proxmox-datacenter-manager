@@ -284,7 +284,7 @@ impl Component for PdmTopNavBar {
             })
             .with_child(html! {
                 <span class="pwt-font-title-medium">
-                    <a href="https://bugzilla.proxmox.com" target="_blank">{"ALPHA"}</a>
+                    <a href="https://bugzilla.proxmox.com" target="_blank">{"BETA"}</a>
                 </span>
             })
             .with_flex_spacer()
