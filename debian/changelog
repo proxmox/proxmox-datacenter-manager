@@ -1,3 +1,34 @@
+proxmox-datacenter-manager (0.2.2) trixie; urgency=medium
+
+  * api server: make incoming connection handling more robust for some error
+    cases.
+
+  * qemu: enable connection tracking state transfer on VM remote live
+    migration. Note that this is best effort as the network equipment and
+    especially third party firewall in the target environment can still cause
+    resets for open connections.
+
+  * remote tasks: implement improved cache for remote tasks to split the
+    single file cache into an 'active' and multiple 'archive' files. This
+    improves lookup performance by around three orders of magnitude (from
+    seconds to milliseconds) on benchmarks with 1.5 million tasks in the
+    cache. Further the data structure was optimized for space, avoiding
+    redundant information and older archived tasks will get compressed using
+    zstd, which results in some significant reduction of storage space usage.
+    This helps especially when there are many tasks, like when using many
+    remotes with a big amount of guests.
+
+  * remote tasks: add background task for polling task from all configured
+    remotes every 10 minutes, use new task cache. Active tasks are tracked
+    separately and their status is re-queried every 10 seconds.
+
+  * api: add probe-tls endpoint to allow trust on first use (TOFU) prompts for
+    when adding remotes.
+
+  * api: acme cert order: fix constructing config with "default" account.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 27 Aug 2025 19:34:20 +0200
+
 proxmox-datacenter-manager (0.2.1) trixie; urgency=medium
 
   * re-enable PBS integration again after fixing compilation issues in crates
