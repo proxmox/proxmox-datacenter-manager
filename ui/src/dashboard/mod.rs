@@ -159,7 +159,7 @@ impl PdmDashboard {
     fn create_guest_panel(&self, guest_type: GuestType, status: &GuestStatusCount) -> Panel {
         let (icon, title) = match guest_type {
             GuestType::Qemu => ("desktop", tr!("Virtual Machines")),
-            GuestType::Lxc => ("cubses", tr!("Linux Container")),
+            GuestType::Lxc => ("cubes", tr!("Linux Container")),
         };
         Panel::new()
             .flex(1.0)
