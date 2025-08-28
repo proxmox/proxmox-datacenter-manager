@@ -1,3 +1,4 @@
+use permission_path_selector::PermissionPathSelector;
 use pwt::prelude::*;
 use pwt::props::StorageLocation;
 use pwt::state::NavigationContainer;
@@ -6,8 +7,9 @@ use pwt::widget::{Container, MiniScrollMode, Panel, TabBarItem, TabPanel};
 use proxmox_yew_comp::configuration::TimePanel;
 use proxmox_yew_comp::configuration::{DnsPanel, NetworkView};
 use proxmox_yew_comp::tfa::TfaView;
-use proxmox_yew_comp::UserPanel;
+use proxmox_yew_comp::{AclEdit, AclView, UserPanel};
 
+mod permission_path_selector;
 mod webauthn;
 pub use webauthn::WebauthnPanel;
 
@@ -40,6 +42,8 @@ pub fn system_configuration() -> Html {
 
 #[function_component(AccessControl)]
 pub fn access_control() -> Html {
+    let acl_edit = AclEdit::new(tr!("Path"), PermissionPathSelector::new()).default_role("Auditor");
+
     let panel = TabPanel::new()
         .state_id(StorageLocation::session("AccessControlState"))
         //.title(tr!("Configuration") + ": " + &tr!("Access Control"))
@@ -69,6 +73,23 @@ pub fn access_control() -> Html {
                     .class("pwt-content-spacer")
                     .class(pwt::css::FlexFit)
                     .with_child(TfaView::new())
+                    .into()
+            },
+        )
+        .with_item_builder(
+            TabBarItem::new()
+                .key("permissions")
+                .icon_class("fa fa-unlock")
+                .label(tr!("Permissions")),
+            move |_| {
+                Container::new()
+                    .class("pwt-content-spacer")
+                    .class(pwt::css::FlexFit)
+                    .with_child(AclView::new().with_acl_edit_menu_entry(
+                        tr!("User Permission"),
+                        "fa fa-fw fa-user",
+                        acl_edit.clone().use_tokens(false),
+                    ))
                     .into()
             },
         );
