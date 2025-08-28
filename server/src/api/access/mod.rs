@@ -13,19 +13,19 @@ use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::{Authid, ACL_PATH_SCHEMA, PRIVILEGES, PRIV_ACCESS_AUDIT};
 
-mod acl;
 mod domains;
 mod tfa;
 mod users;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
-    ("acl", &acl::ROUTER),
+    ("acl", &proxmox_access_control::api::ACL_ROUTER),
     ("domains", &domains::ROUTER),
     (
         "permissions",
         &Router::new().get(&API_METHOD_LIST_PERMISSIONS)
     ),
+    ("roles", &proxmox_access_control::api::ROLE_ROUTER),
     ("tfa", &tfa::ROUTER),
     (
         "ticket",

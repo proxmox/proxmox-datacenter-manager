@@ -34,7 +34,7 @@ tracing.workspace = true
 url.workspace = true
 zstd.workspace = true
 
-proxmox-access-control = { workspace = true, features = [ "impl" ] }
+proxmox-access-control = { workspace = true, features = [ "api" ] }
 proxmox-async.workspace = true
 proxmox-auth-api = { workspace = true, features = [ "api", "ticket", "pam-authenticator", "password-authenticator" ] }
 proxmox-base64.workspace = true
