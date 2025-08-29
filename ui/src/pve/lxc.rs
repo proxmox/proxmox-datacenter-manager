@@ -11,7 +11,7 @@ use yew::{
 use proxmox_human_byte::HumanByte;
 use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
 use pwt::{
-    css::{AlignItems, ColorScheme, FlexFit},
+    css::{AlignItems, ColorScheme, FlexFit, JustifyContent},
     prelude::*,
     props::WidgetBuilder,
     widget::{Column, Container, Fa, Panel, Progress, Row},
@@ -363,9 +363,6 @@ impl yew::Component for LxcanelComp {
         Panel::new()
             .class(FlexFit)
             .title(title)
-            .with_tool(
-                RRDTimeframeSelector::new().on_change(ctx.link().callback(Msg::UpdateRrdTimeframe)),
-            )
             .class(ColorScheme::Neutral)
             .with_child(
                 // FIXME: add some 'visible' or 'active' property to the progress
@@ -375,6 +372,16 @@ impl yew::Component for LxcanelComp {
             )
             .with_child(status_comp)
             .with_child(separator().padding_x(4))
+            .with_child(
+                Row::new()
+                    .padding_x(4)
+                    .padding_y(1)
+                    .class(JustifyContent::FlexEnd)
+                    .with_child(
+                        RRDTimeframeSelector::new()
+                            .on_change(ctx.link().callback(Msg::UpdateRrdTimeframe)),
+                    ),
+            )
             .with_child(
                 Container::new().class(FlexFit).with_child(
                     Column::new()
