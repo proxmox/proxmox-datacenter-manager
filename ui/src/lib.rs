@@ -21,6 +21,9 @@ pub use remotes::RemoteConfigPanel;
 mod top_nav_bar;
 pub use top_nav_bar::TopNavBar;
 
+mod search_provider;
+pub use search_provider::SearchProvider;
+
 mod dashboard;
 pub use dashboard::Dashboard;
 use yew_router::prelude::RouterScopeExt;

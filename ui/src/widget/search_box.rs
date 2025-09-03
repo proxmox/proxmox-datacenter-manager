@@ -9,12 +9,14 @@ use yew::{
 };
 
 use pwt::{
-    dom::focus::FocusTracker,
-    dom::IntoHtmlElement,
+    dom::{focus::FocusTracker, IntoHtmlElement},
     prelude::*,
     props::CssLength,
+    state::{SharedState, SharedStateObserver},
     widget::{form::Field, Container},
 };
+
+use crate::search_provider::get_search_provider;
 
 use super::ResourceTree;
 
@@ -35,7 +37,7 @@ impl From<SearchBox> for VNode {
 }
 
 pub enum Msg {
-    ChangeTerm(String),
+    ChangeTerm(String, bool), // force value
     FocusChange(bool),
     ToggleFocus,
 }
@@ -48,6 +50,8 @@ pub struct PdmSearchBox {
     focus: bool,
     global_shortcut_listener: Closure<dyn Fn(KeyboardEvent)>,
     toggle_focus: bool,
+    _observer: Option<SharedStateObserver<String>>,
+    force_value: bool,
 }
 
 impl Component for PdmSearchBox {
@@ -57,6 +61,14 @@ impl Component for PdmSearchBox {
 
     fn create(ctx: &yew::Context<Self>) -> Self {
         let link = ctx.link().clone();
+        let _observer = get_search_provider(ctx).map(|search| {
+            search.add_listener(ctx.link().batch_callback(|value: SharedState<String>| {
+                vec![
+                    Msg::ToggleFocus,
+                    Msg::ChangeTerm(value.read().clone(), true),
+                ]
+            }))
+        });
         Self {
             search_field_ref: Default::default(),
             search_box_ref: Default::default(),
@@ -72,13 +84,16 @@ impl Component for PdmSearchBox {
                     _ => {}
                 }
             })),
+            _observer,
+            force_value: false,
         }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::ChangeTerm(term) => {
+            Msg::ChangeTerm(term, force_value) => {
                 self.search_term = term;
+                self.force_value = force_value;
                 true
             }
             Msg::FocusChange(focus) => {
@@ -122,7 +137,8 @@ impl Component for PdmSearchBox {
                 Field::new()
                     .placeholder(tr!("Search (Ctrl+Space / Ctrl+Shift+F)"))
                     .node_ref(self.search_field_ref.clone())
-                    .on_input(ctx.link().callback(Msg::ChangeTerm)),
+                    .value(self.force_value.then_some(self.search_term.clone()))
+                    .on_input(ctx.link().callback(|term| Msg::ChangeTerm(term, false))),
             )
             .with_child(search_result)
             .into()

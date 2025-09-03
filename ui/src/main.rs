@@ -22,7 +22,7 @@ use proxmox_yew_comp::{
 
 //use pbs::MainMenu;
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
-use pdm_ui::{register_pve_tasks, MainMenu, RemoteList, TopNavBar};
+use pdm_ui::{register_pve_tasks, MainMenu, RemoteList, SearchProvider, TopNavBar};
 
 type MsgRemoteList = Result<RemoteList, Error>;
 
@@ -46,6 +46,7 @@ struct DatacenterManagerApp {
     remote_list: RemoteList,
     remote_list_error: Option<String>,
     remote_list_timeout: Option<Timeout>,
+    search_provider: SearchProvider,
 }
 
 async fn check_subscription() -> Msg {
@@ -166,6 +167,7 @@ impl Component for DatacenterManagerApp {
             remote_list: Vec::new().into(),
             remote_list_error: None,
             remote_list_timeout: None,
+            search_provider: SearchProvider::new(),
         };
 
         this.on_login(ctx, false);
@@ -258,10 +260,15 @@ impl Component for DatacenterManagerApp {
             .with_optional_child(subscription_alert);
 
         let context = self.remote_list.clone();
+        let search_context = self.search_provider.clone();
 
-        DesktopApp::new(
-            html! {<ContextProvider<RemoteList> {context}>{body}</ContextProvider<RemoteList>>},
-        )
+        DesktopApp::new(html! {
+            <ContextProvider<SearchProvider> context={search_context}>
+                <ContextProvider<RemoteList> {context}>
+                    {body}
+                </ContextProvider<RemoteList>>
+            </ContextProvider<SearchProvider>>
+        })
         .into()
     }
 }
