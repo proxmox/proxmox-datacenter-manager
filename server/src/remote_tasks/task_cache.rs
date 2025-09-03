@@ -214,19 +214,6 @@ impl WritableTaskCache {
     ///
     /// This function only has an effect if there are no archive files yet.
     pub fn init(&self, now: i64) -> Result<(), Error> {
-        let active_filename = self.cache.base_path.join(ACTIVE_FILENAME);
-
-        if !active_filename.exists() {
-            let mut file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .open(&active_filename)?;
-
-            self.cache
-                .create_options
-                .apply_to(&mut file, &active_filename)?;
-        }
-
         if self.cache.archive_files(&self.lock)?.is_empty() {
             for i in 0..self.cache.max_files {
                 self.new_file(
@@ -694,6 +681,12 @@ impl WritableTaskCache {
 
         let archive_iter = file
             .iter()?
+            .with_context(|| {
+                format!(
+                    "task archive file '{}' disappeared while merging tasks",
+                    file.path.display()
+                )
+            })?
             .flat_map(|item| match item {
                 Ok(item) => Some(item),
                 Err(err) => {
@@ -819,33 +812,28 @@ impl TaskCache {
         lock: &'a TaskCacheLock,
     ) -> Result<TaskArchiveIterator<'a>, Error> {
         let journal_file = self.base_path.join(WAL_FILENAME);
-        let active_path = self.base_path.join(ACTIVE_FILENAME);
 
         match mode {
             GetTasks::All => {
                 let mut archive_files = self.archive_files(lock)?;
                 archive_files.reverse();
 
-                if active_path.exists() {
-                    archive_files.push(ArchiveFile {
-                        path: self.base_path.join(ACTIVE_FILENAME),
-                        compressed: false,
-                        starttime: 0,
-                    });
-                }
+                archive_files.push(ArchiveFile {
+                    path: self.base_path.join(ACTIVE_FILENAME),
+                    compressed: false,
+                    starttime: 0,
+                });
 
                 TaskArchiveIterator::new(Some(journal_file), archive_files, lock)
             }
             GetTasks::Active => {
                 let mut archive_files = Vec::new();
 
-                if active_path.exists() {
-                    archive_files.push(ArchiveFile {
-                        path: self.base_path.join(ACTIVE_FILENAME),
-                        compressed: false,
-                        starttime: 0,
-                    });
-                }
+                archive_files.push(ArchiveFile {
+                    path: self.base_path.join(ACTIVE_FILENAME),
+                    compressed: false,
+                    starttime: 0,
+                });
 
                 TaskArchiveIterator::new(None, archive_files, lock)
             }
@@ -1026,9 +1014,12 @@ impl Iterator for InnerTaskArchiveIterator {
                     let next_file = self.files.pop()?;
 
                     match next_file.iter() {
-                        Ok(iter) => {
+                        Ok(Some(iter)) => {
                             self.current = Some(iter);
                             break 'inner;
+                        }
+                        Ok(None) => {
+                            // File does not exist, nothing to log in this case.
                         }
                         Err(err) => {
                             log::error!("could not create archive iterator while iteration over task archive files, skipping: {err:#}")
@@ -1053,9 +1044,16 @@ struct ArchiveFile {
 
 impl ArchiveFile {
     /// Create an [`ArchiveIterator`] for this file.
-    fn iter(&self) -> Result<ArchiveIterator, Error> {
-        let fd = File::open(&self.path)
-            .with_context(|| format!("failed to open archive file {}", self.path.display()))?;
+    fn iter(&self) -> Result<Option<ArchiveIterator>, Error> {
+        let fd = match File::open(&self.path) {
+            Ok(fd) => fd,
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                return Ok(None);
+            }
+            Err(err) => {
+                return Err(err.into());
+            }
+        };
 
         let iter = if self.compressed {
             let reader = zstd::stream::read::Decoder::new(fd).with_context(|| {
@@ -1069,7 +1067,7 @@ impl ArchiveFile {
             ArchiveIterator::new(Box::new(BufReader::new(fd)))
         };
 
-        Ok(iter)
+        Ok(Some(iter))
     }
 
     fn compress(&mut self, options: CreateOptions) -> Result<(), Error> {
