@@ -1,3 +1,4 @@
+use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::api;
@@ -61,6 +62,77 @@ impl Resource {
             Resource::PbsNode(r) => r.name.as_str(),
             Resource::PbsDatastore(r) => r.name.as_str(),
         }
+    }
+
+    pub fn resource_type(&self) -> ResourceType {
+        match self {
+            Resource::PveStorage(_) => ResourceType::PveStorage,
+            Resource::PveQemu(_) => ResourceType::PveQemu,
+            Resource::PveLxc(_) => ResourceType::PveLxc,
+            Resource::PveNode(_) | Resource::PbsNode(_) => ResourceType::Node,
+            Resource::PbsDatastore(_) => ResourceType::PbsDatastore,
+        }
+    }
+
+    pub fn status(&self) -> &str {
+        match self {
+            Resource::PveStorage(r) => r.status.as_str(),
+            Resource::PveQemu(r) => r.status.as_str(),
+            Resource::PveLxc(r) => r.status.as_str(),
+            Resource::PveNode(r) => r.status.as_str(),
+            Resource::PbsNode(r) => {
+                if r.uptime > 0 {
+                    "online"
+                } else {
+                    "offline"
+                }
+            }
+            Resource::PbsDatastore(_) => "online",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResourceType {
+    PveStorage,
+    PveQemu,
+    PveLxc,
+    PbsDatastore,
+    Node,
+}
+
+impl ResourceType {
+    /// Returns a string representation of the type
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ResourceType::PveStorage => "storage",
+            ResourceType::PveQemu => "qemu",
+            ResourceType::PveLxc => "lxc",
+            ResourceType::PbsDatastore => "datastore",
+            ResourceType::Node => "node",
+        }
+    }
+}
+
+impl std::fmt::Display for ResourceType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl std::str::FromStr for ResourceType {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let resource_type = match s {
+            "storage" => ResourceType::PveStorage,
+            "qemu" => ResourceType::PveQemu,
+            "lxc" => ResourceType::PveLxc,
+            "datastore" => ResourceType::PbsDatastore,
+            "node" => ResourceType::Node,
+            _ => bail!("invalid resource type"),
+        };
+        Ok(resource_type)
     }
 }
 
