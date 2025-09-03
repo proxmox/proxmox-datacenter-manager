@@ -20,7 +20,7 @@ use pwt::{
     widget::{Column, Panel, Row},
 };
 
-use pdm_api_types::resource::PveResource;
+use pdm_api_types::resource::{PveResource, ResourceType};
 
 pub mod lxc;
 pub mod node;
@@ -77,6 +77,15 @@ impl Display for GuestType {
         match self {
             GuestType::Qemu => f.write_str("qemu"),
             GuestType::Lxc => f.write_str("lxc"),
+        }
+    }
+}
+
+impl From<GuestType> for ResourceType {
+    fn from(value: GuestType) -> Self {
+        match value {
+            GuestType::Qemu => ResourceType::PveQemu,
+            GuestType::Lxc => ResourceType::PveLxc,
         }
     }
 }

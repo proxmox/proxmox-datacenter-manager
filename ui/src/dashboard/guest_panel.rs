@@ -1,19 +1,26 @@
 use std::rc::Rc;
 
-use pdm_api_types::resource::GuestStatusCount;
+use pdm_api_types::resource::{GuestStatusCount, ResourceType};
+use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::GuestState;
 use pwt::{
     prelude::*,
     props::ExtractPrimaryKey,
     state::Store,
     widget::{
-        data_table::{DataTable, DataTableColumn, DataTableHeader},
+        data_table::{
+            DataTable, DataTableColumn, DataTableHeader, DataTableKeyboardEvent,
+            DataTableMouseEvent, DataTableRowRenderArgs,
+        },
         Fa,
     },
 };
-use yew::virtual_dom::{VComp, VNode};
+use yew::{
+    virtual_dom::{Key, VComp, VNode},
+    Properties,
+};
 
-use crate::pve::GuestType;
+use crate::{pve::GuestType, search_provider::get_search_provider};
 
 use super::loading_column;
 
@@ -101,11 +108,18 @@ fn columns(guest_type: GuestType) -> Rc<Vec<DataTableHeader<StatusRow>>> {
 pub struct PdmGuestPanel {}
 
 impl yew::Component for PdmGuestPanel {
-    type Message = String;
+    type Message = Search;
     type Properties = GuestPanel;
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
         Self {}
+    }
+
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        if let Some(provider) = get_search_provider(ctx) {
+            provider.search(msg);
+        }
+        false
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
@@ -137,7 +151,70 @@ impl yew::Component for PdmGuestPanel {
             .striped(false)
             .borderless(true)
             .bordered(false)
+            .row_render_callback(|renderer: &mut DataTableRowRenderArgs<StatusRow>| {
+                renderer.class.push("pwt-pointer");
+            })
+            .on_row_keydown({
+                let store = store.clone();
+                let link = ctx.link().clone();
+                move |event: &mut DataTableKeyboardEvent| match event.key().as_str() {
+                    " " | "Enter" => search_callback(&link, &store, guest_type, &event.record_key),
+                    _ => {}
+                }
+            })
+            .on_row_click({
+                let store = store.clone();
+                let link = ctx.link().clone();
+                move |event: &mut DataTableMouseEvent| {
+                    search_callback(&link, &store, guest_type, &event.record_key);
+                }
+            })
             .show_header(false)
             .into()
     }
+}
+
+fn search_callback(
+    link: &html::Scope<PdmGuestPanel>,
+    store: &Store<StatusRow>,
+    guest_type: GuestType,
+    key: &Key,
+) {
+    if let Some((_, record)) = store.filtered_data().find(|(_, rec)| rec.key() == *key) {
+        let (status, template) = match &*record.record() {
+            StatusRow::State(guest_state, _) => match guest_state {
+                GuestState::Running => (Some("running"), Some(false)),
+                GuestState::Paused => (Some("paused"), Some(false)),
+                GuestState::Stopped => (Some("stopped"), Some(false)),
+                GuestState::Template => (None, Some(true)),
+                GuestState::Unknown => (Some("unknown"), None),
+            },
+            StatusRow::All(_) => (None, None),
+        };
+
+        link.send_message(create_guest_search_term(guest_type, status, template));
+    }
+}
+
+fn create_guest_search_term(
+    guest_type: GuestType,
+    status: Option<&'static str>,
+    template: Option<bool>,
+) -> Search {
+    let resource_type: ResourceType = guest_type.into();
+    if status.is_none() && template.is_none() {
+        return Search::with_terms(vec![
+            SearchTerm::new(resource_type.as_str()).category(Some("type"))
+        ]);
+    }
+
+    let mut terms = vec![SearchTerm::new(resource_type.as_str()).category(Some("type"))];
+
+    if let Some(template) = template {
+        terms.push(SearchTerm::new(template.to_string()).category(Some("template")));
+    }
+    if let Some(status) = status {
+        terms.push(SearchTerm::new(status).category(Some("status")));
+    }
+    Search::with_terms(terms)
 }
