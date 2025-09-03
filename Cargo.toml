@@ -19,6 +19,7 @@ members = [
     "lib/pdm-api-types",
     "lib/pdm-client",
     "lib/pdm-config",
+    "lib/pdm-search",
     "lib/pdm-ui-shared",
 
     "cli/client",
@@ -86,6 +87,7 @@ pdm-api-types = { path = "lib/pdm-api-types" }
 pdm-buildcfg = { path = "lib/pdm-buildcfg" }
 pdm-config = { path = "lib/pdm-config" }
 pdm-client = { version = "0.2", path = "lib/pdm-client" }
+pdm-search = { version = "0.2", path = "lib/pdm-search" }
 pdm-ui-shared = { version = "0.2", path = "lib/pdm-ui-shared" }
 proxmox-fido2 = { path = "cli/proxmox-fido2" }
 
