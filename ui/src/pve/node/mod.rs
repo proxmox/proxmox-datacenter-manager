@@ -5,20 +5,16 @@ use yew::{
     Context,
 };
 
-use proxmox_human_byte::HumanByte;
-use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
 use pwt::{
-    css::{AlignItems, ColorScheme, FlexFit, JustifyContent},
+    css::{AlignItems, ColorScheme},
     prelude::*,
     props::{ContainerBuilder, WidgetBuilder},
-    widget::{error_message, Column, Container, Fa, Panel, Progress, Row},
-    AsyncPool,
+    widget::{Fa, Row, TabBarItem, TabPanel},
 };
 
-use pdm_api_types::rrddata::NodeDataPoint;
-use pdm_client::types::NodeStatus;
+mod overview;
 
-use crate::renderer::separator;
+use overview::NodeOverviewPanel;
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
 pub struct NodePanel {
@@ -27,14 +23,6 @@ pub struct NodePanel {
 
     /// The node to show
     pub node: String,
-
-    #[prop_or(60_000)]
-    /// The interval for refreshing the rrd data
-    pub rrd_interval: u32,
-
-    #[prop_or(10_000)]
-    /// The interval for refreshing the status data
-    pub status_interval: u32,
 }
 
 impl NodePanel {
@@ -49,160 +37,20 @@ impl Into<VNode> for NodePanel {
     }
 }
 
-pub enum Msg {
-    ReloadRrd,
-    ReloadStatus,
-    LoadFinished(Result<Vec<NodeDataPoint>, proxmox_client::Error>),
-    StatusLoadFinished(Result<NodeStatus, proxmox_client::Error>),
-    UpdateRrdTimeframe(RRDTimeframe),
-}
-
-pub struct NodePanelComp {
-    time_data: Rc<Vec<i64>>,
-    cpu_data: Rc<Series>,
-    load_data: Rc<Series>,
-    mem_data: Rc<Series>,
-    mem_total_data: Rc<Series>,
-    status: Option<NodeStatus>,
-
-    rrd_time_frame: RRDTimeframe,
-
-    last_error: Option<proxmox_client::Error>,
-    last_status_error: Option<proxmox_client::Error>,
-
-    async_pool: AsyncPool,
-    _timeout: Option<gloo_timers::callback::Timeout>,
-    _status_timeout: Option<gloo_timers::callback::Timeout>,
-}
-
-impl NodePanelComp {
-    async fn reload_rrd(remote: &str, node: &str, rrd_time_frame: RRDTimeframe) -> Msg {
-        let res = crate::pdm_client()
-            .pve_node_rrddata(remote, node, rrd_time_frame.mode, rrd_time_frame.timeframe)
-            .await;
-
-        Msg::LoadFinished(res)
-    }
-
-    async fn reload_status(remote: &str, node: &str) -> Result<NodeStatus, proxmox_client::Error> {
-        let status = crate::pdm_client().pve_node_status(remote, node).await?;
-        Ok(status)
-    }
-}
+pub struct NodePanelComp;
 
 impl yew::Component for NodePanelComp {
-    type Message = Msg;
+    type Message = ();
     type Properties = NodePanel;
 
-    fn create(ctx: &yew::Context<Self>) -> Self {
-        ctx.link().send_message(Msg::ReloadRrd);
-        ctx.link().send_message(Msg::ReloadStatus);
-        Self {
-            time_data: Rc::new(Vec::new()),
-            cpu_data: Rc::new(Series::new("", Vec::new())),
-            load_data: Rc::new(Series::new("", Vec::new())),
-            mem_data: Rc::new(Series::new("", Vec::new())),
-            mem_total_data: Rc::new(Series::new("", Vec::new())),
-            rrd_time_frame: RRDTimeframe::load(),
-            status: None,
-            last_error: None,
-            last_status_error: None,
-            async_pool: AsyncPool::new(),
-            _timeout: None,
-            _status_timeout: None,
-        }
-    }
-
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            Msg::ReloadRrd => {
-                self._timeout = None;
-                let props = ctx.props();
-                let remote = props.remote.clone();
-                let node = props.node.clone();
-                let timeframe = self.rrd_time_frame;
-                self.async_pool.send_future(ctx.link().clone(), async move {
-                    Self::reload_rrd(&remote, &node, timeframe).await
-                });
-            }
-            Msg::ReloadStatus => {
-                self._status_timeout = None;
-                let props = ctx.props();
-                let remote = props.remote.clone();
-                let node = props.node.clone();
-                self.async_pool.send_future(ctx.link().clone(), async move {
-                    let res = Self::reload_status(&remote, &node).await;
-                    Msg::StatusLoadFinished(res)
-                });
-            }
-            Msg::LoadFinished(res) => match res {
-                Ok(data_points) => {
-                    self.last_error = None;
-                    let mut cpu_vec = Vec::with_capacity(data_points.len());
-                    let mut load_vec = Vec::with_capacity(data_points.len());
-                    let mut mem_vec = Vec::with_capacity(data_points.len());
-                    let mut mem_total_vec = Vec::with_capacity(data_points.len());
-                    let mut time_vec = Vec::with_capacity(data_points.len());
-                    for data in data_points {
-                        cpu_vec.push(data.cpu_current.unwrap_or(f64::NAN));
-                        load_vec.push(data.cpu_avg1.unwrap_or(f64::NAN));
-                        mem_vec.push(data.mem_used.unwrap_or(f64::NAN));
-                        mem_total_vec.push(data.mem_total.unwrap_or(f64::NAN));
-                        time_vec.push(data.time as i64);
-                    }
-
-                    self.cpu_data = Rc::new(Series::new(tr!("CPU"), cpu_vec));
-                    self.load_data = Rc::new(Series::new(tr!("Server Load"), load_vec));
-                    self.mem_data = Rc::new(Series::new(tr!("Used Memory"), mem_vec));
-                    self.mem_total_data = Rc::new(Series::new(tr!("Total Memory"), mem_total_vec));
-                    self.time_data = Rc::new(time_vec);
-
-                    let link = ctx.link().clone();
-                    self._timeout = Some(gloo_timers::callback::Timeout::new(
-                        ctx.props().rrd_interval,
-                        move || link.send_message(Msg::ReloadRrd),
-                    ))
-                }
-                Err(err) => self.last_error = Some(err),
-            },
-            Msg::StatusLoadFinished(res) => {
-                match res {
-                    Ok(status) => {
-                        self.last_status_error = None;
-                        self.status = Some(status);
-                    }
-                    Err(err) => self.last_status_error = Some(err),
-                }
-                let link = ctx.link().clone();
-                self._status_timeout = Some(gloo_timers::callback::Timeout::new(
-                    ctx.props().status_interval,
-                    move || link.send_message(Msg::ReloadStatus),
-                ))
-            }
-            Msg::UpdateRrdTimeframe(rrd_time_frame) => {
-                self.rrd_time_frame = rrd_time_frame;
-                ctx.link().send_message(Msg::ReloadRrd);
-                return false;
-            }
-        }
-        true
+    fn create(_ctx: &yew::Context<Self>) -> Self {
+        Self
     }
 
     fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {
         let props = ctx.props();
 
         if props.remote != old_props.remote || props.node != old_props.node {
-            self.status = None;
-            self.last_status_error = None;
-            self.last_error = None;
-            self.time_data = Rc::new(Vec::new());
-            self.cpu_data = Rc::new(Series::new("", Vec::new()));
-            self.load_data = Rc::new(Series::new("", Vec::new()));
-            self.mem_data = Rc::new(Series::new("", Vec::new()));
-            self.mem_total_data = Rc::new(Series::new("", Vec::new()));
-            self.async_pool = AsyncPool::new();
-            ctx.link()
-                .send_message_batch(vec![Msg::ReloadRrd, Msg::ReloadStatus]);
             true
         } else {
             false
@@ -210,7 +58,8 @@ impl yew::Component for NodePanelComp {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let props = ctx.props();
+        let props = ctx.props().clone();
+
         let title: Html = Row::new()
             .gap(2)
             .class(AlignItems::Baseline)
@@ -218,150 +67,17 @@ impl yew::Component for NodePanelComp {
             .with_child(tr! {"Node '{0}'", props.node})
             .into();
 
-        let mut status_comp = Column::new().gap(2).padding(4);
-        let status = self.status.as_ref();
-        let cpu = status.map(|s| s.cpu).unwrap_or_default();
-        let maxcpu = status.map(|s| s.cpuinfo.cpus).unwrap_or_default();
-        let load = status.map(|s| s.loadavg.join(", ")).unwrap_or_default();
-
-        let memory = status.map(|s| s.memory.used as u64).unwrap_or_default();
-        let maxmem = status.map(|s| s.memory.total as u64).unwrap_or(1);
-
-        let root = status.map(|s| s.rootfs.used as u64).unwrap_or_default();
-        let maxroot = status.map(|s| s.rootfs.total as u64).unwrap_or(1);
-
-        let memory_used = memory as f64 / maxmem as f64;
-        let root_used = root as f64 / maxroot as f64;
-
-        status_comp = status_comp
-            .with_child(make_row(
-                tr!("CPU usage"),
-                Fa::new("cpu"),
-                tr!("{0}% of {1} CPU(s)", format!("{:.2}", cpu * 100.0), maxcpu),
-                Some(cpu as f32),
-            ))
-            .with_child(make_row(
-                tr!("Load average"),
-                Fa::new("line-chart"),
-                load,
-                None,
-            ))
-            .with_child(make_row(
-                tr!("Memory usage"),
-                Fa::new("memory"),
-                tr!(
-                    "{0}% ({1} of {2})",
-                    format!("{:.2}", memory_used * 100.0),
-                    HumanByte::from(memory),
-                    HumanByte::from(maxmem),
-                ),
-                Some(memory_used as f32),
-            ))
-            .with_child(make_row(
-                tr!("Root filesystem usage"),
-                Fa::new("database"),
-                tr!(
-                    "{0}% ({1} of {2})",
-                    format!("{:.2}", root_used * 100.0),
-                    HumanByte::from(root),
-                    HumanByte::from(maxroot),
-                ),
-                Some(root_used as f32),
-            ))
-            .with_child(Container::new().padding(1)) // spacer
-            .with_child(
-                Row::new()
-                    .with_child(tr!("Version"))
-                    .with_flex_spacer()
-                    .with_optional_child(status.map(|s| s.pveversion.as_str())),
-            )
-            .with_child(
-                Row::new()
-                    .with_child(tr!("CPU Model"))
-                    .with_flex_spacer()
-                    .with_child(tr!(
-                        "{0} ({1} sockets)",
-                        status.map(|s| s.cpuinfo.model.as_str()).unwrap_or_default(),
-                        status.map(|s| s.cpuinfo.sockets).unwrap_or_default()
-                    )),
-            );
-
-        if let Some(err) = &self.last_status_error {
-            status_comp.add_child(error_message(&err.to_string()));
-        }
-
-        let loading = self.status.is_none() && self.last_status_error.is_none();
-        Panel::new()
-            .class(FlexFit)
+        TabPanel::new()
+            .class(pwt::css::FlexFit)
             .title(title)
             .class(ColorScheme::Neutral)
-            .with_child(
-                // FIXME: add some 'visible' or 'active' property to the progress
-                Progress::new()
-                    .value((!loading).then_some(0.0))
-                    .style("opacity", (!loading).then_some("0")),
-            )
-            .with_child(status_comp)
-            .with_child(separator().padding_x(4))
-            .with_child(
-                Row::new()
-                    .padding_x(4)
-                    .padding_y(1)
-                    .class(JustifyContent::FlexEnd)
-                    .with_child(
-                        RRDTimeframeSelector::new()
-                            .on_change(ctx.link().callback(Msg::UpdateRrdTimeframe)),
-                    ),
-            )
-            .with_child(
-                Container::new().class(FlexFit).with_child(
-                    Column::new()
-                        .padding(4)
-                        .gap(4)
-                        .with_child(
-                            RRDGraph::new(self.time_data.clone())
-                                .title(tr!("CPU Usage"))
-                                .render_value(|v: &f64| {
-                                    if v.is_finite() {
-                                        format!("{:.2}%", v * 100.0)
-                                    } else {
-                                        v.to_string()
-                                    }
-                                })
-                                .serie0(Some(self.cpu_data.clone())),
-                        )
-                        .with_child(
-                            RRDGraph::new(self.time_data.clone())
-                                .title(tr!("Server load"))
-                                .render_value(|v: &f64| {
-                                    if v.is_finite() {
-                                        format!("{:.2}", v)
-                                    } else {
-                                        v.to_string()
-                                    }
-                                })
-                                .serie0(Some(self.load_data.clone())),
-                        )
-                        .with_child(
-                            RRDGraph::new(self.time_data.clone())
-                                .title(tr!("Memory Usage"))
-                                .binary(true)
-                                .render_value(|v: &f64| {
-                                    if v.is_finite() {
-                                        proxmox_human_byte::HumanByte::from(*v as u64).to_string()
-                                    } else {
-                                        v.to_string()
-                                    }
-                                })
-                                .serie0(Some(self.mem_total_data.clone()))
-                                .serie1(Some(self.mem_data.clone())),
-                        ),
-                ),
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("status_view")
+                    .label(tr!("Overview"))
+                    .icon_class("fa fa-tachometer"),
+                move |_| NodeOverviewPanel::new(props.remote.clone(), props.node.clone()).into(),
             )
             .into()
     }
-}
-
-fn make_row(title: String, icon: Fa, text: String, meter_value: Option<f32>) -> Column {
-    crate::renderer::status_row(title, icon, text, meter_value, false)
 }
