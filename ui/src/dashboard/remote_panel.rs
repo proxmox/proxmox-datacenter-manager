@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::Status;
 use pwt::{
     css,
@@ -13,6 +14,8 @@ use yew::{
 };
 
 use pdm_api_types::resource::ResourcesStatus;
+
+use crate::search_provider::get_search_provider;
 
 #[derive(Properties, PartialEq)]
 /// A panel for showing the overall remotes status
@@ -38,11 +41,18 @@ impl From<RemotePanel> for VNode {
 struct PdmRemotePanel {}
 
 impl Component for PdmRemotePanel {
-    type Message = &'static str;
+    type Message = Search;
     type Properties = RemotePanel;
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
         Self {}
+    }
+
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        if let Some(search) = get_search_provider(ctx) {
+            search.search(msg);
+        }
+        false
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
@@ -77,6 +87,13 @@ impl Component for PdmRemotePanel {
         };
         Column::new()
             .tabindex(if failure { 0 } else { -1 })
+            .onclick(ctx.link().callback(move |_| create_search_term(failure)))
+            .onkeydown(ctx.link().batch_callback(move |event: KeyboardEvent| {
+                match event.key().as_str() {
+                    "Enter" | " " => Some(create_search_term(failure)),
+                    _ => None,
+                }
+            }))
             .padding(4)
             .class(css::FlexFit)
             .class(css::AlignItems::Center)
@@ -86,5 +103,16 @@ impl Component for PdmRemotePanel {
             .with_child(remote_icon.large_4x())
             .with_child(Container::new().with_child(remote_text))
             .into()
+    }
+}
+
+fn create_search_term(failure: bool) -> Search {
+    if failure {
+        Search::with_terms(vec![
+            SearchTerm::new("remote").category(Some("type")),
+            SearchTerm::new("offline").category(Some("status")),
+        ])
+    } else {
+        Search::with_terms(vec![SearchTerm::new("remote").category(Some("type"))])
     }
 }
