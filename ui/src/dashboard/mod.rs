@@ -26,9 +26,10 @@ use pwt::{
 
 use pdm_api_types::resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus};
 use pdm_client::types::TopEntity;
+use pdm_search::{Search, SearchTerm};
 use proxmox_client::ApiResponseData;
 
-use crate::{pve::GuestType, remotes::AddWizard, RemoteList};
+use crate::{pve::GuestType, remotes::AddWizard, search_provider::get_search_provider, RemoteList};
 
 mod top_entities;
 pub use top_entities::TopEntities;
@@ -87,6 +88,7 @@ pub enum Msg {
     Reload,
     UpdateConfig(DashboardConfig),
     ConfigWindow(bool),
+    Search(Search),
 }
 
 pub struct PdmDashboard {
@@ -114,18 +116,37 @@ impl PdmDashboard {
             .into()
     }
 
-    fn create_node_panel(&self, icon: &str, title: String, status: &NodeStatusCount) -> Panel {
+    fn create_node_panel(
+        &self,
+        ctx: &yew::Context<Self>,
+        icon: &str,
+        title: String,
+        status: &NodeStatusCount,
+    ) -> Panel {
+        let mut search_terms = vec![SearchTerm::new("node").category(Some("type"))];
         let (status_icon, text): (Fa, String) = match status {
             NodeStatusCount {
-                online, offline, ..
-            } if *offline > 0 => (
-                Status::Error.into(),
-                tr!("{0} of {1} nodes are offline", offline, online),
-            ),
-            NodeStatusCount { unknown, .. } if *unknown > 0 => (
-                Status::Warning.into(),
-                tr!("{0} nodes have an unknown status", unknown),
-            ),
+                online,
+                offline,
+                unknown,
+            } if *offline > 0 => {
+                search_terms.push(SearchTerm::new("offline").category(Some("status")));
+                (
+                    Status::Error.into(),
+                    tr!(
+                        "{0} of {1} nodes are offline",
+                        offline,
+                        online + offline + unknown,
+                    ),
+                )
+            }
+            NodeStatusCount { unknown, .. } if *unknown > 0 => {
+                search_terms.push(SearchTerm::new("unknown").category(Some("status")));
+                (
+                    Status::Warning.into(),
+                    tr!("{0} nodes have an unknown status", unknown),
+                )
+            }
             // FIXME, get more detailed status about the failed remotes (name, type, error)?
             NodeStatusCount { online, .. } if self.status.failed_remotes > 0 => (
                 Status::Unknown.into(),
@@ -135,6 +156,7 @@ impl PdmDashboard {
                 (Status::Success.into(), tr!("{0} nodes online", online))
             }
         };
+        let search = Search::with_terms(search_terms);
         Panel::new()
             .flex(1.0)
             .width(300)
@@ -143,6 +165,18 @@ impl PdmDashboard {
             .with_child(
                 Column::new()
                     .padding(4)
+                    .class("pwt-pointer")
+                    .onclick(ctx.link().callback({
+                        let search = search.clone();
+                        move |_| Msg::Search(search.clone())
+                    }))
+                    .onkeydown(ctx.link().batch_callback({
+                        let search = search.clone();
+                        move |event: KeyboardEvent| match event.key().as_str() {
+                            "Enter" | " " => Some(Msg::Search(search.clone())),
+                            _ => None,
+                        }
+                    }))
                     .class(FlexFit)
                     .class(AlignItems::Center)
                     .class(JustifyContent::Center)
@@ -290,6 +324,12 @@ impl Component for PdmDashboard {
                 self.show_config_window = false;
                 true
             }
+            Msg::Search(search_term) => {
+                if let Some(provider) = get_search_provider(ctx) {
+                    provider.search(search_term.into());
+                }
+                false
+            }
         }
     }
 
@@ -334,6 +374,7 @@ impl Component for PdmDashboard {
                             )),
                     )
                     .with_child(self.create_node_panel(
+                        ctx,
                         "building",
                         tr!("Virtual Environment Nodes"),
                         &self.status.pve_nodes,
