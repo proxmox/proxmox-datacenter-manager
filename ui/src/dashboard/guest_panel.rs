@@ -4,19 +4,12 @@ use pdm_api_types::resource::{GuestStatusCount, ResourceType};
 use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::GuestState;
 use pwt::{
+    css::{self, TextAlign},
     prelude::*,
-    props::ExtractPrimaryKey,
-    state::Store,
-    widget::{
-        data_table::{
-            DataTable, DataTableColumn, DataTableHeader, DataTableKeyboardEvent,
-            DataTableMouseEvent, DataTableRowRenderArgs,
-        },
-        Fa,
-    },
+    widget::{Container, Fa, List, ListTile},
 };
 use yew::{
-    virtual_dom::{Key, VComp, VNode},
+    virtual_dom::{VComp, VNode},
     Properties,
 };
 
@@ -49,62 +42,6 @@ pub enum StatusRow {
     All(u64),
 }
 
-impl ExtractPrimaryKey for StatusRow {
-    fn extract_key(&self) -> yew::virtual_dom::Key {
-        yew::virtual_dom::Key::from(match self {
-            StatusRow::State(state, _) => match state {
-                GuestState::Running => "running",
-                GuestState::Paused => "paused",
-                GuestState::Stopped => "stopped",
-                GuestState::Template => "template",
-                GuestState::Unknown => "unknown",
-            },
-            StatusRow::All(_) => "all",
-        })
-    }
-}
-
-fn columns(guest_type: GuestType) -> Rc<Vec<DataTableHeader<StatusRow>>> {
-    Rc::new(vec![
-        DataTableColumn::new("icon")
-            .width("3em")
-            .render(move |item: &StatusRow| {
-                match item {
-                    StatusRow::State(state, _) => (*state).into(),
-                    StatusRow::All(_) => match guest_type {
-                        GuestType::Qemu => Fa::new("desktop"),
-                        GuestType::Lxc => Fa::new("cubes"),
-                    },
-                }
-                .fixed_width()
-                .into()
-            })
-            .into(),
-        DataTableColumn::new("text")
-            .flex(5)
-            .render(|item: &StatusRow| {
-                match item {
-                    StatusRow::State(GuestState::Running, _) => tr!("running"),
-                    StatusRow::State(GuestState::Stopped, _) => tr!("stopped"),
-                    StatusRow::State(GuestState::Paused, _) => tr!("paused"),
-                    StatusRow::State(GuestState::Template, _) => tr!("Template"),
-                    StatusRow::State(GuestState::Unknown, _) => tr!("Unknown"),
-                    StatusRow::All(_) => tr!("All"),
-                }
-                .into()
-            })
-            .into(),
-        DataTableColumn::new("count")
-            .flex(1)
-            .justify("right")
-            .render(|item: &StatusRow| match item {
-                StatusRow::State(_, count) => count.into(),
-                StatusRow::All(count) => count.into(),
-            })
-            .into(),
-    ])
-}
-
 pub struct PdmGuestPanel {}
 
 impl yew::Component for PdmGuestPanel {
@@ -124,76 +61,99 @@ impl yew::Component for PdmGuestPanel {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
-        if props.status.is_none() {
-            return loading_column().into();
-        }
         let guest_type = props.guest_type;
-        let status = ctx.props().status.clone().unwrap();
+        let status = match &props.status {
+            Some(status) => status,
+            None => return loading_column().into(),
+        };
 
-        let store = Store::new();
-        store.set_data(vec![
+        let data = vec![
             StatusRow::State(GuestState::Running, status.running),
             StatusRow::State(GuestState::Stopped, status.stopped),
             StatusRow::State(GuestState::Template, status.template),
             StatusRow::State(GuestState::Unknown, status.unknown),
             StatusRow::All(status.running + status.stopped + status.template + status.unknown),
-        ]);
+        ];
 
-        store.set_filter(|rec: &StatusRow| match rec {
-            StatusRow::State(_, count) if *count > 0 => true,
-            StatusRow::State(GuestState::Running | GuestState::Stopped, _) => true,
-            StatusRow::All(_) => true,
-            _ => false,
-        });
+        let tiles: Vec<_> = data
+            .into_iter()
+            .filter_map(|row| create_list_tile(ctx.link(), guest_type, row))
+            .collect();
 
-        DataTable::new(columns(guest_type), store.clone())
-            .padding(4)
-            .striped(false)
-            .borderless(true)
-            .bordered(false)
-            .row_render_callback(|renderer: &mut DataTableRowRenderArgs<StatusRow>| {
-                renderer.class.push("pwt-pointer");
-            })
-            .on_row_keydown({
-                let store = store.clone();
-                let link = ctx.link().clone();
-                move |event: &mut DataTableKeyboardEvent| match event.key().as_str() {
-                    " " | "Enter" => search_callback(&link, &store, guest_type, &event.record_key),
-                    _ => {}
-                }
-            })
-            .on_row_click({
-                let store = store.clone();
-                let link = ctx.link().clone();
-                move |event: &mut DataTableMouseEvent| {
-                    search_callback(&link, &store, guest_type, &event.record_key);
-                }
-            })
-            .show_header(false)
-            .into()
+        let list = List::new(tiles.len() as u64, move |idx: u64| {
+            tiles[idx as usize].clone()
+        })
+        .padding(4)
+        .class(css::Flex::Fill)
+        .grid_template_columns("auto auto 1fr");
+
+        list.into()
     }
 }
 
-fn search_callback(
+fn create_list_tile(
     link: &html::Scope<PdmGuestPanel>,
-    store: &Store<StatusRow>,
     guest_type: GuestType,
-    key: &Key,
-) {
-    if let Some((_, record)) = store.filtered_data().find(|(_, rec)| rec.key() == *key) {
-        let (status, template) = match &*record.record() {
-            StatusRow::State(guest_state, _) => match guest_state {
-                GuestState::Running => (Some("running"), Some(false)),
-                GuestState::Paused => (Some("paused"), Some(false)),
-                GuestState::Stopped => (Some("stopped"), Some(false)),
-                GuestState::Template => (None, Some(true)),
-                GuestState::Unknown => (Some("unknown"), None),
-            },
-            StatusRow::All(_) => (None, None),
-        };
+    status_row: StatusRow,
+) -> Option<ListTile> {
+    let (icon, text, count, status, template) = match status_row {
+        StatusRow::State(guest_state, count) => match guest_state {
+            GuestState::Template | GuestState::Unknown if count == 0 => return None,
+            GuestState::Paused => return None,
+            GuestState::Running => (
+                Fa::from(guest_state),
+                tr!("running"),
+                count,
+                Some("running"),
+                Some(false),
+            ),
+            GuestState::Stopped => (
+                Fa::from(guest_state),
+                tr!("stopped"),
+                count,
+                Some("stopped"),
+                Some(false),
+            ),
+            GuestState::Template => (
+                Fa::from(guest_state),
+                tr!("Template"),
+                count,
+                None,
+                Some(true),
+            ),
+            GuestState::Unknown => (
+                Fa::from(guest_state),
+                tr!("Unknown"),
+                count,
+                Some("unknown"),
+                None,
+            ),
+        },
+        StatusRow::All(count) => (Fa::from(guest_type), tr!("All"), count, None, None),
+    };
 
-        link.send_message(create_guest_search_term(guest_type, status, template));
-    }
+    Some(
+        ListTile::new()
+            .tabindex(0)
+            .interactive(true)
+            .with_child(icon)
+            .with_child(Container::new().padding_x(2).with_child(text))
+            .with_child(
+                Container::new()
+                    .class(TextAlign::Right)
+                    // FIXME: replace with `column_gap` to `List` when implemented
+                    .padding_end(2)
+                    .with_child(count),
+            )
+            // FIXME: repalce with on_activate for `ListTile` when implemented
+            .onclick(link.callback(move |_| create_guest_search_term(guest_type, status, template)))
+            .onkeydown(link.batch_callback(
+                move |event: KeyboardEvent| match event.key().as_str() {
+                    "Enter" | " " => Some(create_guest_search_term(guest_type, status, template)),
+                    _ => None,
+                },
+            )),
+    )
 }
 
 fn create_guest_search_term(

@@ -90,6 +90,16 @@ impl From<GuestType> for ResourceType {
     }
 }
 
+impl From<GuestType> for Fa {
+    fn from(val: GuestType) -> Self {
+        let icon = match val {
+            GuestType::Qemu => "desktop",
+            GuestType::Lxc => "cubes",
+        };
+        Fa::new(icon)
+    }
+}
+
 #[derive(PartialEq, Clone, Copy)]
 pub struct GuestInfo {
     pub guest_type: GuestType,
