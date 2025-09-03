@@ -74,6 +74,7 @@ proxmox-acme-api = { workspace = true, features = [ "impl" ] }
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
 pdm-config.workspace = true
+pdm-search.workspace = true
 
 pve-api-types = { workspace = true, features = [ "client" ] }
 pbs-api-types.workspace = true

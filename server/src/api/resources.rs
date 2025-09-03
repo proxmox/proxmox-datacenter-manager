@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{LazyLock, RwLock};
 
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use futures::future::join_all;
 use futures::FutureExt;
 
@@ -15,12 +15,13 @@ use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
 };
 use pdm_api_types::{Authid, PRIV_RESOURCE_AUDIT};
+use pdm_search::{Search, SearchTerm};
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
     http_bail, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_rrd_api_types::RrdTimeframe;
-use proxmox_schema::api;
+use proxmox_schema::{api, parse_boolean};
 use proxmox_sortable_macro::sortable;
 use proxmox_subscription::SubscriptionStatus;
 use pve_api_types::{ClusterResource, ClusterResourceType};
@@ -45,6 +46,89 @@ const SUBDIRS: SubdirMap = &sorted!([
         &Router::new().get(&API_METHOD_GET_SUBSCRIPTION_STATUS)
     ),
 ]);
+
+enum MatchCategory {
+    Type,
+    Name,
+    Id,
+    Status,
+    Template,
+    Remote,
+}
+
+impl std::str::FromStr for MatchCategory {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let category = match s {
+            "type" => MatchCategory::Type,
+            "name" => MatchCategory::Name,
+            "id" => MatchCategory::Id,
+            "status" => MatchCategory::Status,
+            "template" => MatchCategory::Template,
+            "remote" => MatchCategory::Remote,
+            _ => bail!("invalid category"),
+        };
+        Ok(category)
+    }
+}
+
+impl MatchCategory {
+    fn matches(&self, value: &str, search_term: &str) -> bool {
+        match self {
+            MatchCategory::Type | MatchCategory::Status => value.starts_with(search_term),
+            MatchCategory::Name | MatchCategory::Id | MatchCategory::Remote => {
+                value.contains(search_term)
+            }
+            MatchCategory::Template => match (parse_boolean(value), parse_boolean(search_term)) {
+                (Ok(a), Ok(b)) => a == b,
+                _ => false,
+            },
+        }
+    }
+}
+
+// returns None if we can't decide if it matches, currently only for the `Remote` category`
+fn resource_matches_search_term(resource: &Resource, term: &SearchTerm) -> Option<bool> {
+    let matches = match term.category.as_deref().map(|c| c.parse::<MatchCategory>()) {
+        Some(Ok(category)) => match category {
+            MatchCategory::Type => category.matches(resource.resource_type().as_str(), &term.value),
+            MatchCategory::Name => category.matches(resource.name(), &term.value),
+            MatchCategory::Id => category.matches(&resource.id(), &term.value),
+            MatchCategory::Status => category.matches(resource.status(), &term.value),
+            MatchCategory::Template => match resource {
+                Resource::PveQemu(PveQemuResource { template, .. })
+                | Resource::PveLxc(PveLxcResource { template, .. }) => {
+                    category.matches(&template.to_string(), &term.value)
+                }
+                _ => false,
+            },
+            MatchCategory::Remote => return None, // this has to be checked beforehand
+        },
+        Some(Err(_)) => false,
+        None => resource.name().contains(&term.value) || resource.id().contains(&term.value),
+    };
+    Some(matches)
+}
+
+fn remote_matches_search_term(remote_name: &str, online: Option<bool>, term: &SearchTerm) -> bool {
+    match term.category.as_deref().map(|c| c.parse::<MatchCategory>()) {
+        Some(Ok(category)) => match category {
+            MatchCategory::Type => category.matches("remote", &term.value),
+            MatchCategory::Name | MatchCategory::Remote | MatchCategory::Id => {
+                category.matches(remote_name, &term.value)
+            }
+            MatchCategory::Status => match online {
+                Some(true) => category.matches("online", &term.value),
+                Some(false) => category.matches("offline", &term.value),
+                None => true,
+            },
+            MatchCategory::Template => todo!(),
+        },
+        Some(Err(_)) => false,
+        None => remote_name.contains(&term.value) || "remote".starts_with(&term.value),
+    }
+}
 
 #[api(
     // FIXME:: see list-like API calls in resource routers, we probably want more fine-grained
@@ -83,6 +167,41 @@ pub async fn get_resources(
     get_resources_impl(max_age, search, Some(rpcenv)).await
 }
 
+// helper to determine if the combination of search terms requires the results
+// to be remotes, so we can skip looking at resources
+fn is_remotes_only(filters: &Search) -> bool {
+    let mut is_required = false;
+    let mut optional_matches = 0;
+    let mut optional_terms = 0;
+    filters.matches(|term| {
+        if term.is_optional() {
+            optional_terms += 1;
+        }
+        match term.category.as_deref() {
+            Some("remote") => {
+                if !term.is_optional() {
+                    is_required = true;
+                } else {
+                    optional_matches += 1;
+                }
+            }
+            Some("type") if "remote".starts_with(&term.value) => {
+                if !term.is_optional() {
+                    is_required = true;
+                } else {
+                    optional_matches += 1;
+                }
+            }
+            None => {}
+            _ => {}
+        }
+        // search is short-circuited, so to iterate over all, return true on required and false on optional
+        !term.is_optional()
+    });
+
+    is_required || (optional_matches > 0 && optional_matches == optional_terms)
+}
+
 // called from resource_cache where no RPCEnvironment is initialized..
 pub(crate) async fn get_resources_impl(
     max_age: u64,
@@ -105,6 +224,10 @@ pub(crate) async fn get_resources_impl(
     let (remotes_config, _) = pdm_config::remotes::config()?;
     let mut join_handles = Vec::new();
 
+    let filters = search.map(Search::from).unwrap_or_default();
+
+    let remotes_only = is_remotes_only(&filters);
+
     for (remote_name, remote) in remotes_config {
         if let Some(ref auth_id) = opt_auth_id {
             let remote_privs = user_info.lookup_privs(auth_id, &["resource", &remote_name]);
@@ -112,11 +235,29 @@ pub(crate) async fn get_resources_impl(
                 continue;
             }
         }
+
+        if remotes_only
+            && !filters.matches(|term| remote_matches_search_term(&remote_name, None, term))
+        {
+            continue;
+        }
+        let filter = filters.clone();
         let handle = tokio::spawn(async move {
-            let (resources, error) = match get_resources_for_remote(remote, max_age).await {
+            let (mut resources, error) = match get_resources_for_remote(remote, max_age).await {
                 Ok(resources) => (resources, None),
                 Err(error) => (Vec::new(), Some(error.to_string())),
             };
+
+            if remotes_only {
+                resources.clear();
+            } else if !filter.is_empty() {
+                resources.retain(|resource| {
+                    filter.matches(|filter| {
+                        // if we get can't decide if it matches, don't filter it out
+                        resource_matches_search_term(resource, filter).unwrap_or(true)
+                    })
+                });
+            }
 
             RemoteResources {
                 remote: remote_name,
@@ -133,17 +274,15 @@ pub(crate) async fn get_resources_impl(
         remote_resources.push(handle.await?);
     }
 
-    if let Some(search) = search {
-        // FIXME implement more complex filter syntax
-        remote_resources.retain_mut(|res| {
-            if res.remote.contains(&search) {
-                true
-            } else {
-                res.resources
-                    .retain(|res| res.id().contains(&search) || res.name().contains(&search));
-                !res.resources.is_empty()
+    if !filters.is_empty() {
+        remote_resources.retain(|res| {
+            if !res.resources.is_empty() {
+                return true;
             }
-        });
+            filters.matches(|filter| {
+                remote_matches_search_term(&res.remote, Some(res.error.is_none()), filter)
+            })
+        })
     }
 
     Ok(remote_resources)
@@ -727,4 +866,68 @@ fn map_pbs_datastore_status(remote: &str, status: DataStoreStatusListItem) -> Re
         maxdisk: status.total.unwrap_or_default(),
         disk: status.used.unwrap_or_default(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::api::resources::is_remotes_only;
+    use pdm_search::{Search, SearchTerm};
+
+    #[test]
+    fn is_remote_only() {
+        let remote_term = SearchTerm::new("foo").category(Some("remote"));
+        let remote_term_optional = remote_term.clone().optional(true);
+
+        let other_term = SearchTerm::new("foo");
+        let other_term_optional = other_term.clone().optional(true);
+
+        let type_remote_term = SearchTerm::new("remote").category(Some("type"));
+        let type_remote_term_optional = type_remote_term.clone().optional(true);
+
+        let type_other_term = SearchTerm::new("foo").category(Some("type"));
+        let type_other_term_optional = type_other_term.clone().optional(true);
+
+        let cases = vec![
+            (vec![other_term.clone()], false),
+            (vec![other_term_optional.clone()], false),
+            (vec![remote_term.clone()], true),
+            (vec![remote_term_optional.clone()], true),
+            (vec![type_other_term.clone()], false),
+            (vec![type_other_term_optional.clone()], false),
+            (
+                vec![SearchTerm::new("re").optional(true).category(Some("type"))],
+                true,
+            ),
+            (vec![type_remote_term.clone()], true),
+            (vec![type_remote_term_optional.clone()], true),
+            (
+                vec![
+                    type_remote_term_optional.clone(),
+                    other_term_optional.clone(),
+                ],
+                false,
+            ),
+            (
+                vec![
+                    type_other_term_optional.clone(),
+                    other_term_optional.clone(),
+                ],
+                false,
+            ),
+            (
+                vec![
+                    type_remote_term.clone(),
+                    type_other_term_optional.clone(),
+                    other_term_optional.clone(),
+                ],
+                true,
+            ),
+            (vec![other_term.clone(), type_remote_term.clone()], true),
+        ];
+
+        for (count, (case, expected)) in cases.into_iter().enumerate() {
+            let search = Search::from_iter(case.into_iter());
+            assert_eq!(is_remotes_only(&search), expected, "case: {count}");
+        }
+    }
 }
