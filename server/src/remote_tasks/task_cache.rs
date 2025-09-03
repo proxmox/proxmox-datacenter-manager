@@ -952,14 +952,27 @@ impl<'a> TaskArchiveIterator<'a> {
             .peekable();
 
         if let Some(journal) = journal {
-            let journal_reader = Box::new(BufReader::new(File::open(journal)?));
-            let journal_task_iterator = JournalIterator::new(journal_reader).peekable();
-            let merge_task_iter = MergeTaskIterator::new(journal_task_iterator, inner);
+            let file = File::open(journal);
 
-            Ok(Self {
-                inner: Box::new(merge_task_iter),
-                _lock: lock,
-            })
+            match file {
+                Ok(file) => {
+                    let journal_reader = Box::new(BufReader::new(file));
+                    let journal_task_iterator = JournalIterator::new(journal_reader).peekable();
+                    let merge_task_iter = MergeTaskIterator::new(journal_task_iterator, inner);
+
+                    Ok(Self {
+                        inner: Box::new(merge_task_iter),
+                        _lock: lock,
+                    })
+                }
+                Err(err) if err.kind() == ErrorKind::NotFound => Ok(Self {
+                    inner: Box::new(inner),
+                    _lock: lock,
+                }),
+                Err(err) => {
+                    return Err(err.into());
+                }
+            }
         } else {
             Ok(Self {
                 inner: Box::new(inner),
