@@ -85,7 +85,7 @@ impl yew::Component for PdmGuestPanel {
         })
         .padding(4)
         .class(css::Flex::Fill)
-        .grid_template_columns("auto auto 1fr");
+        .grid_template_columns("auto auto 1fr auto");
 
         list.into()
     }
@@ -145,6 +145,7 @@ fn create_list_tile(
                     .padding_end(2)
                     .with_child(count),
             )
+            .with_child(Fa::new("search"))
             // FIXME: repalce with on_activate for `ListTile` when implemented
             .onclick(link.callback(move |_| create_guest_search_term(guest_type, status, template)))
             .onkeydown(link.batch_callback(
