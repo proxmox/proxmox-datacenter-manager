@@ -13,7 +13,7 @@ use pwt::{
     prelude::*,
     props::CssLength,
     state::{SharedState, SharedStateObserver},
-    widget::{form::Field, Container},
+    widget::{form::Field, Container, Trigger},
 };
 
 use crate::search_provider::get_search_provider;
@@ -128,16 +128,28 @@ impl Component for PdmSearchBox {
             .height(400)
             .class("pwt-shadow2");
 
+        let clear_trigger_icon = if self.search_term.is_empty() {
+            ""
+        } else {
+            "fa fa-times"
+        };
+
         Container::new()
             .onfocusin(self.focus_tracker.get_focus_callback(true))
             .onfocusout(self.focus_tracker.get_focus_callback(false))
             .flex(2.0)
+            .style("flex-basis", "230px") // to avoid changing size with trigger
             .min_width(230) // placeholder text
             .with_child(
                 Field::new()
                     .placeholder(tr!("Search (Ctrl+Space / Ctrl+Shift+F)"))
                     .node_ref(self.search_field_ref.clone())
                     .value(self.force_value.then_some(self.search_term.clone()))
+                    .with_trigger(
+                        Trigger::new(clear_trigger_icon)
+                            .onclick(ctx.link().callback(|_| Msg::ChangeTerm("".into(), true))),
+                        true,
+                    )
                     .on_input(ctx.link().callback(|term| Msg::ChangeTerm(term, false))),
             )
             .with_child(search_result)
