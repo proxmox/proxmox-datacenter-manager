@@ -20,6 +20,7 @@ endif
 
 DESTDIR =
 PREFIX = /usr
+# FIXME: drop the /javascript/ part, it's just wrong.
 UIDIR = $(PREFIX)/share/javascript/proxmox-datacenter-manager
 
 COMPILED_OUTPUT := \
