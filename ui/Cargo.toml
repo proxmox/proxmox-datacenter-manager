@@ -36,7 +36,7 @@ proxmox-acme-api = "1"
 proxmox-client = "1"
 proxmox-human-byte = "1"
 proxmox-login = "1"
-proxmox-schema = "4.1"
+proxmox-schema = "5"
 proxmox-rrd-api-types = "1"
 pbs-api-types = "1.0.3"
 
