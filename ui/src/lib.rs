@@ -30,6 +30,8 @@ mod widget;
 pub mod pbs;
 pub mod pve;
 
+pub mod sdn;
+
 pub mod renderer;
 
 mod tasks;
