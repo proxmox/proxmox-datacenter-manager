@@ -17,6 +17,7 @@ pub mod remote_tasks;
 pub mod remotes;
 pub mod resources;
 mod rrd_common;
+pub mod sdn;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
@@ -30,6 +31,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("resources", &resources::ROUTER),
     ("nodes", &nodes::ROUTER),
     ("remote-tasks", &remote_tasks::ROUTER),
+    ("sdn", &sdn::ROUTER),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
 ]);
 

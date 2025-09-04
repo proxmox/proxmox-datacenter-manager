@@ -23,3 +23,5 @@ proxmox-dns-api.workspace = true
 proxmox-time.workspace = true
 proxmox-serde.workspace = true
 proxmox-subscription = { workspace = true, features = ["api-types"], default-features = false }
+
+pve-api-types = { workspace = true }

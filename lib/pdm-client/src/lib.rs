@@ -8,6 +8,7 @@ use pdm_api_types::resource::{PveResource, RemoteResources, TopEntities};
 use pdm_api_types::rrddata::{
     LxcDataPoint, NodeDataPoint, PbsDatastoreDataPoint, PbsNodeDataPoint, QemuDataPoint,
 };
+use pdm_api_types::sdn::ListZone;
 use pdm_api_types::BasicRealmInfo;
 use pve_api_types::StartQemuMigrationType;
 use serde::{Deserialize, Serialize};
@@ -57,6 +58,8 @@ pub mod types {
     pub use pve_api_types::ClusterNodeStatus;
 
     pub use pve_api_types::PveUpid;
+
+    pub use pve_api_types::ListZonesType;
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -965,6 +968,21 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await?
             .expect_json()?
             .data)
+    }
+
+    pub async fn pve_sdn_list_zones(
+        &self,
+        pending: impl Into<Option<bool>>,
+        running: impl Into<Option<bool>>,
+        ty: impl Into<Option<ListZonesType>>,
+    ) -> Result<Vec<ListZone>, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/sdn/zones".to_string())
+            .maybe_arg("pending", &pending.into())
+            .maybe_arg("running", &running.into())
+            .maybe_arg("ty", &ty.into())
+            .build();
+
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 }
 
