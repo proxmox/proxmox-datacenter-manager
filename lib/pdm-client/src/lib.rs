@@ -59,7 +59,7 @@ pub mod types {
 
     pub use pve_api_types::PveUpid;
 
-    pub use pdm_api_types::sdn::{CreateZoneParams, ListZone};
+    pub use pdm_api_types::sdn::{CreateVnetParams, CreateZoneParams, ListVnet, ListZone};
     pub use pve_api_types::ListZonesType;
 }
 
@@ -1001,6 +1001,12 @@ impl<T: HttpApiClient> PdmClient<T> {
 
     pub async fn pve_sdn_create_zone(&self, params: CreateZoneParams) -> Result<String, Error> {
         let path = "/api2/extjs/sdn/zones";
+
+        Ok(self.0.post(path, &params).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_sdn_create_vnet(&self, params: CreateVnetParams) -> Result<String, Error> {
+        let path = "/api2/extjs/sdn/vnets";
 
         Ok(self.0.post(path, &params).await?.expect_json()?.data)
     }

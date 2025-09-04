@@ -73,6 +73,51 @@ pub struct CreateZoneParams {
         remote: {
             schema: REMOTE_ID_SCHEMA,
         },
+        zone: {
+            schema: SDN_ID_SCHEMA,
+        },
+    }
+)]
+/// Describes the remote-specific informations for creating a new vnet.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CreateVnetRemote {
+    pub remote: String,
+    pub zone: String,
+}
+
+#[api(
+    properties: {
+        tag: {
+            schema: VXLAN_ID_SCHEMA,
+        },
+        remotes: {
+            type: Array,
+            description: "List of remotes and the zones in which the vnet should get created.",
+            items: {
+                type: CreateVnetRemote,
+            }
+        },
+        vnet: {
+            schema: SDN_ID_SCHEMA,
+        },
+    }
+)]
+/// Contains the information for creating a new vnet as well as information about the remotes where
+/// the vnet should get created.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CreateVnetParams {
+    pub tag: u32,
+    pub vnet: String,
+    pub remotes: Vec<CreateVnetRemote>,
+}
+
+#[api(
+    properties: {
+        remote: {
+            schema: REMOTE_ID_SCHEMA,
+        },
         vnet: {
             type: pve_api_types::SdnVnet,
             flatten: true,
