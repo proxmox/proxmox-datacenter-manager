@@ -10,7 +10,6 @@ DEB=$(PACKAGE)_$(DEB_VERSION)_$(DEB_HOST_ARCH).deb
 DBG_DEB=$(PACKAGE)-dbgsym_$(DEB_VERSION)_$(DEB_HOST_ARCH).deb
 DSC=$(PACKAGE)_$(DEB_VERSION).dsc
 
-# TODO: adapt for yew ui
 CARGO ?= cargo
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
