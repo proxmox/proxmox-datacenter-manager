@@ -1,3 +1,53 @@
+proxmox-datacenter-manager (0.3.0) trixie; urgency=medium
+
+  * update PDM apt sources to deb822 format and point to trixie.
+
+  * server: api: resources: handle virtual guest template in status count.
+
+  * metric collection: rework metric polling to run concurrently to improve
+    total time required to poll all remotes, especially on high network
+    latency and naturally also high remote counts.
+
+  * metric collection: persist state after metric collection to allow reusing
+    this after a daemon restart, e.g. due to a package update.
+
+  * metric collection: collect overdue metrics on startup/timer change.
+
+  * metric collection: record the remote response time and time required for a
+    full collection run to provide better insights.
+
+  * api: add endpoint to trigger metric collection.
+
+  * api: remotes: trigger immediate metric collection for newly added nodes.
+
+  * cli: add commands for metric-collection trigger and status.
+
+  * metric collection: just skip missed timer ticks, no point in increasing
+    polling frequency in such a case.
+
+  * add ACL API by reusing common proxmox-access-control implementation.
+
+  * remote task archive: handle missing journal file gracefully.
+
+  * add api for getting available updates/changelogs for remote nodes.
+
+  * add various (API) infrastructure for initial SDN integration.
+
+  * api: resources: add more complex filter syntax that is loosely based on
+    the Elasticsearch and GitHub query language. It basically works like:
+    + 'sometext'  : normal search term (OR'd with other terms)
+    + '+sometext' : required search term
+    + 'cat:text'  : looks for 'text' in the category 'cat'
+
+  * task cache: treat a limit of 0 as unbounded and return all tasks in that
+    case.
+
+  * api: remote tasks: add 'remote' filter option.
+
+  * api: add remote-tasks statistics.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 04 Sep 2025 20:28:32 +0200
+
 proxmox-datacenter-manager (0.2.2) trixie; urgency=medium
 
   * api server: make incoming connection handling more robust for some error
