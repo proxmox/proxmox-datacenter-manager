@@ -1,3 +1,6 @@
+mod evpn_panel;
+pub use evpn_panel::EvpnPanel;
+
 mod remote_tree;
 pub use remote_tree::RemoteTree;
 
