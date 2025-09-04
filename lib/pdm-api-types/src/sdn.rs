@@ -1,5 +1,5 @@
-use proxmox_schema::{api, const_regex, ApiStringFormat, IntegerSchema, Schema, StringSchema};
-use pve_api_types::{SdnVnet, SdnZone};
+use proxmox_schema::{api, ApiStringFormat, IntegerSchema, Schema, StringSchema};
+use pve_api_types::{SdnController, SdnVnet, SdnZone};
 use serde::{Deserialize, Serialize};
 
 use crate::remotes::REMOTE_ID_SCHEMA;
@@ -111,6 +111,25 @@ pub struct CreateVnetParams {
     pub tag: u32,
     pub vnet: String,
     pub remotes: Vec<CreateVnetRemote>,
+}
+
+#[api(
+    properties: {
+        remote: {
+            schema: REMOTE_ID_SCHEMA,
+        },
+        controller: {
+            type: pve_api_types::SdnController,
+            flatten: true,
+        }
+    }
+)]
+/// SDN controller with additional information about which remote it belongs to
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub struct ListController {
+    pub remote: String,
+    #[serde(flatten)]
+    pub controller: SdnController,
 }
 
 #[api(

@@ -59,8 +59,10 @@ pub mod types {
 
     pub use pve_api_types::PveUpid;
 
-    pub use pdm_api_types::sdn::{CreateVnetParams, CreateZoneParams, ListVnet, ListZone};
-    pub use pve_api_types::ListZonesType;
+    pub use pdm_api_types::sdn::{
+        CreateVnetParams, CreateZoneParams, ListController, ListVnet, ListZone,
+    };
+    pub use pve_api_types::{ListControllersType, ListZonesType, SdnObjectState};
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -969,6 +971,21 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await?
             .expect_json()?
             .data)
+    }
+
+    pub async fn pve_sdn_list_controllers(
+        &self,
+        pending: impl Into<Option<bool>>,
+        running: impl Into<Option<bool>>,
+        ty: impl Into<Option<ListControllersType>>,
+    ) -> Result<Vec<ListController>, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/sdn/controllers".to_string())
+            .maybe_arg("pending", &pending.into())
+            .maybe_arg("running", &running.into())
+            .maybe_arg("ty", &ty.into())
+            .build();
+
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn pve_sdn_list_zones(
