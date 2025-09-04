@@ -15,6 +15,7 @@ pub mod task_utils;
 
 pub mod connection;
 pub mod pbs_client;
+pub mod sdn_client;
 
 #[cfg(any(remote_config = "faked", test))]
 pub mod test_support;
