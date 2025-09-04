@@ -28,6 +28,8 @@ pub fn register_pve_tasks() {
     register_task_description("cephsetflags", tr!("Change global Ceph flags"));
     register_task_description("clustercreate", tr!("Create Cluster"));
     register_task_description("clusterjoin", tr!("Join Cluster"));
+    register_task_description("create_zone", tr!("Create EVPN Zone"));
+    register_task_description("create_vnet", tr!("Create EVPN VNet"));
     register_task_description("dircreate", (tr!("Directory Storage"), tr!("Create")));
     register_task_description("dirremove", (tr!("Directory"), tr!("Remove")));
     register_task_description("download", (tr!("File"), tr!("Download")));
@@ -65,9 +67,11 @@ pub fn register_pve_tasks() {
     register_task_description("qmstop", ("VM", tr!("Stop")));
     register_task_description("qmsuspend", ("VM", tr!("Hibernate")));
     register_task_description("qmtemplate", ("VM", tr!("Convert to template")));
+    register_task_description("reloadnetworkall", tr!("Apply SDN configuration"));
     register_task_description("resize", ("VM/CT", tr!("Resize")));
     register_task_description("spiceproxy", ("VM/CT", tr!("Console") + " (Spice)"));
     register_task_description("spiceshell", tr!("Shell") + " (Spice)");
+    register_task_description("srvreload", tr!("Reload network configuration"));
     register_task_description("startall", tr!("Bulk start VMs and Containers"));
     register_task_description("stopall", tr!("Bulk shutdown VMs and Containers"));
     register_task_description("suspendall", tr!("Suspend all VMs"));
