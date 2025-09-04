@@ -2,8 +2,8 @@
 name = "pdm-search"
 description = "Simple search query language for the PDM web UI"
 homepage = "https://www.proxmox.com"
+version = "0.2.0"
 
-version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
