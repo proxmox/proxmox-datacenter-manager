@@ -8,7 +8,7 @@ use pdm_api_types::resource::{PveResource, RemoteResources, TopEntities};
 use pdm_api_types::rrddata::{
     LxcDataPoint, NodeDataPoint, PbsDatastoreDataPoint, PbsNodeDataPoint, QemuDataPoint,
 };
-use pdm_api_types::sdn::ListZone;
+use pdm_api_types::sdn::{ListVnet, ListZone};
 use pdm_api_types::BasicRealmInfo;
 use pve_api_types::StartQemuMigrationType;
 use serde::{Deserialize, Serialize};
@@ -981,6 +981,19 @@ impl<T: HttpApiClient> PdmClient<T> {
             .maybe_arg("pending", &pending.into())
             .maybe_arg("running", &running.into())
             .maybe_arg("ty", &ty.into())
+            .build();
+
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_sdn_list_vnets(
+        &self,
+        pending: impl Into<Option<bool>>,
+        running: impl Into<Option<bool>>,
+    ) -> Result<Vec<ListVnet>, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/sdn/vnets".to_string())
+            .maybe_arg("pending", &pending.into())
+            .maybe_arg("running", &running.into())
             .build();
 
         Ok(self.0.get(&path).await?.expect_json()?.data)

@@ -1,10 +1,12 @@
 use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
 use proxmox_sortable_macro::sortable;
 
+pub mod vnets;
 pub mod zones;
 
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
+    ("vnets", &vnets::ROUTER),
     ("zones", &zones::ROUTER),
 ]);
 
