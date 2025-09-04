@@ -979,7 +979,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         running: impl Into<Option<bool>>,
         ty: impl Into<Option<ListControllersType>>,
     ) -> Result<Vec<ListController>, Error> {
-        let path = ApiPathBuilder::new("/api2/extjs/sdn/controllers".to_string())
+        let path = ApiPathBuilder::new("/api2/extjs/sdn/controllers")
             .maybe_arg("pending", &pending.into())
             .maybe_arg("running", &running.into())
             .maybe_arg("ty", &ty.into())
@@ -994,7 +994,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         running: impl Into<Option<bool>>,
         ty: impl Into<Option<ListZonesType>>,
     ) -> Result<Vec<ListZone>, Error> {
-        let path = ApiPathBuilder::new("/api2/extjs/sdn/zones".to_string())
+        let path = ApiPathBuilder::new("/api2/extjs/sdn/zones")
             .maybe_arg("pending", &pending.into())
             .maybe_arg("running", &running.into())
             .maybe_arg("ty", &ty.into())
@@ -1008,7 +1008,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         pending: impl Into<Option<bool>>,
         running: impl Into<Option<bool>>,
     ) -> Result<Vec<ListVnet>, Error> {
-        let path = ApiPathBuilder::new("/api2/extjs/sdn/vnets".to_string())
+        let path = ApiPathBuilder::new("/api2/extjs/sdn/vnets")
             .maybe_arg("pending", &pending.into())
             .maybe_arg("running", &running.into())
             .build();

@@ -1,3 +1,4 @@
+use std::error::Error as StdError;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -28,7 +29,14 @@ pub enum LockedSdnClientError {
     Other(anyhow::Error),
 }
 
-impl std::error::Error for LockedSdnClientError {}
+impl StdError for LockedSdnClientError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self {
+            Self::Client(cli) => Some(cli),
+            Self::Other(_) => None, // anyhow is not a std error
+        }
+    }
+}
 
 impl std::fmt::Display for LockedSdnClientError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -61,7 +69,7 @@ impl LockedSdnClient {
         remote: &Remote,
         allow_pending: impl Into<Option<bool>>,
     ) -> Result<Self, LockedSdnClientError> {
-        let client = connect(remote).map_err(LockedSdnClientError::from)?;
+        let client = connect(remote)?;
 
         let params = CreateSdnLock {
             allow_pending: allow_pending.into(),
