@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use gloo_utils::window;
 use proxmox_yew_comp::AptPackageManager;
 use yew::{
     virtual_dom::{VComp, VNode},
@@ -16,6 +17,8 @@ use pwt::{
 mod overview;
 
 use overview::NodeOverviewPanel;
+
+use crate::get_deep_url;
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
 pub struct NodePanel {
@@ -91,6 +94,7 @@ impl yew::Component for NodePanelComp {
                 {
                     let remote = props.remote.clone();
                     let node = props.node.clone();
+                    let link = ctx.link().clone();
                     move |_| {
                         let base_url = format!("/pve/remotes/{remote}/nodes/{node}/apt");
                         let task_base_url = format!("/pve/remotes/{remote}/tasks");
@@ -98,7 +102,17 @@ impl yew::Component for NodePanelComp {
                         AptPackageManager::new()
                             .base_url(base_url)
                             .task_base_url(task_base_url)
-                            .enable_upgrade(false)
+                            .enable_upgrade(true)
+                            .on_upgrade({
+                                let remote = remote.clone();
+                                let link = link.clone();
+                                let id = format!("node/{}::apt", node);
+                                move |_| {
+                                    if let Some(url) = get_deep_url(&link, &remote, None, &id) {
+                                        let _ = window().open_with_url(&url.href());
+                                    }
+                                }
+                            })
                             .into()
                     }
                 },
