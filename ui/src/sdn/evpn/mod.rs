@@ -7,6 +7,9 @@ pub use vrf_tree::VrfTree;
 mod add_vnet;
 pub use add_vnet::AddVnetWindow;
 
+mod add_zone;
+pub use add_zone::AddZoneWindow;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct EvpnRouteTarget {
     asn: u32,
