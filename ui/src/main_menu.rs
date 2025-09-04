@@ -17,6 +17,7 @@ use proxmox_yew_comp::{NotesView, XTermJs};
 use pdm_api_types::remotes::RemoteType;
 
 use crate::remotes::RemotesPanel;
+use crate::sdn::evpn::EvpnPanel;
 use crate::{
     AccessControl, CertificatesPanel, Dashboard, RemoteList, ServerAdministration,
     SystemConfiguration,
@@ -245,6 +246,15 @@ impl Component for PdmMainMenu {
                     .into()
             },
             admin_submenu,
+        );
+
+        register_view(
+            &mut menu,
+            &mut content,
+            tr!("EVPN"),
+            "evpn",
+            Some("fa fa-sitemap"),
+            |_| EvpnPanel::new().into(),
         );
 
         let mut remote_submenu = Menu::new();
