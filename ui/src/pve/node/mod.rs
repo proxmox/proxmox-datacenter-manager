@@ -59,7 +59,7 @@ impl yew::Component for NodePanelComp {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let props = ctx.props().clone();
+        let props = ctx.props();
 
         let title: Html = Row::new()
             .gap(2)
@@ -67,9 +67,6 @@ impl yew::Component for NodePanelComp {
             .with_child(Fa::new("building"))
             .with_child(tr! {"Node '{0}'", props.node})
             .into();
-
-        let remote = props.remote.clone();
-        let node = props.node.clone();
 
         TabPanel::new()
             .class(pwt::css::FlexFit)
@@ -80,22 +77,30 @@ impl yew::Component for NodePanelComp {
                     .key("status_view")
                     .label(tr!("Overview"))
                     .icon_class("fa fa-tachometer"),
-                move |_| NodeOverviewPanel::new(props.remote.clone(), props.node.clone()).into(),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    move |_| NodeOverviewPanel::new(remote.clone(), node.clone()).into()
+                },
             )
             .with_item_builder(
                 TabBarItem::new()
                     .key("update_view")
                     .label(tr!("Updates"))
                     .icon_class("fa fa-refresh"),
-                move |_| {
-                    let base_url = format!("/pve/remotes/{remote}/nodes/{node}/apt");
-                    let task_base_url = format!("/pve/remotes/{remote}/tasks");
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    move |_| {
+                        let base_url = format!("/pve/remotes/{remote}/nodes/{node}/apt");
+                        let task_base_url = format!("/pve/remotes/{remote}/tasks");
 
-                    AptPackageManager::new()
-                        .base_url(base_url)
-                        .task_base_url(task_base_url)
-                        .enable_upgrade(false)
-                        .into()
+                        AptPackageManager::new()
+                            .base_url(base_url)
+                            .task_base_url(task_base_url)
+                            .enable_upgrade(false)
+                            .into()
+                    }
                 },
             )
             .into()
