@@ -60,7 +60,7 @@ pub mod types {
     pub use pve_api_types::PveUpid;
 
     pub use pdm_api_types::sdn::{
-        CreateVnetParams, CreateZoneParams, ListController, ListVnet, ListZone,
+        CreateVnetParams, CreateZoneParams, ListController, ListVnet, ListZone, SDN_ID_SCHEMA,
     };
     pub use pve_api_types::{ListControllersType, ListZonesType, SdnObjectState};
 }

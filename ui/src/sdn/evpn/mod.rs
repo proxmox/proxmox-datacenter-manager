@@ -4,6 +4,9 @@ pub use remote_tree::RemoteTree;
 mod vrf_tree;
 pub use vrf_tree::VrfTree;
 
+mod add_vnet;
+pub use add_vnet::AddVnetWindow;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct EvpnRouteTarget {
     asn: u32,
