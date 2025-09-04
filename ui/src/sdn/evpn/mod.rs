@@ -1,3 +1,6 @@
+mod remote_tree;
+pub use remote_tree::RemoteTree;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct EvpnRouteTarget {
     asn: u32,
