@@ -1,3 +1,32 @@
+proxmox-datacenter-manager-ui (0.3.0) UNRELEASED; urgency=medium
+
+  * change notice label to BETA.
+
+  * dashboard: fix typo in icon to correctly show the cubes for containers.
+
+  * configuration: add panel for viewing and editing ACL entries.
+
+  * move the RRD time frame selector closer to the RRD graphs it affects.
+
+  * pve: move node overview to a new overview tab and add a basic add update
+    tab to be able to see available node package updates.
+
+  * sdn: add EVPNG overview panel and view for showing EVPN zones.
+
+  * sdn: add view for showing ip VRFs (virtual routing functions). It shows a
+    list of VNets who would have the Route Target of the IP-VRF in their EVPN
+    route target.
+
+  * sdn: add component for creating EVPN vNets.
+
+  * dashboard: open search with a matching query when clicking various panels
+    or rows, like remotes or resources.
+
+  * dashboard: add task summaries to provide an overview for all tasks and
+    their status.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 04 Sep 2025 20:29:13 +0200
+
 proxmox-datacenter-manager-ui (0.2.2) trixie; urgency=medium
 
   * VM and container: support new metrics for guest that Proxmox VE 9+
