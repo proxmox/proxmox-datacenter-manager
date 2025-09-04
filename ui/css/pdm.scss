@@ -59,9 +59,21 @@
     display: inline-block;
 }
 
+.fa-sdn-vnet::before {
+    content: " ";
+    background-image: url(./images/icon-sdn-vnet.svg);
+    background-size: 16px 16px;
+    background-repeat: no-repeat;
+    width: 16px;
+    height: 16px;
+    vertical-align: bottom;
+    display: inline-block;
+}
+
 :root.pwt-dark-mode {
     .fa-memory,
-    .fa-cpu {
+    .fa-cpu,
+    .fa-sdn-vnet {
         filter: invert(90%);
     }
 }
