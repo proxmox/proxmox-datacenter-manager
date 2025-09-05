@@ -58,6 +58,11 @@ use tasks::TaskSummary;
 /// the chance of showing some data quickly use that as max age at the very first load.
 pub const INITIAL_MAX_AGE_S: u64 = 900;
 
+/// The 'max-age' parameter in seconds for when user forces a reload. Do not use 0 as the data will
+/// never be realtime anyway, with 5s we get very current data while avoiding that one or more
+/// "fidgety" users put unbounded load onto the remotes.
+pub const FORCE_RELOAD_MAX_AGE_S: u64 = 3;
+
 /// The default 'max-age' parameter in seconds. The backend polls every 15 minutes, but if a user
 /// has the dashboard active for a longer time it's beneficial to refresh a bit more often, forcing
 /// new data twice a minute is a good compromise.
@@ -108,6 +113,7 @@ pub enum Msg {
     RemoteListChanged(RemoteList),
     CreateWizard(bool),
     Reload,
+    ForceReload,
     UpdateConfig(DashboardConfig),
     ConfigWindow(bool),
     Search(Search),
@@ -298,12 +304,16 @@ impl PdmDashboard {
     }
 
     fn reload(&mut self, ctx: &yew::Context<Self>) {
-        let link = ctx.link().clone();
         let max_age = if self.loaded_once {
             self.config.max_age.unwrap_or(DEFAULT_MAX_AGE_S)
         } else {
             INITIAL_MAX_AGE_S
         };
+        self.do_reload(ctx, max_age)
+    }
+
+    fn do_reload(&mut self, ctx: &yew::Context<Self>, max_age: u64) {
+        let link = ctx.link().clone();
         let (_, since) = Self::get_task_options(&self.config);
 
         self.load_finished_time = None;
@@ -425,6 +435,10 @@ impl Component for PdmDashboard {
                 self.reload(ctx);
                 true
             }
+            Msg::ForceReload => {
+                self.do_reload(ctx, FORCE_RELOAD_MAX_AGE_S);
+                true
+            }
             Msg::ConfigWindow(show) => {
                 self.show_config_window = show;
                 true
@@ -464,7 +478,7 @@ impl Component for PdmDashboard {
                         self.config
                             .refresh_interval
                             .unwrap_or(DEFAULT_REFRESH_INTERVAL_S),
-                        ctx.link().callback(|_| Msg::Reload),
+                        ctx.link().callback(|_| Msg::ForceReload),
                         ctx.link().callback(|_| Msg::ConfigWindow(true)),
                     )),
             )
