@@ -9,6 +9,7 @@ use web_sys::HtmlElement;
 use yew::prelude::*;
 
 use pwt::prelude::*;
+use pwt::props::TextRenderFn;
 use pwt::state::Loader;
 use pwt::widget::{Column, DesktopApp, Dialog, Mask};
 
@@ -269,6 +270,9 @@ impl Component for DatacenterManagerApp {
                 </ContextProvider<RemoteList>>
             </ContextProvider<SearchProvider>>
         })
+        .catalog_url_builder(TextRenderFn::new(|lang| {
+            format!("locale/catalog-{lang}.mo")
+        }))
         .into()
     }
 }
