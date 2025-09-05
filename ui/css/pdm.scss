@@ -1,10 +1,8 @@
-// FIXME: better handling of status icons background?
-
 .pdm-type-icon {
     position: relative;
 
     .status-icon {
-        background-color: var(--pwt-color-background);
+        text-shadow: 0px 0px 2px var(--pwt-color-background);
         position: absolute;
         right: -8px;
         bottom: 0px;
@@ -16,7 +14,7 @@
     position: relative;
 
     .status-icon {
-        background-color: var(--pwt-color-background);
+        text-shadow: 0px 0px 2px var(--pwt-color-background);
         position: absolute;
         right: -6px;
         bottom: 1px;
