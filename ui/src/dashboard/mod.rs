@@ -54,6 +54,10 @@ mod filtered_tasks;
 mod tasks;
 use tasks::TaskSummary;
 
+/// The initial 'max-age' parameter in seconds. The backend polls every 15 minutes, so to increase
+/// the chance of showing some data quickly use that as max age at the very first load.
+pub const INITIAL_MAX_AGE_S: u64 = 900;
+
 /// The default 'max-age' parameter in seconds. The backend polls every 15 minutes, but if a user
 /// has the dashboard active for a longer time it's beneficial to refresh a bit more often, forcing
 /// new data twice a minute is a good compromise.
@@ -120,6 +124,7 @@ pub struct PdmDashboard {
     top_entities: Option<pdm_client::types::TopEntities>,
     last_top_entities_error: Option<proxmox_client::Error>,
     statistics: StatisticsOptions,
+    loaded_once: bool,
     loading: bool,
     load_finished_time: Option<f64>,
     remote_list: RemoteList,
@@ -294,7 +299,11 @@ impl PdmDashboard {
 
     fn reload(&mut self, ctx: &yew::Context<Self>) {
         let link = ctx.link().clone();
-        let max_age = self.config.max_age.unwrap_or(DEFAULT_MAX_AGE_S);
+        let max_age = if self.loaded_once {
+            self.config.max_age.unwrap_or(DEFAULT_MAX_AGE_S)
+        } else {
+            INITIAL_MAX_AGE_S
+        };
         let (_, since) = Self::get_task_options(&self.config);
 
         self.load_finished_time = None;
@@ -353,6 +362,7 @@ impl Component for PdmDashboard {
                 data: None,
                 error: None,
             },
+            loaded_once: false,
             loading: true,
             load_finished_time: None,
             remote_list,
@@ -393,6 +403,9 @@ impl Component for PdmDashboard {
                     Err(err) => self.statistics.error = Some(err),
                 }
                 self.loading = false;
+                if !self.loaded_once {
+                    self.loaded_once = true;
+                }
                 self.load_finished_time = Some(Date::now() / 1000.0);
                 true
             }
