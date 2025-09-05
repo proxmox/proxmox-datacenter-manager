@@ -4,7 +4,7 @@ use anyhow::Error;
 use gloo_timers::callback::Timeout;
 use serde_json::json;
 use web_sys::window;
-use yew::{virtual_dom::Key, Component};
+use yew::{html::IntoEventCallback, virtual_dom::Key, Component};
 
 use pwt::{
     css::{FlexFit, FontColor},
@@ -48,6 +48,11 @@ pub struct ResourceTree {
     #[builder]
     /// If this is true, we wait with the load until we have a search term
     pub search_only: bool,
+
+    #[prop_or_default]
+    #[builder_cb(IntoEventCallback, into_event_callback, ())]
+    /// Triggered after the user navigated to an entry by clicking or using the keyboard
+    pub on_navigate: Option<Callback<()>>,
 }
 
 impl ResourceTree {
@@ -91,6 +96,7 @@ pub enum Msg {
     Load,
     LoadResult(Result<Vec<RemoteResources>, Error>),
     RemoteListChanged(RemoteList),
+    NavigateToEntry(Key),
 }
 
 pub struct PdmResourceTree {
@@ -193,6 +199,32 @@ impl Component for PdmResourceTree {
                 }
                 true
             }
+            Msg::NavigateToEntry(key) => {
+                let store = self.store.read();
+                let root = store.root().unwrap();
+
+                let mut navigated = false;
+                if let Some(node) = root.find_node_by_key(&key) {
+                    match node.record() {
+                        PdmTreeEntry::Root => {}
+                        PdmTreeEntry::Resource(remote, resource) => {
+                            crate::navigate_to(ctx.link(), remote, Some(resource));
+                            navigated = true;
+                        }
+                        PdmTreeEntry::Remote(remote, _) => {
+                            crate::navigate_to(ctx.link(), remote, None);
+                            navigated = true;
+                        }
+                    }
+                }
+
+                if navigated {
+                    if let Some(cb) = &ctx.props().on_navigate {
+                        cb.emit(());
+                    }
+                }
+                false
+            }
         }
     }
 
@@ -217,30 +249,16 @@ impl Component for PdmResourceTree {
         let table = DataTable::new(columns(ctx.link(), self.store.clone()), self.store.clone())
             .selection(self.selection.clone())
             .on_row_click({
-                let store = self.store.clone();
                 let link = ctx.link().clone();
                 move |event: &mut DataTableMouseEvent| {
-                    let store = store.read();
-                    let root = store.root().unwrap();
-
-                    if let Some(node) = root.find_node_by_key(&event.record_key) {
-                        navigate_to_entry(&link, node.record());
-                    }
+                    link.send_message(Msg::NavigateToEntry(event.record_key.clone()));
                 }
             })
             .on_row_keydown({
-                let store = self.store.clone();
                 let link = ctx.link().clone();
                 move |event: &mut DataTableKeyboardEvent| {
-                    let store = store.read();
-                    let root = store.root().unwrap();
-
-                    if event.key().as_str() != "Enter" {
-                        return;
-                    }
-
-                    if let Some(node) = root.find_node_by_key(&event.record_key) {
-                        navigate_to_entry(&link, node.record());
+                    if let "Enter" | " " = event.key().as_str() {
+                        link.send_message(Msg::NavigateToEntry(event.record_key.clone()))
                     }
                 }
             })
@@ -283,18 +301,6 @@ impl Component for PdmResourceTree {
                     })),
             )
             .into()
-    }
-}
-
-fn navigate_to_entry(link: &html::Scope<PdmResourceTree>, record: &PdmTreeEntry) {
-    match record {
-        PdmTreeEntry::Root => {}
-        PdmTreeEntry::Resource(remote, resource) => {
-            crate::navigate_to(link, remote, Some(resource));
-        }
-        PdmTreeEntry::Remote(remote, _) => {
-            crate::navigate_to(link, remote, None);
-        }
     }
 }
 

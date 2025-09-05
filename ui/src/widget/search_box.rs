@@ -40,6 +40,7 @@ pub enum Msg {
     ChangeTerm(String, bool), // force value
     FocusChange(bool),
     ToggleFocus,
+    NavigatedToEntry,
 }
 
 pub struct PdmSearchBox {
@@ -105,6 +106,10 @@ impl Component for PdmSearchBox {
                 self.toggle_focus = true;
                 true
             }
+            Msg::NavigatedToEntry => {
+                self.focus = false;
+                true
+            }
         }
     }
 
@@ -126,6 +131,7 @@ impl Component for PdmSearchBox {
             .border(true)
             .width(CssLength::Fraction(0.5))
             .height(400)
+            .on_navigate(ctx.link().callback(|_| Msg::NavigatedToEntry))
             .class("pwt-shadow2");
 
         let clear_trigger_icon = if self.search_term.is_empty() {
