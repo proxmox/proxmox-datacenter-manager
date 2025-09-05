@@ -54,11 +54,15 @@ mod filtered_tasks;
 mod tasks;
 use tasks::TaskSummary;
 
-/// The default 'max-age' parameter in seconds.
-pub const DEFAULT_MAX_AGE_S: u64 = 60;
+/// The default 'max-age' parameter in seconds. The backend polls every 15 minutes, but if a user
+/// has the dashboard active for a longer time it's beneficial to refresh a bit more often, forcing
+/// new data twice a minute is a good compromise.
+pub const DEFAULT_MAX_AGE_S: u64 = 30;
 
-/// The default refresh interval
-pub const DEFAULT_REFRESH_INTERVAL_S: u64 = DEFAULT_MAX_AGE_S / 2;
+/// The default refresh interval, we poll more frequently than the default max-age to quicker show
+/// any new data that was gathered either by the backend polling tasks or by a manual update
+/// triggered by another user.
+pub const DEFAULT_REFRESH_INTERVAL_S: u64 = 10;
 
 /// The default hours to show for task summaries
 pub const DEFAULT_TASK_SUMMARY_HOURS: u32 = 24;
