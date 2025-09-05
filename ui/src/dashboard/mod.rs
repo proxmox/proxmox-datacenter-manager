@@ -73,8 +73,9 @@ pub const DEFAULT_MAX_AGE_S: u64 = 30;
 /// triggered by another user.
 pub const DEFAULT_REFRESH_INTERVAL_S: u64 = 10;
 
-/// The default hours to show for task summaries
-pub const DEFAULT_TASK_SUMMARY_HOURS: u32 = 24;
+/// The default hours to show for task summaries. Use 2 days to ensure that all tasks from yesterday
+/// are included independent from the time a user checks the dashboard on the current day.
+pub const DEFAULT_TASK_SUMMARY_HOURS: u32 = 48;
 
 #[derive(Properties, PartialEq)]
 pub struct Dashboard {}
