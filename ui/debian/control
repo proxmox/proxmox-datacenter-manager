@@ -53,7 +53,11 @@ Rules-Requires-Root: no
 Package: proxmox-datacenter-manager-ui
 Architecture: any
 Multi-Arch: allowed
-Depends: fonts-font-awesome, pve-xtermjs, ${misc:Depends}, ${shlibs:Depends},
+Depends: fonts-font-awesome,
+         pdm-i18n,
+         pve-xtermjs,
+         ${misc:Depends},
+         ${shlibs:Depends},
 Recommends: proxmox-datacenter-manager,
 Description: Web UI to for the Proxmox Datacenter Manager
  This package provides the web UI of the Proxmox Datacenter Manager (PDM)
