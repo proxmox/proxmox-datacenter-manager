@@ -405,6 +405,9 @@ impl Component for PdmDashboard {
                 self.loading = false;
                 if !self.loaded_once {
                     self.loaded_once = true;
+                    // immediately trigger a "normal" reload after the first load with the
+                    // configured or default max-age to ensure users sees more current data.
+                    ctx.link().send_message(Msg::Reload);
                 }
                 self.load_finished_time = Some(Date::now() / 1000.0);
                 true
