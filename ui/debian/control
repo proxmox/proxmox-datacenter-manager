@@ -1,9 +1,9 @@
 Source: proxmox-datacenter-manager-ui
 Section: admin
 Priority: optional
-Build-Depends: cargo:native,
-               debhelper-compat (= 13),
+Build-Depends: debhelper-compat (= 13),
                dh-cargo (>= 25),
+               cargo:native,
                esbuild,
                fonts-font-awesome,
                librust-anyhow-1+default-dev,
