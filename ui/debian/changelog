@@ -1,3 +1,31 @@
+proxmox-datacenter-manager-ui (0.3.1) trixie; urgency=medium
+
+  * status icons: replace background color with text-shadow to avoid blocky
+    artefact.
+
+  * dashboard: rework default refresh and max-age interval values. Lower the
+    default max-age to 30s to ensure somewhat recent data when a user keeps
+    the dashboard open for a long time but update even more frequently to get
+    any newer data that was pulled in by the periodic update task of the
+    backend or due to another user triggering an update.
+
+  * dashboard: use high max-age for initial load to avoid a potentially costly
+    load from the remotes which then delays the first render. To still get
+    current data as per the users setting trigger a normal reload directly
+    after this initial high-max-age load.
+
+  * dashboard: make reload button do a reload with low max-age of 3s, making
+    it act much like a force-reload button.
+
+  * dashboard: default to showing tasks from last 2 days (48h).
+
+  * search box: close if user navigated to an entry.
+
+  * expose translations again now that we got full fledged integration into
+    the common proxmox-i18n translation repository.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 05 Sep 2025 21:16:30 +0200
+
 proxmox-datacenter-manager-ui (0.3.0) trixie; urgency=medium
 
   * change notice label to BETA.
