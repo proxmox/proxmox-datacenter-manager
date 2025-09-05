@@ -308,13 +308,8 @@ fn main() {
     );
 
     pwt::state::set_available_themes(&["Desktop", "Crisp"]);
-    use pwt::state::LanguageInfo;
 
-    pwt::state::set_available_languages(vec![LanguageInfo::new(
-        "en",
-        "English",
-        gettext_noop("English"),
-    )]);
+    pwt::state::set_available_languages(proxmox_yew_comp::available_language_list());
 
     yew::Renderer::<DatacenterManagerApp>::new().render();
 }
