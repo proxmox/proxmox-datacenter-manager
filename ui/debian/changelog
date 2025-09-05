@@ -1,4 +1,4 @@
-proxmox-datacenter-manager-ui (0.3.0) UNRELEASED; urgency=medium
+proxmox-datacenter-manager-ui (0.3.0) trixie; urgency=medium
 
   * change notice label to BETA.
 
