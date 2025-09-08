@@ -12,6 +12,7 @@ use super::connect_to_remote;
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(STORAGE_SUBDIR))
     .subdirs(STORAGE_SUBDIR);
+
 #[sortable]
 const STORAGE_SUBDIR: SubdirMap = &sorted!([
     ("rrddata", &super::rrddata::STORAGE_RRD_ROUTER),
