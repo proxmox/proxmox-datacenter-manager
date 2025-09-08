@@ -149,7 +149,7 @@ fn render_counter(
         TaskStatusClass::Warning => (
             "fa-exclamation-triangle",
             css::ColorScheme::Warning,
-            tr!("Warning"),
+            tr!("Warning" | "Warnings" % count),
         ),
         TaskStatusClass::Error => ("fa-times-circle", css::ColorScheme::Error, tr!("Error")),
     };

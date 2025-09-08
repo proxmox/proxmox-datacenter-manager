@@ -190,7 +190,7 @@ impl Component for PdmFilteredTasks {
                 props.grouping.to_title(),
                 match props.task_status {
                     TaskStatusClass::Ok => tr!("OK"),
-                    TaskStatusClass::Warning => tr!("Warning"),
+                    TaskStatusClass::Warning => tr!("Warning" | "Warnings" % 1),
                     TaskStatusClass::Error => tr!("Error"),
                 },
             );
