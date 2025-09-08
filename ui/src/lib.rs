@@ -148,6 +148,9 @@ pub(crate) fn navigate_to<C: yew::Component>(
                         format!("guest+{vmid}")
                     }
                     pdm_client::types::Resource::PveNode(node) => format!("node+{}", node.node),
+                    pdm_client::types::Resource::PveStorage(storage) => {
+                        format!("storage+{}+{}", storage.node, storage.storage)
+                    }
                     pdm_client::types::Resource::PbsDatastore(store) => store.name.clone(),
                     // FIXME: implement
                     _ => return None,
