@@ -286,6 +286,7 @@ impl PdmDashboard {
         title: String,
         metrics_title: String,
         entities: Option<&Vec<TopEntity>>,
+        threshold: f64,
     ) -> Panel {
         Panel::new()
             .flex(1.0)
@@ -294,7 +295,8 @@ impl PdmDashboard {
             .border(true)
             .title(self.create_title_with_icon(icon, title))
             .with_optional_child(
-                entities.map(|entities| TopEntities::new(entities.clone(), metrics_title)),
+                entities
+                    .map(|entities| TopEntities::new(entities.clone(), metrics_title, threshold)),
             )
             .with_optional_child(self.top_entities.is_none().then_some(loading_column()))
             .with_optional_child(
@@ -591,18 +593,21 @@ impl Component for PdmDashboard {
                         tr!("Guests With the Highest CPU Usage"),
                         tr!("CPU usage"),
                         self.top_entities.as_ref().map(|e| &e.guest_cpu),
+                        0.85,
                     ))
                     .with_child(self.create_top_entities_panel(
                         "building",
                         tr!("Nodes With the Highest CPU Usage"),
                         tr!("CPU usage"),
                         self.top_entities.as_ref().map(|e| &e.node_cpu),
+                        0.85,
                     ))
                     .with_child(self.create_top_entities_panel(
                         "building",
                         tr!("Nodes With the Highest Memory Usage"),
                         tr!("Memory usage"),
                         self.top_entities.as_ref().map(|e| &e.node_memory),
+                        0.95,
                     )),
             )
             .with_child(

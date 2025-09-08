@@ -29,13 +29,17 @@ use crate::{
 pub struct TopEntities {
     entities: Vec<TopEntity>,
     metrics_title: String,
+    /// The threshold for the oklab color gradient relaying how much load there is.
+    /// Will be clamped between 0.001 and 0.999 to ensure invariants to avoid division by zero.
+    threshold: f64,
 }
 
 impl TopEntities {
-    pub fn new(entities: Vec<TopEntity>, metrics_title: String) -> Self {
+    pub fn new(entities: Vec<TopEntity>, metrics_title: String, threshold: f64) -> Self {
         Self {
             entities,
             metrics_title,
+            threshold: threshold.clamp(0.001, 0.999),
         }
     }
 }
@@ -182,7 +186,7 @@ impl Component for TopEntitiesComp {
             );
 
             list.add_child(
-                graph_from_data(&rrd.data)
+                graph_from_data(&rrd.data, props.threshold)
                     .style("flex", "5 0")
                     .onpointermove(ctx.link().callback({
                         let resource = resource.clone();
@@ -267,8 +271,6 @@ fn create_tooltip(
         )
 }
 
-const WARN_CUTOFF: f64 = 0.7;
-
 const GOOD_COLOR: &str = "var(--pwt-color-success)";
 const WARN_COLOR: &str = "var(--pwt-color-warning)";
 const ERR_COLOR: &str = "var(--pwt-color-error)";
@@ -276,12 +278,12 @@ const BACKGROUND_COLOR: &str = "var(--pwt-color-surface)";
 
 const COLOR_SPACE: &str = "oklab";
 
-fn graph_from_data(data: &Vec<Option<f64>>) -> Container {
+fn graph_from_data(data: &Vec<Option<f64>>, threshold: f64) -> Container {
     let mut list = Vec::new();
     for (i, point) in data.iter().enumerate() {
         if let Some(point) = point {
-            let (left, left_color, right, right_color, percent) = if *point < WARN_CUTOFF {
-                let point = (point / WARN_CUTOFF).clamp(0.0, 1.0);
+            let (left, left_color, right, right_color, percent) = if *point < threshold {
+                let point = (point / threshold).clamp(0.0, 1.0);
 
                 (
                     point * 100.0,
@@ -291,7 +293,7 @@ fn graph_from_data(data: &Vec<Option<f64>>) -> Container {
                     (i as f64) * 100.0 / data.len() as f64,
                 )
             } else {
-                let point = ((point - WARN_CUTOFF) / (1.0 - WARN_CUTOFF)).clamp(0.0, 1.0);
+                let point = ((point - threshold) / (1.0 - threshold)).clamp(0.0, 1.0);
                 (
                     point * 100.0,
                     ERR_COLOR,
