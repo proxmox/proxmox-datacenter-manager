@@ -53,6 +53,18 @@ pub(crate) fn status_row(
     meter_value: Option<f32>,
     icon_right: bool,
 ) -> Column {
+    status_row_thresholds(title, icon, text, meter_value, icon_right, 0.8, 0.9)
+}
+
+pub(crate) fn status_row_thresholds(
+    title: String,
+    icon: Fa,
+    text: String,
+    meter_value: Option<f32>,
+    icon_right: bool,
+    threshold_low: f32,
+    threshold_high: f32,
+) -> Column {
     let row = Row::new()
         .class(css::AlignItems::Baseline)
         .gap(2)
@@ -68,8 +80,8 @@ pub(crate) fn status_row(
         .with_optional_child(meter_value.map(|value| {
             Meter::new()
                 .optimum(0.0)
-                .low(0.7)
-                .high(0.9)
+                .low(threshold_low)
+                .high(threshold_high)
                 .animated(true)
                 .value(value)
         }))
