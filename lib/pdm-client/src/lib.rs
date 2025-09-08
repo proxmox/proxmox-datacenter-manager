@@ -6,7 +6,8 @@ use std::time::Duration;
 use pdm_api_types::remotes::TlsProbeOutcome;
 use pdm_api_types::resource::{PveResource, RemoteResources, TopEntities};
 use pdm_api_types::rrddata::{
-    LxcDataPoint, NodeDataPoint, PbsDatastoreDataPoint, PbsNodeDataPoint, QemuDataPoint,
+    LxcDataPoint, NodeDataPoint, PbsDatastoreDataPoint, PbsNodeDataPoint, PveStorageDataPoint,
+    QemuDataPoint,
 };
 use pdm_api_types::sdn::{ListVnet, ListZone};
 use pdm_api_types::BasicRealmInfo;
@@ -63,6 +64,8 @@ pub mod types {
         CreateVnetParams, CreateZoneParams, ListController, ListVnet, ListZone, SDN_ID_SCHEMA,
     };
     pub use pve_api_types::{ListControllersType, ListZonesType, SdnObjectState};
+
+    pub use pve_api_types::StorageStatus as PveStorageStatus;
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -900,6 +903,31 @@ impl<T: HttpApiClient> PdmClient<T> {
         }
         let path = builder.build();
 
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_storage_status(
+        &self,
+        remote: &str,
+        node: &str,
+        storage: &str,
+    ) -> Result<PveStorageStatus, Error> {
+        let path =
+            format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/storage/{storage}/status");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_storage_rrddata(
+        &self,
+        remote: &str,
+        node: &str,
+        storage: &str,
+        mode: RrdMode,
+        timeframe: RrdTimeframe,
+    ) -> Result<Vec<PveStorageDataPoint>, Error> {
+        let path = format!(
+            "/api2/extjs/pve/remotes/{remote}/nodes/{node}/storage/{storage}/rrddata?cf={mode}&timeframe={timeframe}"
+        );
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
