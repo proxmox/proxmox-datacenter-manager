@@ -36,6 +36,7 @@ mod lxc;
 mod node;
 mod qemu;
 mod rrddata;
+mod storage;
 pub mod tasks;
 
 pub const ROUTER: Router = Router::new()
