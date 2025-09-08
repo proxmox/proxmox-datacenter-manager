@@ -4,13 +4,14 @@ use pdm_api_types::resource::{
 };
 use pdm_client::types::{
     LxcConfig, LxcConfigMp, LxcConfigRootfs, LxcConfigUnused, PveQmIde, QemuConfig, QemuConfigSata,
-    QemuConfigScsi, QemuConfigUnused, QemuConfigVirtio,
+    QemuConfigScsi, QemuConfigUnused, QemuConfigVirtio, StorageContent,
 };
 use proxmox_schema::property_string::PropertyString;
 use proxmox_yew_comp::{GuestState, NodeState, StorageState};
 use pwt::{
     css::Opacity,
     props::{ContainerBuilder, WidgetBuilder, WidgetStyleBuilder},
+    tr,
     widget::{Container, Fa, Row},
 };
 
@@ -236,5 +237,43 @@ where
             .parse::<PropertyString<LxcConfigUnused>>()
             .map(|value| PveDriveLxc::Unused(value.into_inner()));
         f(&key, res.map_err(Error::from));
+    }
+}
+
+/// Renders the backend types of storages from PVE to a human understandable type
+pub(crate) fn render_storage_type(ty: &str) -> String {
+    if ty == "dir" {
+        return tr!("Directory");
+    }
+    String::from(match ty {
+        "lvm" => "LVM",
+        "lvmthin" => "LVM-Thin",
+        "btrfs" => "BTRFS",
+        "nfs" => "NFS",
+        "cifs" => "SMB/CIFS",
+        "iscsi" => "iSCSI",
+        "cephfs" => "CephFS",
+        "pvecephfs" => "CephFS (PVE)",
+        "rbd" => "RBD",
+        "pveceph" => "RBD (PVE)",
+        "zfs" => "ZFS over iSCSI",
+        "zfspool" => "ZFS",
+        "pbs" => "Proxmox Backup Server",
+        "esxi" => "ESXi",
+        _ => ty,
+    })
+}
+
+/// Renders the backend content type of PVE into a human understandable type
+pub(crate) fn render_content_type(ty: &StorageContent) -> String {
+    match ty {
+        StorageContent::Backup => tr!("Backup"),
+        StorageContent::Images => tr!("Disk Image"),
+        StorageContent::Import => tr!("Import"),
+        StorageContent::Iso => tr!("ISO image"),
+        StorageContent::Rootdir => tr!("Container"),
+        StorageContent::Snippets => tr!("Snippets"),
+        StorageContent::Vztmpl => tr!("Container template"),
+        StorageContent::None => tr!("None"),
     }
 }

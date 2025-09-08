@@ -26,6 +26,7 @@ pub mod lxc;
 pub mod node;
 pub mod qemu;
 pub mod remote;
+pub mod storage;
 pub mod utils;
 
 mod tree;
@@ -179,6 +180,10 @@ impl LoadableComponent for PveRemoteComp {
             }
             PveTreeNode::Lxc(lxc) => {
                 lxc::LxcPanel::new(remote.clone(), lxc.node.clone(), lxc.clone()).into()
+            }
+            PveTreeNode::Storage(storage) => {
+                storage::StoragePanel::new(remote.clone(), storage.node.clone(), storage.clone())
+                    .into()
             }
         };
 

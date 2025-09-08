@@ -22,7 +22,7 @@ use pwt::widget::{
 use pwt::{prelude::*, widget::Button};
 
 use pdm_api_types::{
-    resource::{PveLxcResource, PveNodeResource, PveQemuResource, PveResource},
+    resource::{PveLxcResource, PveNodeResource, PveQemuResource, PveResource, PveStorageResource},
     RemoteUpid,
 };
 
@@ -39,6 +39,7 @@ pub enum PveTreeNode {
     Node(PveNodeResource),
     Lxc(PveLxcResource),
     Qemu(PveQemuResource),
+    Storage(PveStorageResource),
 }
 
 impl ExtractPrimaryKey for PveTreeNode {
@@ -48,6 +49,7 @@ impl ExtractPrimaryKey for PveTreeNode {
             PveTreeNode::Node(node) => node.id.as_str(),
             PveTreeNode::Lxc(lxc) => lxc.id.as_str(),
             PveTreeNode::Qemu(qemu) => qemu.id.as_str(),
+            PveTreeNode::Storage(storage) => storage.id.as_str(),
         })
     }
 }
@@ -59,6 +61,9 @@ impl PveTreeNode {
             PveTreeNode::Node(node) => format!("node+{}", node.node),
             PveTreeNode::Lxc(lxc) => format!("guest+{}", lxc.vmid),
             PveTreeNode::Qemu(qemu) => format!("guest+{}", qemu.vmid),
+            PveTreeNode::Storage(storage) => {
+                format!("storage+{}+{}", storage.node, storage.storage)
+            }
         }
     }
 }
@@ -181,7 +186,19 @@ impl PveTreeComp {
                     }
                     node.append(PveTreeNode::Lxc(lxc_info.clone()));
                 }
-                _ => {} //PveResource::Storage(pve_storage_resource) => todo!(),
+                PveResource::Storage(storage) => {
+                    let node_id = format!("remote/{}/node/{}", remote, storage.node);
+                    let key = Key::from(node_id.as_str());
+                    let mut node = match root.find_node_by_key_mut(&key) {
+                        Some(node) => node,
+                        None => root.append(create_empty_node(node_id)),
+                    };
+
+                    if !self.loaded {
+                        node.set_expanded(true);
+                    }
+                    node.append(PveTreeNode::Storage(storage.clone()));
+                }
             }
         }
         if !self.loaded {
@@ -212,6 +229,13 @@ impl PveTreeComp {
             (PveTreeNode::Qemu(a), PveTreeNode::Qemu(b)) => {
                 cmp_guests(a.template, b.template, a.vmid, b.vmid)
             }
+            (PveTreeNode::Lxc(_) | PveTreeNode::Qemu(_), PveTreeNode::Storage(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (PveTreeNode::Storage(_), PveTreeNode::Lxc(_) | PveTreeNode::Qemu(_)) => {
+                std::cmp::Ordering::Greater
+            }
+            (PveTreeNode::Storage(a), PveTreeNode::Storage(b)) => a.id.cmp(&b.id),
         });
         let first_id = root
             .children()
@@ -549,6 +573,9 @@ fn columns(
                     PveTreeNode::Lxc(r) => {
                         (utils::render_lxc_status_icon(r), render_lxc_name(r, true))
                     }
+                    PveTreeNode::Storage(r) => {
+                        (utils::render_storage_status_icon(r), r.storage.clone())
+                    }
                 };
 
                 Row::new()
@@ -601,6 +628,12 @@ fn columns(
                     PveTreeNode::Node(r) => (
                         r.id.as_str(),
                         format!("node/{}", r.node),
+                        None,
+                        Some(r.node.clone()),
+                    ),
+                    PveTreeNode::Storage(r) => (
+                        r.id.as_str(),
+                        format!("storage/{}/{}", r.node, r.storage),
                         None,
                         Some(r.node.clone()),
                     ),
