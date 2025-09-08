@@ -339,18 +339,7 @@ impl yew::Component for LxcanelComp {
         ));
         let mem = status.mem.unwrap_or_default() as u64;
         let maxmem = status.maxmem.unwrap_or_default() as u64;
-        let mem_usage = mem as f64 / maxmem as f64;
-        status_comp.add_child(make_row(
-            tr!("Memory usage"),
-            Fa::new("memory"),
-            tr!(
-                "{0}% ({1} of {2})",
-                format!("{:.2}", mem_usage * 100.0),
-                HumanByte::from(mem),
-                HumanByte::from(maxmem),
-            ),
-            Some(mem_usage as f32),
-        ));
+        status_comp.add_child(crate::renderer::memory_status_row(mem, maxmem));
         status_comp.add_child(make_row(
             tr!("Bootdisk size"),
             Fa::new("database"),

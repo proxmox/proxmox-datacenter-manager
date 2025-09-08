@@ -5,6 +5,8 @@ use pwt::{
     widget::{Column, Container, Fa, Meter, Row},
 };
 
+use proxmox_human_byte::HumanByte;
+
 use pdm_client::types::Resource;
 
 use crate::pve;
@@ -71,6 +73,22 @@ pub(crate) fn status_row(
                 .animated(true)
                 .value(value)
         }))
+}
+
+pub(crate) fn memory_status_row(used: u64, total: u64) -> Column {
+    let usage = used as f64 / total as f64;
+    status_row(
+        tr!("Memory usage"),
+        Fa::new("memory"),
+        tr!(
+            "{0}% ({1} of {2})",
+            format!("{:.2}", usage * 100.0),
+            HumanByte::from(used),
+            HumanByte::from(total),
+        ),
+        Some(usage as f32),
+        false, // keep icon left
+    )
 }
 
 pub(crate) fn separator() -> Container {

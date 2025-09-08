@@ -222,7 +222,6 @@ impl yew::Component for NodeOverviewPanelComp {
         let root = status.map(|s| s.rootfs.used as u64).unwrap_or_default();
         let maxroot = status.map(|s| s.rootfs.total as u64).unwrap_or(1);
 
-        let memory_used = memory as f64 / maxmem as f64;
         let root_used = root as f64 / maxroot as f64;
 
         status_comp = status_comp
@@ -238,17 +237,7 @@ impl yew::Component for NodeOverviewPanelComp {
                 load,
                 None,
             ))
-            .with_child(make_row(
-                tr!("Memory usage"),
-                Fa::new("memory"),
-                tr!(
-                    "{0}% ({1} of {2})",
-                    format!("{:.2}", memory_used * 100.0),
-                    HumanByte::from(memory),
-                    HumanByte::from(maxmem),
-                ),
-                Some(memory_used as f32),
-            ))
+            .with_child(crate::renderer::memory_status_row(memory, maxmem))
             .with_child(make_row(
                 tr!("Root filesystem usage"),
                 Fa::new("database"),
