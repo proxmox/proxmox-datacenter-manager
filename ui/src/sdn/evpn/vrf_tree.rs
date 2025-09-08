@@ -174,10 +174,8 @@ fn zones_to_vrf_view(
 
         let Some(zone) = zones
             .iter()
-            .find(|zone| {
-                zone.remote == vnet.remote
-                    && vnet_zone_id == &zone.zone.zone
-        }) else {
+            .find(|zone| zone.remote == vnet.remote && vnet_zone_id == &zone.zone.zone)
+        else {
             // this VNet is not part of an EVPN zone, skip it
             continue;
         };
