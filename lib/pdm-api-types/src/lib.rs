@@ -112,6 +112,9 @@ const_regex! {
     pub HOST_OPTIONAL_PORT_REGEX = concatcp!(r"^(?:", DNS_NAME_STR, "|", IPRE_BRACKET_STR, ")(?::", PORT_REGEX_STR ,")?$");
 
     pub SUBSCRIPTION_KEY_REGEX = concat!(r"^pbs(?:[cbsp])-[0-9a-f]{10}$");
+
+    // FIXME: use from pve-api-types once exposed
+    pub PVE_STORAGE_ID_REGEX = r"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$";
 }
 
 pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat =
@@ -162,6 +165,10 @@ pub const EMAIL_SCHEMA: Schema = StringSchema::new("E-Mail Address.")
     .format(&SINGLE_LINE_COMMENT_FORMAT)
     .min_length(2)
     .max_length(64)
+    .schema();
+
+pub const PVE_STORAGE_ID_SCHEMA: Schema = StringSchema::new("Storage ID.")
+    .format(&ApiStringFormat::Pattern(&PVE_STORAGE_ID_REGEX))
     .schema();
 
 // Complex type definitions
