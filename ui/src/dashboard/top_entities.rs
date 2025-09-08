@@ -301,15 +301,13 @@ fn graph_from_data(data: &Vec<Option<f64>>) -> Container {
                 )
             };
             list.push(format!(
-                "color-mix(in {}, {} {:.0}%, {} {:.0}%) {:.0}%",
-                COLOR_SPACE, left_color, left, right_color, right, percent
+                "color-mix(in {COLOR_SPACE}, {left_color} {left:.0}%, {right_color} {right:.0}%) {percent:.0}%",
             ));
         } else if (i + 1) < data.len() {
             // only add empty point if it's not the last, since the rrd data sometimes adds
             // data points that were not collected yet.
             list.push(format!(
-                "{} {:.0}% {:.0}%",
-                BACKGROUND_COLOR,
+                "{BACKGROUND_COLOR} {:.0}% {:.0}%",
                 (i as f64 - 1.0) * 100.0 / data.len() as f64,
                 (i as f64 + 1.0) * 100.0 / data.len() as f64,
             ));
@@ -321,8 +319,7 @@ fn graph_from_data(data: &Vec<Option<f64>>) -> Container {
         .style(
             "background-image",
             format!(
-                "linear-gradient(in {} to right, {})",
-                COLOR_SPACE,
+                "linear-gradient(in {COLOR_SPACE} to right, {})",
                 list.join(", ")
             ),
         )
