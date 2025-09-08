@@ -89,7 +89,7 @@ pub(crate) fn status_row_thresholds(
 
 pub(crate) fn memory_status_row(used: u64, total: u64) -> Column {
     let usage = used as f64 / total as f64;
-    status_row(
+    status_row_thresholds(
         tr!("Memory usage"),
         Fa::new("memory"),
         tr!(
@@ -100,6 +100,8 @@ pub(crate) fn memory_status_row(used: u64, total: u64) -> Column {
         ),
         Some(usage as f32),
         false, // keep icon left
+        0.9,   // low threshold (warning)
+        0.975, // high threshold (critical)
     )
 }
 
