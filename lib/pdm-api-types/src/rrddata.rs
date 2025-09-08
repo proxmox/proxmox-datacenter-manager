@@ -139,6 +139,21 @@ pub struct NodeDataPoint {
 #[api]
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
+/// Single point in time with all known data points for a PVE storage.
+pub struct PveStorageDataPoint {
+    /// Timestamp (UNIX epoch)
+    pub time: u64,
+    /// Total disk size
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_total: Option<f64>,
+    /// Disk utiliziation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_used: Option<f64>,
+}
+
+#[api]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
 /// Single point in time with all known data points for a Proxmox Backup Server host.
 pub struct PbsNodeDataPoint {
     /// Timestamp (UNIX epoch)
