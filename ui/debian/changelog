@@ -39,7 +39,7 @@ proxmox-datacenter-manager-ui (0.3.0) trixie; urgency=medium
   * pve: move node overview to a new overview tab and add a basic add update
     tab to be able to see available node package updates.
 
-  * sdn: add EVPNG overview panel and view for showing EVPN zones.
+  * sdn: add EVPN overview panel and view for showing EVPN zones.
 
   * sdn: add view for showing ip VRFs (virtual routing functions). It shows a
     list of VNets who would have the Route Target of the IP-VRF in their EVPN
