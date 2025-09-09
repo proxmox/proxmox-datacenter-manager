@@ -60,6 +60,7 @@ install: $(COMPILED_OUTPUT) index.hbs
 	install -m0644 images/icon-cpu.svg $(DESTDIR)$(UIDIR)/images
 	install -m0644 images/icon-memory.svg $(DESTDIR)$(UIDIR)/images
 	install -m0644 images/icon-sdn-vnet.svg $(DESTDIR)$(UIDIR)/images
+	install -m0644 images/icon-sdn.svg $(DESTDIR)$(UIDIR)/images
 	install -m0644 images/proxmox_logo.svg $(DESTDIR)$(UIDIR)/images
 	install -m0644 images/proxmox_logo_white.svg $(DESTDIR)$(UIDIR)/images
 

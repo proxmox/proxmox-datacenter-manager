@@ -59,19 +59,45 @@
 
 .fa-sdn-vnet::before {
     content: " ";
-    background-image: url(./images/icon-sdn-vnet.svg);
-    background-size: 16px 16px;
-    background-repeat: no-repeat;
+    mask-image: url(./images/icon-sdn-vnet.svg);
+    mask-size: 16px 16px;
+    mask-repeat: no-repeat;
+    background-color: var(--pwt-color);
     width: 16px;
     height: 16px;
     vertical-align: bottom;
     display: inline-block;
 }
 
+.fa-sdn:before {
+    content: " ";
+    mask-image: url(../images/icon-sdn.svg);
+    mask-size: 16px 16px;
+    mask-repeat: no-repeat;
+    background-color: var(--pwt-color);
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.pwt-nav-menu .pwt-nav-link.active{
+    .fa-sdn:before,
+    .fa-sdn-vnet:before {
+        background-color: var(--pwt-accent-color);
+    }
+}
+
+.pwt-panel-header-text{
+    .fa-sdn:before,
+    .fa-sdn-vnet:before {
+      background-color: var(--pwt-accent-color-background);
+    }
+}
+
 :root.pwt-dark-mode {
     .fa-memory,
-    .fa-cpu,
-    .fa-sdn-vnet {
+    .fa-cpu {
         filter: invert(90%);
     }
 }
