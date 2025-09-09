@@ -18,6 +18,7 @@ use pdm_api_types::remotes::RemoteType;
 
 use crate::remotes::RemotesPanel;
 use crate::sdn::evpn::EvpnPanel;
+use crate::sdn::ZoneTree;
 use crate::{
     AccessControl, CertificatesPanel, Dashboard, RemoteList, ServerAdministration,
     SystemConfiguration,
@@ -253,13 +254,25 @@ impl Component for PdmMainMenu {
             admin_submenu,
         );
 
+        let mut sdn_submenu = Menu::new();
+
         register_view(
-            &mut menu,
+            &mut sdn_submenu,
             &mut content,
             tr!("EVPN"),
             "evpn",
             Some("fa fa-sitemap"),
             |_| EvpnPanel::new().into(),
+        );
+
+        register_submenu(
+            &mut menu,
+            &mut content,
+            tr!("SDN"),
+            "sdn",
+            Some("fa fa-sdn"),
+            |_| ZoneTree::new().into(),
+            sdn_submenu,
         );
 
         let mut remote_submenu = Menu::new();
