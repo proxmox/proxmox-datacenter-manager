@@ -481,7 +481,8 @@ impl Component for PdmDashboard {
                         self.config
                             .refresh_interval
                             .unwrap_or(DEFAULT_REFRESH_INTERVAL_S),
-                        ctx.link().callback(|_| Msg::ForceReload),
+                        ctx.link()
+                            .callback(|force| if force { Msg::ForceReload } else { Msg::Reload }),
                         ctx.link().callback(|_| Msg::ConfigWindow(true)),
                     )),
             )

@@ -17,7 +17,7 @@ pub struct DashboardStatusRow {
     last_refresh: Option<f64>,
     reload_interval_s: u64,
 
-    on_reload: Callback<()>,
+    on_reload: Callback<bool>,
 
     on_settings_click: Callback<()>,
 }
@@ -26,7 +26,7 @@ impl DashboardStatusRow {
     pub fn new(
         last_refresh: Option<f64>,
         reload_interval_s: u64,
-        on_reload: impl Into<Callback<()>>,
+        on_reload: impl Into<Callback<bool>>,
         on_settings_click: impl Into<Callback<()>>,
     ) -> Self {
         yew::props!(Self {
@@ -39,7 +39,8 @@ impl DashboardStatusRow {
 }
 
 pub enum Msg {
-    Reload,
+    /// The bool denotes if the reload comes from the click or the timer.
+    Reload(bool),
     CheckReload,
 }
 
@@ -74,15 +75,15 @@ impl Component for PdmDashboardStatusRow {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         let props = ctx.props();
         match msg {
-            Msg::Reload => {
-                props.on_reload.emit(());
+            Msg::Reload(clicked) => {
+                props.on_reload.emit(clicked);
                 true
             }
             Msg::CheckReload => match ctx.props().last_refresh {
                 Some(last_refresh) => {
                     let duration = Date::now() / 1000.0 - last_refresh;
                     if duration >= props.reload_interval_s as f64 {
-                        ctx.link().send_message(Msg::Reload);
+                        ctx.link().send_message(Msg::Reload(false));
                     }
                     true
                 }
@@ -112,7 +113,7 @@ impl Component for PdmDashboardStatusRow {
                     })
                     .tabindex(0)
                     .disabled(is_loading)
-                    .on_activate(ctx.link().callback(|_| Msg::Reload)),
+                    .on_activate(ctx.link().callback(|_| Msg::Reload(true))),
                 )
                 .tip(tr!("Refresh now")),
             )
