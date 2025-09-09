@@ -25,7 +25,7 @@ use pwt::{
 };
 
 use pdm_api_types::{
-    resource::{GuestStatusCount, NodeStatusCount, ResourcesStatus},
+    resource::{NodeStatusCount, ResourcesStatus},
     TaskStatistics,
 };
 use pdm_client::types::TopEntity;
@@ -103,11 +103,12 @@ pub struct DashboardConfig {
     task_last_hours: Option<u32>,
 }
 
-pub type LoadingResult = (
-    Result<ResourcesStatus, Error>,
-    Result<pdm_client::types::TopEntities, proxmox_client::Error>,
-    Result<TaskStatistics, Error>,
-);
+pub enum LoadingResult {
+    Resources(Result<ResourcesStatus, Error>),
+    TopEntities(Result<pdm_client::types::TopEntities, proxmox_client::Error>),
+    TaskStatistics(Result<TaskStatistics, Error>),
+    All,
+}
 
 pub enum Msg {
     LoadingFinished(LoadingResult),
@@ -126,7 +127,7 @@ struct StatisticsOptions {
 }
 
 pub struct PdmDashboard {
-    status: ResourcesStatus,
+    status: Option<ResourcesStatus>,
     last_error: Option<Error>,
     top_entities: Option<pdm_client::types::TopEntities>,
     last_top_entities_error: Option<proxmox_client::Error>,
@@ -152,46 +153,47 @@ impl PdmDashboard {
             .into()
     }
 
-    fn create_node_panel(
-        &self,
-        ctx: &yew::Context<Self>,
-        icon: &str,
-        title: String,
-        status: &NodeStatusCount,
-    ) -> Panel {
+    fn create_node_panel(&self, ctx: &yew::Context<Self>, icon: &str, title: String) -> Panel {
         let mut search_terms = vec![SearchTerm::new("node").category(Some("type"))];
-        let (status_icon, text): (Fa, String) = match status {
-            NodeStatusCount {
-                online,
-                offline,
-                unknown,
-            } if *offline > 0 => {
-                search_terms.push(SearchTerm::new("offline").category(Some("status")));
-                (
-                    Status::Error.into(),
-                    tr!(
-                        "{0} of {1} nodes are offline",
+        let (status_icon, text): (Fa, String) = match &self.status {
+            Some(status) => {
+                match status.pve_nodes {
+                    NodeStatusCount {
+                        online,
                         offline,
-                        online + offline + unknown,
+                        unknown,
+                    } if offline > 0 => {
+                        search_terms.push(SearchTerm::new("offline").category(Some("status")));
+                        (
+                            Status::Error.into(),
+                            tr!(
+                                "{0} of {1} nodes are offline",
+                                offline,
+                                online + offline + unknown,
+                            ),
+                        )
+                    }
+                    NodeStatusCount { unknown, .. } if unknown > 0 => {
+                        search_terms.push(SearchTerm::new("unknown").category(Some("status")));
+                        (
+                            Status::Warning.into(),
+                            tr!("{0} nodes have an unknown status", unknown),
+                        )
+                    }
+                    // FIXME, get more detailed status about the failed remotes (name, type, error)?
+                    NodeStatusCount { online, .. } if status.failed_remotes > 0 => (
+                        Status::Unknown.into(),
+                        tr!("{0} of an unknown number of nodes online", online),
                     ),
-                )
+                    NodeStatusCount { online, .. } => {
+                        (Status::Success.into(), tr!("{0} nodes online", online))
+                    }
+                }
             }
-            NodeStatusCount { unknown, .. } if *unknown > 0 => {
-                search_terms.push(SearchTerm::new("unknown").category(Some("status")));
-                (
-                    Status::Warning.into(),
-                    tr!("{0} nodes have an unknown status", unknown),
-                )
-            }
-            // FIXME, get more detailed status about the failed remotes (name, type, error)?
-            NodeStatusCount { online, .. } if self.status.failed_remotes > 0 => (
-                Status::Unknown.into(),
-                tr!("{0} of an unknown number of nodes online", online),
-            ),
-            NodeStatusCount { online, .. } => {
-                (Status::Success.into(), tr!("{0} nodes online", online))
-            }
+            None => (Status::Unknown.into(), String::new()),
         };
+
+        let loading = self.status.is_none();
         let search = Search::with_terms(search_terms);
         Panel::new()
             .flex(1.0)
@@ -217,29 +219,34 @@ impl PdmDashboard {
                     .class(AlignItems::Center)
                     .class(JustifyContent::Center)
                     .gap(2)
-                    .with_child(if self.loading {
+                    .with_child(if loading {
                         html! {<i class={"pwt-loading-icon"} />}
                     } else {
                         status_icon.large_4x().into()
                     })
-                    .with_optional_child((!self.loading).then_some(text)),
+                    .with_optional_child((!loading).then_some(text)),
             )
     }
 
-    fn create_guest_panel(&self, guest_type: GuestType, status: &GuestStatusCount) -> Panel {
-        let (icon, title) = match guest_type {
-            GuestType::Qemu => ("desktop", tr!("Virtual Machines")),
-            GuestType::Lxc => ("cubes", tr!("Linux Container")),
+    fn create_guest_panel(&self, guest_type: GuestType) -> Panel {
+        let (icon, title, status) = match guest_type {
+            GuestType::Qemu => (
+                "desktop",
+                tr!("Virtual Machines"),
+                self.status.as_ref().map(|s| s.qemu.clone()),
+            ),
+            GuestType::Lxc => (
+                "cubes",
+                tr!("Linux Container"),
+                self.status.as_ref().map(|s| s.lxc.clone()),
+            ),
         };
         Panel::new()
             .flex(1.0)
             .width(300)
             .title(self.create_title_with_icon(icon, title))
             .border(true)
-            .with_child(GuestPanel::new(
-                guest_type,
-                (!self.loading).then_some(status.clone()),
-            ))
+            .with_child(GuestPanel::new(guest_type, status))
     }
 
     fn create_task_summary_panel(
@@ -323,8 +330,21 @@ impl PdmDashboard {
         self.async_pool.spawn(async move {
             let client = crate::pdm_client();
 
-            let top_entities_future = client.get_top_entities();
-            let status_future = http_get("/resources/status", Some(json!({"max-age": max_age})));
+            let top_entities_future = {
+                let link = link.clone();
+                async move {
+                    let res = client.get_top_entities().await;
+                    link.send_message(Msg::LoadingFinished(LoadingResult::TopEntities(res)));
+                }
+            };
+            let status_future = {
+                let link = link.clone();
+                async move {
+                    let res: Result<ResourcesStatus, _> =
+                        http_get("/resources/status", Some(json!({"max-age": max_age}))).await;
+                    link.send_message(Msg::LoadingFinished(LoadingResult::Resources(res)));
+                }
+            };
 
             let params = Some(json!({
                 "since": since,
@@ -332,16 +352,16 @@ impl PdmDashboard {
             }));
 
             // TODO replace with pdm client call
-            let statistics_future = http_get("/remote-tasks/statistics", params);
-
-            let (top_entities_res, status_res, statistics_res) =
-                join!(top_entities_future, status_future, statistics_future);
-
-            link.send_message(Msg::LoadingFinished((
-                status_res,
-                top_entities_res,
-                statistics_res,
-            )));
+            let statistics_future = {
+                let link = link.clone();
+                async move {
+                    let res: Result<TaskStatistics, _> =
+                        http_get("/remote-tasks/statistics", params).await;
+                    link.send_message(Msg::LoadingFinished(LoadingResult::TaskStatistics(res)));
+                }
+            };
+            join!(top_entities_future, status_future, statistics_future);
+            link.send_message(Msg::LoadingFinished(LoadingResult::All));
         });
     }
 
@@ -367,7 +387,7 @@ impl Component for PdmDashboard {
             .expect("No Remote list context provided");
 
         let mut this = Self {
-            status: ResourcesStatus::default(),
+            status: None,
             last_error: None,
             top_entities: None,
             last_top_entities_error: None,
@@ -393,36 +413,41 @@ impl Component for PdmDashboard {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::LoadingFinished((resources_status, top_entities, task_statistics)) => {
-                match resources_status {
-                    Ok(status) => {
-                        self.last_error = None;
-                        self.status = status;
+            Msg::LoadingFinished(res) => {
+                match res {
+                    LoadingResult::Resources(resources_status) => match resources_status {
+                        Ok(status) => {
+                            self.last_error = None;
+                            self.status = Some(status);
+                        }
+                        Err(err) => self.last_error = Some(err),
+                    },
+                    LoadingResult::TopEntities(top_entities) => match top_entities {
+                        Ok(data) => {
+                            self.last_top_entities_error = None;
+                            self.top_entities = Some(data);
+                        }
+                        Err(err) => self.last_top_entities_error = Some(err),
+                    },
+
+                    LoadingResult::TaskStatistics(task_statistics) => match task_statistics {
+                        Ok(statistics) => {
+                            self.statistics.error = None;
+                            self.statistics.data = Some(statistics);
+                        }
+                        Err(err) => self.statistics.error = Some(err),
+                    },
+                    LoadingResult::All => {
+                        self.loading = false;
+                        if !self.loaded_once {
+                            self.loaded_once = true;
+                            // immediately trigger a "normal" reload after the first load with the
+                            // configured or default max-age to ensure users sees more current data.
+                            ctx.link().send_message(Msg::Reload);
+                        }
+                        self.load_finished_time = Some(Date::now() / 1000.0);
                     }
-                    Err(err) => self.last_error = Some(err),
                 }
-                match top_entities {
-                    Ok(data) => {
-                        self.last_top_entities_error = None;
-                        self.top_entities = Some(data);
-                    }
-                    Err(err) => self.last_top_entities_error = Some(err),
-                }
-                match task_statistics {
-                    Ok(statistics) => {
-                        self.statistics.error = None;
-                        self.statistics.data = Some(statistics);
-                    }
-                    Err(err) => self.statistics.error = Some(err),
-                }
-                self.loading = false;
-                if !self.loaded_once {
-                    self.loaded_once = true;
-                    // immediately trigger a "normal" reload after the first load with the
-                    // configured or default max-age to ensure users sees more current data.
-                    ctx.link().send_message(Msg::Reload);
-                }
-                self.load_finished_time = Some(Date::now() / 1000.0);
                 true
             }
             Msg::RemoteListChanged(remote_list) => {
@@ -504,18 +529,15 @@ impl Component for PdmDashboard {
                                     .icon_class("fa fa-plus-circle")
                                     .on_activate(ctx.link().callback(|_| Msg::CreateWizard(true))),
                             )
-                            .with_child(RemotePanel::new(
-                                (!self.loading).then_some(self.status.clone()),
-                            )),
+                            .with_child(RemotePanel::new(self.status.clone())),
                     )
                     .with_child(self.create_node_panel(
                         ctx,
                         "building",
                         tr!("Virtual Environment Nodes"),
-                        &self.status.pve_nodes,
                     ))
-                    .with_child(self.create_guest_panel(GuestType::Qemu, &self.status.qemu))
-                    .with_child(self.create_guest_panel(GuestType::Lxc, &self.status.lxc))
+                    .with_child(self.create_guest_panel(GuestType::Qemu))
+                    .with_child(self.create_guest_panel(GuestType::Lxc))
                     // FIXME: add PBS support
                     //.with_child(self.create_node_panel(
                     //    "building-o",
