@@ -250,7 +250,7 @@ pub(crate) async fn get_resources_impl(
         let handle = tokio::spawn(async move {
             let (mut resources, error) = match get_resources_for_remote(remote, max_age).await {
                 Ok(resources) => (resources, None),
-                Err(error) => (Vec::new(), Some(error.to_string())),
+                Err(error) => (Vec::new(), Some(error.root_cause().to_string())),
             };
 
             if remotes_only {
