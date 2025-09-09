@@ -1,7 +1,9 @@
+use std::convert::Infallible;
+
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::api;
+use proxmox_schema::{api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema};
 
 use super::remotes::REMOTE_ID_SCHEMA;
 
@@ -20,6 +22,7 @@ pub enum Resource {
     PveQemu(PveQemuResource),
     PveLxc(PveLxcResource),
     PveNode(PveNodeResource),
+    PveSdn(PveSdnResource),
     PbsNode(PbsNodeResource),
     PbsDatastore(PbsDatastoreResource),
 }
@@ -33,6 +36,7 @@ impl Resource {
             Resource::PveQemu(r) => format!("qemu/{}", r.vmid),
             Resource::PveLxc(r) => format!("lxc/{}", r.vmid),
             Resource::PveNode(r) => format!("node/{}", r.node),
+            Resource::PveSdn(PveSdnResource::Zone(r)) => format!("sdn/{}/{}", r.node, r.name),
             Resource::PbsNode(r) => format!("node/{}", r.name),
             Resource::PbsDatastore(r) => r.name.clone(),
         }
@@ -46,6 +50,7 @@ impl Resource {
             Resource::PveQemu(r) => r.id.as_str(),
             Resource::PveLxc(r) => r.id.as_str(),
             Resource::PveNode(r) => r.id.as_str(),
+            Resource::PveSdn(r) => r.id(),
             Resource::PbsNode(r) => r.id.as_str(),
             Resource::PbsDatastore(r) => r.id.as_str(),
         }
@@ -59,6 +64,7 @@ impl Resource {
             Resource::PveQemu(r) => r.name.as_str(),
             Resource::PveLxc(r) => r.name.as_str(),
             Resource::PveNode(r) => r.node.as_str(),
+            Resource::PveSdn(r) => r.name(),
             Resource::PbsNode(r) => r.name.as_str(),
             Resource::PbsDatastore(r) => r.name.as_str(),
         }
@@ -69,6 +75,7 @@ impl Resource {
             Resource::PveStorage(_) => ResourceType::PveStorage,
             Resource::PveQemu(_) => ResourceType::PveQemu,
             Resource::PveLxc(_) => ResourceType::PveLxc,
+            Resource::PveSdn(PveSdnResource::Zone(_)) => ResourceType::PveSdnZone,
             Resource::PveNode(_) | Resource::PbsNode(_) => ResourceType::Node,
             Resource::PbsDatastore(_) => ResourceType::PbsDatastore,
         }
@@ -80,6 +87,7 @@ impl Resource {
             Resource::PveQemu(r) => r.status.as_str(),
             Resource::PveLxc(r) => r.status.as_str(),
             Resource::PveNode(r) => r.status.as_str(),
+            Resource::PveSdn(r) => r.status().as_str(),
             Resource::PbsNode(r) => {
                 if r.uptime > 0 {
                     "online"
@@ -93,10 +101,12 @@ impl Resource {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Type of a PDM resource.
 pub enum ResourceType {
     PveStorage,
     PveQemu,
     PveLxc,
+    PveSdnZone,
     PbsDatastore,
     Node,
 }
@@ -108,6 +118,7 @@ impl ResourceType {
             ResourceType::PveStorage => "storage",
             ResourceType::PveQemu => "qemu",
             ResourceType::PveLxc => "lxc",
+            ResourceType::PveSdnZone => "sdn-zone",
             ResourceType::PbsDatastore => "datastore",
             ResourceType::Node => "node",
         }
@@ -128,6 +139,7 @@ impl std::str::FromStr for ResourceType {
             "storage" => ResourceType::PveStorage,
             "qemu" => ResourceType::PveQemu,
             "lxc" => ResourceType::PveLxc,
+            "sdn-zone" => ResourceType::PveSdnZone,
             "datastore" => ResourceType::PbsDatastore,
             "node" => ResourceType::Node,
             _ => bail!("invalid resource type"),
@@ -151,6 +163,7 @@ pub enum PveResource {
     Qemu(PveQemuResource),
     Lxc(PveLxcResource),
     Node(PveNodeResource),
+    Sdn(PveSdnResource),
 }
 
 #[api(
@@ -300,6 +313,121 @@ pub struct PveStorageResource {
 #[api]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
+/// SDN Zone
+pub struct SdnZoneResource {
+    /// Resource ID
+    pub id: String,
+    /// Name of the resource
+    pub name: String,
+    /// Cluster node name
+    pub node: String,
+    /// SDN status (available / error)
+    pub status: SdnStatus,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Copy, Default)]
+#[serde(rename_all = "lowercase")]
+/// the status of SDN entities
+///
+/// On the PVE side we have Ok and Available, since SDN Zones have status available if they're ok, but the
+/// localnetwork special zone has status ok. This enum merges both into the Available variant.
+pub enum SdnStatus {
+    Available,
+    Error,
+    #[serde(other)]
+    #[default]
+    Unknown,
+}
+
+impl std::str::FromStr for SdnStatus {
+    type Err = Infallible;
+
+    fn from_str(value: &str) -> Result<Self, Infallible> {
+        Ok(match value {
+            "ok" | "available" => Self::Available,
+            "error" => Self::Error,
+            _ => Self::Unknown,
+        })
+    }
+}
+
+proxmox_serde::forward_deserialize_to_from_str!(SdnStatus);
+proxmox_serde::forward_display_to_serialize!(SdnStatus);
+
+impl SdnStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Available => "available",
+            Self::Error => "error",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+impl ApiType for SdnStatus {
+    const API_SCHEMA: Schema = StringSchema::new("SDN status").schema();
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(tag = "sdn_type", rename_all = "lowercase")]
+/// SDN resource in PDM
+pub enum PveSdnResource {
+    Zone(SdnZoneResource),
+}
+
+impl ApiType for PveSdnResource {
+    const API_SCHEMA: Schema = OneOfSchema::new(
+        "PVE SDN resource",
+        &(
+            "sdn_type",
+            false,
+            &StringSchema::new("PVE SDN resource type")
+                .format(&ApiStringFormat::Enum(&[EnumEntry::new(
+                    "zone",
+                    "An SDN zone.",
+                )]))
+                .schema(),
+        ),
+        &[("zone", &SdnZoneResource::API_SCHEMA)],
+    )
+    .schema();
+}
+
+impl PveSdnResource {
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Zone(zone) => zone.id.as_str(),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Zone(zone) => zone.name.as_str(),
+        }
+    }
+
+    pub fn node(&self) -> &str {
+        match self {
+            Self::Zone(zone) => zone.node.as_str(),
+        }
+    }
+
+    pub fn status(&self) -> SdnStatus {
+        match self {
+            Self::Zone(zone) => zone.status,
+        }
+    }
+
+    pub fn sdn_type(&self) -> &'static str {
+        match self {
+            Self::Zone(_) => "sdn-zone",
+        }
+    }
+}
+
+#[api]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
 /// PBS node remote resource
 pub struct PbsNodeResource {
     /// Current CPU utilization
@@ -399,6 +527,18 @@ pub struct StorageStatusCount {
 
 #[api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+/// Amount of SDN zones in certain states
+pub struct SdnZoneCount {
+    /// Amount of available / ok zones
+    pub available: u64,
+    /// Amount of erroneous sdn zones
+    pub error: u64,
+    /// Amount of sdn zones with an unknown status
+    pub unknown: u64,
+}
+
+#[api]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
 /// Describes the status of seen resources
 pub struct ResourcesStatus {
     /// Amount of configured remotes
@@ -413,6 +553,8 @@ pub struct ResourcesStatus {
     pub lxc: GuestStatusCount,
     /// Status of storage status
     pub storages: StorageStatusCount,
+    /// Status of storage status
+    pub sdn_zones: SdnZoneCount,
     /// Status of PBS Nodes
     pub pbs_nodes: NodeStatusCount,
     /// Status of PBS Datastores

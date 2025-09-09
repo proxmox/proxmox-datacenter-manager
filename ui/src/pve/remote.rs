@@ -115,6 +115,7 @@ impl RemotePanelComp {
                         _ => level = Some(""),
                     }
                 }
+                PveResource::Sdn(_) => {}
             }
         }
         // render, but this would be all better with some actual types...

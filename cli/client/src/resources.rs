@@ -52,6 +52,7 @@ async fn get_resources(max_age: Option<u64>) -> Result<(), Error> {
                     Resource::PveQemu(r) => println!("{}", PrintResource(r)),
                     Resource::PveLxc(r) => println!("{}", PrintResource(r)),
                     Resource::PveNode(r) => println!("{}", PrintResource(r)),
+                    Resource::PveSdn(r) => println!("{}", PrintResource(r)),
                     Resource::PbsNode(r) => println!("{}", PrintResource(r)),
                     Resource::PbsDatastore(r) => println!("{}", PrintResource(r)),
                 }
@@ -69,6 +70,7 @@ fn resource_order(item: &Resource) -> usize {
         Resource::PveStorage(_) => 1,
         Resource::PveLxc(_) => 2,
         Resource::PveQemu(_) => 3,
+        Resource::PveSdn(_) => 4,
 
         Resource::PbsNode(_) => 0,
         Resource::PbsDatastore(_) => 1,
@@ -144,6 +146,18 @@ impl fmt::Display for PrintResource<resource::PveNodeResource> {
             mem = FractionAsBar(mem as f64 / maxmem as f64),
             memcur = HumanByte::new_binary(mem as f64),
             memmax = HumanByte::new_binary(maxmem as f64),
+        )
+    }
+}
+
+impl fmt::Display for PrintResource<resource::PveSdnResource> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "    sdn zone {name} ({status}) on {node}",
+            name = self.0.name(),
+            status = self.0.status(),
+            node = self.0.node(),
         )
     }
 }

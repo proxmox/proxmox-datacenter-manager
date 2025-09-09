@@ -167,6 +167,7 @@ pub(crate) fn get_resource_node(resource: &Resource) -> Option<&str> {
         Resource::PveQemu(qemu) => Some(&qemu.node),
         Resource::PveLxc(lxc) => Some(&lxc.node),
         Resource::PveNode(node) => Some(&node.node),
+        Resource::PveSdn(sdn) => Some(sdn.node()),
         Resource::PbsNode(_) => None,
         Resource::PbsDatastore(_) => None,
     }

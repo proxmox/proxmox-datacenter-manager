@@ -100,6 +100,7 @@ pub fn calculate_top(
                             }
                         }
                     }
+                    Resource::PveSdn(_) => {}
                     Resource::PbsNode(_) => {}
                     Resource::PbsDatastore(_) => {}
                 }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::{LazyLock, RwLock};
 
 use anyhow::{bail, format_err, Error};
@@ -9,7 +10,8 @@ use pbs_api_types::{DataStoreStatusListItem, NodeStatus};
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
     PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource, PveQemuResource,
-    PveStorageResource, RemoteResources, Resource, ResourcesStatus, TopEntities,
+    PveSdnResource, PveStorageResource, RemoteResources, Resource, ResourceType, ResourcesStatus,
+    SdnStatus, SdnZoneResource, TopEntities,
 };
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
@@ -347,6 +349,21 @@ pub async fn get_status(
                     "offline" => counts.pve_nodes.offline += 1,
                     _ => counts.pve_nodes.unknown += 1,
                 },
+                Resource::PveSdn(r) => {
+                    if let PveSdnResource::Zone(_) = &r {
+                        match r.status() {
+                            SdnStatus::Available => {
+                                counts.sdn_zones.available += 1;
+                            }
+                            SdnStatus::Error => {
+                                counts.sdn_zones.error += 1;
+                            }
+                            SdnStatus::Unknown => {
+                                counts.sdn_zones.unknown += 1;
+                            }
+                        }
+                    }
+                }
                 // FIXME better status for pbs/datastores
                 Resource::PbsNode(_) => counts.pbs_nodes.online += 1,
                 Resource::PbsDatastore(_) => counts.pbs_datastores.available += 1,
@@ -836,12 +853,30 @@ pub(super) fn map_pve_storage(
     }
 }
 
+pub(super) fn map_pve_sdn(remote: &str, resource: ClusterResource) -> Option<PveSdnResource> {
+    match resource.ty {
+        ClusterResourceType::Sdn => {
+            let node = resource.node.unwrap_or_default();
+
+            Some(PveSdnResource::Zone(SdnZoneResource {
+                id: format!("remote/{remote}/sdn/{}", &resource.id),
+                name: resource.sdn.unwrap_or_default(),
+                node,
+                status: SdnStatus::from_str(resource.status.unwrap_or_default().as_str())
+                    .unwrap_or_default(),
+            }))
+        }
+        _ => None,
+    }
+}
+
 fn map_pve_resource(remote: &str, resource: ClusterResource) -> Option<Resource> {
     match resource.ty {
         ClusterResourceType::Node => map_pve_node(remote, resource).map(Resource::PveNode),
         ClusterResourceType::Lxc => map_pve_lxc(remote, resource).map(Resource::PveLxc),
         ClusterResourceType::Qemu => map_pve_qemu(remote, resource).map(Resource::PveQemu),
         ClusterResourceType::Storage => map_pve_storage(remote, resource).map(Resource::PveStorage),
+        ClusterResourceType::Sdn => map_pve_sdn(remote, resource).map(Resource::PveSdn),
         _ => None,
     }
 }

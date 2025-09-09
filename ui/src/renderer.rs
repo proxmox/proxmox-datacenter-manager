@@ -17,6 +17,7 @@ pub fn render_resource_name(resource: &Resource, vmid_first: bool) -> String {
         Resource::PveQemu(qemu) => pve::utils::render_qemu_name(qemu, vmid_first),
         Resource::PveLxc(lxc) => pve::utils::render_lxc_name(lxc, vmid_first),
         Resource::PveNode(node) => node.node.clone(),
+        Resource::PveSdn(sdn) => sdn.name().to_string(),
         Resource::PbsNode(node) => node.name.clone(),
         Resource::PbsDatastore(store) => store.name.clone(),
     }
@@ -28,6 +29,7 @@ pub fn render_resource_icon(resource: &Resource) -> Fa {
         Resource::PveQemu(_) => "desktop",
         Resource::PveLxc(_) => "cube",
         Resource::PveNode(_) => "building",
+        Resource::PveSdn(_) => "fa-sdn",
         Resource::PbsNode(_) => "building-o",
         Resource::PbsDatastore(_) => "floppy-o",
     };
