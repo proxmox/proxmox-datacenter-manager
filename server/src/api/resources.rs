@@ -150,6 +150,10 @@ fn remote_matches_search_term(remote_name: &str, online: Option<bool>, term: &Se
                 description: "Search term to filter for, uses special syntax e.g. <TODO>",
                 optional: true,
             },
+            "resource-type": {
+                type: ResourceType,
+                optional: true,
+            },
         }
     },
     returns: {
@@ -163,10 +167,11 @@ fn remote_matches_search_term(remote_name: &str, online: Option<bool>, term: &Se
 /// List all resources from remote nodes.
 pub async fn get_resources(
     max_age: u64,
+    resource_type: Option<ResourceType>,
     search: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<RemoteResources>, Error> {
-    get_resources_impl(max_age, search, Some(rpcenv)).await
+    get_resources_impl(max_age, search, resource_type, Some(rpcenv)).await
 }
 
 // helper to determine if the combination of search terms requires the results
@@ -208,6 +213,7 @@ fn is_remotes_only(filters: &Search) -> bool {
 pub(crate) async fn get_resources_impl(
     max_age: u64,
     search: Option<String>,
+    resource_type: Option<ResourceType>,
     rpcenv: Option<&mut dyn RpcEnvironment>,
 ) -> Result<Vec<RemoteResources>, Error> {
     let user_info = CachedUserInfo::new()?;
@@ -252,8 +258,14 @@ pub(crate) async fn get_resources_impl(
 
             if remotes_only {
                 resources.clear();
-            } else if !filter.is_empty() {
+            } else if resource_type.is_some() || !filter.is_empty() {
                 resources.retain(|resource| {
+                    if let Some(resource_type) = resource_type {
+                        if resource.resource_type() != resource_type {
+                            return false;
+                        }
+                    }
+
                     filter.matches(|filter| {
                         // if we get can't decide if it matches, don't filter it out
                         resource_matches_search_term(resource, filter).unwrap_or(true)
@@ -318,7 +330,7 @@ pub async fn get_status(
     max_age: u64,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ResourcesStatus, Error> {
-    let remotes = get_resources(max_age, None, rpcenv).await?;
+    let remotes = get_resources(max_age, None, None, rpcenv).await?;
     let mut counts = ResourcesStatus::default();
     for remote in remotes {
         if remote.error.is_some() {

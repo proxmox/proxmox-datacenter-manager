@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use pdm_api_types::remotes::TlsProbeOutcome;
-use pdm_api_types::resource::{PveResource, RemoteResources, TopEntities};
+use pdm_api_types::resource::{PveResource, RemoteResources, ResourceType, TopEntities};
 use pdm_api_types::rrddata::{
     LxcDataPoint, NodeDataPoint, PbsDatastoreDataPoint, PbsNodeDataPoint, PveStorageDataPoint,
     QemuDataPoint,
@@ -862,6 +862,19 @@ impl<T: HttpApiClient> PdmClient<T> {
         let path = ApiPathBuilder::new("/api2/extjs/resources/list")
             .maybe_arg("max-age", &max_age)
             .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn resources_by_type(
+        &self,
+        max_age: Option<u64>,
+        resource_type: ResourceType,
+    ) -> Result<Vec<RemoteResources>, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/resources/list")
+            .maybe_arg("max-age", &max_age)
+            .arg("resource-type", resource_type)
+            .build();
+
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 

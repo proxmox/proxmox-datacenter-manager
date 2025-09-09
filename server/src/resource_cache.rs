@@ -21,7 +21,7 @@ pub fn start_task() {
 async fn resource_caching_task() -> Result<(), Error> {
     loop {
         if let Err(err) =
-            crate::api::resources::get_resources_impl(METRIC_POLL_INTERVALL, None, None).await
+            crate::api::resources::get_resources_impl(METRIC_POLL_INTERVALL, None, None, None).await
         {
             log::error!("could not update resource cache: {err}");
         }

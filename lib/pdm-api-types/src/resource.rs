@@ -100,14 +100,27 @@ impl Resource {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[api]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Type of a PDM resource.
 pub enum ResourceType {
+    /// PVE Storage Resource
+    #[serde(rename = "storage")]
     PveStorage,
+    /// PVE Qemu Resource
+    #[serde(rename = "qemu")]
     PveQemu,
+    /// PVE LXC Resource
+    #[serde(rename = "lxc")]
     PveLxc,
+    /// PVE SDN Resource
+    #[serde(rename = "sdn-zone")]
     PveSdnZone,
+    /// PBS Datastore Resource
+    #[serde(rename = "datastore")]
     PbsDatastore,
+    /// Node resource
+    #[serde(rename = "node")]
     Node,
 }
 
