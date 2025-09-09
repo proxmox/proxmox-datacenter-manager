@@ -46,6 +46,9 @@ use remote_panel::RemotePanel;
 mod guest_panel;
 use guest_panel::GuestPanel;
 
+mod sdn_zone_panel;
+use sdn_zone_panel::SdnZonePanel;
+
 mod status_row;
 use status_row::DashboardStatusRow;
 
@@ -247,6 +250,19 @@ impl PdmDashboard {
             .title(self.create_title_with_icon(icon, title))
             .border(true)
             .with_child(GuestPanel::new(guest_type, status))
+    }
+
+    fn create_sdn_panel(&self) -> Panel {
+        let sdn_zones_status = self.status.as_ref().map(|status| status.sdn_zones.clone());
+
+        Panel::new()
+            .flex(1.0)
+            .width(200)
+            .title(self.create_title_with_icon("sdn", tr!("SDN Zones")))
+            .border(true)
+            .with_child(SdnZonePanel::new(
+                (!self.loading).then_some(sdn_zones_status).flatten(),
+            ))
     }
 
     fn create_task_summary_panel(
@@ -642,7 +658,8 @@ impl Component for PdmDashboard {
                     .class(pwt::css::Flex::Fill)
                     .class(FlexWrap::Wrap)
                     .with_child(self.create_task_summary_panel(&self.statistics, None))
-                    .with_child(self.create_task_summary_panel(&self.statistics, Some(5))),
+                    .with_child(self.create_task_summary_panel(&self.statistics, Some(5)))
+                    .with_child(self.create_sdn_panel()),
             );
 
         Panel::new()

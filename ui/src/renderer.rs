@@ -1,3 +1,4 @@
+use pdm_api_types::resource::PveSdnResource;
 use pwt::{
     css,
     prelude::*,
@@ -43,6 +44,7 @@ pub fn render_status_icon(resource: &Resource) -> Container {
         Resource::PveQemu(qemu) => pve::utils::render_qemu_status_icon(qemu),
         Resource::PveLxc(lxc) => pve::utils::render_lxc_status_icon(lxc),
         Resource::PveNode(node) => pve::utils::render_node_status_icon(node),
+        Resource::PveSdn(PveSdnResource::Zone(zone)) => pve::utils::render_sdn_status_icon(zone),
         // FIXME: implement remaining types
         _ => Container::new().with_child(render_resource_icon(resource)),
     }

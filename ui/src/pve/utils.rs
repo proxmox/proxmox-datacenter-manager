@@ -1,6 +1,7 @@
 use anyhow::Error;
 use pdm_api_types::resource::{
-    PveLxcResource, PveNodeResource, PveQemuResource, PveStorageResource,
+    PveLxcResource, PveNodeResource, PveQemuResource, PveStorageResource, SdnStatus,
+    SdnZoneResource,
 };
 use pdm_client::types::{
     LxcConfig, LxcConfigMp, LxcConfigRootfs, LxcConfigUnused, PveQmIde, QemuConfig, QemuConfigSata,
@@ -85,6 +86,19 @@ pub fn render_node_status_icon(node: &PveNodeResource) -> Container {
     Container::new()
         .class("pdm-type-icon")
         .with_child(Fa::new("building").fixed_width())
+        .with_child(Fa::from(extra).fixed_width().class("status-icon"))
+}
+
+/// Renders the status icon for a PveSdnZone
+pub fn render_sdn_status_icon(zone: &SdnZoneResource) -> Container {
+    let extra = match zone.status {
+        SdnStatus::Available => NodeState::Online,
+        SdnStatus::Error => NodeState::Offline,
+        _ => NodeState::Unknown,
+    };
+    Container::new()
+        .class("pdm-type-icon")
+        .with_child(Fa::new("th").fixed_width())
         .with_child(Fa::from(extra).fixed_width().class("status-icon"))
 }
 

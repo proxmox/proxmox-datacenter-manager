@@ -1,4 +1,4 @@
-use pdm_api_types::resource::{PveLxcResource, PveQemuResource};
+use pdm_api_types::resource::{PveLxcResource, PveQemuResource, PveSdnResource};
 use pdm_client::types::Resource;
 use serde::{Deserialize, Serialize};
 
@@ -140,24 +140,37 @@ pub(crate) fn navigate_to<C: yew::Component>(
     resource: Option<&pdm_client::types::Resource>,
 ) {
     if let Some(nav) = link.navigator() {
-        let id = resource
+        let (prefix, id) = resource
             .and_then(|resource| {
                 Some(match resource {
                     pdm_client::types::Resource::PveQemu(PveQemuResource { vmid, .. })
                     | pdm_client::types::Resource::PveLxc(PveLxcResource { vmid, .. }) => {
-                        format!("guest+{vmid}")
+                        (Some(remote), format!("guest+{vmid}"))
                     }
-                    pdm_client::types::Resource::PveNode(node) => format!("node+{}", node.node),
-                    pdm_client::types::Resource::PveStorage(storage) => {
-                        format!("storage+{}+{}", storage.node, storage.storage)
+                    pdm_client::types::Resource::PveNode(node) => {
+                        (Some(remote), format!("node+{}", node.node))
                     }
-                    pdm_client::types::Resource::PbsDatastore(store) => store.name.clone(),
+                    pdm_client::types::Resource::PveStorage(storage) => (
+                        Some(remote),
+                        format!("storage+{}+{}", storage.node, storage.storage),
+                    ),
+                    pdm_client::types::Resource::PveSdn(PveSdnResource::Zone(_)) => {
+                        (None, "sdn/zones".to_string())
+                    }
+                    pdm_client::types::Resource::PbsDatastore(store) => {
+                        (Some(remote), store.name.clone())
+                    }
                     // FIXME: implement
                     _ => return None,
                 })
             })
             .unwrap_or_default();
-        nav.push(&yew_router::AnyRoute::new(format!("/remote-{remote}/{id}")));
+
+        let prefix = prefix
+            .map(|prefix| format!("{prefix}/"))
+            .unwrap_or_default();
+
+        nav.push(&yew_router::AnyRoute::new(format!("{prefix}{id}")));
     }
 }
 
