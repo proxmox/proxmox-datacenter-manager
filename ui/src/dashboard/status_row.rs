@@ -1,5 +1,4 @@
 use gloo_timers::callback::Interval;
-use js_sys::Date;
 use yew::{Component, Properties};
 
 use pwt::prelude::*;
@@ -9,13 +8,13 @@ use pwt::{
 };
 use pwt_macros::widget;
 
-use proxmox_yew_comp::utils::format_duration_human;
+use proxmox_yew_comp::utils::render_epoch;
 
 #[widget(comp=PdmDashboardStatusRow)]
 #[derive(Properties, PartialEq, Clone)]
 pub struct DashboardStatusRow {
     last_refresh: Option<f64>,
-    reload_interval_s: u64,
+    reload_interval_s: u32,
 
     on_reload: Callback<bool>,
 
@@ -25,7 +24,7 @@ pub struct DashboardStatusRow {
 impl DashboardStatusRow {
     pub fn new(
         last_refresh: Option<f64>,
-        reload_interval_s: u64,
+        reload_interval_s: u32,
         on_reload: impl Into<Callback<bool>>,
         on_settings_click: impl Into<Callback<()>>,
     ) -> Self {
@@ -41,24 +40,24 @@ impl DashboardStatusRow {
 pub enum Msg {
     /// The bool denotes if the reload comes from the click or the timer.
     Reload(bool),
-    CheckReload,
 }
 
 #[doc(hidden)]
 pub struct PdmDashboardStatusRow {
-    _interval: Option<Interval>,
+    _interval: Interval,
 }
 
 impl PdmDashboardStatusRow {
-    fn update_interval(&mut self, ctx: &yew::Context<Self>) {
+    fn create_interval(ctx: &yew::Context<Self>) -> Interval {
         let link = ctx.link().clone();
-        let _interval = ctx.props().last_refresh.map(|_| {
-            Interval::new(1000, move || {
-                link.send_message(Msg::CheckReload);
-            })
-        });
+        let _interval = Interval::new(
+            ctx.props().reload_interval_s.saturating_mul(1000),
+            move || {
+                link.send_message(Msg::Reload(false));
+            },
+        );
 
-        self._interval = _interval;
+        _interval
     }
 }
 
@@ -67,9 +66,9 @@ impl Component for PdmDashboardStatusRow {
     type Properties = DashboardStatusRow;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
-        let mut this = Self { _interval: None };
-        this.update_interval(ctx);
-        this
+        Self {
+            _interval: Self::create_interval(ctx),
+        }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -79,21 +78,11 @@ impl Component for PdmDashboardStatusRow {
                 props.on_reload.emit(clicked);
                 true
             }
-            Msg::CheckReload => match ctx.props().last_refresh {
-                Some(last_refresh) => {
-                    let duration = Date::now() / 1000.0 - last_refresh;
-                    if duration >= props.reload_interval_s as f64 {
-                        ctx.link().send_message(Msg::Reload(false));
-                    }
-                    true
-                }
-                None => false,
-            },
         }
     }
 
     fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
-        self.update_interval(ctx);
+        self._interval = Self::create_interval(ctx);
         true
     }
 
@@ -119,8 +108,8 @@ impl Component for PdmDashboardStatusRow {
             )
             .with_child(Container::new().with_child(match ctx.props().last_refresh {
                 Some(last_refresh) => {
-                    let duration = Date::now() / 1000.0 - last_refresh;
-                    tr!("Last refreshed: {0} ago", format_duration_human(duration))
+                    let date = render_epoch(last_refresh as i64);
+                    tr!("Last refresh: {0}", date)
                 }
                 None => tr!("Now refreshing"),
             }))

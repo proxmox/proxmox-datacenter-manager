@@ -71,7 +71,7 @@ pub const DEFAULT_MAX_AGE_S: u64 = 30;
 /// The default refresh interval, we poll more frequently than the default max-age to quicker show
 /// any new data that was gathered either by the backend polling tasks or by a manual update
 /// triggered by another user.
-pub const DEFAULT_REFRESH_INTERVAL_S: u64 = 10;
+pub const DEFAULT_REFRESH_INTERVAL_S: u32 = 10;
 
 /// The default hours to show for task summaries. Use 2 days to ensure that all tasks from yesterday
 /// are included independent from the time a user checks the dashboard on the current day.
@@ -96,7 +96,7 @@ impl Default for Dashboard {
 #[serde(rename_all = "kebab-case")]
 pub struct DashboardConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    refresh_interval: Option<u64>,
+    refresh_interval: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     max_age: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
