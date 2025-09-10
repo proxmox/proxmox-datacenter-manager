@@ -91,7 +91,11 @@ impl MatchCategory {
 }
 
 // returns None if we can't decide if it matches, currently only for the `Remote` category`
-fn resource_matches_search_term(resource: &Resource, term: &SearchTerm) -> Option<bool> {
+fn resource_matches_search_term(
+    remote_name: &str,
+    resource: &Resource,
+    term: &SearchTerm,
+) -> Option<bool> {
     let matches = match term.category.as_deref().map(|c| c.parse::<MatchCategory>()) {
         Some(Ok(category)) => match category {
             MatchCategory::Type => category.matches(resource.resource_type().as_str(), &term.value),
@@ -105,7 +109,7 @@ fn resource_matches_search_term(resource: &Resource, term: &SearchTerm) -> Optio
                 }
                 _ => false,
             },
-            MatchCategory::Remote => return None, // this has to be checked beforehand
+            MatchCategory::Remote => category.matches(remote_name, &term.value),
         },
         Some(Err(_)) => false,
         None => resource.name().contains(&term.value) || resource.id().contains(&term.value),
@@ -185,13 +189,6 @@ fn is_remotes_only(filters: &Search) -> bool {
             optional_terms += 1;
         }
         match term.category.as_deref() {
-            Some("remote") => {
-                if !term.is_optional() {
-                    is_required = true;
-                } else {
-                    optional_matches += 1;
-                }
-            }
             Some("type") if "remote".starts_with(&term.value) => {
                 if !term.is_optional() {
                     is_required = true;
@@ -268,7 +265,7 @@ pub(crate) async fn get_resources_impl(
 
                     filter.matches(|filter| {
                         // if we get can't decide if it matches, don't filter it out
-                        resource_matches_search_term(resource, filter).unwrap_or(true)
+                        resource_matches_search_term(&remote_name, resource, filter).unwrap_or(true)
                     })
                 });
             }
