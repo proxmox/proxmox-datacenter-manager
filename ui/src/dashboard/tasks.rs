@@ -129,11 +129,7 @@ fn extract_task_summary_remote(data: &TaskStatistics, limit: u32) -> Vec<TaskSum
     }
 
     let mut list: Vec<TaskSummaryItem> = map.into_values().collect();
-    list.sort_by(|a, b| {
-        let a_count = a.error_count + a.warning_count + a.ok_count;
-        let b_count = b.error_count + b.warning_count + b.ok_count;
-        b_count.cmp(&a_count)
-    });
+    list.sort_by(|a, b| b.error_count.cmp(&a.error_count));
 
     list.into_iter().take(limit as usize).collect()
 }
