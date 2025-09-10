@@ -178,7 +178,7 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
     let running_daemon_version = format!("running version: {version}.{release}");
 
     proxmox_apt::get_package_versions(
-        "proxmox-datacenter",
+        "proxmox-datacenter-manager",
         "proxmox-datacenter-manager",
         &running_daemon_version,
         PACKAGES,
