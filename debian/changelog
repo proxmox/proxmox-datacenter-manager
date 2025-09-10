@@ -1,3 +1,14 @@
+proxmox-datacenter-manager (0.3.1) trixie; urgency=medium
+
+  * api: implement PVE storage usage metrics.
+
+  * api: add nodes/storage endpoints for status and metrics.
+
+  * api: add resource-type parameter when listing resources and include SDN
+    Zones as resources.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 10 Sep 2025 12:08:54 +0200
+
 proxmox-datacenter-manager (0.3.0) trixie; urgency=medium
 
   * update PDM apt sources to deb822 format and point to trixie.
