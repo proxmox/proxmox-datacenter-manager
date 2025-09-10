@@ -22,6 +22,7 @@ mod config;
 pub use config::{create_remote, RemoteConfigPanel};
 
 mod tasks;
+pub use tasks::RemoteTaskList;
 
 use yew::{function_component, Html};
 
@@ -51,7 +52,7 @@ pub fn system_configuration() -> Html {
                 .key("tasks")
                 .label(tr!("Tasks"))
                 .icon_class("fa fa-book"),
-            |_| tasks::RemoteTaskList::new().into(),
+            |_| RemoteTaskList::new().into(),
         );
 
     NavigationContainer::new().with_child(panel).into()

@@ -32,7 +32,7 @@ pub mod utils;
 mod tree;
 use tree::PveTreeNode;
 
-use crate::get_deep_url;
+use crate::{get_deep_url, remotes::RemoteTaskList};
 
 #[derive(Debug, Eq, PartialEq, Properties)]
 pub struct PveRemote {
@@ -171,7 +171,10 @@ impl LoadableComponent for PveRemoteComp {
         let remote = &props.remote;
 
         let content: Html = match &self.view {
-            PveTreeNode::Root => html! {},
+            PveTreeNode::Root => Panel::new()
+                .title(tr!("Remote Tasks"))
+                .with_child(RemoteTaskList::new().remote(remote.clone()))
+                .into(),
             PveTreeNode::Node(node) => {
                 node::NodePanel::new(remote.clone(), node.node.clone()).into()
             }

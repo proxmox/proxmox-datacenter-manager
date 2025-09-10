@@ -256,7 +256,7 @@ impl PveTreeComp {
             }
         }
         self.store.write().update_root_tree(tree);
-        self.store.write().set_view_root(false);
+        self.store.write().set_view_root(true);
         self.loaded = true;
     }
 }
@@ -557,6 +557,10 @@ fn columns(
     remote: String,
     loading: bool,
 ) -> Rc<Vec<DataTableHeader<PveTreeNode>>> {
+    let loading = match store.read().root() {
+        Some(root) => loading && root.children_count() == 0,
+        None => loading,
+    };
     Rc::new(vec![
         DataTableColumn::new("Type/ID")
             .flex(1)
