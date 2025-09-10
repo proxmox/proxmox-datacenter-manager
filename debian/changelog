@@ -1,3 +1,24 @@
+proxmox-datacenter-manager (0.1.12) bookworm; urgency=medium
+
+  * api task status: actually return the UPID.
+
+  * switch ticket endpoint over to new http only endpoint.
+
+  * cache pve node reachability and names and use that information to not try
+    to connect to known-unreachable servers, only try them as last-resort.
+
+  * cli: honor NO_COLOR env variable.
+
+  * cli: fix adding remotes.
+
+  * add pdmAtoB upgrade checker script.
+
+  * cli/admin: add a versions command to show current package versions.
+
+  * api: acme: fix certificate ordering when no account is set.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 10 Sep 2025 13:49:37 +0200
+
 proxmox-datacenter-manager (0.1.11) bookworm; urgency=medium
 
   * privileged-api: create /var/cache/proxmox-datacenter-manager/ on startup
