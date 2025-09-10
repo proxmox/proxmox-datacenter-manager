@@ -2,8 +2,9 @@ use std::rc::Rc;
 
 use yew::{
     html,
+    html::IntoPropValue,
     virtual_dom::{VComp, VNode},
-    Component, Properties,
+    AttrValue, Component, Properties,
 };
 
 use pdm_api_types::RemoteUpid;
@@ -20,11 +21,19 @@ use pwt::{
         Column, Fa, Row,
     },
 };
+use pwt_macros::builder;
 
 use crate::{tasks::format_optional_remote_upid, widget::RemoteSelector};
 
 #[derive(PartialEq, Properties)]
-pub struct RemoteTaskList;
+#[builder]
+pub struct RemoteTaskList {
+    /// If given, shows only tasks of this remote
+    #[prop_or_default]
+    #[builder(IntoPropValue, into_prop_value)]
+    remote: Option<AttrValue>,
+}
+
 impl RemoteTaskList {
     pub fn new() -> Self {
         yew::props!(Self {})
@@ -109,6 +118,7 @@ impl Component for PbsRemoteTaskList {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
+        let props = ctx.props();
         let task = self
             .upid
             .as_ref()
@@ -124,21 +134,26 @@ impl Component for PbsRemoteTaskList {
                         move |_| link.send_message(None)
                     })
             });
+
+        let mut task_list = Tasks::new()
+            .base_url("/remote-tasks/list")
+            .on_show_task({
+                let link = ctx.link().clone();
+                move |(upid_str, endtime)| link.send_message(Some((upid_str, endtime)))
+            })
+            .columns(self.columns.clone());
+
+        task_list = match props.remote.clone() {
+            Some(remote) => task_list.fixed_filter(("remote".into(), remote.to_string())),
+            None => task_list.extra_filter(
+                tr!("Remote"),
+                RemoteSelector::new().name("remote").placeholder(tr!("All")),
+            ),
+        };
+
         Column::new()
             .class(FlexFit)
-            .with_child(
-                Tasks::new()
-                    .base_url("/remote-tasks/list")
-                    .on_show_task({
-                        let link = ctx.link().clone();
-                        move |(upid_str, endtime)| link.send_message(Some((upid_str, endtime)))
-                    })
-                    .columns(self.columns.clone())
-                    .extra_filter(
-                        tr!("Remote"),
-                        RemoteSelector::new().name("remote").placeholder(tr!("All")),
-                    ),
-            )
+            .with_child(task_list)
             .with_optional_child(task)
             .into()
     }
