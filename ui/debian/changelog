@@ -1,3 +1,45 @@
+proxmox-datacenter-manager-ui (0.3.2) trixie; urgency=medium
+
+  * make more strings translatable and implement various i18n related fixes.
+
+  * add storage to the resource tree of Proxmox VE remotes and show basic
+    status overview.
+
+  * memory status renderer: use 90% and 97.5% for warning and critical
+    thresholds respectively, matching recent changes in Proxmox VE's web UI.
+
+  * dashboard: correctly differentiate the timer and on-click reload events to
+    avoid that every periodic update is using the very short max-age value
+    that should only get used for force reloads.
+
+  * fix #6782: ui: pve: tree: don't show start/shutdown buttons for templates.
+
+  * dashboard: do not wait until all data sources finished loading, rather
+    render each card immediately once the specific requests it depends got
+    loaded.
+
+  * dashboard: render last refresh date/time instead of a seconds counter to
+    avoid overly frequent UI/DOM updates, reducing the impact to accessibility
+    tools like screen readers.
+
+  * main menu: improve load behavior on some edge cases that could result in a
+    stale or empty remote list.
+
+  * add initial basic SDN status report to dashboard and add a new SDN Zone
+    overview as parent menu entry of the recently added EVPN integration.
+
+  * update to newer widget-toolkit and yew-component crates.
+
+  * pve: add remote tasks-list panel on "Remote" resource tree root entry.
+
+  * sdn overview: add deep-links to remotes datacenter SDN and Zone panels.
+
+  * dashboard: change task summary sorting to prioritize showing the remotes
+    with most failed tasks, as high task error counts are normally much more
+    noteworthy as a high overall task count.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 10 Sep 2025 17:54:04 +0200
+
 proxmox-datacenter-manager-ui (0.3.1) trixie; urgency=medium
 
   * status icons: replace background color with text-shadow to avoid blocky
