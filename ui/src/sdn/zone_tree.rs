@@ -4,7 +4,7 @@ use std::pin::Pin;
 use std::rc::Rc;
 
 use yew::virtual_dom::{Key, VComp, VNode};
-use yew::{Html, Properties};
+use yew::{html, ContextHandle, Html, Properties};
 
 use pdm_api_types::resource::{
     PveSdnResource, RemoteResources, ResourceType, SdnStatus, SdnZoneResource,
@@ -12,7 +12,7 @@ use pdm_api_types::resource::{
 use pdm_client::types::Resource;
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 use pwt::props::EventSubscriber;
-use pwt::widget::{Button, Toolbar};
+use pwt::widget::{ActionIcon, Button, Toolbar};
 use pwt::{
     css,
     css::FontColor,
@@ -25,7 +25,7 @@ use pwt::{
     },
 };
 
-use crate::pdm_client;
+use crate::{get_deep_url, pdm_client, RemoteList};
 
 #[derive(PartialEq, Properties)]
 pub struct ZoneTree {}
@@ -92,6 +92,7 @@ impl ExtractPrimaryKey for ZoneTreeEntry {
 
 pub enum ZoneTreeMsg {
     LoadFinished(Vec<RemoteResources>),
+    RemoteListChanged(RemoteList),
     Reload,
 }
 
@@ -99,7 +100,7 @@ pub struct ZoneTreeComponent {
     store: TreeStore<ZoneTreeEntry>,
     selection: Selection,
     remote_errors: Vec<String>,
-    columns: Rc<Vec<DataTableHeader<ZoneTreeEntry>>>,
+    _context_listener: ContextHandle<RemoteList>,
 }
 
 fn default_sorter(a: &ZoneTreeEntry, b: &ZoneTreeEntry) -> Ordering {
@@ -107,7 +108,12 @@ fn default_sorter(a: &ZoneTreeEntry, b: &ZoneTreeEntry) -> Ordering {
 }
 
 impl ZoneTreeComponent {
-    fn columns(store: TreeStore<ZoneTreeEntry>) -> Rc<Vec<DataTableHeader<ZoneTreeEntry>>> {
+    fn columns(
+        ctx: &LoadableComponentContext<Self>,
+        store: TreeStore<ZoneTreeEntry>,
+    ) -> Rc<Vec<DataTableHeader<ZoneTreeEntry>>> {
+        let link = ctx.link().clone();
+
         Rc::new(vec![
             DataTableColumn::new(tr!("Name"))
                 .tree_column(store)
@@ -149,6 +155,30 @@ impl ZoneTreeComponent {
                     }
 
                     row.into()
+                })
+                .into(),
+            DataTableColumn::new(tr!("Actions"))
+                .width("80px")
+                .justify("right")
+                .render(move |entry: &ZoneTreeEntry| {
+                    let url = match entry {
+                        ZoneTreeEntry::Root
+                        | ZoneTreeEntry::Node(_, _)
+                        | ZoneTreeEntry::Remote(_) => None,
+                        ZoneTreeEntry::Zone(zone_data) => {
+                            let id = format!("sdn/{}/{}", zone_data.node, zone_data.name);
+                            get_deep_url(link.yew_link(), &zone_data.remote, None, &id)
+                        }
+                    };
+
+                    match url {
+                        Some(url) => ActionIcon::new("fa fa-external-link")
+                            .on_activate(move |_| {
+                                let _ = web_sys::window().unwrap().open_with_url(&url.href());
+                            })
+                            .into(),
+                        None => html! {},
+                    }
                 })
                 .into(),
         ])
@@ -219,17 +249,23 @@ impl LoadableComponent for ZoneTreeComponent {
     type Message = ZoneTreeMsg;
     type ViewState = ();
 
-    fn create(_ctx: &LoadableComponentContext<Self>) -> Self {
+    fn create(ctx: &LoadableComponentContext<Self>) -> Self {
         let store = TreeStore::new().view_root(false);
         store.set_sorter(default_sorter);
 
         let selection = Selection::new();
 
+        let (_, _context_listener) = ctx
+            .link()
+            .yew_link()
+            .context(ctx.link().callback(Self::Message::RemoteListChanged))
+            .expect("No Remote list context provided");
+
         Self {
             store: store.clone(),
             selection,
             remote_errors: Vec::new(),
-            columns: Self::columns(store),
+            _context_listener,
         }
     }
 
@@ -261,6 +297,9 @@ impl LoadableComponent for ZoneTreeComponent {
 
                 return true;
             }
+            Self::Message::RemoteListChanged(_list) => {
+                return true;
+            }
             Self::Message::Reload => {
                 ctx.link().send_reload();
             }
@@ -283,8 +322,8 @@ impl LoadableComponent for ZoneTreeComponent {
         )
     }
 
-    fn main_view(&self, _ctx: &LoadableComponentContext<Self>) -> yew::Html {
-        let table = DataTable::new(self.columns.clone(), self.store.clone())
+    fn main_view(&self, ctx: &LoadableComponentContext<Self>) -> yew::Html {
+        let table = DataTable::new(Self::columns(ctx, self.store.clone()), self.store.clone())
             .selection(self.selection.clone())
             .striped(false)
             .class(css::FlexFit);
