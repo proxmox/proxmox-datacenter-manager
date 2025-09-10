@@ -45,7 +45,6 @@ pub enum Msg {
 
 pub struct PdmSearchBox {
     search_field_ref: NodeRef,
-    search_box_ref: NodeRef,
     search_term: String,
     focus_tracker: FocusTracker,
     focus: bool,
@@ -72,7 +71,6 @@ impl Component for PdmSearchBox {
         });
         Self {
             search_field_ref: Default::default(),
-            search_box_ref: Default::default(),
             search_term: String::new(),
             focus_tracker: FocusTracker::new(ctx.link().callback(Msg::FocusChange)),
             focus: false,
@@ -115,7 +113,6 @@ impl Component for PdmSearchBox {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let search_result = ResourceTree::new()
-            .node_ref(self.search_box_ref.clone())
             .search_term(self.search_term.clone())
             .search_only(true)
             .style("position", "absolute")
@@ -147,16 +144,21 @@ impl Component for PdmSearchBox {
             .style("flex-basis", "230px") // to avoid changing size with trigger
             .min_width(230) // placeholder text
             .with_child(
-                Field::new()
-                    .placeholder(tr!("Search (Ctrl+Space / Ctrl+Shift+F)"))
-                    .node_ref(self.search_field_ref.clone())
-                    .value(self.force_value.then_some(self.search_term.clone()))
-                    .with_trigger(
-                        Trigger::new(clear_trigger_icon)
-                            .onclick(ctx.link().callback(|_| Msg::ChangeTerm("".into(), true))),
-                        true,
+                Container::new()
+                    .style("display", "contents")
+                    .with_child(
+                        Field::new()
+                            .placeholder(tr!("Search (Ctrl+Space / Ctrl+Shift+F)"))
+                            .value(self.force_value.then_some(self.search_term.clone()))
+                            .with_trigger(
+                                Trigger::new(clear_trigger_icon).onclick(
+                                    ctx.link().callback(|_| Msg::ChangeTerm("".into(), true)),
+                                ),
+                                true,
+                            )
+                            .on_input(ctx.link().callback(|term| Msg::ChangeTerm(term, false))),
                     )
-                    .on_input(ctx.link().callback(|term| Msg::ChangeTerm(term, false))),
+                    .into_html_with_ref(self.search_field_ref.clone()),
             )
             .with_child(search_result)
             .into()

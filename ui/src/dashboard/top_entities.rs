@@ -11,7 +11,7 @@ use pwt::{
     css::{AlignItems, Display, FlexFit, JustifyContent},
     dom::align::{align_to, AlignOptions},
     props::{
-        ContainerBuilder, CssLength, CssPaddingBuilder, EventSubscriber, WidgetBuilder,
+        ContainerBuilder, CssLength, CssPaddingBuilder, EventSubscriber, IntoVTag, WidgetBuilder,
         WidgetStyleBuilder,
     },
     tr,
@@ -142,10 +142,10 @@ impl Component for TopEntitiesComp {
                     tooltip = Some(create_tooltip(remote, resource, info, &props.metrics_title));
                     Some(
                         Container::new()
-                            .node_ref(self.tooltip_anchor.clone())
                             .style("position", "absolute")
                             .style("pointer-events", "none")
-                            .style("left", format!("{}px", info.pos)),
+                            .style("left", format!("{}px", info.pos))
+                            .into_html_with_ref(self.tooltip_anchor.clone()),
                     )
                 } else {
                     None
@@ -202,13 +202,13 @@ impl Component for TopEntitiesComp {
             .with_child(list)
             .with_optional_child(tooltip.map(|tooltip| {
                 Container::new()
-                    .node_ref(self.tooltip_ref.clone())
                     .attribute("role", "tooltip")
                     .attribute("aria-live", "polite")
                     .attribute("data-show", "")
                     .class("pwt-tooltip")
                     .class("pwt-tooltip-rich")
                     .with_child(tooltip)
+                    .into_html_with_ref(self.tooltip_ref.clone())
             }))
             .into()
     }
