@@ -1,0 +1,15 @@
+[package]
+name = "pdmAtoB"
+description = "Proxmox Datacenter Upgrade Checks"
+homepage = "https://www.proxmox.com"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+proxmox-upgrade-checks.workspace = true
+pdm-buildcfg.workspace = true

@@ -1,0 +1,19 @@
+[package]
+name = "proxmox-upgrade-checks"
+description = "Helpers to implement upgrade checks for Proxmox products."
+version = "0.1.0"
+
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+const_format.workspace = true
+regex.workspace = true
+termcolor.workspace = true
+
+proxmox-apt = { workspace = true, features = [ "cache" ] }
+proxmox-apt-api-types.workspace = true

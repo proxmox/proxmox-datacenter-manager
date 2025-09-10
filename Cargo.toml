@@ -20,10 +20,12 @@ members = [
     "lib/pdm-client",
     "lib/pdm-config",
     "lib/pdm-ui-shared",
+    "lib/proxmox-upgrade-checks",
 
     "cli/client",
     "cli/admin",
     "cli/proxmox-fido2",
+    "cli/pdmAtoB",
 ]
 
 [workspace.dependencies]
@@ -87,6 +89,7 @@ pdm-config = { path = "lib/pdm-config" }
 pdm-client = { version = "0.1", path = "lib/pdm-client" }
 pdm-ui-shared = { version = "0.1", path = "lib/pdm-ui-shared" }
 proxmox-fido2 = { path = "cli/proxmox-fido2" }
+proxmox-upgrade-checks = { path = "lib/proxmox-upgrade-checks" }
 
 # regular crates
 anyhow = "1.0"

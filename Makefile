@@ -42,6 +42,7 @@ USR_BIN := \
 
 USR_SBIN := \
 	proxmox-datacenter-manager-admin \
+	pdmAtoB \
 
 SERVICE_BIN := \
 	proxmox-datacenter-api \
