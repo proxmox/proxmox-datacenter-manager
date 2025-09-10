@@ -1,3 +1,15 @@
+proxmox-datacenter-manager-ui (0.1.11) bookworm; urgency=medium
+
+  * pve tree: ellipsize overly long resource name to avoid overflow.
+
+  * remote tasks: add loading animation for running tasks.
+
+  * improve keyboard navigation for search box.
+
+  * pve tree: add tooltips for inline actions.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 10 Sep 2025 13:52:16 +0200
+
 proxmox-datacenter-manager-ui (0.1.10) bookworm; urgency=medium
 
   * fix #6016: remote migrate: submit 'target-vmid' property for CT
