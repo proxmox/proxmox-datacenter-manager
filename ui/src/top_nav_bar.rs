@@ -15,7 +15,7 @@ use pwt::widget::{Button, Container, Row, ThemeModeSelector, Tooltip};
 use proxmox_yew_comp::common_api_types::TaskListItem;
 use proxmox_yew_comp::utils::set_location_href;
 use proxmox_yew_comp::RunningTasksButton;
-use proxmox_yew_comp::{http_get, HelpButton, LanguageDialog, TaskViewer, ThemeDialog};
+use proxmox_yew_comp::{http_get, LanguageDialog, TaskViewer, ThemeDialog};
 
 use pwt_macros::builder;
 
