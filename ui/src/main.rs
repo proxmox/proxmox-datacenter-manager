@@ -114,7 +114,10 @@ impl DatacenterManagerApp {
                     self.remote_list_error = None;
                     changed = true;
                 }
-                self.remote_list = list.clone();
+                if self.remote_list != list {
+                    self.remote_list = list.clone();
+                    changed = true;
+                }
 
                 let remote_list_cache: Vec<RemoteListCacheEntry> = list
                     .into_iter()
