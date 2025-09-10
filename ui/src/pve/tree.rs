@@ -610,7 +610,7 @@ fn columns(
                         (
                             r.id.as_str(),
                             local_id,
-                            Some((guest_info, r.status.as_str())),
+                            Some((guest_info, r.status.as_str(), r.template)),
                             Some(r.node.clone()),
                         )
                     }
@@ -620,7 +620,7 @@ fn columns(
                         (
                             r.id.as_str(),
                             local_id,
-                            Some((guest_info, r.status.as_str())),
+                            Some((guest_info, r.status.as_str(), r.template)),
                             Some(r.node.clone()),
                         )
                     }
@@ -641,9 +641,12 @@ fn columns(
 
                 Row::new()
                     .class(JustifyContent::FlexEnd)
-                    .with_optional_child(guest_info.map(|(_, status)| {
+                    .with_optional_child(guest_info.and_then(|(_, status, template)| {
+                        if template {
+                            return None;
+                        }
                         let disabled = status != "running";
-                        Tooltip::new(
+                        let icon = Tooltip::new(
                             ActionIcon::new("fa fa-fw fa-power-off")
                                 .disabled(disabled)
                                 .on_activate({
@@ -658,11 +661,15 @@ fn columns(
                                 })
                                 .class((!disabled).then_some(ColorScheme::Error)),
                         )
-                        .tip(tr!("Shutdown"))
+                        .tip(tr!("Shutdown"));
+                        Some(icon)
                     }))
-                    .with_optional_child(guest_info.map(|(_, status)| {
+                    .with_optional_child(guest_info.and_then(|(_, status, template)| {
+                        if template {
+                            return None;
+                        }
                         let disabled = status == "running";
-                        Tooltip::new(
+                        let icon = Tooltip::new(
                             ActionIcon::new("fa fa-fw fa-play")
                                 .disabled(disabled)
                                 .on_activate({
@@ -677,9 +684,10 @@ fn columns(
                                 })
                                 .class((!disabled).then_some(ColorScheme::Success)),
                         )
-                        .tip(tr!("Start"))
+                        .tip(tr!("Start"));
+                        Some(icon)
                     }))
-                    .with_optional_child(guest_info.map(|(guest_info, _)| {
+                    .with_optional_child(guest_info.map(|(guest_info, _, _)| {
                         Tooltip::new(ActionIcon::new("fa fa-fw fa-paper-plane-o").on_activate({
                             let link = link.clone();
                             move |_| link.change_view(Some(ViewState::MigrateWindow(guest_info)))
