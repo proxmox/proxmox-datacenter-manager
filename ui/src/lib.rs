@@ -97,12 +97,29 @@ pub(crate) fn get_deep_url<C: yew::Component>(
     _node: Option<&str>,
     id: &str,
 ) -> Option<web_sys::Url> {
-    let remote = get_remote(link, remote)?;
-    let hash = match (id, remote.ty) {
+    let hash = match (id, get_remote(link, remote)?.ty) {
         ("", _) => String::new(),
         (id, pdm_api_types::remotes::RemoteType::Pve) => format!("v1::={id}"),
         (id, pdm_api_types::remotes::RemoteType::Pbs) => format!("DataStore-{id}"),
     };
+    get_deep_url_low_level(link, remote, _node, &hash)
+}
+
+/// Get a deep link to the given remote/low-level-hash pair
+///
+/// The hash is the lower level route. It not only specific to a product but also has a hash format
+/// version there and depending on the product version not all components might be supported.
+/// While the format version itself was not yet bumped as of PVE 9, new entries get added
+/// frequently.
+///
+/// Returns None if the remote can't be found, or there is no global remote list
+pub(crate) fn get_deep_url_low_level<C: yew::Component>(
+    link: &yew::html::Scope<C>,
+    remote: &str,
+    _node: Option<&str>,
+    hash: &str,
+) -> Option<web_sys::Url> {
+    let remote = get_remote(link, remote)?;
     let url = remote
         .web_url
         .and_then(|orig_url| {
