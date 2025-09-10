@@ -152,32 +152,32 @@ pub(crate) fn navigate_to<C: yew::Component>(
                 Some(match resource {
                     pdm_client::types::Resource::PveQemu(PveQemuResource { vmid, .. })
                     | pdm_client::types::Resource::PveLxc(PveLxcResource { vmid, .. }) => {
-                        (Some(remote), format!("guest+{vmid}"))
+                        (true, format!("guest+{vmid}"))
                     }
                     pdm_client::types::Resource::PveNode(node) => {
-                        (Some(remote), format!("node+{}", node.node))
+                        (true, format!("node+{}", node.node))
                     }
                     pdm_client::types::Resource::PveStorage(storage) => (
-                        Some(remote),
+                        true,
                         format!("storage+{}+{}", storage.node, storage.storage),
                     ),
                     pdm_client::types::Resource::PveSdn(PveSdnResource::Zone(_)) => {
-                        (None, "sdn/zones".to_string())
+                        (false, "sdn/zones".to_string())
                     }
-                    pdm_client::types::Resource::PbsDatastore(store) => {
-                        (Some(remote), store.name.clone())
-                    }
+                    pdm_client::types::Resource::PbsDatastore(store) => (true, store.name.clone()),
                     // FIXME: implement
                     _ => return None,
                 })
             })
-            .unwrap_or_default();
+            .unwrap_or_else(|| (true, String::new()));
 
-        let prefix = prefix
-            .map(|prefix| format!("{prefix}/"))
-            .unwrap_or_default();
+        let prefix = if prefix {
+            format!("remote-{remote}/")
+        } else {
+            String::new()
+        };
 
-        nav.push(&yew_router::AnyRoute::new(format!("{prefix}{id}")));
+        nav.push(&yew_router::AnyRoute::new(format!("/{prefix}{id}")));
     }
 }
 
