@@ -109,23 +109,43 @@ fn register_submenu(
     );
 }
 
-impl PdmMainMenu {}
+impl PdmMainMenu {
+    fn update_remote_list(&mut self, remote_list: RemoteList) -> bool {
+        let remote_list_cache: Vec<RemoteListCacheEntry> = remote_list
+            .into_iter()
+            .map(|item| RemoteListCacheEntry {
+                id: item.id.clone(),
+                ty: item.ty,
+            })
+            .collect();
+
+        if *self.remote_list_cache != remote_list_cache {
+            self.remote_list_cache.update(remote_list_cache);
+            true
+        } else {
+            false
+        }
+    }
+}
 
 impl Component for PdmMainMenu {
     type Message = Msg;
     type Properties = MainMenu;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (_remote_list, _remote_list_observer) = ctx
+        let (remote_list, _remote_list_observer) = ctx
             .link()
             .context(ctx.link().callback(Msg::RemoteListChanged))
             .unwrap_throw();
-        Self {
+        let mut this = Self {
             active: Key::from("dashboard"),
             menu_selection: Selection::new(),
             remote_list_cache: PersistentState::new("PdmRemoteListCache"),
             _remote_list_observer,
-        }
+        };
+
+        this.update_remote_list(remote_list);
+        this
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -134,22 +154,7 @@ impl Component for PdmMainMenu {
                 self.active = key;
                 true
             }
-            Msg::RemoteListChanged(remote_list) => {
-                let remote_list_cache: Vec<RemoteListCacheEntry> = remote_list
-                    .into_iter()
-                    .map(|item| RemoteListCacheEntry {
-                        id: item.id.clone(),
-                        ty: item.ty,
-                    })
-                    .collect();
-
-                if *self.remote_list_cache != remote_list_cache {
-                    self.remote_list_cache.update(remote_list_cache);
-                    true
-                } else {
-                    false
-                }
-            }
+            Msg::RemoteListChanged(remote_list) => self.update_remote_list(remote_list),
         }
     }
 
