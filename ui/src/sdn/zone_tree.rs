@@ -163,8 +163,12 @@ impl ZoneTreeComponent {
                 .render(move |entry: &ZoneTreeEntry| {
                     let url = match entry {
                         ZoneTreeEntry::Root
-                        | ZoneTreeEntry::Node(_, _)
-                        | ZoneTreeEntry::Remote(_) => None,
+                        | ZoneTreeEntry::Node(_, _) => None,
+                        ZoneTreeEntry::Remote(remote) => {
+                            // TODO: do not hardcode this here.
+                            let hash = "#v1:0:18:4:::::::53";
+                            crate::get_deep_url_low_level(link.yew_link(), &remote, None, hash)
+                        }
                         ZoneTreeEntry::Zone(zone_data) => {
                             let id = format!("sdn/{}/{}", zone_data.node, zone_data.name);
                             get_deep_url(link.yew_link(), &zone_data.remote, None, &id)
