@@ -386,11 +386,15 @@ impl LoadableComponent for PveTreeComp {
                 }
             }
             Msg::RouteChanged(path) => {
-                let key = Key::from(format!(
-                    "remote/{}/{}",
-                    ctx.props().remote,
-                    path.replace("+", "/")
-                ));
+                let key = if path == "_" {
+                    Key::from("__root__")
+                } else {
+                    Key::from(format!(
+                        "remote/{}/{}",
+                        ctx.props().remote,
+                        path.replace("+", "/")
+                    ))
+                };
                 self.view_selection.select(key);
             }
             Msg::Filter(text) => {
