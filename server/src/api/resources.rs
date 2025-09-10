@@ -125,7 +125,7 @@ fn remote_matches_search_term(remote_name: &str, online: Option<bool>, term: &Se
                 Some(false) => category.matches("offline", &term.value),
                 None => true,
             },
-            MatchCategory::Template => todo!(),
+            MatchCategory::Template => false,
         },
         Some(Err(_)) => false,
         None => remote_name.contains(&term.value) || "remote".starts_with(&term.value),
