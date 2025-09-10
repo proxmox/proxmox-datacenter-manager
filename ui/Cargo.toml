@@ -27,10 +27,10 @@ web-sys = { version = "0.3", features = ["Location"] }
 yew = { version = "0.21",  features = ["csr"] }
 yew-router = { version = "0.18" }
 
-pwt = "0.6"
-pwt-macros = "0.4"
+pwt = "0.7"
+pwt-macros = "0.5"
 
-proxmox-yew-comp = { version = "0.5.6", features = ["apt", "dns", "network", "rrd"] }
+proxmox-yew-comp = { version = "0.6.0", features = ["apt", "dns", "network", "rrd"] }
 
 proxmox-acme-api = "1"
 proxmox-client = "1"
