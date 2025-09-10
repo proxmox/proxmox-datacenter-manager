@@ -133,14 +133,16 @@ upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
 upload: $(DEB) $(DBG_DEB)
 	tar cf - $(DEB) $(DBG_DEB) |ssh -X repoman@repo.proxmox.com -- upload --product pdm --dist $(UPLOAD_DIST) --arch $(DEB_HOST_ARCH)
 
-.PHONY: clean distclean
+.PHONY: clean clean-deb distclean
 distclean: clean
-clean:
+clean: clean-deb
 	$(CARGO) clean
 	$(MAKE) -C $(COMPLETION_DIR) clean
+	$(MAKE) -C $(UI_DIR) clean
+
+clean-deb:
 	rm -rf $(PACKAGE)-[0-9]*/ build/
 	rm -f *.deb *.changes *.dsc *.tar.* *.buildinfo *.build .do-cargo-build
-	$(MAKE) -C $(UI_DIR) clean
 
 .PHONY: dinstall
 dinstall: deb
