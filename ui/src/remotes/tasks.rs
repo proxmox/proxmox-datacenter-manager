@@ -13,7 +13,7 @@ use proxmox_yew_comp::{
 };
 use pwt::{
     css::{FlexFit, JustifyContent},
-    props::{ContainerBuilder, WidgetBuilder},
+    props::{ContainerBuilder, FieldBuilder, WidgetBuilder},
     tr,
     widget::{
         data_table::{DataTableColumn, DataTableHeader},
@@ -21,7 +21,7 @@ use pwt::{
     },
 };
 
-use crate::tasks::format_optional_remote_upid;
+use crate::{tasks::format_optional_remote_upid, widget::RemoteSelector};
 
 #[derive(PartialEq, Properties)]
 pub struct RemoteTaskList;
@@ -133,7 +133,11 @@ impl Component for PbsRemoteTaskList {
                         let link = ctx.link().clone();
                         move |(upid_str, endtime)| link.send_message(Some((upid_str, endtime)))
                     })
-                    .columns(self.columns.clone()),
+                    .columns(self.columns.clone())
+                    .extra_filter(
+                        tr!("Remote"),
+                        RemoteSelector::new().name("remote").placeholder(tr!("All")),
+                    ),
             )
             .with_optional_child(task)
             .into()
