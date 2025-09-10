@@ -10,9 +10,12 @@ usr/libexec/proxmox/proxmox-datacenter-manager-banner
 usr/libexec/proxmox/proxmox-datacenter-manager-daily-update
 usr/libexec/proxmox/proxmox-datacenter-privileged-api
 usr/sbin/proxmox-datacenter-manager-admin
+usr/sbin/pdmAtoB
 usr/share/bash-completion/completions/proxmox-datacenter-api.bc
 usr/share/bash-completion/completions/proxmox-datacenter-manager-admin.bc
 usr/share/bash-completion/completions/proxmox-datacenter-privileged-api.bc
+usr/share/bash-completion/completions/pdmAtoB.bc
 usr/share/zsh/vendor-completions/_proxmox-datacenter-api
 usr/share/zsh/vendor-completions/_proxmox-datacenter-manager-admin
 usr/share/zsh/vendor-completions/_proxmox-datacenter-privileged-api
+usr/share/zsh/vendor-completions/_pdmAtoB
