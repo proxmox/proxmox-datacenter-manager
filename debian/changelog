@@ -1,3 +1,20 @@
+proxmox-datacenter-manager (0.3.2) UNRELEASED; urgency=medium
+
+  * add initial pdmAtoB upgrade checker script.
+
+  * cli/admin: add a versions command to show current package versions.
+
+  * api: resources: implement remote match for template.
+
+  * api: resources: improve behavior when searching for remotes to more easily
+    allow to filter by resources of a specific remote, rather than limiting to
+    the remote type.
+
+  * api: resources: use root cause for errors that happen when fetching
+    resources from a remote.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 10 Sep 2025 17:25:33 +0200
+
 proxmox-datacenter-manager (0.3.1) trixie; urgency=medium
 
   * api: implement PVE storage usage metrics.
