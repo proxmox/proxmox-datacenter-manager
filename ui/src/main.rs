@@ -10,7 +10,7 @@ use yew::prelude::*;
 
 use pwt::prelude::*;
 use pwt::props::TextRenderFn;
-use pwt::state::Loader;
+use pwt::state::{Loader, PersistentState};
 use pwt::widget::{Column, DesktopApp, Dialog, Mask};
 
 use proxmox_login::Authentication;
@@ -23,7 +23,9 @@ use proxmox_yew_comp::{
 
 //use pbs::MainMenu;
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
-use pdm_ui::{register_pve_tasks, MainMenu, RemoteList, SearchProvider, TopNavBar};
+use pdm_ui::{
+    register_pve_tasks, MainMenu, RemoteList, RemoteListCacheEntry, SearchProvider, TopNavBar,
+};
 
 type MsgRemoteList = Result<RemoteList, Error>;
 
@@ -45,6 +47,7 @@ struct DatacenterManagerApp {
     running_tasks: Loader<Vec<TaskListItem>>,
     running_tasks_timeout: Option<Timeout>,
     remote_list: RemoteList,
+    remote_list_cache: PersistentState<Vec<RemoteListCacheEntry>>,
     remote_list_error: Option<String>,
     remote_list_timeout: Option<Timeout>,
     search_provider: SearchProvider,
@@ -97,18 +100,37 @@ impl DatacenterManagerApp {
 
     fn update_remotes(&mut self, ctx: &Context<Self>, result: MsgRemoteList) -> bool {
         self.remote_list_timeout = Self::poll_remote_list(ctx, false);
+        let mut changed = false;
         match result {
             Err(err) => {
-                self.remote_list_error = Some(err.to_string());
+                if self.remote_list_error.is_none() {
+                    self.remote_list_error = Some(err.to_string());
+                    changed = true;
+                }
                 // do not touch remote_list data
-                true
             }
             Ok(list) => {
-                self.remote_list_error = None;
-                self.remote_list = list;
-                true
+                if self.remote_list_error.is_some() {
+                    self.remote_list_error = None;
+                    changed = true;
+                }
+                self.remote_list = list.clone();
+
+                let remote_list_cache: Vec<RemoteListCacheEntry> = list
+                    .into_iter()
+                    .map(|item| RemoteListCacheEntry {
+                        id: item.id.clone(),
+                        ty: item.ty,
+                    })
+                    .collect();
+
+                if *self.remote_list_cache != remote_list_cache {
+                    self.remote_list_cache.update(remote_list_cache);
+                    changed = true;
+                }
             }
         }
+        changed
     }
 
     fn poll_remote_list(ctx: &Context<Self>, first: bool) -> Option<Timeout> {
@@ -166,6 +188,7 @@ impl Component for DatacenterManagerApp {
             running_tasks,
             running_tasks_timeout: None,
             remote_list: Vec::new().into(),
+            remote_list_cache: PersistentState::new("PdmRemoteListCache"),
             remote_list_error: None,
             remote_list_timeout: None,
             search_provider: SearchProvider::new(),
@@ -247,6 +270,7 @@ impl Component for DatacenterManagerApp {
                 let main_view: Html = if self.login_info.is_some() && !loading {
                     MainMenu::new()
                         .username(username.clone())
+                        .remote_list(self.remote_list_cache.clone())
                         .remote_list_loading(self.remote_list_error.is_some())
                         .into()
                 } else {

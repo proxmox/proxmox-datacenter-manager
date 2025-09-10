@@ -1,14 +1,11 @@
 use std::rc::Rc;
 
-use serde::{Deserialize, Serialize};
-
 use html::IntoPropValue;
-use wasm_bindgen::UnwrapThrowExt;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::{self, Display, FlexFit};
 use pwt::prelude::*;
-use pwt::state::{PersistentState, Selection};
+use pwt::state::Selection;
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
 use pwt::widget::{Container, Row, SelectionView, SelectionViewRenderInfo};
 
@@ -20,7 +17,7 @@ use crate::remotes::RemotesPanel;
 use crate::sdn::evpn::EvpnPanel;
 use crate::sdn::ZoneTree;
 use crate::{
-    AccessControl, CertificatesPanel, Dashboard, RemoteList, ServerAdministration,
+    AccessControl, CertificatesPanel, Dashboard, RemoteListCacheEntry, ServerAdministration,
     SystemConfiguration,
 };
 
@@ -50,6 +47,11 @@ pub struct MainMenu {
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
     pub remote_list_loading: bool,
+
+    /// Set the list of remotes
+    #[builder]
+    #[prop_or_default]
+    pub remote_list: Vec<RemoteListCacheEntry>,
 }
 
 impl MainMenu {
@@ -60,20 +62,11 @@ impl MainMenu {
 
 pub enum Msg {
     Select(Key),
-    RemoteListChanged(RemoteList),
-}
-
-#[derive(Clone, Serialize, Deserialize, PartialEq)]
-struct RemoteListCacheEntry {
-    ty: RemoteType,
-    id: String,
 }
 
 pub struct PdmMainMenu {
     active: Key,
     menu_selection: Selection,
-    remote_list_cache: PersistentState<Vec<RemoteListCacheEntry>>,
-    _remote_list_observer: ContextHandle<RemoteList>,
 }
 
 fn register_view(
@@ -110,43 +103,17 @@ fn register_submenu(
     );
 }
 
-impl PdmMainMenu {
-    fn update_remote_list(&mut self, remote_list: RemoteList) -> bool {
-        let remote_list_cache: Vec<RemoteListCacheEntry> = remote_list
-            .into_iter()
-            .map(|item| RemoteListCacheEntry {
-                id: item.id.clone(),
-                ty: item.ty,
-            })
-            .collect();
-
-        if *self.remote_list_cache != remote_list_cache {
-            self.remote_list_cache.update(remote_list_cache);
-            true
-        } else {
-            false
-        }
-    }
-}
+impl PdmMainMenu {}
 
 impl Component for PdmMainMenu {
     type Message = Msg;
     type Properties = MainMenu;
 
-    fn create(ctx: &Context<Self>) -> Self {
-        let (remote_list, _remote_list_observer) = ctx
-            .link()
-            .context(ctx.link().callback(Msg::RemoteListChanged))
-            .unwrap_throw();
-        let mut this = Self {
+    fn create(_ctx: &Context<Self>) -> Self {
+        Self {
             active: Key::from("dashboard"),
             menu_selection: Selection::new(),
-            remote_list_cache: PersistentState::new("PdmRemoteListCache"),
-            _remote_list_observer,
-        };
-
-        this.update_remote_list(remote_list);
-        this
+        }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -155,7 +122,6 @@ impl Component for PdmMainMenu {
                 self.active = key;
                 true
             }
-            Msg::RemoteListChanged(remote_list) => self.update_remote_list(remote_list),
         }
     }
 
@@ -277,7 +243,7 @@ impl Component for PdmMainMenu {
 
         let mut remote_submenu = Menu::new();
 
-        for remote in self.remote_list_cache.iter() {
+        for remote in props.remote_list.iter() {
             register_view(
                 &mut remote_submenu,
                 &mut content,
