@@ -1,4 +1,7 @@
-use pdm_api_types::resource::{PveLxcResource, PveQemuResource};
+use pdm_api_types::{
+    remotes::RemoteType,
+    resource::{PveLxcResource, PveQemuResource},
+};
 use pdm_client::types::Resource;
 use serde::{Deserialize, Serialize};
 
@@ -59,6 +62,12 @@ impl std::ops::Deref for RemoteList {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+pub struct RemoteListCacheEntry {
+    pub ty: RemoteType,
+    pub id: String,
 }
 
 /// Get the global remote list if loaded
