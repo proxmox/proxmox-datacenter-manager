@@ -87,6 +87,7 @@ impl yew::Component for SdnZonePanelComponent {
         let data = vec![
             StatusRow::State(SdnStatus::Available, status.available),
             StatusRow::State(SdnStatus::Error, status.error),
+            StatusRow::State(SdnStatus::Unknown, status.unknown),
             StatusRow::All(status.available + status.error + status.unknown),
         ];
 
@@ -111,6 +112,7 @@ fn create_list_tile(
     status_row: StatusRow,
 ) -> Option<ListTile> {
     let (icon, status, count) = match status_row {
+        StatusRow::State(SdnStatus::Unknown, 0) => return None,
         StatusRow::State(sdn_status, count) => (status_row.icon(), Some(sdn_status), count),
         StatusRow::All(count) => (status_row.icon(), None, count),
     };
