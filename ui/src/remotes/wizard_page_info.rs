@@ -360,7 +360,7 @@ impl Component for PdmWizardPageInfo {
             );
         let content = Column::new()
             .class(FlexFit)
-            .with_child(input_panel)
+            .with_child(Row::new().with_child(input_panel))
             .with_child(
                 Row::new()
                     .padding(2)
