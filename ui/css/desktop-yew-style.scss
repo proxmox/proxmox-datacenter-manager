@@ -15,3 +15,9 @@
         @include elevation-box-shadow(1);
     }
 }
+
+// TODO: move to pwt assets once we're sure about doing it this way or drop, if
+// we rewroked layouting and placement of the dropdown picker.
+.pwt-dropdown {
+    max-height: min(45dvh, 500px) !important;
+}
