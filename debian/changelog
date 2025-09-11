@@ -1,4 +1,13 @@
-proxmox-datacenter-manager (0.3.2) UNRELEASED; urgency=medium
+proxmox-datacenter-manager (0.9.0) trixie; urgency=medium
+
+  * bump version for BETA release based on Debian 13 Trixie.
+
+  * self-signed cert: use correct product name for "Organization" field when
+    creating a new certificate.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 11 Sep 2025 11:17:16 +0200
+
+proxmox-datacenter-manager (0.3.2) trixie; urgency=medium
 
   * add initial pdmAtoB upgrade checker script.
 

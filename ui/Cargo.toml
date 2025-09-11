@@ -40,8 +40,8 @@ proxmox-schema = "5"
 proxmox-rrd-api-types = "1"
 pbs-api-types = "1.0.3"
 
-pdm-api-types = { version = "0.3", path = "../lib/pdm-api-types" }
-pdm-client = { version = "0.3", path = "../lib/pdm-client" }
+pdm-api-types = { version = "0.9", path = "../lib/pdm-api-types" }
+pdm-client = { version = "0.9", path = "../lib/pdm-client" }
 
 pdm-ui-shared = { version = "0.3", path = "../lib/pdm-ui-shared" }
 
