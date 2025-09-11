@@ -20,7 +20,7 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
     let resolv_conf = read_etc_resolv_conf(None)?.config;
 
     let (priv_key, cert) = proxmox_acme_api::create_self_signed_cert(
-        "Proxmox Backup Server",
+        "Proxmox Datacenter Manager",
         proxmox_sys::nodename(),
         resolv_conf.search.as_deref(),
     )?;
