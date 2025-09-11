@@ -573,7 +573,7 @@ fn columns(
                     ),
                     PveTreeNode::Root => (
                         Container::new().with_child(Fa::new("server")),
-                        tr!("Remote"),
+                        tr!("Datacenter"),
                     ),
                     PveTreeNode::Node(r) => (utils::render_node_status_icon(r), r.node.to_string()),
                     PveTreeNode::Qemu(r) => {
