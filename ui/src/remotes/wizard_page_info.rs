@@ -333,6 +333,7 @@ impl Component for PdmWizardPageInfo {
                     .name("tokenid")
                     .disabled(self.user_mode)
                     .required(!self.user_mode)
+                    .placeholder("user@realm!token-id")
                     .submit(false),
             )
             .with_right_field(
