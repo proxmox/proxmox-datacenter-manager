@@ -78,10 +78,12 @@ impl std::str::FromStr for MatchCategory {
 impl MatchCategory {
     fn matches(&self, value: &str, search_term: &str) -> bool {
         match self {
-            MatchCategory::Type | MatchCategory::Status => value.starts_with(search_term),
-            MatchCategory::Name | MatchCategory::Id | MatchCategory::Remote => {
-                value.contains(search_term)
-            }
+            MatchCategory::Type | MatchCategory::Status => value
+                .to_ascii_lowercase()
+                .starts_with(&search_term.to_ascii_lowercase()),
+            MatchCategory::Name | MatchCategory::Id | MatchCategory::Remote => value
+                .to_ascii_lowercase()
+                .contains(&search_term.to_ascii_lowercase()),
             MatchCategory::Template => match (parse_boolean(value), parse_boolean(search_term)) {
                 (Ok(a), Ok(b)) => a == b,
                 _ => false,
@@ -112,7 +114,10 @@ fn resource_matches_search_term(
             MatchCategory::Remote => category.matches(remote_name, &term.value),
         },
         Some(Err(_)) => false,
-        None => resource.name().contains(&term.value) || resource.id().contains(&term.value),
+        None => {
+            MatchCategory::Name.matches(resource.name(), &term.value)
+                || MatchCategory::Id.matches(&resource.id(), &term.value)
+        }
     };
     Some(matches)
 }
@@ -132,7 +137,10 @@ fn remote_matches_search_term(remote_name: &str, online: Option<bool>, term: &Se
             MatchCategory::Template => false,
         },
         Some(Err(_)) => false,
-        None => remote_name.contains(&term.value) || "remote".starts_with(&term.value),
+        None => {
+            MatchCategory::Name.matches(remote_name, &term.value)
+                || MatchCategory::Type.matches("remote", &term.value)
+        }
     }
 }
 
@@ -188,15 +196,14 @@ fn is_remotes_only(filters: &Search) -> bool {
         if term.is_optional() {
             optional_terms += 1;
         }
-        match term.category.as_deref() {
-            Some("type") if "remote".starts_with(&term.value) => {
+        match term.category.as_deref().map(|c| c.parse::<MatchCategory>()) {
+            Some(Ok(MatchCategory::Type)) if MatchCategory::Type.matches("remote", &term.value) => {
                 if !term.is_optional() {
                     is_required = true;
                 } else {
                     optional_matches += 1;
                 }
             }
-            None => {}
             _ => {}
         }
         // search is short-circuited, so to iterate over all, return true on required and false on optional
