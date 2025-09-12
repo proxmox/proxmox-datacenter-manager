@@ -50,7 +50,7 @@ configure this server - connect to:
             if !saddrs.is_empty() {
                 saddrs.join("\n")
             } else {
-                format!("hostname '{nodename}' does not resolves to any non-loopback address",)
+                format!("hostname '{nodename}' does not resolve to any non-loopback address",)
             }
         }
         Err(e) => format!("could not resolve hostname '{nodename}': {e}"),
