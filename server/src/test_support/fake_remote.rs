@@ -159,6 +159,7 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 vmid: Some(vmid),
                 lock: None,
                 tags: None,
+                sdn: None,
             });
         }
 
@@ -193,6 +194,7 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 vmid: Some(vmid),
                 lock: None,
                 tags: None,
+                sdn: None,
             });
         }
 
@@ -226,6 +228,7 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 vmid: Some(vmid),
                 lock: None,
                 tags: None,
+                sdn: None,
             });
         }
 
@@ -259,6 +262,7 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 vmid: None,
                 lock: None,
                 tags: None,
+                sdn: None,
             });
         }
 
