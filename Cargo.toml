@@ -79,7 +79,7 @@ proxmox-syslog-api = "1"
 proxmox-acme-api = "1"
 
 # API types for PVE (and later PMG?)
-pve-api-types = { path = "lib/proxmox-api-types/pve-api-types" }
+pve-api-types = "8"
 # API types for PBS
 pbs-api-types = "1.0.3"
 
