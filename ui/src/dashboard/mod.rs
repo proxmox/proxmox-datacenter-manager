@@ -272,10 +272,7 @@ impl PdmDashboard {
     ) -> Panel {
         let (hours, since) = Self::get_task_options(&self.config);
         let title = match remotes {
-            Some(_count) => tr!(
-                "Task Summary Sorted by Failed Tasks (Last {0}h)",
-                hours
-            ),
+            Some(_count) => tr!("Task Summary Sorted by Failed Tasks (Last {0}h)", hours),
             None => tr!("Task Summary by Category (Last {0}h)", hours),
         };
         Panel::new()

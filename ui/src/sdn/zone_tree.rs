@@ -162,8 +162,7 @@ impl ZoneTreeComponent {
                 .justify("right")
                 .render(move |entry: &ZoneTreeEntry| {
                     let url = match entry {
-                        ZoneTreeEntry::Root
-                        | ZoneTreeEntry::Node(_, _) => None,
+                        ZoneTreeEntry::Root | ZoneTreeEntry::Node(_, _) => None,
                         ZoneTreeEntry::Remote(remote) => {
                             // TODO: do not hardcode this here.
                             let hash = "#v1:0:18:4:::::::53";
