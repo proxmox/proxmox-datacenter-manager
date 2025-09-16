@@ -253,7 +253,7 @@ pub(crate) async fn get_resources_impl(
                 Err(error) => {
                     tracing::debug!("failed to get resources from remote - {error:?}");
                     (Vec::new(), Some(error.root_cause().to_string()))
-                },
+                }
             };
 
             if remotes_only {
