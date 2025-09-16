@@ -3,6 +3,7 @@ use std::rc::Rc;
 use anyhow::Error;
 use pwt::css::ColorScheme;
 use serde::Deserialize;
+use wasm_bindgen::UnwrapThrowExt;
 
 use pwt::prelude::*;
 use pwt::widget::menu::{Menu, MenuButton, MenuEntry, MenuEvent, MenuItem};
@@ -181,10 +182,17 @@ impl Component for PdmTopNavBar {
                 Tooltip::new(
                     Button::new(tr!("Documentation"))
                         .icon_class("fa fa-book")
-                        .disabled(true)
-                        .class(ColorScheme::Neutral),
+                        .class(ColorScheme::Neutral)
+                        .on_activate(|_| {
+                            gloo_utils::window()
+                                .open_with_url_and_target(
+                                    "https://pve.proxmox.com/wiki/Proxmox_Datacenter_Manager_Beta_Documentation",
+                                    "_blank"
+                                )
+                                .expect_throw("could not open documentation in a new window");
+                        }),
                 )
-                .tip(tr!("Coming soon")),
+                .tip(tr!("Open the Beta documentation in a new tab.")),
             );
 
         if let Some(username) = &props.username {
