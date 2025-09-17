@@ -301,7 +301,7 @@ fn rows() -> Vec<KVGridRow> {
         KVGridRow::new("fingerprint", tr!("Fingerprint")),
         KVGridRow::new("issuer", tr!("Issuer")),
         KVGridRow::new("subject", tr!("Subject")),
-        KVGridRow::new("public-key-type", tr!("Public Key Alogrithm")),
+        KVGridRow::new("public-key-type", tr!("Public Key Algorithm")),
         KVGridRow::new("public-key-bits", tr!("Public Key Size")),
         KVGridRow::new("notbefore", tr!("Valid Since")).renderer(render_date),
         KVGridRow::new("notafter", tr!("Expires")).renderer(render_date),
