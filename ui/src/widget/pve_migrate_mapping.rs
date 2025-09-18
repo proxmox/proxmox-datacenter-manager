@@ -245,13 +245,7 @@ impl ManagedField for PveMigrateMapComp {
     }
 
     fn setup(props: &Self::Properties) -> ManagedFieldState {
-        ManagedFieldState {
-            value: props.value.clone().into(),
-            valid: Ok(()),
-            default: props.default.clone().into(),
-            radio_group: false,
-            unique: false,
-        }
+        ManagedFieldState::new(props.value.clone().into(), props.default.clone().into())
     }
 
     fn update(&mut self, ctx: &ManagedFieldContext<Self>, msg: Self::Message) -> bool {

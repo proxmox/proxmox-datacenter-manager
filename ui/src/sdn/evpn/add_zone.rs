@@ -206,13 +206,7 @@ impl ManagedField for ControllerTableComponent {
     }
 
     fn setup(_props: &Self::Properties) -> ManagedFieldState {
-        ManagedFieldState {
-            value: Value::Null,
-            valid: Ok(()),
-            default: Value::Array(Vec::new()),
-            radio_group: false,
-            unique: false,
-        }
+        ManagedFieldState::new(Value::Null, Value::Array(Vec::new()))
     }
 
     fn create(ctx: &ManagedFieldContext<Self>) -> Self {

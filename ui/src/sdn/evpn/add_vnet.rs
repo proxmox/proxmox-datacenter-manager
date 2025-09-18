@@ -201,13 +201,7 @@ impl ManagedField for ZoneTableComponent {
     }
 
     fn setup(_props: &Self::Properties) -> ManagedFieldState {
-        ManagedFieldState {
-            value: Value::Array(Vec::new()),
-            valid: Ok(()),
-            default: Value::Array(Vec::new()),
-            radio_group: false,
-            unique: false,
-        }
+        ManagedFieldState::new(Value::Array(Vec::new()), Value::Array(Vec::new()))
     }
 
     fn create(ctx: &ManagedFieldContext<Self>) -> Self {

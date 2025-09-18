@@ -109,15 +109,7 @@ impl ManagedField for PdmNodeUrlField {
             .filter_map(|n| serde_json::to_value(n).ok())
             .collect();
 
-        let valid = Ok(());
-
-        ManagedFieldState {
-            value,
-            valid,
-            default,
-            radio_group: false,
-            unique: false,
-        }
+        ManagedFieldState::new(value, default)
     }
 
     fn create(ctx: &pwt::widget::form::ManagedFieldContext<Self>) -> Self {
@@ -228,7 +220,7 @@ impl ManagedField for PdmNodeUrlField {
                     }),
             )
             .with_flex_spacer()
-            .with_optional_child(ctx.state().valid.clone().err().map(|err| {
+            .with_optional_child(ctx.state().result.clone().err().map(|err| {
                 Row::new()
                     .class(css::AlignItems::Center)
                     .gap(2)
