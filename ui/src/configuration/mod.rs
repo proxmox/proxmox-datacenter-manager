@@ -7,7 +7,7 @@ use pwt::widget::{Container, MiniScrollMode, Panel, TabBarItem, TabPanel};
 use proxmox_yew_comp::configuration::TimePanel;
 use proxmox_yew_comp::configuration::{DnsPanel, NetworkView};
 use proxmox_yew_comp::tfa::TfaView;
-use proxmox_yew_comp::{AclEdit, AclView, UserPanel};
+use proxmox_yew_comp::{AclEdit, AclView, AuthView, UserPanel};
 
 mod permission_path_selector;
 mod webauthn;
@@ -90,6 +90,18 @@ pub fn access_control() -> Html {
                         "fa fa-fw fa-user",
                         acl_edit.clone().use_tokens(false),
                     ))
+                    .into()
+            },
+        )
+        .with_item_builder(
+            TabBarItem::new()
+                .key("realms")
+                .icon_class("fa fa-address-book-o")
+                .label(tr!("Realms")),
+            |_| {
+                AuthView::new()
+                    .ldap_base_url("/config/access/ldap")
+                    .ad_base_url("/config/access/ad")
                     .into()
             },
         );
