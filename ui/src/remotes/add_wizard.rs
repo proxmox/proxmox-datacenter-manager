@@ -114,7 +114,7 @@ impl Component for AddWizardState {
                 let info = self.connect_info.clone();
                 let link = ctx.link().clone();
                 move |p: &WizardPageRenderInfo| {
-                    WizardPageInfo::new(p.clone())
+                    WizardPageInfo::new(p.clone(), remote_type)
                         .connect_info(info.clone())
                         .on_server_change(link.callback(Msg::ServerChange))
                         .into()

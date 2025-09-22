@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use yew::html::IntoEventCallback;
@@ -45,16 +45,22 @@ pub struct ConnectParams {
 }
 
 async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<TlsProbeOutcome, Error> {
+    let hostname = normalize_hostname(form_ctx.read().get_field_text("hostname"));
+    let fingerprint = get_fingerprint(&form_ctx);
+    let pdm_client = crate::pdm_client();
     match remote_type {
         RemoteType::Pve => {
-            let hostname = normalize_hostname(form_ctx.read().get_field_text("hostname"));
-            let fingerprint = get_fingerprint(&form_ctx);
-            crate::pdm_client()
+            pdm_client
                 .pve_probe_tls(&hostname, fingerprint.as_deref())
                 .await
                 .map_err(Error::from)
         }
-        RemoteType::Pbs => bail!("not implemented"),
+        RemoteType::Pbs => {
+            pdm_client
+                .pbs_probe_tls(&hostname, fingerprint.as_deref())
+                .await
+                .map_err(Error::from)
+        }
     }
 }
 

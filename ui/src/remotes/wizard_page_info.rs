@@ -18,7 +18,7 @@ use pwt::{
     AsyncPool,
 };
 
-use pdm_api_types::remotes::{NodeUrl, Remote};
+use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType};
 
 use pwt_macros::builder;
 
@@ -37,11 +37,12 @@ pub struct WizardPageInfo {
     #[builder]
     #[prop_or_default]
     connect_info: Option<ConnectParams>,
+    remote_type: RemoteType,
 }
 
 impl WizardPageInfo {
-    pub fn new(info: WizardPageRenderInfo) -> Self {
-        yew::props!(Self { info })
+    pub fn new(info: WizardPageRenderInfo, remote_type: RemoteType) -> Self {
+        yew::props!(Self { info, remote_type })
     }
 }
 
@@ -72,7 +73,7 @@ pub struct ScanParams {
     fingerprint: Option<String>,
 }
 
-async fn scan(connection_params: ConnectParams, form_ctx: FormContext) -> Result<Remote, Error> {
+async fn scan(connection_params: ConnectParams, form_ctx: FormContext, remote_type: RemoteType) -> Result<Remote, Error> {
     let mut data = form_ctx.get_submit_data();
 
     data["hostname"] = connection_params.hostname.into();
@@ -87,9 +88,15 @@ async fn scan(connection_params: ConnectParams, form_ctx: FormContext) -> Result
         fingerprint,
     } = serde_json::from_value(data.clone())?;
 
-    let mut result = crate::pdm_client()
-        .pve_scan_remote(&hostname, fingerprint.as_deref(), &authid, &token)
-        .await?;
+    let client = crate::pdm_client();
+    let mut result = match remote_type {
+        RemoteType::Pve => client
+            .pve_scan_remote(&hostname, fingerprint.as_deref(), &authid, &token)
+            .await?,
+        RemoteType::Pbs => client
+            .pbs_scan_remote(&hostname, fingerprint.as_deref(), &authid, &token)
+            .await?,
+    };
 
     // try to deduplicate the entered info from the first page with the nodelist here
     // either via the hostname or the fingerprint. if none matches the entered info will
@@ -235,8 +242,10 @@ impl Component for PdmWizardPageInfo {
                 props.info.page_lock(true);
 
                 if let Some(connection_info) = props.connect_info.clone() {
+                    let remote_type = props.remote_type;
+
                     self.async_pool.spawn(async move {
-                        let result = scan(connection_info, form_ctx).await;
+                        let result = scan(connection_info, form_ctx, remote_type).await;
                         link.send_message(Msg::ConnectResult(result));
                     });
                 } else {
