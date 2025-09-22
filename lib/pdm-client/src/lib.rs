@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use pdm_api_types::remotes::TlsProbeOutcome;
+use pdm_api_types::remotes::{RemoteType, TlsProbeOutcome};
 use pdm_api_types::resource::{PveResource, RemoteResources, ResourceType, TopEntities};
 use pdm_api_types::rrddata::{
     LxcDataPoint, NodeDataPoint, PbsDatastoreDataPoint, PbsNodeDataPoint, PveStorageDataPoint,
@@ -976,18 +976,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         hostname: &str,
         fingerprint: Option<&str>,
     ) -> Result<TlsProbeOutcome, Error> {
-        let mut params = json!({
-            "hostname": hostname,
-        });
-        if let Some(fp) = fingerprint {
-            params["fingerprint"] = fp.into();
-        }
-        Ok(self
-            .0
-            .post("/api2/extjs/pve/probe-tls", &params)
-            .await?
-            .expect_json()?
-            .data)
+        self.probe_tls(hostname, fingerprint, RemoteType::Pve).await
     }
 
     /// Uses /pve/scan to scan the remote cluster for node/fingerprint information
@@ -1067,6 +1056,32 @@ impl<T: HttpApiClient> PdmClient<T> {
         let path = "/api2/extjs/sdn/vnets";
 
         Ok(self.0.post(path, &params).await?.expect_json()?.data)
+    }
+
+    /// uses /pbs/probe-tls to probe the tls connection to the given host
+    pub async fn pbs_probe_tls(
+        &self,
+        hostname: &str,
+        fingerprint: Option<&str>,
+    ) -> Result<TlsProbeOutcome, Error> {
+        self.probe_tls(hostname, fingerprint, RemoteType::Pbs).await
+    }
+
+    /// uses /{remote-type}/probe-tls to probe the tls connection to the given host
+    async fn probe_tls(
+        &self,
+        hostname: &str,
+        fingerprint: Option<&str>,
+        remote_type: RemoteType,
+    ) -> Result<TlsProbeOutcome, Error> {
+        let path = format!("/api2/extjs/{remote_type}/probe-tls");
+        let mut params = json!({
+            "hostname": hostname,
+        });
+        if let Some(fp) = fingerprint {
+            params["fingerprint"] = fp.into();
+        }
+        Ok(self.0.post(&path, &params).await?.expect_json()?.data)
     }
 }
 
