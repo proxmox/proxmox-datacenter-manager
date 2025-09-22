@@ -43,6 +43,7 @@ pub fn system_configuration() -> Html {
 #[function_component(AccessControl)]
 pub fn access_control() -> Html {
     let acl_edit = AclEdit::new(tr!("Path"), PermissionPathSelector::new()).default_role("Auditor");
+    let user_management_revision = use_mut_ref(|| 0usize);
 
     let panel = TabPanel::new()
         .state_id(StorageLocation::session("AccessControlState"))
@@ -55,11 +56,20 @@ pub fn access_control() -> Html {
                 .key("user-management")
                 .icon_class("fa fa-user")
                 .label(tr!("User Management")),
-            |_| {
+            move |s| {
+                if s.visible {
+                    let mut guard = user_management_revision.borrow_mut();
+                    *guard = (*guard).wrapping_add(1);
+                }
                 Container::new()
                     .class("pwt-content-spacer")
                     .class(pwt::css::FlexFit)
                     .with_child(UserPanel::new())
+                    // forces a reload when the tab becomes visible again
+                    .key(format!(
+                        "user-management-{}",
+                        *user_management_revision.borrow()
+                    ))
                     .into()
             },
         )
