@@ -349,7 +349,14 @@ pub enum RealmType {
     Pdm,
     /// An OpenID Connect realm
     OpenId,
+    /// An Active Directory realm
+    Ad,
+    /// An LDAP realm
+    Ldap,
 }
+
+serde_plain::derive_display_from_serialize!(RealmType);
+serde_plain::derive_fromstr_from_deserialize!(RealmType);
 
 #[api(
     properties: {

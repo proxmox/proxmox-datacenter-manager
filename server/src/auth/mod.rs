@@ -8,11 +8,13 @@ use std::sync::OnceLock;
 use anyhow::{bail, Error};
 
 use const_format::concatcp;
+use ldap::{AdAuthenticator, LdapAuthenticator};
 use proxmox_access_control::CachedUserInfo;
 use proxmox_auth_api::api::{Authenticator, LockedTfaConfig};
 use proxmox_auth_api::ticket::Ticket;
 use proxmox_auth_api::types::Authid;
 use proxmox_auth_api::{HMACKey, Keyring};
+use proxmox_ldap::types::{AdRealmConfig, LdapRealmConfig};
 use proxmox_rest_server::AuthError;
 use proxmox_router::UserInformation;
 use proxmox_tfa::api::{OpenUserChallengeData, TfaConfig};
@@ -22,6 +24,7 @@ use pdm_api_types::{RealmRef, Userid};
 pub mod certs;
 pub mod csrf;
 pub mod key;
+pub(crate) mod ldap;
 pub mod tfa;
 
 pub const TERM_PREFIX: &str = "PDMTERM";
@@ -182,7 +185,19 @@ pub(crate) fn lookup_authenticator(
             config_filename: pdm_buildcfg::configdir!("/access/shadow.json"),
             lock_filename: pdm_buildcfg::configdir!("/access/shadow.json.lock"),
         })),
-        realm => bail!("unknown realm '{}'", realm),
+        realm => {
+            if let Ok((domains, _digest)) = pdm_config::domains::config() {
+                if let Ok(config) = domains.lookup::<LdapRealmConfig>("ldap", realm) {
+                    return Ok(Box::new(LdapAuthenticator::new(config)));
+                }
+
+                if let Ok(config) = domains.lookup::<AdRealmConfig>("ad", realm) {
+                    return Ok(Box::new(AdAuthenticator::new(config)));
+                }
+            }
+
+            bail!("unknwon realm {realm}");
+        }
     }
 }
 
