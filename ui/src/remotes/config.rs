@@ -25,7 +25,7 @@ use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 //use pwt::widget::form::{delete_empty_values, Field, FormContext, InputType};
 use pwt::widget::{
-    //menu::{Menu, MenuButton, MenuItem},
+    menu::{Menu, MenuButton, MenuItem},
     Button,
     Column,
     Toolbar,
@@ -173,29 +173,23 @@ impl LoadableComponent for PbsRemoteConfigPanel {
             .class("pwt-overflow-hidden")
             .class("pwt-border-bottom")
             .with_child({
-                Button::new(tr!("Add Proxmox VE"))
-                    .icon_class("fa fa-building")
-                    .on_activate(
-                        link.change_view_callback(|_| Some(ViewState::Add(RemoteType::Pve))),
-                    )
-                // FIXME: add PBS support
-                //MenuButton::new(tr!("Add")).show_arrow(true).menu(
-                //    Menu::new()
-                //        .with_item(
-                //            MenuItem::new("Proxmox VE")
-                //                .icon_class("fa fa-building")
-                //                .on_select(link.change_view_callback(|_| {
-                //                    Some(ViewState::Add(RemoteType::Pve))
-                //                })),
-                //        )
-                //        .with_item(
-                //            MenuItem::new("Proxmox Backup Server")
-                //                .icon_class("fa fa-floppy-o")
-                //                .on_select(link.change_view_callback(|_| {
-                //                    Some(ViewState::Add(RemoteType::Pbs))
-                //                })),
-                //        ),
-                //)
+                MenuButton::new(tr!("Add")).show_arrow(true).menu(
+                    Menu::new()
+                        .with_item(
+                            MenuItem::new("Proxmox VE")
+                                .icon_class("fa fa-building")
+                                .on_select(link.change_view_callback(|_| {
+                                    Some(ViewState::Add(RemoteType::Pve))
+                                })),
+                        )
+                        .with_item(
+                            MenuItem::new("Proxmox Backup Server")
+                                .icon_class("fa fa-floppy-o")
+                                .on_select(link.change_view_callback(|_| {
+                                    Some(ViewState::Add(RemoteType::Pbs))
+                                })),
+                        ),
+                )
             })
             .with_spacer()
             .with_child(
