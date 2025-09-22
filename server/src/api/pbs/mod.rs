@@ -5,11 +5,11 @@ use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
-use pdm_api_types::PRIV_RESOURCE_AUDIT;
+use pdm_api_types::remotes::{RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA};
+use pdm_api_types::{HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_SYS_MODIFY};
 
 use crate::{
-    connection,
+    connection::{self, probe_tls_connection},
     pbs_client::{self, get_remote},
 };
 
@@ -20,7 +20,10 @@ pub const ROUTER: Router = Router::new()
     .subdirs(SUBDIRS);
 
 #[sortable]
-const SUBDIRS: SubdirMap = &sorted!([("remotes", &REMOTES_ROUTER)]);
+const SUBDIRS: SubdirMap = &sorted!([
+    ("remotes", &REMOTES_ROUTER),
+    ("probe-tls", &Router::new().post(&API_METHOD_PROBE_TLS)),
+]);
 
 const REMOTES_ROUTER: Router = Router::new().match_all("remote", &MAIN_ROUTER);
 
@@ -111,4 +114,35 @@ async fn list_snapshots_2(
         }
     }
     .into())
+}
+
+#[api(
+    input: {
+        properties: {
+            hostname: {
+                type: String,
+                format: &HOST_OPTIONAL_PORT_FORMAT,
+                description: "Hostname (with optional port) of the target remote",
+            },
+            fingerprint: {
+                type: String,
+                description: "Fingerprint of the target remote.",
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission:
+            &Permission::Privilege(&["/"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Probe the hosts TLS certificate.
+///
+/// If the certificate is not trusted with the given parameters, returns the certificate
+/// information.
+async fn probe_tls(
+    hostname: String,
+    fingerprint: Option<String>,
+) -> Result<TlsProbeOutcome, Error> {
+    probe_tls_connection(RemoteType::Pbs, hostname, fingerprint).await
 }
