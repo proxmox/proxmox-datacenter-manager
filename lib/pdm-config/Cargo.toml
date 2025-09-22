@@ -15,6 +15,7 @@ serde.workspace = true
 
 proxmox-config-digest = { workspace = true, features = [ "openssl" ] }
 proxmox-http = { workspace = true, features = [ "http-helpers" ] }
+proxmox-ldap = { workspace = true, features = [ "types" ]}
 proxmox-product-config.workspace = true
 proxmox-schema.workspace = true
 proxmox-section-config.workspace = true

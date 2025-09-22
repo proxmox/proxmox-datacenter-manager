@@ -3,6 +3,7 @@ use std::sync::LazyLock;
 
 use anyhow::Error;
 
+use proxmox_ldap::types::{AdRealmConfig, LdapRealmConfig};
 use proxmox_schema::{ApiType, Schema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
@@ -26,6 +27,20 @@ fn init() -> SectionConfig {
     );
     let mut config = SectionConfig::new(&REALM_ID_SCHEMA);
     config.register_plugin(plugin);
+
+    let ldap_plugin = SectionConfigPlugin::new(
+        "ldap".to_string(),
+        Some("realm".to_string()),
+        LdapRealmConfig::API_SCHEMA.unwrap_object_schema(),
+    );
+    config.register_plugin(ldap_plugin);
+
+    let ad_plugin = SectionConfigPlugin::new(
+        "ad".to_string(),
+        Some("realm".to_string()),
+        AdRealmConfig::API_SCHEMA.unwrap_object_schema(),
+    );
+    config.register_plugin(ad_plugin);
 
     config
 }
