@@ -987,20 +987,8 @@ impl<T: HttpApiClient> PdmClient<T> {
         authid: &str,
         token: &str,
     ) -> Result<Remote, Error> {
-        let mut params = json!({
-            "hostname": hostname,
-            "authid": authid,
-            "token": token,
-        });
-        if let Some(fp) = fingerprint {
-            params["fingerprint"] = fp.into();
-        }
-        Ok(self
-            .0
-            .post("/api2/extjs/pve/scan", &params)
-            .await?
-            .expect_json()?
-            .data)
+        self.scan_remote(hostname, fingerprint, authid, token, RemoteType::Pve)
+            .await
     }
 
     pub async fn pve_sdn_list_controllers(
@@ -1077,6 +1065,39 @@ impl<T: HttpApiClient> PdmClient<T> {
         let path = format!("/api2/extjs/{remote_type}/probe-tls");
         let mut params = json!({
             "hostname": hostname,
+        });
+        if let Some(fp) = fingerprint {
+            params["fingerprint"] = fp.into();
+        }
+        Ok(self.0.post(&path, &params).await?.expect_json()?.data)
+    }
+
+    /// Uses /pbs/scan to scan the remote cluster for node/fingerprint information
+    pub async fn pbs_scan_remote(
+        &self,
+        hostname: &str,
+        fingerprint: Option<&str>,
+        authid: &str,
+        token: &str,
+    ) -> Result<Remote, Error> {
+        self.scan_remote(hostname, fingerprint, authid, token, RemoteType::Pbs)
+            .await
+    }
+
+    /// Uses /{remote-type}/scan to scan the remote for node/fingerprint information
+    pub async fn scan_remote(
+        &self,
+        hostname: &str,
+        fingerprint: Option<&str>,
+        authid: &str,
+        token: &str,
+        remote_type: RemoteType,
+    ) -> Result<Remote, Error> {
+        let path = format!("/api2/extjs/{remote_type}/scan");
+        let mut params = json!({
+            "hostname": hostname,
+            "authid": authid,
+            "token": token,
         });
         if let Some(fp) = fingerprint {
             params["fingerprint"] = fp.into();
