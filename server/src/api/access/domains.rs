@@ -1,12 +1,15 @@
 //! List Authentication domains/realms.
 
-use anyhow::Error;
-use serde_json::Value;
+use anyhow::{bail, format_err, Error};
+use serde_json::{json, Value};
 
-use pdm_api_types::{BasicRealmInfo, RealmType};
-
-use proxmox_router::{Permission, Router, RpcEnvironment};
+use proxmox_auth_api::types::Realm;
+use proxmox_ldap::types::REMOVE_VANISHED_SCHEMA;
+use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap};
 use proxmox_schema::api;
+
+use pbs_api_types::PRIV_PERMISSIONS_MODIFY;
+use pdm_api_types::{Authid, BasicRealmInfo, RealmRef, RealmType, UPID_SCHEMA};
 
 #[api(
     returns: {
@@ -52,4 +55,79 @@ fn list_domains(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<BasicRealmInfo>, 
     Ok(list)
 }
 
-pub const ROUTER: Router = Router::new().get(&API_METHOD_LIST_DOMAINS);
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            realm: {
+                type: Realm,
+            },
+            "dry-run": {
+                type: bool,
+                description: "If set, do not create/delete anything",
+                default: false,
+                optional: true,
+            },
+            "remove-vanished": {
+                optional: true,
+                schema: REMOVE_VANISHED_SCHEMA,
+            },
+            "enable-new": {
+                description: "Enable newly synced users immediately",
+                optional: true,
+            }
+         },
+    },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+    },
+)]
+/// Synchronize users of a given realm
+pub fn sync_realm(
+    realm: Realm,
+    dry_run: bool,
+    remove_vanished: Option<String>,
+    enable_new: Option<bool>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
+
+    let upid_str = crate::auth::ldap::do_realm_sync_job(
+        realm.clone(),
+        realm_type_from_name(&realm)?,
+        &auth_id,
+        to_stdout,
+        dry_run,
+        remove_vanished,
+        enable_new,
+    )
+    .map_err(|err| format_err!("unable to start realm sync job on realm {realm} - {err:#}"))?;
+
+    Ok(json!(upid_str))
+}
+
+fn realm_type_from_name(realm: &RealmRef) -> Result<RealmType, Error> {
+    let config = pdm_config::domains::config()?.0;
+
+    for (name, (section_type, _)) in config.sections.iter() {
+        if name == realm.as_str() {
+            return Ok(section_type.parse()?);
+        }
+    }
+
+    bail!("unable to find realm {realm}")
+}
+
+const SYNC_ROUTER: Router = Router::new().post(&API_METHOD_SYNC_REALM);
+const SYNC_SUBDIRS: SubdirMap = &[("sync", &SYNC_ROUTER)];
+
+const REALM_ROUTER: Router = Router::new().subdirs(SYNC_SUBDIRS);
+
+pub const ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_DOMAINS)
+    .match_all("realm", &REALM_ROUTER);

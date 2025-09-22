@@ -3,16 +3,19 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::pin::Pin;
 
-use anyhow::Error;
+use anyhow::{bail, Error};
 use pdm_buildcfg::configdir;
 use proxmox_auth_api::api::Authenticator;
+use proxmox_ldap::sync::{AdRealmSyncJob, GeneralSyncSettingsOverride, LdapRealmSyncJob};
 use proxmox_ldap::types::{AdRealmConfig, LdapMode, LdapRealmConfig};
 use proxmox_ldap::{Config, Connection, ConnectionMode};
 use proxmox_product_config::ApiLockGuard;
+use proxmox_rest_server::WorkerTask;
 use proxmox_router::http_bail;
 use serde_json::json;
 
-use pdm_api_types::UsernameRef;
+use pdm_api_types::{Authid, Realm, RealmType, UsernameRef};
+use pdm_config::domains;
 
 const LDAP_PASSWORDS_FILENAME: &str = configdir!("/ldap_passwords.json");
 
@@ -229,4 +232,84 @@ pub(super) fn get_ldap_bind_password(realm: &str) -> Result<Option<String>, Erro
         .map(|s| s.to_owned());
 
     Ok(password)
+}
+
+/// Runs a realm sync job
+#[allow(clippy::too_many_arguments)]
+pub fn do_realm_sync_job(
+    realm: Realm,
+    realm_type: RealmType,
+    auth_id: &Authid,
+    to_stdout: bool,
+    dry_run: bool,
+    remove_vanished: Option<String>,
+    enable_new: Option<bool>,
+) -> Result<String, Error> {
+    let upid_str = WorkerTask::spawn(
+        "realm-sync",
+        Some(realm.as_str().to_owned()),
+        auth_id.to_string(),
+        to_stdout,
+        move |_worker| {
+            log::info!("starting realm sync for {realm}");
+
+            let override_settings = GeneralSyncSettingsOverride {
+                remove_vanished,
+                enable_new,
+            };
+
+            async move {
+                match realm_type {
+                    RealmType::Ldap => {
+                        let (domains, _digest) = domains::config()?;
+                        let config = if let Ok(config) =
+                            domains.lookup::<LdapRealmConfig>("ldap", realm.as_str())
+                        {
+                            config
+                        } else {
+                            bail!("unknown LDAP realm '{realm}'");
+                        };
+
+                        let ldap_config = LdapAuthenticator::api_type_to_config(&config)?;
+
+                        LdapRealmSyncJob::new(
+                            realm,
+                            config,
+                            ldap_config,
+                            &override_settings,
+                            dry_run,
+                        )?
+                        .sync()
+                        .await
+                    }
+                    RealmType::Ad => {
+                        let (domains, _digest) = domains::config()?;
+                        let config = if let Ok(config) =
+                            domains.lookup::<AdRealmConfig>("ad", realm.as_str())
+                        {
+                            config
+                        } else {
+                            bail!("unknown Active Directory realm '{realm}'");
+                        };
+
+                        let ldap_config = AdAuthenticator::api_type_to_config(&config)?;
+
+                        AdRealmSyncJob::new(
+                            realm,
+                            config,
+                            ldap_config,
+                            &override_settings,
+                            dry_run,
+                        )?
+                        .sync()
+                        .await
+                    }
+
+                    _ => bail!("cannot sync realm {realm} of type {realm_type}"),
+                }
+            }
+        },
+    )?;
+
+    Ok(upid_str)
 }
