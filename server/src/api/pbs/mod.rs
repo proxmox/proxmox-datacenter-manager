@@ -1,16 +1,17 @@
-use anyhow::Error;
+use anyhow::{format_err, Error};
 use futures::StreamExt;
 
 use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
 use proxmox_schema::api;
+use proxmox_schema::property_string::PropertyString;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::{RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA};
-use pdm_api_types::{HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_SYS_MODIFY};
+use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA};
+use pdm_api_types::{Authid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_SYS_MODIFY};
 
 use crate::{
     connection::{self, probe_tls_connection},
-    pbs_client::{self, get_remote},
+    pbs_client::{self, get_remote, PbsClient},
 };
 
 mod rrddata;
@@ -22,6 +23,7 @@ pub const ROUTER: Router = Router::new()
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("remotes", &REMOTES_ROUTER),
+    ("scan", &Router::new().post(&API_METHOD_SCAN_REMOTE_PBS)),
     ("probe-tls", &Router::new().post(&API_METHOD_PROBE_TLS)),
 ]);
 
@@ -145,4 +147,63 @@ async fn probe_tls(
     fingerprint: Option<String>,
 ) -> Result<TlsProbeOutcome, Error> {
     probe_tls_connection(RemoteType::Pbs, hostname, fingerprint).await
+}
+
+pub async fn connect_or_login(remote: &Remote) -> Result<Box<PbsClient>, Error> {
+    connection::make_pbs_client_and_login(remote).await
+}
+
+#[api(
+    input: {
+        properties: {
+            hostname: {
+                type: String,
+                format: &HOST_OPTIONAL_PORT_FORMAT,
+                description: "Hostname (with optional port) of the target remote",
+            },
+            fingerprint: {
+                type: String,
+                description: "Fingerprint of the target remote.",
+                optional: true,
+            },
+            "authid": {
+                type: Authid,
+            },
+            "token": {
+                type: String,
+                description: "The token secret or the user password.",
+            },
+        },
+    },
+    access: {
+        permission:
+            &Permission::Privilege(&["/"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Scans the given connection info for pbs host information.
+///
+/// Checks login using the provided credentials.
+pub async fn scan_remote_pbs(
+    hostname: String,
+    fingerprint: Option<String>,
+    authid: Authid,
+    token: String,
+) -> Result<Remote, Error> {
+    let remote = Remote {
+        ty: RemoteType::Pbs,
+        id: hostname.clone(),
+        nodes: vec![PropertyString::new(NodeUrl {
+            hostname,
+            fingerprint,
+        })],
+        authid: authid.clone(),
+        token,
+        web_url: None,
+    };
+
+    let _client = connect_or_login(&remote)
+        .await
+        .map_err(|err| format_err!("could not login: {err}"))?;
+
+    Ok(remote)
 }
