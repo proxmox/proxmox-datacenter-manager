@@ -90,3 +90,23 @@ pub fn complete_openid_realm_name(_arg: &str, _param: &HashMap<String, String>) 
         Err(_) => Vec::new(),
     }
 }
+
+/// Unsets the default login realm for users by deleting the `default` property
+/// from the respective realm.
+///
+/// This only updates the configuration as given in `config`, making it
+/// permanent is left to the caller.
+pub fn unset_default_realm(config: &mut SectionConfigData) -> Result<(), Error> {
+    for (_, data) in &mut config.sections.values_mut() {
+        if let Some(obj) = data.as_object_mut() {
+            obj.remove("default");
+        }
+    }
+
+    Ok(())
+}
+
+/// Check if a realm with the given name exists
+pub fn exists(domains: &SectionConfigData, realm: &str) -> bool {
+    domains.sections.contains_key(realm)
+}

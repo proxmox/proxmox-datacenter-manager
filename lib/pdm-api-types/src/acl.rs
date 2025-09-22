@@ -44,6 +44,9 @@ constnamedbitmap! {
         PRIV_ACCESS_AUDIT("Access.Audit");
         /// `Access.Modify` allows modifying permissions and users.
         PRIV_ACCESS_MODIFY("Access.Modify");
+
+        /// Realm.Allocate allows viewing, creating, modifying and deleting realms
+        PRIV_REALM_ALLOCATE("Realm.Allocate");
     }
 }
 

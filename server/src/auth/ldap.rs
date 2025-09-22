@@ -8,6 +8,7 @@ use pdm_buildcfg::configdir;
 use proxmox_auth_api::api::Authenticator;
 use proxmox_ldap::types::{AdRealmConfig, LdapMode, LdapRealmConfig};
 use proxmox_ldap::{Config, Connection, ConnectionMode};
+use proxmox_product_config::ApiLockGuard;
 use proxmox_router::http_bail;
 use serde_json::json;
 
@@ -187,6 +188,35 @@ fn lookup_ca_store_or_cert_path(capath: Option<&str>) -> (Option<PathBuf>, Optio
     } else {
         (None, None)
     }
+}
+
+/// Store LDAP bind passwords in protected file. The domain config must be locked while this
+/// function is executed.
+pub(crate) fn store_ldap_bind_password(
+    realm: &str,
+    password: &str,
+    _domain_lock: &ApiLockGuard,
+) -> Result<(), Error> {
+    let mut data = proxmox_sys::fs::file_get_json(LDAP_PASSWORDS_FILENAME, Some(json!({})))?;
+    data[realm] = password.into();
+    let data = serde_json::to_vec_pretty(&data)?;
+
+    proxmox_product_config::replace_secret_config(LDAP_PASSWORDS_FILENAME, &data)
+}
+
+/// Remove stored LDAP bind password. The domain config must be locked while this
+/// function is executed.
+pub(crate) fn remove_ldap_bind_password(
+    realm: &str,
+    _domain_lock: &ApiLockGuard,
+) -> Result<(), Error> {
+    let mut data = proxmox_sys::fs::file_get_json(LDAP_PASSWORDS_FILENAME, Some(json!({})))?;
+    if let Some(map) = data.as_object_mut() {
+        map.remove(realm);
+    }
+    let data = serde_json::to_vec_pretty(&data)?;
+
+    proxmox_product_config::replace_secret_config(LDAP_PASSWORDS_FILENAME, &data)
 }
 
 /// Retrieve stored LDAP bind password
