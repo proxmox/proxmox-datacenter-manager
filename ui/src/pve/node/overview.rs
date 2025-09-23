@@ -5,13 +5,12 @@ use yew::{
     Context,
 };
 
-use proxmox_human_byte::HumanByte;
-use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
+use proxmox_yew_comp::{node_info, RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
 use pwt::{
     css::{ColorScheme, FlexFit, JustifyContent},
     prelude::*,
     props::{ContainerBuilder, WidgetBuilder},
-    widget::{error_message, Column, Container, Fa, Progress, Row},
+    widget::{error_message, Column, Container, Progress, Row},
     AsyncPool,
 };
 
@@ -210,67 +209,7 @@ impl yew::Component for NodeOverviewPanelComp {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let mut status_comp = Column::new().gap(2).padding(4);
-        let status = self.status.as_ref();
-        let cpu = status.map(|s| s.cpu).unwrap_or_default();
-        let maxcpu = status.map(|s| s.cpuinfo.cpus).unwrap_or_default();
-        let load = status.map(|s| s.loadavg.join(", ")).unwrap_or_default();
-
-        let memory = status.map(|s| s.memory.used as u64).unwrap_or_default();
-        let maxmem = status.map(|s| s.memory.total as u64).unwrap_or(1);
-
-        let root = status.map(|s| s.rootfs.used as u64).unwrap_or_default();
-        let maxroot = status.map(|s| s.rootfs.total as u64).unwrap_or(1);
-
-        let root_used = root as f64 / maxroot as f64;
-
-        status_comp = status_comp
-            .with_child(make_row(
-                tr!("CPU usage"),
-                Fa::new("cpu"),
-                tr!("{0}% of {1} CPU(s)", format!("{:.2}", cpu * 100.0), maxcpu),
-                Some(cpu as f32),
-            ))
-            .with_child(make_row(
-                tr!("Load average"),
-                Fa::new("line-chart"),
-                load,
-                None,
-            ))
-            .with_child(crate::renderer::memory_status_row(memory, maxmem))
-            .with_child(make_row(
-                tr!("Root filesystem usage"),
-                Fa::new("database"),
-                tr!(
-                    "{0}% ({1} of {2})",
-                    format!("{:.2}", root_used * 100.0),
-                    HumanByte::from(root),
-                    HumanByte::from(maxroot),
-                ),
-                Some(root_used as f32),
-            ))
-            .with_child(Container::new().padding(1)) // spacer
-            .with_child(
-                Row::new()
-                    .with_child(tr!("Version"))
-                    .with_flex_spacer()
-                    .with_optional_child(status.map(|s| s.pveversion.as_str())),
-            )
-            .with_child(
-                Row::new()
-                    .with_child(tr!("CPU Model"))
-                    .with_flex_spacer()
-                    .with_child(tr!(
-                        "{0} ({1} sockets)",
-                        status.map(|s| s.cpuinfo.model.as_str()).unwrap_or_default(),
-                        status.map(|s| s.cpuinfo.sockets).unwrap_or_default()
-                    )),
-            );
-
-        if let Some(err) = &self.last_status_error {
-            status_comp.add_child(error_message(&err.to_string()));
-        }
-
+        let status_comp = node_info(self.status.as_ref().map(|s| s.into()));
         let loading = self.status.is_none() && self.last_status_error.is_none();
         Container::new()
             .class(FlexFit)
@@ -282,6 +221,11 @@ impl yew::Component for NodeOverviewPanelComp {
                     .style("opacity", (!loading).then_some("0")),
             )
             .with_child(status_comp)
+            .with_optional_child(
+                self.last_status_error
+                    .as_ref()
+                    .map(|err| error_message(&err.to_string())),
+            )
             .with_child(separator().padding_x(4))
             .with_child(
                 Row::new()
@@ -340,8 +284,4 @@ impl yew::Component for NodeOverviewPanelComp {
             )
             .into()
     }
-}
-
-fn make_row(title: String, icon: Fa, text: String, meter_value: Option<f32>) -> Column {
-    crate::renderer::status_row(title, icon, text, meter_value, false)
 }
