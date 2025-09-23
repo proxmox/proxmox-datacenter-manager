@@ -22,7 +22,7 @@ use pdm_client::types::PveStorageStatus;
 
 use crate::{
     pve::utils::{render_content_type, render_storage_type},
-    renderer::separator,
+    renderer::{separator, status_row_right_icon},
 };
 
 #[derive(Clone, Debug, Properties)]
@@ -258,27 +258,27 @@ impl yew::Component for StoragePanelComp {
         };
 
         status_comp = status_comp
-            .with_child(make_row(
+            .with_child(status_row_right_icon(
                 tr!("Enabled"),
-                Fa::new(if status.enabled.unwrap_or_default() {
-                    "toggle-on"
+                if status.enabled.unwrap_or_default() {
+                    "fa-toggle-on"
                 } else {
-                    "toggle-off"
-                }),
+                    "fa-toggle-off"
+                },
                 String::new(),
             ))
-            .with_child(make_row(
+            .with_child(status_row_right_icon(
                 tr!("Active"),
-                Fa::from(if status.active.unwrap_or_default() {
+                if status.active.unwrap_or_default() {
                     Status::Success
                 } else {
                     Status::Error
-                }),
+                },
                 String::new(),
             ))
-            .with_child(make_row(
+            .with_child(status_row_right_icon(
                 tr!("Content"),
-                Fa::new("list"),
+                "fa-list",
                 status
                     .content
                     .iter()
@@ -286,9 +286,9 @@ impl yew::Component for StoragePanelComp {
                     .collect::<Vec<_>>()
                     .join(", "),
             ))
-            .with_child(make_row(
+            .with_child(status_row_right_icon(
                 tr!("Type"),
-                Fa::new("database"),
+                "fa-database",
                 render_storage_type(&status.ty),
             ));
 
@@ -297,18 +297,19 @@ impl yew::Component for StoragePanelComp {
         let disk = status.used.unwrap_or_default();
         let maxdisk = status.total.unwrap_or_default();
         let disk_usage = disk as f64 / maxdisk as f64;
-        status_comp.add_child(crate::renderer::status_row(
-            tr!("Usage"),
-            Fa::new("database"),
-            tr!(
-                "{0}% ({1} of {2})",
-                format!("{:.2}", disk_usage * 100.0),
-                HumanByte::from(disk as u64),
-                HumanByte::from(maxdisk as u64),
-            ),
-            Some(disk_usage as f32),
-            false,
-        ));
+        status_comp.add_child(
+            crate::renderer::status_row(
+                tr!("Usage"),
+                "fa-database",
+                tr!(
+                    "{0}% ({1} of {2})",
+                    format!("{:.2}", disk_usage * 100.0),
+                    HumanByte::from(disk as u64),
+                    HumanByte::from(maxdisk as u64),
+                ),
+            )
+            .value(disk_usage as f32),
+        );
 
         let loading = self.status.is_none() && self.last_status_error.is_none();
 
@@ -353,8 +354,4 @@ impl yew::Component for StoragePanelComp {
             )
             .into()
     }
-}
-
-fn make_row(title: String, icon: Fa, text: String) -> Column {
-    crate::renderer::status_row(title, icon, text, None, true)
 }

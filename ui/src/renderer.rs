@@ -1,9 +1,9 @@
 use pdm_api_types::resource::PveSdnResource;
+use proxmox_yew_comp::MeterLabel;
 use pwt::{
-    css,
     prelude::*,
     props::ContainerBuilder,
-    widget::{Column, Container, Fa, Meter, Row},
+    widget::{Container, Fa},
 };
 
 use proxmox_human_byte::HumanByte;
@@ -50,63 +50,38 @@ pub fn render_status_icon(resource: &Resource) -> Container {
     }
 }
 
-pub(crate) fn status_row(
+pub(crate) fn status_row_right_icon(
     title: String,
-    icon: Fa,
+    icon: impl Into<Classes>,
     text: String,
-    meter_value: Option<f32>,
-    icon_right: bool,
-) -> Column {
-    status_row_thresholds(title, icon, text, meter_value, icon_right, 0.8, 0.9)
+) -> MeterLabel {
+    status_row(title, icon, text).icon_right(true)
 }
 
-pub(crate) fn status_row_thresholds(
-    title: String,
-    icon: Fa,
-    text: String,
-    meter_value: Option<f32>,
-    icon_right: bool,
-    threshold_low: f32,
-    threshold_high: f32,
-) -> Column {
-    let row = Row::new()
-        .class(css::AlignItems::Baseline)
-        .gap(2)
-        .with_optional_child((!icon_right).then_some(icon.clone().fixed_width()))
-        .with_child(title)
-        .with_flex_spacer()
-        .with_child(text)
-        .with_optional_child((icon_right).then_some(icon.fixed_width()));
-
-    Column::new()
-        .gap(1)
-        .with_child(row)
-        .with_optional_child(meter_value.map(|value| {
-            Meter::new()
-                .optimum(0.0)
-                .low(threshold_low)
-                .high(threshold_high)
-                .animated(true)
-                .value(value)
-        }))
+pub(crate) fn status_row(title: String, icon: impl Into<Classes>, text: String) -> MeterLabel {
+    MeterLabel::with_zero_optimum(title)
+        .icon_class(classes!(icon.into(), "fa", "fa-fw"))
+        .low(0.8)
+        .high(0.9)
+        .animated(true)
+        .status(text)
 }
 
-pub(crate) fn memory_status_row(used: u64, total: u64) -> Column {
+pub(crate) fn memory_status_row(used: u64, total: u64) -> MeterLabel {
     let usage = used as f64 / total as f64;
-    status_row_thresholds(
+    status_row(
         tr!("Memory usage"),
-        Fa::new("memory"),
+        "fa-memory",
         tr!(
             "{0}% ({1} of {2})",
             format!("{:.2}", usage * 100.0),
             HumanByte::from(used),
             HumanByte::from(total),
         ),
-        Some(usage as f32),
-        false, // keep icon left
-        0.9,   // low threshold (warning)
-        0.975, // high threshold (critical)
     )
+    .low(0.9)
+    .high(0.975)
+    .value(usage as f32)
 }
 
 pub(crate) fn separator() -> Container {

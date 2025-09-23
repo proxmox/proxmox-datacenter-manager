@@ -21,7 +21,10 @@ use pwt::{
 use pdm_api_types::{resource::PveLxcResource, rrddata::LxcDataPoint};
 use pdm_client::types::{IsRunning, LxcStatus};
 
-use crate::{pve::utils::render_lxc_name, renderer::separator};
+use crate::{
+    pve::utils::render_lxc_name,
+    renderer::{separator, status_row},
+};
 
 #[derive(Clone, Debug, Properties)]
 pub struct LxcPanel {
@@ -293,11 +296,10 @@ impl yew::Component for LxcanelComp {
         };
 
         if !status.template.unwrap_or_default() {
-            status_comp.add_child(make_row(
+            status_comp.add_child(status_row(
                 tr!("Status"),
-                Fa::new("info"),
+                "fa-info",
                 status.status.to_string(),
-                None,
             ));
         }
 
@@ -317,34 +319,30 @@ impl yew::Component for LxcanelComp {
             tr!("none")
         };
 
-        status_comp.add_child(make_row(
-            tr!("HA state"),
-            Fa::new("heartbeat"),
-            ha_text,
-            None,
-        ));
+        status_comp.add_child(status_row(tr!("HA state"), "fa-heartbeat", ha_text));
 
         status_comp.add_child(Container::new().padding(1)); // spacer
 
         let cpu = status.cpu.unwrap_or_default();
-        status_comp.add_child(make_row(
-            tr!("CPU usage"),
-            Fa::new("cpu"),
-            tr!(
-                "{0}% of {1} CPU(s)",
-                format!("{:.2}", cpu * 100.0),
-                status.cpus.unwrap_or_default()
-            ),
-            Some(cpu as f32),
-        ));
+        status_comp.add_child(
+            status_row(
+                tr!("CPU usage"),
+                "fa-cpu",
+                tr!(
+                    "{0}% of {1} CPU(s)",
+                    format!("{:.2}", cpu * 100.0),
+                    status.cpus.unwrap_or_default()
+                ),
+            )
+            .value(cpu as f32),
+        );
         let mem = status.mem.unwrap_or_default() as u64;
         let maxmem = status.maxmem.unwrap_or_default() as u64;
         status_comp.add_child(crate::renderer::memory_status_row(mem, maxmem));
-        status_comp.add_child(make_row(
+        status_comp.add_child(status_row(
             tr!("Bootdisk size"),
-            Fa::new("database"),
+            "fa-database",
             HumanByte::from(status.maxdisk.unwrap_or_default() as u64).to_string(),
-            None,
         ));
 
         let loading = self.status.is_none() && self.last_status_error.is_none();
@@ -433,8 +431,4 @@ impl yew::Component for LxcanelComp {
             )
             .into()
     }
-}
-
-fn make_row(title: String, icon: Fa, text: String, meter_value: Option<f32>) -> Column {
-    crate::renderer::status_row(title, icon, text, meter_value, false)
 }

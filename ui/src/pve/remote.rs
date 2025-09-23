@@ -14,7 +14,7 @@ use pwt_macros::widget;
 
 use pdm_api_types::resource::PveResource;
 
-use crate::renderer::separator;
+use crate::renderer::{separator, status_row_right_icon};
 
 #[widget(comp=RemotePanelComp, @element)]
 #[derive(Clone, Debug, PartialEq, Properties)]
@@ -172,31 +172,28 @@ impl yew::Component for RemotePanelComp {
             Some(err) => Column::new().padding(4).with_child(error_message(err)),
             None => Column::new()
                 .gap(2)
-                .with_child(make_row(
+                .with_child(status_row_right_icon(
                     tr!("Subscription Status"),
                     if status.level.is_empty() {
-                        Status::Error.into()
+                        Status::Error
                     } else {
-                        Status::Success.into()
+                        Status::Success
                     },
                     status.level.to_string(),
-                    None,
                 ))
-                .with_child(make_row(
+                .with_child(status_row_right_icon(
                     tr! {"Nodes"},
-                    Fa::new("building"),
+                    "fa-building",
                     format!("{}", status.nodes),
-                    None,
                 ))
-                .with_child(make_row(
+                .with_child(status_row_right_icon(
                     tr! {"Guests"},
-                    Fa::new("desktop"),
+                    "fa-desktop",
                     tr!(
                         "{0} / {1} (running / total)",
                         status.guests_running,
                         status.guests
                     ),
-                    None,
                 ))
                 .with_child(separator())
                 .with_child(
@@ -207,40 +204,46 @@ impl yew::Component for RemotePanelComp {
                         .with_child(Fa::new("bar-chart"))
                         .with_child(tr!("Usage")),
                 )
-                .with_child(make_row(
-                    tr! {"Host CPU usage (avg.)"},
-                    Fa::new("cpu"),
-                    format!("{:.2}%", status.cpu_usage * 100.0),
-                    Some(status.cpu_usage as f32),
-                ))
-                .with_child(make_row(
-                    tr! {"Host Memory used"},
-                    Fa::new("memory"),
-                    tr!(
-                        "{0}% ({1} of {2})",
-                        format!(
-                            "{:.2}",
-                            100.0 * status.memory as f64 / status.max_memory as f64
+                .with_child(
+                    status_row_right_icon(
+                        tr! {"Host CPU usage (avg.)"},
+                        "fa-cpu",
+                        format!("{:.2}%", status.cpu_usage * 100.0),
+                    )
+                    .value(status.cpu_usage as f32),
+                )
+                .with_child(
+                    status_row_right_icon(
+                        tr! {"Host Memory used"},
+                        "fa-memory",
+                        tr!(
+                            "{0}% ({1} of {2})",
+                            format!(
+                                "{:.2}",
+                                100.0 * status.memory as f64 / status.max_memory as f64
+                            ),
+                            HumanByte::from(status.memory),
+                            HumanByte::from(status.max_memory),
                         ),
-                        HumanByte::from(status.memory),
-                        HumanByte::from(status.max_memory),
-                    ),
-                    Some((status.memory as f64 / status.max_memory as f64) as f32),
-                ))
-                .with_child(make_row(
-                    tr! {"Host Storage used"},
-                    Fa::new("database"),
-                    tr!(
-                        "{0}% ({1} of {2})",
-                        format!(
-                            "{:.2}",
-                            100.0 * status.storage as f64 / status.max_storage as f64
+                    )
+                    .value((status.memory as f64 / status.max_memory as f64) as f32),
+                )
+                .with_child(
+                    status_row_right_icon(
+                        tr! {"Host Storage used"},
+                        "fa-database",
+                        tr!(
+                            "{0}% ({1} of {2})",
+                            format!(
+                                "{:.2}",
+                                100.0 * status.storage as f64 / status.max_storage as f64
+                            ),
+                            HumanByte::from(status.storage),
+                            HumanByte::from(status.max_storage)
                         ),
-                        HumanByte::from(status.storage),
-                        HumanByte::from(status.max_storage)
-                    ),
-                    Some((status.storage as f64 / status.max_storage as f64) as f32),
-                ))
+                    )
+                    .value((status.storage as f64 / status.max_storage as f64) as f32),
+                )
                 .with_child(separator())
                 .with_child(
                     Row::new()
@@ -250,27 +253,25 @@ impl yew::Component for RemotePanelComp {
                         .with_child(Fa::new("pie-chart"))
                         .with_child(tr!("Allocation")),
                 )
-                .with_child(make_row(
+                .with_child(status_row_right_icon(
                     tr! {"CPU Cores assigned"},
-                    Fa::new("cpu"),
+                    "fa-cpu",
                     tr!(
                         "{0} running / {1} physical ({2} total configured)",
                         status.guest_cores_running,
                         status.max_cores,
                         status.guest_cores,
                     ),
-                    None,
                 ))
-                .with_child(make_row(
+                .with_child(status_row_right_icon(
                     tr! {"Memory assigned"},
-                    Fa::new("memory"),
+                    "fa-memory",
                     tr!(
                         "{0} running / {1} physical ({2} total configured)",
                         HumanByte::from(status.guest_memory_running),
                         HumanByte::from(status.max_memory),
                         HumanByte::from(status.guest_memory),
                     ),
-                    None,
                 )),
         };
 
@@ -279,8 +280,4 @@ impl yew::Component for RemotePanelComp {
             .with_child(content)
             .into()
     }
-}
-
-fn make_row(title: String, icon: Fa, text: String, meter_value: Option<f32>) -> Column {
-    crate::renderer::status_row(title, icon, text, meter_value, true)
 }
