@@ -10,7 +10,7 @@ use yew::{
 use proxmox_yew_comp::{
     LoadableComponent, LoadableComponentContext, LoadableComponentLink, LoadableComponentMaster,
 };
-use pwt::css::{AlignItems, ColorScheme, FlexFit, JustifyContent};
+use pwt::css::{AlignItems, ColorScheme, FlexFit, FontStyle, JustifyContent};
 use pwt::props::{ContainerBuilder, CssBorderBuilder, ExtractPrimaryKey, WidgetBuilder};
 use pwt::state::{KeyedSlabTree, NavigationContext, NavigationContextExt, Selection, TreeStore};
 use pwt::widget::{
@@ -460,6 +460,14 @@ impl LoadableComponent for PveTreeComp {
             .with_child(
                 Toolbar::new()
                     .border_bottom(true)
+                    .with_child(
+                        Row::new()
+                            .class(AlignItems::Baseline)
+                            .class(FontStyle::TitleMedium)
+                            .gap(2)
+                            .with_child(Fa::new("server"))
+                            .with_child(tr!("Resources")),
+                    )
                     .with_child(
                         Field::new()
                             .value(self.filter.clone())
