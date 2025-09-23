@@ -240,7 +240,7 @@ impl LoadableComponent for PveRemoteComp {
                                 remote.to_string(),
                                 self.resources.clone(),
                                 ctx.loading(),
-                                link.callback(|node| Msg::SelectedView(node)),
+                                link.callback(Msg::SelectedView),
                                 {
                                     let link = link.clone();
                                     move |_| link.send_reload()
