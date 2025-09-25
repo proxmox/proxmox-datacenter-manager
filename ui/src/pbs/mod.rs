@@ -22,24 +22,24 @@ mod snapshot_list;
 pub use snapshot_list::SnapshotList;
 
 #[derive(PartialEq, Properties)]
-pub struct DatastoreMenu {
+pub struct PbsRemote {
     remote: String,
 }
 
-impl DatastoreMenu {
+impl PbsRemote {
     pub fn new(remote: String) -> Self {
         yew::props!(Self { remote })
     }
 }
 
-impl Into<VNode> for DatastoreMenu {
+impl Into<VNode> for PbsRemote {
     fn into(self) -> VNode {
-        let comp = VComp::new::<LoadableComponentMaster<PbsDatastoreMenu>>(Rc::new(self), None);
+        let comp = VComp::new::<LoadableComponentMaster<PbsRemoteComp>>(Rc::new(self), None);
         VNode::from(comp)
     }
 }
 
-pub struct PbsDatastoreMenu {
+pub struct PbsRemoteComp {
     datastore_list: PersistentState<Vec<DataStoreConfig>>,
     active: Key,
     selection: Selection,
@@ -53,9 +53,9 @@ pub enum Msg {
 #[derive(PartialEq)]
 pub enum ViewState {}
 
-impl LoadableComponent for PbsDatastoreMenu {
+impl LoadableComponent for PbsRemoteComp {
     type Message = Msg;
-    type Properties = DatastoreMenu;
+    type Properties = PbsRemote;
     type ViewState = ViewState;
 
     fn load(
