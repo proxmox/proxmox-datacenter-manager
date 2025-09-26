@@ -20,6 +20,8 @@ mod tree;
 mod datastore;
 pub use datastore::DatastorePanel;
 
+mod namespace_selector;
+
 mod remote;
 
 mod snapshot_list;
