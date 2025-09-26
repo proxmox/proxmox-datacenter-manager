@@ -77,8 +77,11 @@ pub struct StoragePanelComp {
     status: Option<PveStorageStatus>,
     last_status_error: Option<proxmox_client::Error>,
     last_rrd_error: Option<proxmox_client::Error>,
-    _status_timeout: Option<Timeout>,
-    _rrd_timeout: Option<Timeout>,
+
+    /// internal guard for the periodic timeout callback to update status
+    status_update_timeout_guard: Option<Timeout>,
+    /// internal guard for the periodic timeout callback to update RRD metrics
+    rrd_update_timeout_guard: Option<Timeout>,
     _async_pool: AsyncPool,
 
     rrd_time_frame: RRDTimeframe,
@@ -129,8 +132,8 @@ impl yew::Component for StoragePanelComp {
             .send_message_batch(vec![Msg::ReloadStatus, Msg::ReloadRrd]);
         Self {
             status: None,
-            _status_timeout: None,
-            _rrd_timeout: None,
+            status_update_timeout_guard: None,
+            rrd_update_timeout_guard: None,
             _async_pool: AsyncPool::new(),
             last_rrd_error: None,
             last_status_error: None,
@@ -174,9 +177,10 @@ impl yew::Component for StoragePanelComp {
                     }
                 }
 
-                self._status_timeout = Some(Timeout::new(props.status_interval, move || {
-                    link.send_message(Msg::ReloadStatus)
-                }));
+                self.status_update_timeout_guard =
+                    Some(Timeout::new(props.status_interval, move || {
+                        link.send_message(Msg::ReloadStatus)
+                    }));
                 true
             }
             Msg::RrdResult(res) => {
@@ -199,7 +203,7 @@ impl yew::Component for StoragePanelComp {
                     }
                     Err(err) => self.last_rrd_error = Some(err),
                 }
-                self._rrd_timeout = Some(Timeout::new(props.rrd_interval, move || {
+                self.rrd_update_timeout_guard = Some(Timeout::new(props.rrd_interval, move || {
                     link.send_message(Msg::ReloadRrd)
                 }));
                 true
