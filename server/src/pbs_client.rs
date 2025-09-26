@@ -13,7 +13,7 @@ use proxmox_router::stream::JsonRecords;
 use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
 
-use pbs_api_types::{Userid, Tokenname};
+use pbs_api_types::{Authid, Userid, Tokenname};
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 
@@ -85,6 +85,21 @@ pub struct CreateToken {
     pub expire: Option<i64>,
 }
 
+#[api]
+/// Create token parameters.
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct UpdateAcl {
+    /// The ACL path.
+    pub path:  String,
+    /// The Authid (user or token)
+    pub auth_id: Authid,
+    /// The permission role.
+    pub role: pbs_api_types::Role,
+    /// If the ACL should also propagate to all elements below the path.
+    pub propagate: bool,
+}
+
 impl PbsClient {
     /// API version details, including some parts of the global datacenter config.
     pub async fn version(&self) -> Result<pve_api_types::VersionResponse, Error> {
@@ -147,8 +162,8 @@ impl PbsClient {
         }
     }
 
-    /// create a pbs token
-    pub async fn create_token(
+    /// create an API-Token on the PBS remote and give the token admin ACL on everything.
+    pub async fn create_admin_token(
         &self,
         userid: Userid,
         tokenid: Tokenname,
@@ -156,6 +171,22 @@ impl PbsClient {
     ) -> Result<CreateTokenResponse, Error> {
         let path = format!("/api2/extjs/access/users/{userid}/token/{}", tokenid.as_str());
         let token = self.0.post(&path, &params).await?.expect_json()?.data;
+
+        // NOTE: While PVE has configurable privilege separation between user and tokens, PBS
+        // avoided that to make tokens safer by default, so we need to give out an ACL explicitly.
+        //
+        // for now always make the resulting token a full admin one, but we probably want to allow
+        // having some very coarse roles here, like admin and audit for when PDM is used mostly for
+        // monitoring.
+        let acl = UpdateAcl {
+            auth_id: (userid, Some(tokenid)).into(),
+            path: "/".to_string(),
+            role: pbs_api_types::Role::Admin,
+            propagate: true,
+        };
+
+        let path = format!("/api2/extjs/access/acl");
+        self.0.put(&path, &acl).await?;
 
         Ok(token)
     }

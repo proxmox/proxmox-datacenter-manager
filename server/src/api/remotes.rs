@@ -165,7 +165,7 @@ pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Resu
                 let tokenname = pbs_api_types::Tokenname::try_from(create_token)?;
 
                 let token = client
-                    .create_token(
+                    .create_admin_token(
                         entry.authid.user().to_owned(),
                         tokenname,
                         pbs_client::CreateToken {
