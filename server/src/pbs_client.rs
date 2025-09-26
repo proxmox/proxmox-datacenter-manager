@@ -118,10 +118,9 @@ impl PbsClient {
         datastore: &str,
         namespace: Option<&str>,
     ) -> Result<JsonRecords<pbs_api_types::SnapshotListItem>, anyhow::Error> {
-        let path =
-            ApiPathBuilder::new(format!("/api2/extjs/admin/datastore/{datastore}/snapshots"))
-                .maybe_arg("ns", &namespace)
-                .build();
+        let path = ApiPathBuilder::new(format!("/api2/json/admin/datastore/{datastore}/snapshots"))
+            .maybe_arg("ns", &namespace)
+            .build();
         let response = self
             .0
             .streaming_request(http::Method::GET, &path, None::<()>)
