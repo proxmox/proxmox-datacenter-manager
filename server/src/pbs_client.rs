@@ -86,7 +86,7 @@ pub struct CreateToken {
 }
 
 #[api]
-/// Create token parameters.
+/// Update ACL parameters.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct UpdateAcl {
