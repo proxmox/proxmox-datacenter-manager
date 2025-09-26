@@ -1,9 +1,10 @@
 use pdm_api_types::resource::PveSdnResource;
 use proxmox_yew_comp::MeterLabel;
 use pwt::{
+    css::AlignItems,
     prelude::*,
     props::ContainerBuilder,
-    widget::{Container, Fa},
+    widget::{Container, Fa, Row},
 };
 
 use proxmox_human_byte::HumanByte;
@@ -86,4 +87,18 @@ pub(crate) fn memory_status_row(used: u64, total: u64) -> MeterLabel {
 
 pub(crate) fn separator() -> Container {
     Container::new().with_child(html! {<hr />}).padding_y(2)
+}
+
+pub(crate) fn render_tree_column(icon: Html, text: String) -> Row {
+    Row::new()
+        .min_width(0)
+        .class(AlignItems::Center)
+        .gap(2)
+        .with_child(icon)
+        .with_child(
+            Container::new()
+                .with_child(text)
+                .style("text-overflow", "ellipsis")
+                .style("overflow", "hidden"),
+        )
 }

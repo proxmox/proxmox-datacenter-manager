@@ -26,7 +26,7 @@ use pdm_api_types::{
     RemoteUpid,
 };
 
-use crate::{get_deep_url, widget::MigrateWindow};
+use crate::{get_deep_url, renderer::render_tree_column, widget::MigrateWindow};
 
 use super::{
     utils::{self, render_guest_tags, render_lxc_name, render_qemu_name},
@@ -595,18 +595,7 @@ fn columns(
                     }
                 };
 
-                Row::new()
-                    .min_width(0)
-                    .class(AlignItems::Center)
-                    .gap(2)
-                    .with_child(icon)
-                    .with_child(
-                        Container::new()
-                            .with_child(text)
-                            .style("text-overflow", "ellipsis")
-                            .style("overflow", "hidden"),
-                    )
-                    .into()
+                render_tree_column(icon.into(), text).into()
             })
             .into(),
         DataTableColumn::new(tr!("Tags"))
