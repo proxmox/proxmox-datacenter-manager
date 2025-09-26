@@ -1,173 +1,173 @@
 use std::future::Future;
-use std::pin::Pin;
 use std::rc::Rc;
 
 use anyhow::Error;
-use yew::virtual_dom::{Key, VComp, VNode};
-use yew::Callback;
-use yew::Html;
-use yew::Properties;
+use gloo_utils::window;
+use pbs_api_types::DataStoreConfig;
+use pwt::props::ExtractPrimaryKey;
+use yew::virtual_dom::{VComp, VNode};
+use yew::{Html, Properties};
 
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
-use pwt::css::FlexFit;
-use pwt::props::{ContainerBuilder, WidgetBuilder};
-use pwt::state::{NavigationContainer, PersistentState, Selection};
-use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
-use pwt::widget::{Pane, SplitPane};
-use pwt::widget::{SelectionView, SelectionViewRenderInfo};
+use pwt::css::{AlignItems, FlexFit};
+use pwt::prelude::*;
+use pwt::state::NavigationContainer;
+use pwt::tr;
+use pwt::widget::{Button, Column, Container, Fa, Panel, Row};
 
-use pbs_api_types::DataStoreConfig;
+mod tree;
+
+mod datastore;
+pub use datastore::DatastorePanel;
+
+mod remote;
 
 mod snapshot_list;
 pub use snapshot_list::SnapshotList;
 
-#[derive(PartialEq, Properties)]
+use crate::pbs::remote::RemoteOverviewPanel;
+use crate::pbs::tree::PbsTree;
+use crate::{get_deep_url, pdm_client};
+
+#[derive(Debug, Eq, PartialEq, Properties)]
 pub struct PbsRemote {
     remote: String,
 }
 
 impl PbsRemote {
     pub fn new(remote: String) -> Self {
-        yew::props!(Self { remote })
+        Self { remote }
     }
 }
 
-impl Into<VNode> for PbsRemote {
-    fn into(self) -> VNode {
-        let comp = VComp::new::<LoadableComponentMaster<PbsRemoteComp>>(Rc::new(self), None);
-        VNode::from(comp)
+impl From<PbsRemote> for VNode {
+    fn from(val: PbsRemote) -> Self {
+        VComp::new::<LoadableComponentMaster<PbsRemoteComp>>(Rc::new(val), None).into()
     }
 }
 
-pub struct PbsRemoteComp {
-    datastore_list: PersistentState<Vec<DataStoreConfig>>,
-    active: Key,
-    selection: Selection,
-}
-
+#[allow(clippy::large_enum_variant)]
 pub enum Msg {
-    Select(Key),
-    UpdateDatastoreList(Vec<DataStoreConfig>),
+    SelectedView(tree::PbsTreeNode),
+    ResourcesList(Vec<DataStoreConfig>),
 }
 
-#[derive(PartialEq)]
-pub enum ViewState {}
+#[doc(hidden)]
+pub struct PbsRemoteComp {
+    datastores: Rc<Vec<DataStoreConfig>>,
+    view: tree::PbsTreeNode,
+}
+
+impl PbsRemoteComp {
+    async fn load_datastores(remote: &str) -> Result<Vec<DataStoreConfig>, Error> {
+        let datastores = pdm_client().pbs_list_datastores(remote).await?;
+        Ok(datastores)
+    }
+}
 
 impl LoadableComponent for PbsRemoteComp {
     type Message = Msg;
     type Properties = PbsRemote;
-    type ViewState = ViewState;
+    type ViewState = ();
+
+    fn create(_ctx: &LoadableComponentContext<Self>) -> Self {
+        Self {
+            datastores: Rc::new(Vec::new()),
+            view: tree::PbsTreeNode::Root,
+        }
+    }
 
     fn load(
         &self,
-        ctx: &LoadableComponentContext<Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
-        let remote = ctx.props().remote.clone();
-        let link = ctx.link();
+        _ctx: &LoadableComponentContext<Self>,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), anyhow::Error>>>> {
+        let link = _ctx.link().clone();
+        let remote = _ctx.props().remote.clone();
         Box::pin(async move {
-            let mut data = crate::pdm_client().pbs_list_datastores(&remote).await?;
-            data.sort_by(|a, b| a.name.cmp(&b.name));
-            link.send_message(Msg::UpdateDatastoreList(data));
+            link.send_message(Msg::ResourcesList(Self::load_datastores(&remote).await?));
             Ok(())
         })
     }
 
-    fn create(ctx: &LoadableComponentContext<Self>) -> Self {
-        let props = ctx.props();
-        let link = ctx.link();
-        link.repeated_load(3000);
-
-        Self {
-            datastore_list: PersistentState::new(format!("PdmPbsDatastoreList-{}", props.remote)),
-            selection: Selection::new(),
-            active: Key::from(""),
-        }
-    }
-
     fn update(&mut self, _ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::Select(key) => {
-                self.active = key;
-                true
+            Msg::SelectedView(pbs_tree_node) => {
+                log::info!("selected: {:?}", pbs_tree_node.extract_key());
+                self.view = pbs_tree_node;
             }
-            Msg::UpdateDatastoreList(list) => {
-                self.datastore_list.update(list);
-                true
+            Msg::ResourcesList(vec) => {
+                self.datastores = Rc::new(vec);
             }
         }
+        true
     }
 
-    fn toolbar(&self, _ctx: &LoadableComponentContext<Self>) -> Option<Html> {
-        None
-    }
-
-    fn main_view(&self, ctx: &LoadableComponentContext<Self>) -> Html {
-        let scope = ctx.link().clone();
+    fn main_view(&self, ctx: &LoadableComponentContext<Self>) -> yew::Html {
         let props = ctx.props();
 
-        let mut content = SelectionView::new()
-            .class(FlexFit)
-            .selection(self.selection.clone());
+        let content: Html = match &self.view {
+            tree::PbsTreeNode::Root => RemoteOverviewPanel::new(props.remote.clone()).into(),
+            tree::PbsTreeNode::Datastore(data_store_config) => {
+                DatastorePanel::new(props.remote.clone(), data_store_config.clone()).into()
+            }
+        };
 
-        let mut menu = Menu::new();
-
-        for datastore in self.datastore_list.iter() {
-            register_view(
-                &mut menu,
-                &mut content,
-                &datastore.name,
-                &datastore.name,
-                Some("fa fa-server"),
-                {
-                    let datastore = datastore.name.clone();
-                    let remote = props.remote.clone();
-                    move |_| SnapshotList::new(remote.clone(), datastore.clone()).into()
-                },
-            );
-        }
-
-        let drawer = NavigationDrawer::new(menu)
-            .aria_label("PBS Datastore Menu")
-            .class("pwt-border-end")
-            .router(true)
-            // .default_active(self.active.to_string())
-            .selection(self.selection.clone())
-            .on_select(Callback::from(move |id: Option<Key>| {
-                let id = id.unwrap_or_else(|| Key::from(""));
-                scope.send_message(Msg::Select(id))
-            }));
+        let title: Html = Row::new()
+            .gap(2)
+            .class(AlignItems::Center)
+            .with_child(Fa::new("server"))
+            .with_child(tr! {"Remote '{0}'", ctx.props().remote})
+            .into();
 
         NavigationContainer::new()
             .with_child(
-                SplitPane::new()
+                Container::new()
+                    .class("pwt-content-spacer")
+                    .class("pwt-flex-direction-row")
                     .class(FlexFit)
-                    .with_child(Pane::new(drawer).size(None))
-                    .with_child(Pane::new(content).flex(1)),
+                    .with_child(
+                        Panel::new()
+                            .border(true)
+                            .class(FlexFit)
+                            .title(title.clone())
+                            .style("flex", "1 1 0")
+                            .max_width(500)
+                            .with_tool(
+                                Button::new(tr!("Open Web UI"))
+                                    .icon_class("fa fa-external-link")
+                                    .on_activate({
+                                        let link = ctx.link().clone();
+                                        let remote = ctx.props().remote.clone();
+                                        move |_| {
+                                            if let Some(url) =
+                                                get_deep_url(link.yew_link(), &remote, None, "")
+                                            {
+                                                let _ = window().open_with_url(&url.href());
+                                            }
+                                        }
+                                    }),
+                            )
+                            .with_child(Column::new().padding(4).class(FlexFit).with_child(
+                                PbsTree::new(
+                                    props.remote.clone(),
+                                    self.datastores.clone(),
+                                    ctx.loading(),
+                                    ctx.link().callback(Msg::SelectedView),
+                                    {
+                                        let link = ctx.link().clone();
+                                        move |_| link.send_reload()
+                                    },
+                                ),
+                            )),
+                    )
+                    .with_child(
+                        Panel::new()
+                            .style("flex", "2 1 0")
+                            .border(true)
+                            .class(FlexFit)
+                            .with_child(content),
+                    ),
             )
             .into()
     }
-
-    fn dialog_view(
-        &self,
-        _ctx: &LoadableComponentContext<Self>,
-        _view_state: &Self::ViewState,
-    ) -> Option<Html> {
-        None
-    }
-}
-
-fn register_view(
-    menu: &mut Menu,
-    view: &mut SelectionView,
-    text: impl Into<String>,
-    id: &str,
-    icon_class: Option<&'static str>,
-    renderer: impl 'static + Fn(&SelectionViewRenderInfo) -> Html,
-) {
-    view.add_builder(id, renderer);
-    menu.add_item(
-        MenuItem::new(text.into())
-            .key(id.to_string())
-            .icon_class(icon_class),
-    );
 }
