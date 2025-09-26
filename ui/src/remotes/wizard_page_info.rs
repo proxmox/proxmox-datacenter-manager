@@ -73,7 +73,11 @@ pub struct ScanParams {
     fingerprint: Option<String>,
 }
 
-async fn scan(connection_params: ConnectParams, form_ctx: FormContext, remote_type: RemoteType) -> Result<Remote, Error> {
+async fn scan(
+    connection_params: ConnectParams,
+    form_ctx: FormContext,
+    remote_type: RemoteType,
+) -> Result<Remote, Error> {
     let mut data = form_ctx.get_submit_data();
 
     data["hostname"] = connection_params.hostname.into();
@@ -90,12 +94,16 @@ async fn scan(connection_params: ConnectParams, form_ctx: FormContext, remote_ty
 
     let client = crate::pdm_client();
     let mut result = match remote_type {
-        RemoteType::Pve => client
-            .pve_scan_remote(&hostname, fingerprint.as_deref(), &authid, &token)
-            .await?,
-        RemoteType::Pbs => client
-            .pbs_scan_remote(&hostname, fingerprint.as_deref(), &authid, &token)
-            .await?,
+        RemoteType::Pve => {
+            client
+                .pve_scan_remote(&hostname, fingerprint.as_deref(), &authid, &token)
+                .await?
+        }
+        RemoteType::Pbs => {
+            client
+                .pbs_scan_remote(&hostname, fingerprint.as_deref(), &authid, &token)
+                .await?
+        }
     };
 
     // try to deduplicate the entered info from the first page with the nodelist here

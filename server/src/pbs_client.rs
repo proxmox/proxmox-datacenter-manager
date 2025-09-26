@@ -13,7 +13,7 @@ use proxmox_router::stream::JsonRecords;
 use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
 
-use pbs_api_types::{Authid, Userid, Tokenname};
+use pbs_api_types::{Authid, Tokenname, Userid};
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 
@@ -91,7 +91,7 @@ pub struct CreateToken {
 #[serde(rename_all = "kebab-case")]
 pub struct UpdateAcl {
     /// The ACL path.
-    pub path:  String,
+    pub path: String,
     /// The Authid (user or token)
     pub auth_id: Authid,
     /// The permission role.
@@ -118,9 +118,10 @@ impl PbsClient {
         datastore: &str,
         namespace: Option<&str>,
     ) -> Result<JsonRecords<pbs_api_types::SnapshotListItem>, anyhow::Error> {
-        let path = ApiPathBuilder::new(format!("/api2/json/admin/datastore/{datastore}/snapshots"))
-            .maybe_arg("ns", &namespace)
-            .build();
+        let path =
+            ApiPathBuilder::new(format!("/api2/extjs/admin/datastore/{datastore}/snapshots"))
+                .maybe_arg("ns", &namespace)
+                .build();
         let response = self
             .0
             .streaming_request(http::Method::GET, &path, None::<()>)
@@ -168,7 +169,10 @@ impl PbsClient {
         tokenid: Tokenname,
         params: CreateToken,
     ) -> Result<CreateTokenResponse, Error> {
-        let path = format!("/api2/extjs/access/users/{userid}/token/{}", tokenid.as_str());
+        let path = format!(
+            "/api2/extjs/access/users/{userid}/token/{}",
+            tokenid.as_str()
+        );
         let token = self.0.post(&path, &params).await?.expect_json()?.data;
 
         // NOTE: While PVE has configurable privilege separation between user and tokens, PBS

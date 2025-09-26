@@ -49,18 +49,14 @@ async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<TlsPr
     let fingerprint = get_fingerprint(&form_ctx);
     let pdm_client = crate::pdm_client();
     match remote_type {
-        RemoteType::Pve => {
-            pdm_client
-                .pve_probe_tls(&hostname, fingerprint.as_deref())
-                .await
-                .map_err(Error::from)
-        }
-        RemoteType::Pbs => {
-            pdm_client
-                .pbs_probe_tls(&hostname, fingerprint.as_deref())
-                .await
-                .map_err(Error::from)
-        }
+        RemoteType::Pve => pdm_client
+            .pve_probe_tls(&hostname, fingerprint.as_deref())
+            .await
+            .map_err(Error::from),
+        RemoteType::Pbs => pdm_client
+            .pbs_probe_tls(&hostname, fingerprint.as_deref())
+            .await
+            .map_err(Error::from),
     }
 }
 

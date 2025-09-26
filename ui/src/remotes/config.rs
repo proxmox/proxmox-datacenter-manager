@@ -26,10 +26,7 @@ use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 //use pwt::widget::form::{delete_empty_values, Field, FormContext, InputType};
 use pwt::widget::{
     menu::{Menu, MenuButton, MenuItem},
-    Button,
-    Column,
-    Toolbar,
-    Tooltip,
+    Button, Column, Toolbar, Tooltip,
 };
 //use pwt::widget::InputPanel;
 
