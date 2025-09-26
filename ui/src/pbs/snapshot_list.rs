@@ -79,6 +79,7 @@ enum Msg {
     ConsumeBuffer,
     UpdateBuffer(SnapshotListItem),
     UpdateParentNamespace(Key),
+    Reload,
     LoadFinished(Result<(), Error>),
 }
 
@@ -270,6 +271,10 @@ impl Component for SnapshotListComp {
                 self.clear_and_reload(ctx);
                 true
             }
+            Msg::Reload => {
+                self.clear_and_reload(ctx);
+                false
+            }
             Msg::LoadFinished(res) => {
                 self.load_result = Some(res);
                 self.interval = None;
@@ -294,6 +299,7 @@ impl Component for SnapshotListComp {
         let props = ctx.props();
         let remote = props.remote.clone();
         let datastore = props.datastore.clone();
+        let loading = self.interval.is_some();
 
         Column::new()
             .class(css::FlexFit)
@@ -315,6 +321,10 @@ impl Component for SnapshotListComp {
                     .with_child(
                         NamespaceSelector::new(remote, datastore)
                             .on_change(link.callback(Msg::UpdateParentNamespace)),
+                    )
+                    .with_child(
+                        pwt::widget::Button::refresh(loading)
+                            .on_activate(link.callback(|_| Msg::Reload)),
                     ),
             )
             .with_child(
