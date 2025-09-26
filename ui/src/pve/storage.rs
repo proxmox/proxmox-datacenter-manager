@@ -258,15 +258,6 @@ impl yew::Component for StoragePanelComp {
 
         status_comp = status_comp
             .with_child(status_row_right_icon(
-                tr!("Enabled"),
-                if status.enabled.unwrap_or_default() {
-                    "fa-toggle-on"
-                } else {
-                    "fa-toggle-off"
-                },
-                String::new(),
-            ))
-            .with_child(status_row_right_icon(
                 tr!("Active"),
                 if status.active.unwrap_or_default() {
                     Status::Success
