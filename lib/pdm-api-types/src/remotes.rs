@@ -189,3 +189,16 @@ pub enum TlsProbeOutcome {
     /// The certificate is untrusted with the given hostname/fingerprint
     UntrustedCertificate(proxmox_acme_api::CertificateInfo),
 }
+
+#[api(
+    properties: {
+        "remote": { schema: REMOTE_ID_SCHEMA },
+    },
+)]
+/// The information required to connect to a remote instance.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct RemoteListEntry {
+    /// An id for this entry.
+    pub remote: String,
+}

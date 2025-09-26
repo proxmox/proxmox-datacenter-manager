@@ -13,7 +13,9 @@ use proxmox_schema::property_string::PropertyString;
 use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{
+    NodeUrl, Remote, RemoteListEntry, RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA,
+};
 use pdm_api_types::resource::PveResource;
 use pdm_api_types::{
     Authid, RemoteUpid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE,
@@ -54,7 +56,9 @@ const SUBDIRS: SubdirMap = &sorted!([
     )
 ]);
 
-pub const REMOTES_ROUTER: Router = Router::new().match_all("remote", &MAIN_ROUTER);
+pub const REMOTES_ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_REMOTES)
+    .match_all("remote", &MAIN_ROUTER);
 
 const MAIN_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(REMOTE_SUBDIRS))
@@ -109,6 +113,28 @@ fn connect_to_remote(
     id: &str,
 ) -> Result<Arc<PveClient>, Error> {
     connect(get_remote(config, id)?)
+}
+
+#[api(
+    returns: {
+        type: Array,
+        description: "List of PVE remotes",
+        items: {
+            type: RemoteListEntry,
+        },
+    },
+)]
+/// Return the list of PVE remotes
+fn list_remotes() -> Result<Vec<RemoteListEntry>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let remotes = remotes
+        .into_iter()
+        .filter_map(|(remote, Remote { ty, .. })| match ty {
+            RemoteType::Pve => Some(RemoteListEntry { remote }),
+            RemoteType::Pbs => None,
+        })
+        .collect();
+    Ok(remotes)
 }
 
 #[api(

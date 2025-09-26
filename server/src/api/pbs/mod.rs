@@ -6,7 +6,9 @@ use proxmox_schema::api;
 use proxmox_schema::property_string::PropertyString;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{
+    NodeUrl, Remote, RemoteListEntry, RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA,
+};
 use pdm_api_types::{Authid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_SYS_MODIFY};
 
 use crate::{
@@ -27,7 +29,9 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("probe-tls", &Router::new().post(&API_METHOD_PROBE_TLS)),
 ]);
 
-const REMOTES_ROUTER: Router = Router::new().match_all("remote", &MAIN_ROUTER);
+const REMOTES_ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_REMOTES)
+    .match_all("remote", &MAIN_ROUTER);
 
 pub const MAIN_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(REMOTE_SUBDIRS))
@@ -55,6 +59,28 @@ const DATASTORE_ITEM_SUBDIRS: SubdirMap = &sorted!([
         &Router::new().get(&API_METHOD_LIST_SNAPSHOTS_2)
     ),
 ]);
+
+#[api(
+    returns: {
+        type: Array,
+        description: "List of PBS remotes",
+        items: {
+            type: pdm_api_types::remotes::RemoteListEntry,
+        },
+    },
+)]
+/// Return the list of PBS remotes
+fn list_remotes() -> Result<Vec<RemoteListEntry>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let remotes = remotes
+        .into_iter()
+        .filter_map(|(remote, Remote { ty, .. })| match ty {
+            RemoteType::Pbs => Some(RemoteListEntry { remote }),
+            RemoteType::Pve => None,
+        })
+        .collect();
+    Ok(remotes)
+}
 
 #[api(
     input: {
