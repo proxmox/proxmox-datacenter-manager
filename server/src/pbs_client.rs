@@ -100,6 +100,20 @@ pub struct UpdateAcl {
     pub propagate: bool,
 }
 
+#[api]
+/// List datastore namespace parameters.
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct DatstoreListNamespaces {
+    // FIXME: this is "store" in PBS, but the PDM router path variable uses "datastore"
+    /// The datastore ID.
+    pub datastore: String,
+    /// The parent namespace from which the (child) namespaces should be listed.
+    pub parent: Option<pbs_api_types::BackupNamespace>,
+    /// The maximum depth that namespaces should be (recursively) listed.
+    pub max_depth: Option<usize>,
+}
+
 impl PbsClient {
     /// API version details, including some parts of the global datacenter config.
     pub async fn version(&self) -> Result<pve_api_types::VersionResponse, Error> {
@@ -110,6 +124,20 @@ impl PbsClient {
     pub async fn list_datastores(&self) -> Result<Vec<pbs_api_types::DataStoreConfig>, Error> {
         let path = "/api2/extjs/config/datastore";
         Ok(self.0.get(path).await?.expect_json()?.data)
+    }
+
+    /// List the namespaces of a datastores.
+    pub async fn list_datastore_namespaces(
+        &self,
+        param: DatstoreListNamespaces,
+    ) -> Result<Vec<pbs_api_types::NamespaceListItem>, Error> {
+        let datastore = param.datastore;
+        let path =
+            ApiPathBuilder::new(format!("/api2/extjs/admin/datastore/{datastore}/namespace"))
+                .maybe_arg("parent", &param.parent)
+                .maybe_arg("max-depth", &param.max_depth)
+                .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     /// List a datastore's snapshots.
