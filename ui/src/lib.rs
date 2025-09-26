@@ -1,3 +1,4 @@
+use js_sys::{Array, JsString, Object};
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::resource::{PveLxcResource, PveQemuResource, PveSdnResource};
 use pdm_client::types::Resource;
@@ -208,4 +209,22 @@ pub(crate) fn get_resource_node(resource: &Resource) -> Option<&str> {
         Resource::PbsNode(_) => None,
         Resource::PbsDatastore(_) => None,
     }
+}
+
+/// Wrapper to 'locale compare' to strings
+///
+/// Note: The first parameter must be a [`String`], since it needs to be converted to a [`js_sys::JsString`].
+/// The `numeric` parameter corresponds to the numeric parameter of `String.localeCompare` from
+/// Javascript.
+///
+/// Seel also
+/// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/localeCompare
+pub(crate) fn locale_compare(first: String, second: &str, numeric: bool) -> std::cmp::Ordering {
+    let first: JsString = first.into();
+    let options = Object::new();
+    // TODO: find a better way to create the options object
+    let _ = js_sys::Reflect::set(&options, &"numeric".into(), &numeric.into());
+    first
+        .locale_compare(second, &Array::new(), &options)
+        .cmp(&0)
 }
