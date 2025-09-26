@@ -1,3 +1,49 @@
+proxmox-datacenter-manager-ui (0.9.1) trixie; urgency=medium
+
+  * dashboard: also show SDN zones if they are in a unknown state.
+
+  * remote wizard: implement support for adding Proxmox Backup Server remotes.
+
+  * pbs remote: rework remote overview to show basic node status and add a
+    tree for the datastores. On the right show the usage of the selected
+    datastore including RRD metrics and move the snapshot list into a
+    dedicated content tab.
+
+  * access control: add support to configure LDAP and AD authentication
+    realms.
+
+  * access control: always reload the user list when re-opening the user
+    management tab.
+
+  * pve remote: add title label for resources.
+
+  * pve remote: switch to common node info component, which includes slightly
+    more information.
+
+  * enable the top navigation bar's documentation button and link it to the
+    beta documentation hosted in our wiki.
+
+  * pve storage: do not override timer for updating the status of a storage.
+
+  * pve storage: remove unnecessary 'enabled' status line, we only show
+    storages that are enabled anyway.
+
+  * pve resource tree: fix that storages where never filtered out, thus
+    crowding the tree and making actual matches of a filter harder to spot.
+
+  * dashboard: allow add PBS remotes via dashboard.
+
+  * pbs snapshot list: add support for loading a specific namespace through a
+    namespace selector in the toolbar.
+
+  * pbs snapshot list: add reload button to toolbar.
+
+  * remote wizard: note that login + auto-creation of token currently only
+    works for PBS 4. Users still can manually create a API token for their
+    older PBS hosts (don't forget to give the token admin permissions).
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 26 Sep 2025 19:58:28 +0200
+
 proxmox-datacenter-manager-ui (0.9.0) trixie; urgency=medium
 
   * remote wizard: fix width of settings panel.
