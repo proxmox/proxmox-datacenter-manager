@@ -1,4 +1,3 @@
-use core::f64;
 use std::rc::Rc;
 
 use gloo_timers::callback::Timeout;
