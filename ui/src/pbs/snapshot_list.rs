@@ -128,6 +128,15 @@ impl SnapshotListComp {
         ])
     }
 
+    fn clear_and_reload(&mut self, ctx: &PwtContext<Self>) {
+        self.store.write().clear();
+        self.store
+            .write()
+            .set_root(SnapshotTreeEntry::Root);
+        self._async_pool = AsyncPool::new();
+        self.reload(ctx);
+    }
+
     fn reload(&mut self, ctx: &PwtContext<Self>) {
         let props = ctx.props();
         let remote = props.remote.clone();
@@ -241,10 +250,7 @@ impl Component for SnapshotListComp {
     }
 
     fn changed(&mut self, ctx: &PwtContext<Self>, _old_props: &Self::Properties) -> bool {
-        self.store.write().clear();
-        self.store.write().set_root(SnapshotTreeEntry::Root);
-        self._async_pool = AsyncPool::new();
-        self.reload(ctx);
+        self.clear_and_reload(ctx);
         true
     }
 
