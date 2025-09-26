@@ -13,6 +13,8 @@ use proxmox_router::stream::JsonRecords;
 use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
 
+use pbs_api_types::{Userid, Tokenname};
+
 use pdm_api_types::remotes::{Remote, RemoteType};
 
 pub fn get_remote<'a>(
@@ -148,12 +150,14 @@ impl PbsClient {
     /// create a pbs token
     pub async fn create_token(
         &self,
-        userid: &str,
-        tokenid: &str,
+        userid: Userid,
+        tokenid: Tokenname,
         params: CreateToken,
     ) -> Result<CreateTokenResponse, Error> {
-        let path = format!("/api2/extjs/access/users/{userid}/token/{tokenid}");
-        Ok(self.0.post(&path, &params).await?.expect_json()?.data)
+        let path = format!("/api2/extjs/access/users/{userid}/token/{}", tokenid.as_str());
+        let token = self.0.post(&path, &params).await?.expect_json()?.data;
+
+        Ok(token)
     }
 
     /// Return the status the Proxmox Backup Server instance
