@@ -39,6 +39,7 @@ pub const MAIN_ROUTER: Router = Router::new()
 
 #[sortable]
 const REMOTE_SUBDIRS: SubdirMap = &sorted!([
+    ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
     ("rrddata", &rrddata::PBS_NODE_RRD_ROUTER),
     ("datastore", &DATASTORE_ROUTER)
 ]);
@@ -232,4 +233,21 @@ pub async fn scan_remote_pbs(
         .map_err(|err| format_err!("could not login: {err}"))?;
 
     Ok(remote)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get status for the PBS remote
+async fn get_status(remote: String) -> Result<pbs_api_types::NodeStatus, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let remote = get_remote(&remotes, &remote)?;
+    Ok(connection::make_pbs_client(remote)?.node_status().await?)
 }
