@@ -282,7 +282,7 @@ impl yew::Component for StoragePanelComp {
                 status
                     .content
                     .iter()
-                    .map(|c| render_content_type(&c))
+                    .map(render_content_type)
                     .collect::<Vec<_>>()
                     .join(", "),
             ))
