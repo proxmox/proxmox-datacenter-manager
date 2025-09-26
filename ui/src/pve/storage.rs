@@ -199,7 +199,7 @@ impl yew::Component for StoragePanelComp {
                     }
                     Err(err) => self.last_rrd_error = Some(err),
                 }
-                self._status_timeout = Some(Timeout::new(props.rrd_interval, move || {
+                self._rrd_timeout = Some(Timeout::new(props.rrd_interval, move || {
                     link.send_message(Msg::ReloadRrd)
                 }));
                 true
