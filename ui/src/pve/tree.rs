@@ -416,6 +416,10 @@ impl LoadableComponent for PveTreeComp {
                                 || "qemu".contains(&text)
                                 || r.tags.iter().any(|tag| tag.contains(&text))
                         }
+                        PveTreeNode::Storage(r) => {
+                            r.storage.to_string().to_lowercase().contains(&text)
+                                || "storage".contains(&text)
+                        }
                         _ => true,
                     });
                 }
