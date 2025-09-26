@@ -19,12 +19,14 @@ use pwt::{
     widget::{
         error_message,
         form::{DisplayField, FormContext, Number},
-        Button, Column, Container, Fa, InputPanel, Panel, Row,
+        menu::{Menu, MenuButton, MenuItem},
+        Column, Container, Fa, InputPanel, Panel, Row,
     },
     AsyncPool,
 };
 
 use pdm_api_types::{
+    remotes::RemoteType,
     resource::{NodeStatusCount, ResourcesStatus},
     TaskStatistics,
 };
@@ -116,7 +118,7 @@ pub enum LoadingResult {
 pub enum Msg {
     LoadingFinished(LoadingResult),
     RemoteListChanged(RemoteList),
-    CreateWizard(bool),
+    CreateWizard(Option<RemoteType>),
     Reload,
     ForceReload,
     UpdateConfig(DashboardConfig),
@@ -139,7 +141,7 @@ pub struct PdmDashboard {
     loading: bool,
     load_finished_time: Option<f64>,
     remote_list: RemoteList,
-    show_wizard: bool,
+    show_wizard: Option<RemoteType>,
     show_config_window: bool,
     _context_listener: ContextHandle<RemoteList>,
     async_pool: AsyncPool,
@@ -415,7 +417,7 @@ impl Component for PdmDashboard {
             loading: true,
             load_finished_time: None,
             remote_list,
-            show_wizard: false,
+            show_wizard: None,
             show_config_window: false,
             _context_listener,
             async_pool,
@@ -471,8 +473,8 @@ impl Component for PdmDashboard {
                 self.remote_list = remote_list;
                 changed
             }
-            Msg::CreateWizard(show) => {
-                self.show_wizard = show;
+            Msg::CreateWizard(remote_type) => {
+                self.show_wizard = remote_type;
                 true
             }
             Msg::Reload => {
@@ -541,9 +543,23 @@ impl Component for PdmDashboard {
                             .width(300)
                             .min_height(175)
                             .with_tool(
-                                Button::new(tr!("Add"))
-                                    .icon_class("fa fa-plus-circle")
-                                    .on_activate(ctx.link().callback(|_| Msg::CreateWizard(true))),
+                                MenuButton::new(tr!("Add")).show_arrow(true).menu(
+                                    Menu::new()
+                                        .with_item(
+                                            MenuItem::new("Proxmox VE")
+                                                .icon_class("fa fa-building")
+                                                .on_select(ctx.link().callback(|_| {
+                                                    Msg::CreateWizard(Some(RemoteType::Pve))
+                                                })),
+                                        )
+                                        .with_item(
+                                            MenuItem::new("Proxmox Backup Server")
+                                                .icon_class("fa fa-floppy-o")
+                                                .on_select(ctx.link().callback(|_| {
+                                                    Msg::CreateWizard(Some(RemoteType::Pbs))
+                                                })),
+                                        ),
+                                ),
                             )
                             .with_child(RemotePanel::new(self.status.clone())),
                     )
@@ -665,18 +681,14 @@ impl Component for PdmDashboard {
         Panel::new()
             .class(FlexFit)
             .with_child(content)
-            // FIXME: make pbs also addable?
             .with_optional_child(
-                self.show_wizard.then_some(
-                    AddWizard::new(pdm_api_types::remotes::RemoteType::Pve)
-                        .on_close(ctx.link().callback(|_| Msg::CreateWizard(false)))
+                self.show_wizard.map(|remote_type| {
+                    AddWizard::new(remote_type)
+                        .on_close(ctx.link().callback(|_| Msg::CreateWizard(None)))
                         .on_submit(move |ctx| {
-                            crate::remotes::create_remote(
-                                ctx,
-                                pdm_api_types::remotes::RemoteType::Pve,
-                            )
-                        }),
-                ),
+                            crate::remotes::create_remote(ctx, remote_type)
+                        })
+                }),
             )
             .with_optional_child(
                 self.show_config_window.then_some(
