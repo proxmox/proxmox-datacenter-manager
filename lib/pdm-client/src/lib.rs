@@ -842,6 +842,11 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
+    pub async fn pbs_node_status(&self, remote: &str) -> Result<pbs_api_types::NodeStatus, Error> {
+        let path = format!("/api2/extjs/pbs/remotes/{remote}/status");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
     pub async fn pbs_datastore_rrddata(
         &self,
         remote: &str,
