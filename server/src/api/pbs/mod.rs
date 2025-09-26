@@ -56,6 +56,10 @@ const DATASTORE_ITEM_ROUTER: Router = Router::new()
 const DATASTORE_ITEM_SUBDIRS: SubdirMap = &sorted!([
     ("rrddata", &rrddata::PBS_DATASTORE_RRD_ROUTER),
     (
+        "namespaces",
+        &Router::new().get(&API_METHOD_LIST_NAMESPACES)
+    ),
+    (
         "snapshots",
         &Router::new().get(&API_METHOD_LIST_SNAPSHOTS_2)
     ),
@@ -103,6 +107,32 @@ async fn list_datastores(remote: String) -> Result<Vec<pbs_api_types::DataStoreC
     let (remotes, _) = pdm_config::remotes::config()?;
     Ok(pbs_client::connect_to_remote(&remotes, &remote)?
         .list_datastores()
+        .await?)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            params: {
+                type: pbs_client::DatstoreListNamespaces,
+                flatten: true,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "datastore", "{datastore}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// List the PBS remote's datastores.
+async fn list_namespaces(
+    remote: String,
+    params: pbs_client::DatstoreListNamespaces,
+) -> Result<Vec<pbs_api_types::NamespaceListItem>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let remote = get_remote(&remotes, &remote)?;
+    Ok(connection::make_pbs_client(remote)?
+        .list_datastore_namespaces(params)
         .await?)
 }
 
