@@ -13,11 +13,12 @@ use yew::{html, Properties};
 use pwt::prelude::Context as PwtContext;
 use pwt::prelude::{tr, Component, Html};
 use pwt::props::{
-    ContainerBuilder, CssPaddingBuilder, ExtractPrimaryKey, WidgetBuilder, WidgetStyleBuilder,
+    ContainerBuilder, CssBorderBuilder, CssPaddingBuilder, ExtractPrimaryKey, WidgetBuilder,
+    WidgetStyleBuilder,
 };
 use pwt::state::{Selection, TreeStore};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
-use pwt::widget::{error_message, Column, Container, Fa, Progress, Tooltip};
+use pwt::widget::{error_message, Column, Container, Fa, Progress, Toolbar, Tooltip};
 use pwt::{css, AsyncPool};
 
 use pbs_api_types::{BackupGroup, BackupNamespace, BackupType, SnapshotListItem, VerifyState};
@@ -25,6 +26,7 @@ use pbs_api_types::{BackupGroup, BackupNamespace, BackupType, SnapshotListItem, 
 use proxmox_yew_comp::http_stream::Stream;
 
 use crate::locale_compare;
+use crate::pbs::namespace_selector::NamespaceSelector;
 use crate::renderer::render_tree_column;
 
 #[derive(Clone, PartialEq, Properties)]
@@ -76,6 +78,7 @@ enum Msg {
     SelectionChange,
     ConsumeBuffer,
     UpdateBuffer(SnapshotListItem),
+    UpdateParentNamespace(Key),
     LoadFinished(Result<(), Error>),
 }
 
@@ -196,7 +199,7 @@ impl Component for SnapshotListComp {
         this
     }
 
-    fn update(&mut self, _ctx: &PwtContext<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &PwtContext<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::SelectionChange => true,
             Msg::ConsumeBuffer => {
@@ -258,6 +261,15 @@ impl Component for SnapshotListComp {
                 self.buffer.push(item);
                 false
             }
+            Msg::UpdateParentNamespace(ns_key) => {
+                let ns = ns_key
+                    .parse()
+                    .expect("internal error - failed to parse namespace");
+
+                self.current_namespace = ns;
+                self.clear_and_reload(ctx);
+                true
+            }
             Msg::LoadFinished(res) => {
                 self.load_result = Some(res);
                 self.interval = None;
@@ -271,11 +283,18 @@ impl Component for SnapshotListComp {
         true
     }
 
-    fn view(&self, _ctx: &PwtContext<Self>) -> Html {
+    fn view(&self, ctx: &PwtContext<Self>) -> Html {
         let err = match self.load_result.as_ref() {
             Some(Err(err)) => Some(err),
             _ => None,
         };
+
+        let link = ctx.link();
+
+        let props = ctx.props();
+        let remote = props.remote.clone();
+        let datastore = props.datastore.clone();
+
         Column::new()
             .class(css::FlexFit)
             .with_optional_child(
@@ -287,6 +306,16 @@ impl Component for SnapshotListComp {
                             .style("right", "0"),
                     ),
                 ),
+            )
+            .with_child(
+                Toolbar::new()
+                    .border_bottom(true)
+                    .with_flex_spacer()
+                    .with_child(pwt::widget::FieldLabel::new(tr!("Namespace")))
+                    .with_child(
+                        NamespaceSelector::new(remote, datastore)
+                            .on_change(link.callback(Msg::UpdateParentNamespace)),
+                    ),
             )
             .with_child(
                 DataTable::new(self.columns.clone(), self.store.clone())
