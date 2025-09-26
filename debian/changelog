@@ -1,3 +1,19 @@
+proxmox-datacenter-manager (0.9.1) trixie; urgency=medium
+
+  * TTY login banner: fix typo.
+
+  * server: api: add TLS probe endpoint for Proxmox Backup Server and
+    implement endpoint to scan remote PBS instances to allow using the remote
+    wizard to add PBS remotes.
+
+  * add initial support to configure LDAP and AD authentication realms.
+
+  * pbs-client: use `json` formatter for the PBS snapshot list streaming API.
+
+  * api: add endpoint to list all namespaces from a datastore of a PBS remote.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 26 Sep 2025 19:41:41 +0200
+
 proxmox-datacenter-manager (0.9.0) trixie; urgency=medium
 
   * bump version for BETA release based on Debian 13 Trixie.
