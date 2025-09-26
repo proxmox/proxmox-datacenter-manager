@@ -31,11 +31,11 @@ pub struct StoragePanel {
     info: PveStorageResource,
 
     #[prop_or(60_000)]
-    /// The interval for refreshing the rrd data
+    /// The interval in milliseconds for refreshing the storage's RRD metrics.
     pub rrd_interval: u32,
 
     #[prop_or(10_000)]
-    /// The interval for refreshing the status data
+    /// The interval in milliseconds for refreshing the storage's status.
     pub status_interval: u32,
 }
 
