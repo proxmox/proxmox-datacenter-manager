@@ -420,7 +420,10 @@ impl LoadableComponent for PveTreeComp {
                             r.storage.to_string().to_lowercase().contains(&text)
                                 || "storage".contains(&text)
                         }
-                        _ => true,
+                        // always show tree root node to ensure tree does not look odd.
+                        // For now also always show all nodes (should we filter those without any
+                        // matches for the node or for it's sub elements?
+                        PveTreeNode::Root | PveTreeNode::Node(_) => true,
                     });
                 }
             }
