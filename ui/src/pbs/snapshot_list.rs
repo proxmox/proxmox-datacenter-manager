@@ -20,7 +20,7 @@ use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::{error_message, Column, Container, Fa, Progress, Tooltip};
 use pwt::{css, AsyncPool};
 
-use pbs_api_types::{BackupGroup, BackupType, SnapshotListItem, VerifyState};
+use pbs_api_types::{BackupGroup, BackupNamespace, BackupType, SnapshotListItem, VerifyState};
 
 use proxmox_yew_comp::http_stream::Stream;
 
@@ -56,7 +56,7 @@ struct SnapshotVerifyCount {
 
 #[derive(PartialEq, Clone)]
 enum SnapshotTreeEntry {
-    Root,
+    Root(BackupNamespace),
     Group(BackupGroup, SnapshotVerifyCount),
     Snapshot(SnapshotListItem),
 }
@@ -64,7 +64,7 @@ enum SnapshotTreeEntry {
 impl ExtractPrimaryKey for SnapshotTreeEntry {
     fn extract_key(&self) -> Key {
         match self {
-            SnapshotTreeEntry::Root => Key::from("__root__"),
+            SnapshotTreeEntry::Root(namespace) => Key::from(format!("root+{namespace}")),
             SnapshotTreeEntry::Group(group, _) => Key::from(format!("group+{group}")),
             SnapshotTreeEntry::Snapshot(entry) => Key::from(entry.backup.to_string()),
         }
@@ -86,6 +86,7 @@ struct SnapshotListComp {
     columns: Rc<Vec<DataTableHeader<SnapshotTreeEntry>>>,
     load_result: Option<Result<(), Error>>,
     buffer: Vec<SnapshotListItem>,
+    current_namespace: BackupNamespace,
     interval: Option<Interval>,
 }
 
@@ -97,7 +98,13 @@ impl SnapshotListComp {
                 .tree_column(store.clone())
                 .render(|item: &SnapshotTreeEntry| {
                     let (icon, res) = match item {
-                        SnapshotTreeEntry::Root => ("database", tr!("Root Namespace")),
+                        SnapshotTreeEntry::Root(namespace) => {
+                            if namespace.is_root() {
+                                ("database", tr!("Root Namespace"))
+                            } else {
+                                ("object-group", tr!("Namespace '{0}'", namespace))
+                            }
+                        }
                         SnapshotTreeEntry::Group(group, _) => (
                             match group.ty {
                                 BackupType::Vm => "desktop",
@@ -114,7 +121,7 @@ impl SnapshotListComp {
             DataTableColumn::new(tr!("Count"))
                 .justify("right")
                 .render(|item: &SnapshotTreeEntry| match item {
-                    SnapshotTreeEntry::Root => "".into(),
+                    SnapshotTreeEntry::Root(_) => "".into(),
                     SnapshotTreeEntry::Group(_group, counts) => {
                         (counts.ok + counts.failed + counts.none).into()
                     }
@@ -132,7 +139,7 @@ impl SnapshotListComp {
         self.store.write().clear();
         self.store
             .write()
-            .set_root(SnapshotTreeEntry::Root);
+            .set_root(SnapshotTreeEntry::Root(self.current_namespace.clone()));
         self._async_pool = AsyncPool::new();
         self.reload(ctx);
     }
@@ -141,10 +148,17 @@ impl SnapshotListComp {
         let props = ctx.props();
         let remote = props.remote.clone();
         let datastore = props.datastore.clone();
+        let namespace = self.current_namespace.clone();
         let link = ctx.link().clone();
         self._async_pool
             .send_future(ctx.link().clone(), async move {
-                let res = list_snapshots(remote, datastore, link.callback(Msg::UpdateBuffer)).await;
+                let res = list_snapshots(
+                    remote,
+                    datastore,
+                    namespace,
+                    link.callback(Msg::UpdateBuffer),
+                )
+                .await;
                 link.send_message(Msg::ConsumeBuffer);
                 Msg::LoadFinished(res)
             });
@@ -162,7 +176,9 @@ impl Component for SnapshotListComp {
 
     fn create(ctx: &PwtContext<Self>) -> Self {
         let store = TreeStore::new().view_root(true);
-        store.write().set_root(SnapshotTreeEntry::Root);
+        store
+            .write()
+            .set_root(SnapshotTreeEntry::Root(BackupNamespace::root()));
 
         let selection = Selection::new().on_select(ctx.link().callback(|_| Msg::SelectionChange));
 
@@ -173,6 +189,7 @@ impl Component for SnapshotListComp {
             _async_pool: AsyncPool::new(),
             load_result: None,
             buffer: Vec::new(),
+            current_namespace: BackupNamespace::root(),
             interval: None,
         };
         this.reload(ctx);
@@ -284,9 +301,14 @@ impl Component for SnapshotListComp {
 async fn list_snapshots(
     remote: String,
     datastore: String,
+    namespace: BackupNamespace,
     callback: yew::Callback<SnapshotListItem>,
 ) -> Result<(), Error> {
-    let path = format!("/api2/json/pbs/remotes/{remote}/datastore/{datastore}/snapshots");
+    let path = if namespace.is_root() {
+        format!("/api2/json/pbs/remotes/{remote}/datastore/{datastore}/snapshots")
+    } else {
+        format!("/api2/json/pbs/remotes/{remote}/datastore/{datastore}/snapshots?ns={namespace}")
+    };
 
     // TODO: refactor application/json-seq helper for general purpose use
     let abort = pwt::WebSysAbortGuard::new()?;
@@ -317,7 +339,7 @@ async fn list_snapshots(
 fn render_verification(entry: &SnapshotTreeEntry) -> Html {
     let now = (Date::now() / 1000.0) as i64;
     match entry {
-        SnapshotTreeEntry::Root => "".into(),
+        SnapshotTreeEntry::Root(_) => "".into(),
         SnapshotTreeEntry::Group(_, verify_state) => {
             let text;
             let icon_class;
