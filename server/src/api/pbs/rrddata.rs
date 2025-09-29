@@ -102,15 +102,14 @@ impl DataPoint for PbsDatastoreDataPoint {
     },
 )]
 /// Read PBS node stats
-fn get_pbs_node_rrd_data(
+async fn get_pbs_node_rrd_data(
     remote: String,
     timeframe: RrdTimeframe,
     cf: RrdMode,
     _param: Value,
 ) -> Result<Vec<PbsNodeDataPoint>, Error> {
     let base = format!("pbs/{remote}/host");
-
-    rrd_common::create_datapoints_from_rrd(&base, timeframe, cf)
+    rrd_common::get_rrd_datapoints(remote, base, timeframe, cf).await
 }
 
 #[api(
@@ -128,7 +127,7 @@ fn get_pbs_node_rrd_data(
     },
 )]
 /// Read PBS datastore stats
-fn get_pbs_datastore_rrd_data(
+async fn get_pbs_datastore_rrd_data(
     remote: String,
     datastore: String,
     timeframe: RrdTimeframe,
@@ -136,8 +135,7 @@ fn get_pbs_datastore_rrd_data(
     _param: Value,
 ) -> Result<Vec<PbsDatastoreDataPoint>, Error> {
     let base = format!("pbs/{remote}/datastore/{datastore}");
-
-    rrd_common::create_datapoints_from_rrd(&base, timeframe, cf)
+    rrd_common::get_rrd_datapoints(remote, base, timeframe, cf).await
 }
 
 pub const PBS_NODE_RRD_ROUTER: Router = Router::new().get(&API_METHOD_GET_PBS_NODE_RRD_DATA);

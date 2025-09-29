@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use anyhow::Error;
 use serde_json::Value;
 
@@ -12,7 +10,6 @@ use pdm_api_types::rrddata::{LxcDataPoint, NodeDataPoint, PveStorageDataPoint, Q
 use pdm_api_types::{NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PVE_STORAGE_ID_SCHEMA, VMID_SCHEMA};
 
 use crate::api::rrd_common::{self, DataPoint};
-use crate::metric_collection;
 
 impl DataPoint for NodeDataPoint {
     fn new(time: u64) -> Self {
@@ -193,7 +190,7 @@ async fn get_qemu_rrd_data(
     _param: Value,
 ) -> Result<Vec<QemuDataPoint>, Error> {
     let base = format!("pve/{remote}/qemu/{vmid}");
-    get_rrd_datapoints(remote, base, timeframe, cf).await
+    rrd_common::get_rrd_datapoints(remote, base, timeframe, cf).await
 }
 
 #[api(
@@ -222,7 +219,7 @@ async fn get_lxc_rrd_data(
     _param: Value,
 ) -> Result<Vec<LxcDataPoint>, Error> {
     let base = format!("pve/{remote}/lxc/{vmid}");
-    get_rrd_datapoints(remote, base, timeframe, cf).await
+    rrd_common::get_rrd_datapoints(remote, base, timeframe, cf).await
 }
 
 #[api(
@@ -251,7 +248,7 @@ async fn get_node_rrd_data(
     _param: Value,
 ) -> Result<Vec<NodeDataPoint>, Error> {
     let base = format!("pve/{remote}/node/{node}");
-    get_rrd_datapoints(remote, base, timeframe, cf).await
+    rrd_common::get_rrd_datapoints(remote, base, timeframe, cf).await
 }
 
 #[api(
@@ -282,31 +279,7 @@ async fn get_storage_rrd_data(
     _param: Value,
 ) -> Result<Vec<NodeDataPoint>, Error> {
     let base = format!("pve/{remote}/storage/{node}/{storage}");
-    get_rrd_datapoints(remote, base, timeframe, cf).await
-}
-
-async fn get_rrd_datapoints<T: DataPoint + Send + 'static>(
-    remote: String,
-    basepath: String,
-    timeframe: RrdTimeframe,
-    mode: RrdMode,
-) -> Result<Vec<T>, Error> {
-    const WAIT_FOR_NEWEST_METRIC_TIMEOUT: Duration = Duration::from_secs(5);
-
-    if timeframe == RrdTimeframe::Hour {
-        // Let's wait for a limited time for the most recent metrics. If the connection to the remote
-        // is super slow or if the metric collection tasks currently busy with collecting other
-        // metrics, we just return the data we already have, not the newest one.
-        let _ = tokio::time::timeout(WAIT_FOR_NEWEST_METRIC_TIMEOUT, async {
-            metric_collection::trigger_metric_collection(Some(remote), true).await
-        })
-        .await;
-    }
-
-    tokio::task::spawn_blocking(move || {
-        rrd_common::create_datapoints_from_rrd(&basepath, timeframe, mode)
-    })
-    .await?
+    rrd_common::get_rrd_datapoints(remote, base, timeframe, cf).await
 }
 
 pub const QEMU_RRD_ROUTER: Router = Router::new().get(&API_METHOD_GET_QEMU_RRD_DATA);

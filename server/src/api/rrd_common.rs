@@ -1,9 +1,10 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::Duration};
 
 use anyhow::{bail, Error};
+
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 
-use crate::metric_collection::rrd_cache;
+use crate::metric_collection::{self, rrd_cache};
 
 /// Trait common to all RRD-stored metric objects (nodes, datastores, qemu, lxc, etc.)
 pub trait DataPoint {
@@ -52,4 +53,32 @@ pub fn create_datapoints_from_rrd<T: DataPoint>(
     }
 
     Ok(timemap.into_values().collect())
+}
+
+/// Get RRD datapoints for a given remote/RRD path.
+///
+/// If `timeframe` is set to [`RrdTimeframe::Hour`], then this function will trigger
+/// metric collection for this remote and wait for its completion, up to a timeout of five
+/// seconds. If the timeout is exceeded, we simply go ahead and return what is in the database at
+/// the moment, which might have a gap for the last couple minutes.
+pub async fn get_rrd_datapoints<T: DataPoint + Send + 'static>(
+    remote: String,
+    basepath: String,
+    timeframe: RrdTimeframe,
+    mode: RrdMode,
+) -> Result<Vec<T>, Error> {
+    const WAIT_FOR_NEWEST_METRIC_TIMEOUT: Duration = Duration::from_secs(5);
+
+    if timeframe == RrdTimeframe::Hour {
+        // Let's wait for a limited time for the most recent metrics. If the connection to the remote
+        // is super slow or if the metric collection tasks currently busy with collecting other
+        // metrics, we just return the data we already have, not the newest one.
+        let _ = tokio::time::timeout(WAIT_FOR_NEWEST_METRIC_TIMEOUT, async {
+            metric_collection::trigger_metric_collection(Some(remote), true).await
+        })
+        .await;
+    }
+
+    tokio::task::spawn_blocking(move || create_datapoints_from_rrd(&basepath, timeframe, mode))
+        .await?
 }
