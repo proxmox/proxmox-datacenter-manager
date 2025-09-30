@@ -41,7 +41,7 @@ pub fn calculate_top(
     let mut node_cpu = Vec::new();
     let mut node_memory = Vec::new();
 
-    for remote_name in remotes.keys() {
+    for (remote_name, remote) in remotes {
         if let Some(data) =
             crate::api::resources::get_cached_resources(remote_name, i64::MAX as u64)
         {
@@ -58,7 +58,13 @@ pub fn calculate_top(
                             insert_sorted(&mut guest_cpu, (coefficient, entity.1), num);
                         }
                     }
-                    Resource::PveNode(_) => {
+                    Resource::PveNode(_) | Resource::PbsNode(_) => {
+                        // pbs node datapoints are always saved with 'host' instead of nodename
+                        let name = if remote.ty == pdm_api_types::remotes::RemoteType::Pbs {
+                            format!("pbs/{remote_name}/host")
+                        } else {
+                            name
+                        };
                         if let Some(entity) = get_entity(
                             timeframe,
                             remote_name,
@@ -101,7 +107,6 @@ pub fn calculate_top(
                         }
                     }
                     Resource::PveSdn(_) => {}
-                    Resource::PbsNode(_) => {}
                     Resource::PbsDatastore(_) => {}
                 }
             }
