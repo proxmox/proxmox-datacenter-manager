@@ -307,6 +307,7 @@ impl MetricCollectionTask {
                         .cluster_metrics_export(
                             Some(true),
                             Some(false),
+                            None,
                             Some(status.most_recent_datapoint),
                         )
                         .await?;
