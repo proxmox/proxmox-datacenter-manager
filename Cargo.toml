@@ -46,7 +46,7 @@ proxmox-io = "1.0.1" # tools and client use "tokio" feature
 proxmox-ldap = { version = "1.1", features = ["sync"] }
 proxmox-lang = "1.1"
 proxmox-log = "1"
-proxmox-login = "1"
+proxmox-login = "1.0.2"
 proxmox-rest-server = "1"
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
 proxmox-router = { version = "3.0.0", default-features = false }
