@@ -385,21 +385,6 @@ impl Component for PdmWizardPageInfo {
                     .gap(2)
                     .class(css::AlignItems::Center)
                     .with_optional_child(
-                        if props.remote_type == RemoteType::Pbs && self.user_mode {
-                            Some(tr!(
-                                "Note: Login currently requires Proxmox Backup Server version 4."
-                            ))
-                        } else {
-                            None
-                        },
-                    ),
-            )
-            .with_child(
-                Row::new()
-                    .padding(2)
-                    .gap(2)
-                    .class(css::AlignItems::Center)
-                    .with_optional_child(
                         self.last_error
                             .as_deref()
                             .map(|err| error_message(&err.to_string())),
