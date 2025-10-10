@@ -36,12 +36,17 @@ pub fn calculate_top(
     remotes: &HashMap<String, pdm_api_types::remotes::Remote>,
     timeframe: proxmox_rrd_api_types::RrdTimeframe,
     num: usize,
+    check_remote_privs: impl Fn(&str) -> bool
 ) -> TopEntities {
     let mut guest_cpu = Vec::new();
     let mut node_cpu = Vec::new();
     let mut node_memory = Vec::new();
 
     for (remote_name, remote) in remotes {
+        if !check_remote_privs(remote_name) {
+            continue;
+        }
+
         if let Some(data) =
             crate::api::resources::get_cached_resources(remote_name, i64::MAX as u64)
         {

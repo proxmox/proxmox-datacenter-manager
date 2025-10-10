@@ -480,7 +480,6 @@ pub async fn get_subscription_status(
 }
 
 // FIXME: make timeframe and count parameters?
-// FIXME: permissions?
 #[api(
     input: {
         properties: {
@@ -490,13 +489,35 @@ pub async fn get_subscription_status(
             }
         }
     },
+    access: {
+        permission: &Permission::Anybody,
+        description: "The user needs to have at least `Resource.Audit` on one resources under `/resource`.
+        Only resources for which the user has `Resource.Audit` on `/resource/{remote_name}` will be
+        considered when calculating the top entities."
+    },
 )]
 /// Returns the top X entities regarding the chosen type
-async fn get_top_entities(timeframe: Option<RrdTimeframe>) -> Result<TopEntities, Error> {
+async fn get_top_entities(
+    timeframe: Option<RrdTimeframe>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<TopEntities, Error> {
+    let user_info = CachedUserInfo::new()?;
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .ok_or_else(|| format_err!("no authid available"))?
+        .parse()?;
+
+    if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT)? {
+        http_bail!(FORBIDDEN, "user has no access to resources");
+    }
+
     let (remotes_config, _) = pdm_config::remotes::config()?;
+    let check_remote_privs = |remote_name: &str| {
+        user_info.lookup_privs(&auth_id, &["resource", remote_name]) & PRIV_RESOURCE_AUDIT != 0
+    };
 
     let timeframe = timeframe.unwrap_or(RrdTimeframe::Day);
-    let res = top_entities::calculate_top(&remotes_config, timeframe, 10);
+    let res = top_entities::calculate_top(&remotes_config, timeframe, 10, check_remote_privs);
     Ok(res)
 }
 
