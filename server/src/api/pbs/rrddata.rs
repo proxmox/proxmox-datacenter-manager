@@ -2,8 +2,9 @@ use anyhow::Error;
 use pdm_api_types::{
     remotes::REMOTE_ID_SCHEMA,
     rrddata::{PbsDatastoreDataPoint, PbsNodeDataPoint},
+    PRIV_RESOURCE_AUDIT,
 };
-use proxmox_router::Router;
+use proxmox_router::{Permission, Router};
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_schema::api;
 use serde_json::Value;
@@ -100,6 +101,10 @@ impl DataPoint for PbsDatastoreDataPoint {
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
+        description: "The user needs to have at least the `Resource.Audit` privilege on `/resource/{remote}`."
+    }
 )]
 /// Read PBS node stats
 async fn get_pbs_node_rrd_data(
@@ -125,6 +130,10 @@ async fn get_pbs_node_rrd_data(
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "datastore", "{datastore}"], PRIV_RESOURCE_AUDIT, false),
+        description: "The user needs to have at least the `Resource.Audit` privilege on `/resource/{remote}/datastore/{datastore}`."
+    }
 )]
 /// Read PBS datastore stats
 async fn get_pbs_datastore_rrd_data(
