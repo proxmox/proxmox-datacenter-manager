@@ -272,7 +272,8 @@ pub async fn scan_remote_pbs(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
+        description: "The user needs to have at least the `Resource.Audit` privilege on `/resource/{remote}`."
     },
 )]
 /// Get status for the PBS remote
