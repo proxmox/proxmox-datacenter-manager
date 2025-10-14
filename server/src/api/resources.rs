@@ -623,7 +623,7 @@ fn map_node_subscription_list_to_state(
 
     match (minimum, mixed) {
         (SubscriptionLevel::None, _) => RemoteSubscriptionState::None,
-        (SubscriptionLevel::Unknown, false) => RemoteSubscriptionState::Mixed,
+        (SubscriptionLevel::Unknown, false) => RemoteSubscriptionState::Unknown,
         // treat unknown + active as active
         (SubscriptionLevel::Unknown, true) => RemoteSubscriptionState::Active,
         (_, true) => RemoteSubscriptionState::Mixed,
