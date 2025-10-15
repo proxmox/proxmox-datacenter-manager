@@ -27,7 +27,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Properties)]
-pub struct QemuPanel {
+pub struct QemuOverviewPanel {
     remote: String,
     node: String,
     info: PveQemuResource,
@@ -41,7 +41,7 @@ pub struct QemuPanel {
     pub status_interval: u32,
 }
 
-impl PartialEq for QemuPanel {
+impl PartialEq for QemuOverviewPanel {
     fn eq(&self, other: &Self) -> bool {
         if self.remote == other.remote && self.node == other.node {
             // only check some fields, so we don't update when e.g. only the cpu changes
@@ -53,17 +53,17 @@ impl PartialEq for QemuPanel {
         }
     }
 }
-impl Eq for QemuPanel {}
+impl Eq for QemuOverviewPanel {}
 
-impl QemuPanel {
+impl QemuOverviewPanel {
     pub fn new(remote: String, node: String, info: PveQemuResource) -> Self {
         yew::props!(Self { remote, node, info })
     }
 }
 
-impl Into<VNode> for QemuPanel {
+impl Into<VNode> for QemuOverviewPanel {
     fn into(self) -> VNode {
-        VComp::new::<QemuPanelComp>(Rc::new(self), None).into()
+        VComp::new::<QemuOverviewPanelComp>(Rc::new(self), None).into()
     }
 }
 
@@ -75,7 +75,7 @@ pub enum Msg {
     UpdateRrdTimeframe(RRDTimeframe),
 }
 
-pub struct QemuPanelComp {
+pub struct QemuOverviewPanelComp {
     status: Option<QemuStatus>,
     last_status_error: Option<proxmox_client::Error>,
     last_rrd_error: Option<proxmox_client::Error>,
@@ -95,7 +95,7 @@ pub struct QemuPanelComp {
     diskwrite: Rc<Series>,
 }
 
-impl QemuPanelComp {
+impl QemuOverviewPanelComp {
     async fn reload_status(remote: &str, vmid: u32) -> Result<QemuStatus, proxmox_client::Error> {
         let status = crate::pdm_client()
             .pve_qemu_status(remote, None, vmid)
@@ -115,10 +115,10 @@ impl QemuPanelComp {
     }
 }
 
-impl yew::Component for QemuPanelComp {
+impl yew::Component for QemuOverviewPanelComp {
     type Message = Msg;
 
-    type Properties = QemuPanel;
+    type Properties = QemuOverviewPanel;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
         ctx.link()
@@ -256,13 +256,6 @@ impl yew::Component for QemuPanelComp {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
-        let title: Html = Row::new()
-            .gap(2)
-            .class(AlignItems::Baseline)
-            .with_child(Fa::new("desktop"))
-            .with_child(tr! {"VM '{0}'", render_qemu_name(&props.info, true)})
-            .into();
-
         let mut status_comp = Column::new().gap(2).padding(4);
 
         let status = match &self.status {
@@ -362,7 +355,6 @@ impl yew::Component for QemuPanelComp {
         let loading = self.status.is_none() && self.last_status_error.is_none();
         Panel::new()
             .class(FlexFit)
-            .title(title)
             .class(ColorScheme::Neutral)
             .with_child(
                 // FIXME: add some 'visible' or 'active' property to the progress
