@@ -17,7 +17,7 @@ use pdm_client::types::{IsRunning, QemuStatus};
 
 use crate::renderer::{separator, status_row};
 
-#[derive(Clone, Debug, Properties)]
+#[derive(Clone, Debug, Properties, PartialEq)]
 pub struct QemuOverviewPanel {
     remote: String,
     node: String,
@@ -31,20 +31,6 @@ pub struct QemuOverviewPanel {
     /// The interval for refreshing the status data
     pub status_interval: u32,
 }
-
-impl PartialEq for QemuOverviewPanel {
-    fn eq(&self, other: &Self) -> bool {
-        if self.remote == other.remote && self.node == other.node {
-            // only check some fields, so we don't update when e.g. only the cpu changes
-            self.info.name == other.info.name
-                && self.info.id == other.info.id
-                && self.info.node == other.node
-        } else {
-            false
-        }
-    }
-}
-impl Eq for QemuOverviewPanel {}
 
 impl QemuOverviewPanel {
     pub fn new(remote: String, node: String, info: PveQemuResource) -> Self {
