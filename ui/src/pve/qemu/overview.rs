@@ -7,7 +7,6 @@ use yew::virtual_dom::{VComp, VNode};
 use proxmox_human_byte::HumanByte;
 use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
 
-use pwt::css::{AlignItems, ColorScheme, FlexFit, JustifyContent};
 use pwt::prelude::*;
 use pwt::props::WidgetBuilder;
 use pwt::widget::{Column, Container, Panel, Progress, Row};
@@ -346,8 +345,8 @@ impl yew::Component for QemuOverviewPanelComp {
 
         let loading = self.status.is_none() && self.last_status_error.is_none();
         Panel::new()
-            .class(FlexFit)
-            .class(ColorScheme::Neutral)
+            .class(pwt::css::FlexFit)
+            .class(pwt::css::ColorScheme::Neutral)
             .with_child(
                 // FIXME: add some 'visible' or 'active' property to the progress
                 Progress::new()
@@ -360,14 +359,14 @@ impl yew::Component for QemuOverviewPanelComp {
                 Row::new()
                     .padding_x(4)
                     .padding_y(1)
-                    .class(JustifyContent::FlexEnd)
+                    .class(pwt::css::JustifyContent::FlexEnd)
                     .with_child(
                         RRDTimeframeSelector::new()
                             .on_change(ctx.link().callback(Msg::UpdateRrdTimeframe)),
                     ),
             )
             .with_child(
-                Container::new().class(FlexFit).with_child(
+                Container::new().class(pwt::css::FlexFit).with_child(
                     Column::new()
                         .padding(4)
                         .gap(4)
