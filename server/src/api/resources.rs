@@ -369,17 +369,17 @@ pub async fn get_status(
                     _ => counts.pve_nodes.unknown += 1,
                 },
                 Resource::PveSdn(r) => {
-                    if let PveSdnResource::Zone(_) = &r {
-                        match r.status() {
-                            SdnStatus::Available => {
-                                counts.sdn_zones.available += 1;
-                            }
-                            SdnStatus::Error => {
-                                counts.sdn_zones.error += 1;
-                            }
-                            SdnStatus::Unknown => {
-                                counts.sdn_zones.unknown += 1;
-                            }
+                    let PveSdnResource::Zone(_) = &r;
+
+                    match r.status() {
+                        SdnStatus::Available => {
+                            counts.sdn_zones.available += 1;
+                        }
+                        SdnStatus::Error => {
+                            counts.sdn_zones.error += 1;
+                        }
+                        SdnStatus::Unknown => {
+                            counts.sdn_zones.unknown += 1;
                         }
                     }
                 }
