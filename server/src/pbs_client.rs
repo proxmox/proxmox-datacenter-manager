@@ -216,8 +216,7 @@ impl PbsClient {
             propagate: true,
         };
 
-        let path = format!("/api2/extjs/access/acl");
-        self.0.put(&path, &acl).await?;
+        self.0.put("/api2/extjs/access/acl", &acl).await?;
 
         Ok(token)
     }
