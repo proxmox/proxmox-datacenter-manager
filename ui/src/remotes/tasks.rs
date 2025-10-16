@@ -7,11 +7,11 @@ use yew::{
     AttrValue, Component, Properties,
 };
 
+use pbs_api_types::TaskListItem;
 use pdm_api_types::RemoteUpid;
 
-use proxmox_yew_comp::{
-    common_api_types::TaskListItem, utils::render_epoch_short, TaskViewer, Tasks,
-};
+use proxmox_yew_comp::{utils::render_epoch_short, TaskViewer, Tasks};
+
 use pwt::{
     css::{FlexFit, JustifyContent},
     props::{ContainerBuilder, FieldBuilder, WidgetBuilder},

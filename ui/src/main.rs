@@ -13,8 +13,8 @@ use pwt::props::TextRenderFn;
 use pwt::state::{Loader, PersistentState};
 use pwt::widget::{Column, DesktopApp, Dialog, Mask};
 
+use pbs_api_types::TaskListItem;
 use proxmox_login::Authentication;
-use proxmox_yew_comp::common_api_types::TaskListItem;
 use proxmox_yew_comp::utils::init_task_descr_table_base;
 use proxmox_yew_comp::{
     authentication_from_cookie, http_get, register_auth_observer, AuthObserver, LoginPanel,

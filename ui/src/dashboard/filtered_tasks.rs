@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use anyhow::Error;
 use proxmox_yew_comp::{
-    common_api_types::{TaskListItem, TaskStatusClass},
+    common_api_types::TaskStatusClass,
     http_get,
     utils::{format_duration_human, render_epoch},
     Status, TaskViewer,
@@ -25,6 +25,7 @@ use pwt::{
 };
 use pwt::{state::Store, tr, widget::Dialog};
 
+use pbs_api_types::TaskListItem;
 use pdm_api_types::{RemoteUpid, TaskFilters, TaskStateType};
 
 use crate::tasks::{format_optional_remote_upid, TaskWorkerType};
@@ -131,7 +132,7 @@ impl Component for PdmFilteredTasks {
             Msg::LoadFinished(res)
         });
         Self {
-            task_store: Store::new(),
+            task_store: Store::with_extract_key(|item: &TaskListItem| item.upid.clone().into()),
             task_info: None,
             loading: true,
             last_error: None,
