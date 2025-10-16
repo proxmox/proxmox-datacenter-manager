@@ -827,13 +827,11 @@ impl TaskCache {
                 TaskArchiveIterator::new(Some(journal_file), archive_files, lock)
             }
             GetTasks::Active => {
-                let mut archive_files = Vec::new();
-
-                archive_files.push(ArchiveFile {
+                let archive_files = vec![ArchiveFile {
                     path: self.base_path.join(ACTIVE_FILENAME),
                     compressed: false,
                     starttime: 0,
-                });
+                }];
 
                 TaskArchiveIterator::new(None, archive_files, lock)
             }
@@ -957,9 +955,7 @@ impl<'a> TaskArchiveIterator<'a> {
                     inner: Box::new(inner),
                     _lock: lock,
                 }),
-                Err(err) => {
-                    return Err(err.into());
-                }
+                Err(err) => Err(err.into()),
             }
         } else {
             Ok(Self {
