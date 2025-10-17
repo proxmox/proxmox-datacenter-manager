@@ -334,19 +334,18 @@ pub fn update_user(
 /// Remove a user from the configuration file.
 pub fn delete_user(userid: Userid, digest: Option<ConfigDigest>) -> Result<(), Error> {
     let _lock = proxmox_access_control::user::lock_config()?;
+    let _acl_lock = proxmox_access_control::acl::lock_config()?;
     let _tfa_lock = crate::auth::tfa::write_lock()?;
 
-    let (mut config, config_digest) = proxmox_access_control::user::config()?;
+    let (mut user_config, config_digest) = proxmox_access_control::user::config()?;
     config_digest.detect_modification(digest.as_ref())?;
 
-    match config.sections.get(userid.as_str()) {
+    match user_config.sections.get(userid.as_str()) {
         Some(_) => {
-            config.sections.remove(userid.as_str());
+            user_config.sections.remove(userid.as_str());
         }
-        None => bail!("user '{}' does not exist.", userid),
+        None => bail!("user '{userid}' does not exist."),
     }
-
-    proxmox_access_control::user::save_config(&config)?;
 
     let authenticator = crate::auth::lookup_authenticator(userid.realm())?;
     match authenticator.remove_password(userid.name()) {
@@ -374,6 +373,36 @@ pub fn delete_user(userid: Userid, digest: Option<ConfigDigest>) -> Result<(), E
             );
         }
     }
+
+    let user_tokens: Vec<ApiToken> = user_config
+        .convert_to_typed_array::<ApiToken>("token")?
+        .into_iter()
+        .filter(|token| token.tokenid.user().eq(&userid))
+        .collect();
+
+    let (mut acl_config, _digest) = proxmox_access_control::acl::config()?;
+
+    let auth_id = userid.clone().into();
+    acl_config.delete_authid(&auth_id);
+
+    for token in user_tokens {
+        if let Some(token_name) = token.tokenid.tokenname() {
+            let tokenid = Authid::from((userid.clone(), Some(token_name.to_owned())));
+            let tokenid_string = tokenid.to_string();
+            if user_config.sections.remove(&tokenid_string).is_none() {
+                bail!(
+                    "token '{}' of user '{userid}' does not exist.",
+                    token_name.as_str()
+                );
+            }
+
+            proxmox_access_control::token_shadow::delete_secret(&tokenid)?;
+            acl_config.delete_authid(&tokenid);
+        }
+    }
+
+    proxmox_access_control::user::save_config(&user_config)?;
+    proxmox_access_control::acl::save_config(&acl_config)?;
 
     Ok(())
 }
