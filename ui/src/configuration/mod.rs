@@ -7,7 +7,7 @@ use pwt::widget::{Container, MiniScrollMode, Panel, TabBarItem, TabPanel};
 use proxmox_yew_comp::configuration::TimePanel;
 use proxmox_yew_comp::configuration::{DnsPanel, NetworkView};
 use proxmox_yew_comp::tfa::TfaView;
-use proxmox_yew_comp::{AclEdit, AclView, AuthView, UserPanel};
+use proxmox_yew_comp::{AclEdit, AclView, AuthView, TokenPanel, UserPanel};
 
 mod permission_path_selector;
 mod webauthn;
@@ -75,6 +75,19 @@ pub fn access_control() -> Html {
         )
         .with_item_builder(
             TabBarItem::new()
+                .key("api-tokens")
+                .icon_class("fa fa-user-o")
+                .label(tr!("API Token")),
+            |_| {
+                Container::new()
+                    .class("pwt-content-spacer")
+                    .class(pwt::css::FlexFit)
+                    .with_child(TokenPanel::new())
+                    .into()
+            },
+        )
+        .with_item_builder(
+            TabBarItem::new()
                 .key("two-factor")
                 .icon_class("fa fa-key")
                 .label(tr!("Two Factor Authentication")),
@@ -95,11 +108,19 @@ pub fn access_control() -> Html {
                 Container::new()
                     .class("pwt-content-spacer")
                     .class(pwt::css::FlexFit)
-                    .with_child(AclView::new().with_acl_edit_menu_entry(
-                        tr!("User Permission"),
-                        "fa fa-fw fa-user",
-                        acl_edit.clone().use_tokens(false),
-                    ))
+                    .with_child(
+                        AclView::new()
+                            .with_acl_edit_menu_entry(
+                                tr!("User Permission"),
+                                "fa fa-fw fa-user",
+                                acl_edit.clone().use_tokens(false),
+                            )
+                            .with_acl_edit_menu_entry(
+                                tr!("Token Permission"),
+                                "fa fa-fw fa-user-o",
+                                acl_edit.clone().use_tokens(true),
+                            ),
+                    )
                     .into()
             },
         )
