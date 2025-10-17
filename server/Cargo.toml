@@ -44,6 +44,7 @@ proxmox-lang.workspace = true
 proxmox-ldap.workspace = true
 proxmox-log.workspace = true
 proxmox-login.workspace = true
+proxmox-openid.workspace = true
 proxmox-rest-server = { workspace = true, features = [ "templates" ] }
 proxmox-router = { workspace = true, features = [ "cli", "server"] }
 proxmox-rrd.workspace = true

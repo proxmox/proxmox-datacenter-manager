@@ -4,12 +4,14 @@ use proxmox_sortable_macro::sortable;
 
 mod ad;
 mod ldap;
+mod openid;
 pub mod tfa;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("tfa", &tfa::ROUTER),
     ("ldap", &ldap::ROUTER),
+    ("openid", &openid::ROUTER),
     ("ad", &ad::ROUTER),
 ]);
 

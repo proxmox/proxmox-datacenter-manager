@@ -68,7 +68,7 @@ proxmox-uuid = "1"
 
 # other proxmox crates
 proxmox-acme = "0.5"
-proxmox-openid = "0.10"
+proxmox-openid = "1.0.2"
 
 # api implementation creates
 proxmox-config-digest = "1"

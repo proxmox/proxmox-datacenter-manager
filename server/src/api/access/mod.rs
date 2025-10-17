@@ -14,6 +14,7 @@ use proxmox_sortable_macro::sortable;
 use pdm_api_types::{Authid, ACL_PATH_SCHEMA, PRIVILEGES, PRIV_ACCESS_AUDIT};
 
 mod domains;
+mod openid;
 mod tfa;
 mod users;
 
@@ -33,6 +34,7 @@ const SUBDIRS: SubdirMap = &sorted!([
             .post(&proxmox_auth_api::api::API_METHOD_CREATE_TICKET_HTTP_ONLY)
             .delete(&proxmox_auth_api::api::API_METHOD_LOGOUT),
     ),
+    ("openid", &openid::ROUTER),
     ("users", &users::ROUTER),
 ]);
 

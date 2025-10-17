@@ -81,7 +81,11 @@ fn setup_auth_context(use_private_key: bool) {
     proxmox_auth_api::set_auth_context(AUTH_CONTEXT.get().unwrap());
 }
 
-struct PdmAuthContext {
+pub(crate) fn get_auth_context() -> Option<&'static PdmAuthContext> {
+    AUTH_CONTEXT.get()
+}
+
+pub(crate) struct PdmAuthContext {
     keyring: Keyring,
     csrf_secret: &'static HMACKey,
 }
