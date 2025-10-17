@@ -112,6 +112,7 @@ pub fn access_control() -> Html {
                 AuthView::new()
                     .ldap_base_url("/config/access/ldap")
                     .ad_base_url("/config/access/ad")
+                    .openid_base_url("/config/access/openid")
                     .into()
             },
         );
