@@ -1,20 +1,16 @@
 //! User Management
 
 use anyhow::{bail, format_err, Error};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use std::collections::HashMap;
 
-use proxmox_access_control::types::{
-    ApiToken, User, UserUpdater, UserWithTokens, ENABLE_USER_SCHEMA, EXPIRE_USER_SCHEMA,
-};
-use proxmox_access_control::{token_shadow, CachedUserInfo};
+use proxmox_access_control::types::{ApiToken, User, UserUpdater, UserWithTokens};
+use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
 
 use pdm_api_types::{
-    Authid, ConfigDigest, DeletableUserProperty, Tokenname, Userid, PDM_PASSWORD_SCHEMA,
-    PRIV_ACCESS_MODIFY, PRIV_SYS_AUDIT, SINGLE_LINE_COMMENT_SCHEMA,
+    Authid, ConfigDigest, DeletableUserProperty, Userid, PDM_PASSWORD_SCHEMA, PRIV_ACCESS_MODIFY,
+    PRIV_SYS_AUDIT,
 };
 
 fn new_user_with_tokens(user: User) -> UserWithTokens {
@@ -382,336 +378,59 @@ pub fn delete_user(userid: Userid, digest: Option<ConfigDigest>) -> Result<(), E
     Ok(())
 }
 
-#[api(
-    input: {
-        properties: {
-            userid: {
-                type: Userid,
-            },
-            "token-name": {
-                type: Tokenname,
-            },
-        },
-    },
-    returns: { type: ApiToken },
-    access: {
-        permission: &Permission::Or(&[
+const API_METHOD_READ_TOKEN_WITH_ACCESS: ApiMethod =
+    proxmox_access_control::api::API_METHOD_READ_TOKEN.access(
+        None,
+        &Permission::Or(&[
             &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
             &Permission::UserParam("userid"),
         ]),
-    },
-)]
-/// Read user's API token metadata
-pub fn read_token(
-    userid: Userid,
-    token_name: Tokenname,
-    _info: &ApiMethod,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<ApiToken, Error> {
-    let (config, digest) = proxmox_access_control::user::config()?;
+    );
 
-    let tokenid = Authid::from((userid, Some(token_name)));
-
-    rpcenv["digest"] = hex::encode(digest).into();
-    config.lookup("token", &tokenid.to_string())
-}
-
-#[api(
-    protected: true,
-    input: {
-        properties: {
-            userid: {
-                type: Userid,
-            },
-            "token-name": {
-                type: Tokenname,
-            },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            enable: {
-                schema: ENABLE_USER_SCHEMA,
-                optional: true,
-            },
-            expire: {
-                schema: EXPIRE_USER_SCHEMA,
-                optional: true,
-            },
-            digest: {
-                optional: true,
-                type: ConfigDigest,
-            },
-        },
-    },
-    access: {
-        permission: &Permission::Or(&[
+const API_METHOD_UPDATE_TOKEN_WITH_ACCESS: ApiMethod =
+    proxmox_access_control::api::API_METHOD_UPDATE_TOKEN.access(
+        None,
+        &Permission::Or(&[
             &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
-    },
-    returns: {
-        description: "API token identifier + generated secret.",
-        properties: {
-            value: {
-                type: String,
-                description: "The API token secret",
-            },
-            tokenid: {
-                type: String,
-                description: "The API token identifier",
-            },
-        },
-    },
-)]
-/// Generate a new API token with given metadata
-pub fn generate_token(
-    userid: Userid,
-    token_name: Tokenname,
-    comment: Option<String>,
-    enable: Option<bool>,
-    expire: Option<i64>,
-    digest: Option<ConfigDigest>,
-) -> Result<Value, Error> {
-    let _lock = proxmox_access_control::user::lock_config()?;
+    );
 
-    let (mut config, config_digest) = proxmox_access_control::user::config()?;
-    config_digest.detect_modification(digest.as_ref())?;
-
-    let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
-    let tokenid_string = tokenid.to_string();
-
-    if config.sections.contains_key(&tokenid_string) {
-        bail!(
-            "token '{}' for user '{}' already exists.",
-            token_name.as_str(),
-            userid
-        );
-    }
-
-    let secret = format!("{:x}", proxmox_uuid::Uuid::generate());
-    token_shadow::set_secret(&tokenid, &secret)?;
-
-    let token = ApiToken {
-        tokenid,
-        comment,
-        enable,
-        expire,
-    };
-
-    config.set_data(&tokenid_string, "token", &token)?;
-
-    proxmox_access_control::user::save_config(&config)?;
-
-    Ok(json!({
-        "tokenid": tokenid_string,
-        "value": secret
-    }))
-}
-
-#[api(
-    protected: true,
-    input: {
-        properties: {
-            userid: {
-                type: Userid,
-            },
-            "token-name": {
-                type: Tokenname,
-            },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            enable: {
-                schema: ENABLE_USER_SCHEMA,
-                optional: true,
-            },
-            expire: {
-                schema: EXPIRE_USER_SCHEMA,
-                optional: true,
-            },
-            digest: {
-                optional: true,
-                type: ConfigDigest,
-            },
-        },
-    },
-    access: {
-        permission: &Permission::Or(&[
+const API_METHOD_GENERATE_TOKEN_WITH_ACCESS: ApiMethod =
+    proxmox_access_control::api::API_METHOD_GENERATE_TOKEN.access(
+        None,
+        &Permission::Or(&[
             &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
-    },
-)]
-/// Update user's API token metadata
-pub fn update_token(
-    userid: Userid,
-    token_name: Tokenname,
-    comment: Option<String>,
-    enable: Option<bool>,
-    expire: Option<i64>,
-    digest: Option<ConfigDigest>,
-) -> Result<(), Error> {
-    let _lock = proxmox_access_control::user::lock_config()?;
+    );
 
-    let (mut config, config_digest) = proxmox_access_control::user::config()?;
-    config_digest.detect_modification(digest.as_ref())?;
-
-    let tokenid = Authid::from((userid, Some(token_name)));
-    let tokenid_string = tokenid.to_string();
-
-    let mut data: ApiToken = config.lookup("token", &tokenid_string)?;
-
-    if let Some(comment) = comment {
-        let comment = comment.trim().to_string();
-        if comment.is_empty() {
-            data.comment = None;
-        } else {
-            data.comment = Some(comment);
-        }
-    }
-
-    if let Some(enable) = enable {
-        data.enable = if enable { None } else { Some(false) };
-    }
-
-    if let Some(expire) = expire {
-        data.expire = if expire > 0 { Some(expire) } else { None };
-    }
-
-    config.set_data(&tokenid_string, "token", &data)?;
-
-    proxmox_access_control::user::save_config(&config)?;
-
-    Ok(())
-}
-
-#[api(
-    protected: true,
-    input: {
-        properties: {
-            userid: {
-                type: Userid,
-            },
-            "token-name": {
-                type: Tokenname,
-            },
-            digest: {
-                optional: true,
-                type: ConfigDigest,
-            },
-        },
-    },
-    access: {
-        permission: &Permission::Or(&[
+const API_METHOD_DELETE_TOKEN_WITH_ACCESS: ApiMethod =
+    proxmox_access_control::api::API_METHOD_DELETE_TOKEN.access(
+        None,
+        &Permission::Or(&[
             &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
         ]),
-    },
-)]
-/// Delete a user's API token
-pub fn delete_token(
-    userid: Userid,
-    token_name: Tokenname,
-    digest: Option<ConfigDigest>,
-) -> Result<(), Error> {
-    let _lock = proxmox_access_control::user::lock_config()?;
+    );
 
-    let (mut config, config_digest) = proxmox_access_control::user::config()?;
-    config_digest.detect_modification(digest.as_ref())?;
-
-    let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
-    let tokenid_string = tokenid.to_string();
-
-    match config.sections.get(&tokenid_string) {
-        Some(_) => {
-            config.sections.remove(&tokenid_string);
-        }
-        None => bail!(
-            "token '{}' of user '{}' does not exist.",
-            token_name.as_str(),
-            userid
-        ),
-    }
-
-    token_shadow::delete_secret(&tokenid)?;
-
-    proxmox_access_control::user::save_config(&config)?;
-
-    Ok(())
-}
-
-#[api(
-    properties: {
-        "token-name": { type: Tokenname },
-        token: { type: ApiToken },
-    }
-)]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-/// A Token Entry that contains the token-name
-pub struct TokenApiEntry {
-    /// The Token name
-    pub token_name: Tokenname,
-    #[serde(flatten)]
-    pub token: ApiToken,
-}
-
-#[api(
-    input: {
-        properties: {
-            userid: {
-                type: Userid,
-            },
-        },
-    },
-    returns: {
-        description: "List user's API tokens (with config digest).",
-        type: Array,
-        items: { type: TokenApiEntry },
-    },
-    access: {
-        permission: &Permission::Or(&[
+const API_METHOD_LIST_TOKENS_WITH_ACCESS: ApiMethod =
+    proxmox_access_control::api::API_METHOD_LIST_TOKENS.access(
+        None,
+        &Permission::Or(&[
             &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
             &Permission::UserParam("userid"),
         ]),
-    },
-)]
-/// List user's API tokens
-pub fn list_tokens(
-    userid: Userid,
-    _info: &ApiMethod,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<TokenApiEntry>, Error> {
-    let (config, digest) = proxmox_access_control::user::config()?;
-
-    let list: Vec<ApiToken> = config.convert_to_typed_array("token")?;
-
-    rpcenv["digest"] = hex::encode(digest).into();
-
-    let filter_by_owner = |token: ApiToken| {
-        if token.tokenid.is_token() && token.tokenid.user() == &userid {
-            let token_name = token.tokenid.tokenname().unwrap().to_owned();
-            Some(TokenApiEntry { token_name, token })
-        } else {
-            None
-        }
-    };
-
-    let res = list.into_iter().filter_map(filter_by_owner).collect();
-
-    Ok(res)
-}
+    );
 
 const TOKEN_ITEM_ROUTER: Router = Router::new()
-    .get(&API_METHOD_READ_TOKEN)
-    .put(&API_METHOD_UPDATE_TOKEN)
-    .post(&API_METHOD_GENERATE_TOKEN)
-    .delete(&API_METHOD_DELETE_TOKEN);
+    .get(&API_METHOD_READ_TOKEN_WITH_ACCESS)
+    .put(&API_METHOD_UPDATE_TOKEN_WITH_ACCESS)
+    .post(&API_METHOD_GENERATE_TOKEN_WITH_ACCESS)
+    .delete(&API_METHOD_DELETE_TOKEN_WITH_ACCESS);
 
 const TOKEN_ROUTER: Router = Router::new()
-    .get(&API_METHOD_LIST_TOKENS)
+    .get(&API_METHOD_LIST_TOKENS_WITH_ACCESS)
     .match_all("token-name", &TOKEN_ITEM_ROUTER);
 
 const USER_SUBDIRS: SubdirMap = &[("token", &TOKEN_ROUTER)];
