@@ -457,6 +457,7 @@ pub(super) mod tests {
             &self,
             _history: Option<bool>,
             _local_only: Option<bool>,
+            _node_list: Option<String>,
             start_time: Option<i64>,
         ) -> Result<ClusterMetrics, proxmox_client::Error> {
             if self.fail {
