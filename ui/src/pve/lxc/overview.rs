@@ -20,7 +20,7 @@ use pdm_client::types::{IsRunning, LxcStatus};
 
 use crate::renderer::{separator, status_row};
 
-#[derive(Clone, Debug, Properties)]
+#[derive(Clone, Debug, Properties, PartialEq)]
 pub struct LxcOverviewPanel {
     remote: String,
     node: String,
@@ -34,20 +34,6 @@ pub struct LxcOverviewPanel {
     /// The interval for refreshing the status data
     pub status_interval: u32,
 }
-
-impl PartialEq for LxcOverviewPanel {
-    fn eq(&self, other: &Self) -> bool {
-        if self.remote == other.remote && self.node == other.node {
-            // only check some fields, so we don't update when e.g. only the cpu changes
-            self.info.name == other.info.name
-                && self.info.id == other.info.id
-                && self.info.node == other.node
-        } else {
-            false
-        }
-    }
-}
-impl Eq for LxcOverviewPanel {}
 
 impl LxcOverviewPanel {
     pub fn new(remote: String, node: String, info: PveLxcResource) -> Self {
