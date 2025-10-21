@@ -255,7 +255,7 @@ pub(crate) async fn get_resources_impl(
         }
         let filter = filters.clone();
         let handle = tokio::spawn(async move {
-            let (mut resources, error) = match get_resources_for_remote(remote, max_age).await {
+            let (mut resources, error) = match get_resources_for_remote(&remote, max_age).await {
                 Ok(resources) => (resources, None),
                 Err(error) => {
                     tracing::debug!("failed to get resources from remote - {error:?}");
@@ -700,7 +700,7 @@ static CACHE: LazyLock<RwLock<HashMap<String, CachedResources>>> =
 ///
 /// If recent enough cached data is available, it is returned
 /// instead of calling out to the remote.
-async fn get_resources_for_remote(remote: Remote, max_age: u64) -> Result<Vec<Resource>, Error> {
+async fn get_resources_for_remote(remote: &Remote, max_age: u64) -> Result<Vec<Resource>, Error> {
     let remote_name = remote.id.to_owned();
     if let Some(cached_resource) = get_cached_resources(&remote_name, max_age) {
         Ok(cached_resource.resources)
@@ -756,7 +756,7 @@ fn update_cached_resources(remote: &str, resources: &[Resource], now: i64) {
 }
 
 /// Fetch remote resources and map to pdm-native data types.
-async fn fetch_remote_resource(remote: Remote) -> Result<Vec<Resource>, Error> {
+async fn fetch_remote_resource(remote: &Remote) -> Result<Vec<Resource>, Error> {
     let mut resources = Vec::new();
     let remote_name = remote.id.to_owned();
 
