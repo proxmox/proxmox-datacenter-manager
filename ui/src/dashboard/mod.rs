@@ -515,12 +515,12 @@ impl Component for PdmDashboard {
                     ))
                     .with_child(self.create_guest_panel(GuestType::Qemu))
                     .with_child(self.create_guest_panel(GuestType::Lxc))
-                    // FIXME: add PBS support
-                    //.with_child(self.create_node_panel(
-                    //    "building-o",
-                    //    tr!("Backup Server Nodes"),
-                    //    &self.status.pbs_nodes,
-                    //))
+                    .with_child(self.create_node_panel(
+                        "building-o",
+                        tr!("Backup Server Nodes"),
+                        RemoteType::Pbs,
+                    ))
+                    // FIXME: add further PBS support
                     //.with_child(
                     //    Panel::new()
                     //        .flex(1.0)
