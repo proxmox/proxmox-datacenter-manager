@@ -155,25 +155,30 @@ impl PdmDashboard {
             .into()
     }
 
-    fn create_node_panel(&self, icon: &str, title: String) -> Panel {
+    fn create_node_panel(&self, icon: &str, title: String, remote_type: RemoteType) -> Panel {
         let (nodes_status, failed_remotes) = match &self.status {
-            Some(status) => (
-                Some(status.pve_nodes.clone()),
-                status
+            Some(status) => {
+                let nodes_status = match remote_type {
+                    RemoteType::Pve => Some(status.pve_nodes.clone()),
+                    RemoteType::Pbs => Some(status.pbs_nodes.clone()),
+                };
+                let failed_remotes = status
                     .failed_remotes_list
                     .iter()
-                    .filter(|item| item.remote_type == RemoteType::Pve)
-                    .count(),
-            ),
+                    .filter(|item| item.remote_type == remote_type)
+                    .count();
+                (nodes_status, failed_remotes)
+            }
             None => (None, 0),
         };
+
         Panel::new()
             .flex(1.0)
             .width(300)
             .title(self.create_title_with_icon(icon, title))
             .border(true)
             .with_child(NodeStatusPanel::new(
-                RemoteType::Pve,
+                remote_type,
                 nodes_status,
                 failed_remotes,
             ))
@@ -503,9 +508,11 @@ impl Component for PdmDashboard {
                             )
                             .with_child(RemotePanel::new(self.status.clone())),
                     )
-                    .with_child(
-                        self.create_node_panel("building", tr!("Virtual Environment Nodes")),
-                    )
+                    .with_child(self.create_node_panel(
+                        "building",
+                        tr!("Virtual Environment Nodes"),
+                        RemoteType::Pve,
+                    ))
                     .with_child(self.create_guest_panel(GuestType::Qemu))
                     .with_child(self.create_guest_panel(GuestType::Lxc))
                     // FIXME: add PBS support
