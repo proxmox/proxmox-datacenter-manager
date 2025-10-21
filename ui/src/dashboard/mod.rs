@@ -54,6 +54,9 @@ use status_row::DashboardStatusRow;
 
 mod filtered_tasks;
 
+mod pbs_datastores_panel;
+use pbs_datastores_panel::PbsDatastoresPanel;
+
 mod tasks;
 use tasks::TaskSummary;
 
@@ -280,6 +283,20 @@ impl PdmDashboard {
                     .as_ref()
                     .map(|err| error_message(&err.to_string())),
             )
+    }
+
+    fn create_pbs_datastores_panel(&self) -> Panel {
+        let pbs_datastores = self
+            .status
+            .as_ref()
+            .map(|status| status.pbs_datastores.clone());
+
+        Panel::new()
+            .flex(1.0)
+            .width(300)
+            .title(self.create_title_with_icon("database", tr!("Backup Server Datastores")))
+            .border(true)
+            .with_child(PbsDatastoresPanel::new(pbs_datastores))
     }
 
     fn reload(&mut self, ctx: &yew::Context<Self>) {
@@ -520,64 +537,7 @@ impl Component for PdmDashboard {
                         tr!("Backup Server Nodes"),
                         RemoteType::Pbs,
                     ))
-                    // FIXME: add further PBS support
-                    //.with_child(
-                    //    Panel::new()
-                    //        .flex(1.0)
-                    //        .width(300)
-                    //        .title(self.create_title_with_icon(
-                    //            "floppy-o",
-                    //            tr!("Backup Server Datastores"),
-                    //        ))
-                    //        .border(true)
-                    //        .with_child(if self.loading {
-                    //            Column::new()
-                    //                .padding(4)
-                    //                .class(FlexFit)
-                    //                .class(JustifyContent::Center)
-                    //                .class(AlignItems::Center)
-                    //                .with_child(html! {<i class={"pwt-loading-icon"} />})
-                    //        } else {
-                    //            Column::new()
-                    //                .padding(4)
-                    //                .class(FlexFit)
-                    //                .class(JustifyContent::Center)
-                    //                .gap(2)
-                    //                // FIXME: show more detailed status (usage?)
-                    //                .with_child(
-                    //                    Row::new()
-                    //                        .gap(2)
-                    //                        .with_child(
-                    //                            StorageState::Available.to_fa_icon().fixed_width(),
-                    //                        )
-                    //                        .with_child(tr!("available"))
-                    //                        .with_flex_spacer()
-                    //                        .with_child(
-                    //                            Container::from_tag("span").with_child(
-                    //                                self.status.pbs_datastores.available,
-                    //                            ),
-                    //                        ),
-                    //                )
-                    //                .with_optional_child(
-                    //                    (self.status.pbs_datastores.unknown > 0).then_some(
-                    //                        Row::new()
-                    //                            .gap(2)
-                    //                            .with_child(
-                    //                                StorageState::Unknown
-                    //                                    .to_fa_icon()
-                    //                                    .fixed_width(),
-                    //                            )
-                    //                            .with_child(tr!("unknown"))
-                    //                            .with_flex_spacer()
-                    //                            .with_child(
-                    //                                Container::from_tag("span").with_child(
-                    //                                    self.status.pbs_datastores.unknown,
-                    //                                ),
-                    //                            ),
-                    //                    ),
-                    //                )
-                    //        }),
-                    //)
+                    .with_child(self.create_pbs_datastores_panel())
                     .with_child(SubscriptionInfo::new()),
             )
             .with_child(
