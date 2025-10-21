@@ -10,7 +10,7 @@ use yew::{
     Component,
 };
 
-use proxmox_yew_comp::{http_get, EditWindow, Status};
+use proxmox_yew_comp::{http_get, EditWindow};
 use pwt::{
     css::{AlignItems, FlexDirection, FlexFit, FlexWrap, JustifyContent},
     prelude::*,
@@ -25,16 +25,11 @@ use pwt::{
     AsyncPool,
 };
 
-use pdm_api_types::{
-    remotes::RemoteType,
-    resource::{NodeStatusCount, ResourcesStatus},
-    TaskStatistics,
-};
+use pdm_api_types::{remotes::RemoteType, resource::ResourcesStatus, TaskStatistics};
 use pdm_client::types::TopEntity;
-use pdm_search::{Search, SearchTerm};
 use proxmox_client::ApiResponseData;
 
-use crate::{pve::GuestType, remotes::AddWizard, search_provider::get_search_provider, RemoteList};
+use crate::{pve::GuestType, remotes::AddWizard, RemoteList};
 
 mod top_entities;
 pub use top_entities::TopEntities;
@@ -47,6 +42,9 @@ use remote_panel::RemotePanel;
 
 mod guest_panel;
 use guest_panel::GuestPanel;
+
+mod node_status_panel;
+use node_status_panel::NodeStatusPanel;
 
 mod sdn_zone_panel;
 use sdn_zone_panel::SdnZonePanel;
@@ -123,7 +121,6 @@ pub enum Msg {
     ForceReload,
     UpdateConfig(DashboardConfig),
     ConfigWindow(bool),
-    Search(Search),
 }
 
 struct StatisticsOptions {
@@ -158,79 +155,28 @@ impl PdmDashboard {
             .into()
     }
 
-    fn create_node_panel(&self, ctx: &yew::Context<Self>, icon: &str, title: String) -> Panel {
-        let mut search_terms = vec![SearchTerm::new("node").category(Some("type"))];
-        let (status_icon, text): (Fa, String) = match &self.status {
-            Some(status) => {
-                match status.pve_nodes {
-                    NodeStatusCount {
-                        online,
-                        offline,
-                        unknown,
-                    } if offline > 0 => {
-                        search_terms.push(SearchTerm::new("offline").category(Some("status")));
-                        (
-                            Status::Error.into(),
-                            tr!(
-                                "{0} of {1} nodes are offline",
-                                offline,
-                                online + offline + unknown,
-                            ),
-                        )
-                    }
-                    NodeStatusCount { unknown, .. } if unknown > 0 => {
-                        search_terms.push(SearchTerm::new("unknown").category(Some("status")));
-                        (
-                            Status::Warning.into(),
-                            tr!("{0} nodes have an unknown status", unknown),
-                        )
-                    }
-                    // FIXME, get more detailed status about the failed remotes (name, type, error)?
-                    NodeStatusCount { online, .. } if status.failed_remotes > 0 => (
-                        Status::Unknown.into(),
-                        tr!("{0} of an unknown number of nodes online", online),
-                    ),
-                    NodeStatusCount { online, .. } => {
-                        (Status::Success.into(), tr!("{0} nodes online", online))
-                    }
-                }
-            }
-            None => (Status::Unknown.into(), String::new()),
+    fn create_node_panel(&self, icon: &str, title: String) -> Panel {
+        let (nodes_status, failed_remotes) = match &self.status {
+            Some(status) => (
+                Some(status.pve_nodes.clone()),
+                status
+                    .failed_remotes_list
+                    .iter()
+                    .filter(|item| item.remote_type == RemoteType::Pve)
+                    .count(),
+            ),
+            None => (None, 0),
         };
-
-        let loading = self.status.is_none();
-        let search = Search::with_terms(search_terms);
         Panel::new()
             .flex(1.0)
             .width(300)
             .title(self.create_title_with_icon(icon, title))
             .border(true)
-            .with_child(
-                Column::new()
-                    .padding(4)
-                    .class("pwt-pointer")
-                    .onclick(ctx.link().callback({
-                        let search = search.clone();
-                        move |_| Msg::Search(search.clone())
-                    }))
-                    .onkeydown(ctx.link().batch_callback({
-                        let search = search.clone();
-                        move |event: KeyboardEvent| match event.key().as_str() {
-                            "Enter" | " " => Some(Msg::Search(search.clone())),
-                            _ => None,
-                        }
-                    }))
-                    .class(FlexFit)
-                    .class(AlignItems::Center)
-                    .class(JustifyContent::Center)
-                    .gap(2)
-                    .with_child(if loading {
-                        html! {<i class={"pwt-loading-icon"} />}
-                    } else {
-                        status_icon.large_4x().into()
-                    })
-                    .with_optional_child((!loading).then_some(text)),
-            )
+            .with_child(NodeStatusPanel::new(
+                RemoteType::Pve,
+                nodes_status,
+                failed_remotes,
+            ))
     }
 
     fn create_guest_panel(&self, guest_type: GuestType) -> Panel {
@@ -501,12 +447,6 @@ impl Component for PdmDashboard {
                 self.show_config_window = false;
                 true
             }
-            Msg::Search(search_term) => {
-                if let Some(provider) = get_search_provider(ctx) {
-                    provider.search(search_term.into());
-                }
-                false
-            }
         }
     }
 
@@ -563,11 +503,9 @@ impl Component for PdmDashboard {
                             )
                             .with_child(RemotePanel::new(self.status.clone())),
                     )
-                    .with_child(self.create_node_panel(
-                        ctx,
-                        "building",
-                        tr!("Virtual Environment Nodes"),
-                    ))
+                    .with_child(
+                        self.create_node_panel("building", tr!("Virtual Environment Nodes")),
+                    )
                     .with_child(self.create_guest_panel(GuestType::Qemu))
                     .with_child(self.create_guest_panel(GuestType::Lxc))
                     // FIXME: add PBS support
