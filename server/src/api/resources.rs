@@ -59,6 +59,7 @@ enum MatchCategory {
     Template,
     Remote,
     RemoteType,
+    Property,
 }
 
 impl std::str::FromStr for MatchCategory {
@@ -73,6 +74,7 @@ impl std::str::FromStr for MatchCategory {
             "template" => MatchCategory::Template,
             "remote" => MatchCategory::Remote,
             "remote-type" => MatchCategory::RemoteType,
+            "property" => MatchCategory::Property,
             _ => bail!("invalid category"),
         };
         Ok(category)
@@ -99,6 +101,10 @@ impl MatchCategory {
                 (Ok(a), Ok(b)) => a == b,
                 _ => false,
             },
+            MatchCategory::Property => value
+                .to_lowercase()
+                .split(",")
+                .any(|property| property == search_term.to_lowercase()),
         }
     }
 }
@@ -115,6 +121,7 @@ fn resource_matches_search_term(
             MatchCategory::Name => category.matches(resource.name(), &term.value),
             MatchCategory::Id => category.matches(&resource.id(), &term.value),
             MatchCategory::Status => category.matches(resource.status(), &term.value),
+            MatchCategory::Property => category.matches(&resource.properties(), &term.value),
             MatchCategory::Template => match resource {
                 Resource::PveQemu(PveQemuResource { template, .. })
                 | Resource::PveLxc(PveLxcResource { template, .. }) => {
@@ -151,6 +158,7 @@ fn remote_matches_search_term(
                 Some(false) => category.matches("offline", &term.value),
                 None => true,
             },
+            MatchCategory::Property => false,
             MatchCategory::Template => false,
             MatchCategory::RemoteType => category.matches(&remote.ty.to_string(), &term.value),
         },
