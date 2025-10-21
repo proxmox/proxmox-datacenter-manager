@@ -460,7 +460,7 @@ pub struct PbsNodeResource {
 }
 
 #[api]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// PBS datastore resource
 pub struct PbsDatastoreResource {
@@ -472,6 +472,17 @@ pub struct PbsDatastoreResource {
     pub disk: u64,
     /// Datastore name
     pub name: String,
+    /// Datastore contents disk usage
+    pub usage: f64,
+    /// Datastore maintenance mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maintenance: Option<String>,
+    /// Datastore backing device
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub backing_device: Option<String>,
+    /// Datastore backend type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub backend_type: Option<String>,
 }
 
 #[api(
