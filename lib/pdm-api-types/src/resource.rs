@@ -107,6 +107,22 @@ impl Resource {
             }
         }
     }
+
+    pub fn properties(&self) -> String {
+        let mut properties = Vec::new();
+        if let Resource::PbsDatastore(r) = self {
+            if let Some(backend_type) = &r.backend_type {
+                properties.push(backend_type.to_string());
+            }
+            if r.backing_device.is_some() {
+                properties.push("removable".to_string());
+            }
+            if r.usage > PBS_DATASTORE_HIGH_USAGE_THRESHOLD {
+                properties.push("high-usage".to_string());
+            }
+        }
+        properties.join(",")
+    }
 }
 
 #[api]
