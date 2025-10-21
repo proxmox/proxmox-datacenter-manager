@@ -292,18 +292,21 @@ pub(crate) async fn get_resources_impl(
 
     let mut remote_resources = Vec::new();
     for handle in join_handles {
-        remote_resources.push(handle.await?);
-    }
+        let remote_resource = handle.await?;
 
-    if !filters.is_empty() {
-        remote_resources.retain(|res| {
-            if !res.resources.is_empty() {
-                return true;
-            }
-            filters.matches(|filter| {
-                remote_matches_search_term(&res.remote, Some(res.error.is_none()), filter)
-            })
-        })
+        if filters.is_empty() {
+            remote_resources.push(remote_resource);
+        } else if !remote_resource.resources.is_empty() {
+            remote_resources.push(remote_resource);
+        } else if filters.matches(|filter| {
+            remote_matches_search_term(
+                &remote_resource.remote,
+                Some(remote_resource.error.is_none()),
+                filter,
+            )
+        }) {
+            remote_resources.push(remote_resource);
+        }
     }
 
     Ok(remote_resources)
