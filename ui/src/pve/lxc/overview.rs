@@ -11,23 +11,20 @@ use yew::{
 use proxmox_human_byte::HumanByte;
 use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
 use pwt::{
-    css::{AlignItems, ColorScheme, FlexFit, JustifyContent},
+    css::{ColorScheme, FlexFit, JustifyContent},
     prelude::*,
     props::WidgetBuilder,
-    widget::{Column, Container, Fa, Panel, Progress, Row},
+    widget::{Column, Container, Panel, Progress, Row},
     AsyncPool,
 };
 
 use pdm_api_types::{resource::PveLxcResource, rrddata::LxcDataPoint};
 use pdm_client::types::{IsRunning, LxcStatus};
 
-use crate::{
-    pve::utils::render_lxc_name,
-    renderer::{separator, status_row},
-};
+use crate::renderer::{separator, status_row};
 
 #[derive(Clone, Debug, Properties)]
-pub struct LxcPanel {
+pub struct LxcOverviewPanel {
     remote: String,
     node: String,
     info: PveLxcResource,
@@ -41,7 +38,7 @@ pub struct LxcPanel {
     pub status_interval: u32,
 }
 
-impl PartialEq for LxcPanel {
+impl PartialEq for LxcOverviewPanel {
     fn eq(&self, other: &Self) -> bool {
         if self.remote == other.remote && self.node == other.node {
             // only check some fields, so we don't update when e.g. only the cpu changes
@@ -53,15 +50,15 @@ impl PartialEq for LxcPanel {
         }
     }
 }
-impl Eq for LxcPanel {}
+impl Eq for LxcOverviewPanel {}
 
-impl LxcPanel {
+impl LxcOverviewPanel {
     pub fn new(remote: String, node: String, info: PveLxcResource) -> Self {
         yew::props!(Self { remote, node, info })
     }
 }
 
-impl Into<VNode> for LxcPanel {
+impl Into<VNode> for LxcOverviewPanel {
     fn into(self) -> VNode {
         VComp::new::<LxcanelComp>(Rc::new(self), None).into()
     }
@@ -118,7 +115,7 @@ impl LxcanelComp {
 impl yew::Component for LxcanelComp {
     type Message = Msg;
 
-    type Properties = LxcPanel;
+    type Properties = LxcOverviewPanel;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
         ctx.link()
@@ -254,12 +251,6 @@ impl yew::Component for LxcanelComp {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
-        let title: Html = Row::new()
-            .gap(2)
-            .class(AlignItems::Baseline)
-            .with_child(Fa::new("cube"))
-            .with_child(tr! {"VM '{0}'", render_lxc_name(&props.info, true)})
-            .into();
 
         let mut status_comp = Column::new().gap(2).padding(4);
         let status = match &self.status {
@@ -349,7 +340,6 @@ impl yew::Component for LxcanelComp {
 
         Panel::new()
             .class(FlexFit)
-            .title(title)
             .class(ColorScheme::Neutral)
             .with_child(
                 // FIXME: add some 'visible' or 'active' property to the progress
