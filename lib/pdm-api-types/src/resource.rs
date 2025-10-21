@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema};
 
-use super::remotes::REMOTE_ID_SCHEMA;
+use super::remotes::{RemoteType, REMOTE_ID_SCHEMA};
 
 #[api(
     "id-property": "id",
@@ -550,7 +550,16 @@ pub struct SdnZoneCount {
     pub unknown: u64,
 }
 
-#[api]
+#[api(
+    properties: {
+        "failed_remotes_list": {
+            type: Array,
+            items: {
+                type: FailedRemote,
+            },
+        }
+    }
+)]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
 /// Describes the status of seen resources
 pub struct ResourcesStatus {
@@ -572,6 +581,21 @@ pub struct ResourcesStatus {
     pub pbs_nodes: NodeStatusCount,
     /// Status of PBS Datastores
     pub pbs_datastores: StorageStatusCount,
+    /// List of the failed remotes including type and error
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub failed_remotes_list: Vec<FailedRemote>,
+}
+
+#[api]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+/// Error information for a failed remote
+pub struct FailedRemote {
+    /// Name of the failed remote
+    pub name: String,
+    /// Error that occurred when querying remote resources
+    pub error: String,
+    /// Type of the failed remote
+    pub remote_type: RemoteType,
 }
 
 #[api(
