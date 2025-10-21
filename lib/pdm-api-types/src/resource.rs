@@ -98,7 +98,13 @@ impl Resource {
                     "offline"
                 }
             }
-            Resource::PbsDatastore(_) => "online",
+            Resource::PbsDatastore(r) => {
+                if r.maintenance.is_none() {
+                    "online"
+                } else {
+                    "in-maintenance"
+                }
+            }
         }
     }
 }
