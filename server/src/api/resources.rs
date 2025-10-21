@@ -144,6 +144,24 @@ fn remote_matches_search_term(remote_name: &str, online: Option<bool>, term: &Se
     }
 }
 
+// Transient type for remote resources gathering and filtering on remote properties
+pub(crate) struct RemoteWithResources {
+    remote_name: String,
+    remote: Remote,
+    resources: Vec<Resource>,
+    error: Option<String>,
+}
+
+impl Into<RemoteResources> for RemoteWithResources {
+    fn into(self) -> RemoteResources {
+        RemoteResources {
+            remote: self.remote_name,
+            resources: self.resources,
+            error: self.error,
+        }
+    }
+}
+
 #[api(
     // FIXME:: see list-like API calls in resource routers, we probably want more fine-grained
     // checks..
@@ -183,7 +201,10 @@ pub async fn get_resources(
     search: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<RemoteResources>, Error> {
-    get_resources_impl(max_age, search, resource_type, Some(rpcenv)).await
+    let remotes_with_resources =
+        get_resources_impl(max_age, search, resource_type, Some(rpcenv)).await?;
+    let resources = remotes_with_resources.into_iter().map(Into::into).collect();
+    Ok(resources)
 }
 
 // helper to determine if the combination of search terms requires the results
@@ -219,7 +240,7 @@ pub(crate) async fn get_resources_impl(
     search: Option<String>,
     resource_type: Option<ResourceType>,
     rpcenv: Option<&mut dyn RpcEnvironment>,
-) -> Result<Vec<RemoteResources>, Error> {
+) -> Result<Vec<RemoteWithResources>, Error> {
     let user_info = CachedUserInfo::new()?;
     let mut opt_auth_id = None;
     if let Some(ref rpcenv) = rpcenv {
@@ -280,8 +301,9 @@ pub(crate) async fn get_resources_impl(
                 });
             }
 
-            RemoteResources {
-                remote: remote_name,
+            RemoteWithResources {
+                remote_name,
+                remote,
                 resources,
                 error,
             }
@@ -292,20 +314,20 @@ pub(crate) async fn get_resources_impl(
 
     let mut remote_resources = Vec::new();
     for handle in join_handles {
-        let remote_resource = handle.await?;
+        let remote_with_resources = handle.await?;
 
         if filters.is_empty() {
-            remote_resources.push(remote_resource);
-        } else if !remote_resource.resources.is_empty() {
-            remote_resources.push(remote_resource);
+            remote_resources.push(remote_with_resources);
+        } else if !remote_with_resources.resources.is_empty() {
+            remote_resources.push(remote_with_resources);
         } else if filters.matches(|filter| {
             remote_matches_search_term(
-                &remote_resource.remote,
-                Some(remote_resource.error.is_none()),
+                &remote_with_resources.remote_name,
+                Some(remote_with_resources.error.is_none()),
                 filter,
             )
         }) {
-            remote_resources.push(remote_resource);
+            remote_resources.push(remote_with_resources);
         }
     }
 
