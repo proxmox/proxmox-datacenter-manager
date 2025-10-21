@@ -540,6 +540,28 @@ pub struct StorageStatusCount {
 
 #[api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+/// Amount of Proxmox Backup Server datastores with certain state
+pub struct PbsDatastoreStatusCount {
+    /// Amount of online datastores
+    pub online: u64,
+    /// Amount of datastores which are in a maintenance mode
+    pub in_maintenance: Option<u64>,
+    /// Amount of datastores which have high datastore usage
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub high_usage: Option<u64>,
+    /// Amount of datastores in unknown state
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unknown: Option<u64>,
+    /// Amount of removable datastores
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub removable: Option<u64>,
+    /// Amount of datastores with S3 backend
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub s3_backend: Option<u64>,
+}
+
+#[api]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
 /// Amount of SDN zones in certain states
 pub struct SdnZoneCount {
     /// Amount of available / ok zones
@@ -580,7 +602,7 @@ pub struct ResourcesStatus {
     /// Status of PBS Nodes
     pub pbs_nodes: NodeStatusCount,
     /// Status of PBS Datastores
-    pub pbs_datastores: StorageStatusCount,
+    pub pbs_datastores: PbsDatastoreStatusCount,
     /// List of the failed remotes including type and error
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub failed_remotes_list: Vec<FailedRemote>,
