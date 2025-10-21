@@ -19,8 +19,8 @@ use proxmox_yew_comp::{http_get, LanguageDialog, TaskViewer, ThemeDialog};
 
 use pwt_macros::builder;
 
-use pdm_api_types::RemoteUpid;
 use pbs_api_types::TaskListItem;
+use pdm_api_types::RemoteUpid;
 
 use crate::tasks::format_optional_remote_upid;
 use crate::widget::SearchBox;

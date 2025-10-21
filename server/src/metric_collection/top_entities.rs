@@ -36,7 +36,7 @@ pub fn calculate_top(
     remotes: &HashMap<String, pdm_api_types::remotes::Remote>,
     timeframe: proxmox_rrd_api_types::RrdTimeframe,
     num: usize,
-    check_remote_privs: impl Fn(&str) -> bool
+    check_remote_privs: impl Fn(&str) -> bool,
 ) -> TopEntities {
     let mut guest_cpu = Vec::new();
     let mut node_cpu = Vec::new();
