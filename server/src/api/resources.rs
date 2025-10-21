@@ -6,7 +6,9 @@ use anyhow::{bail, format_err, Error};
 use futures::future::join_all;
 use futures::FutureExt;
 
-use pbs_api_types::{DataStoreStatusListItem, NodeStatus};
+use pbs_api_types::{
+    DataStoreStatusListItem, DatastoreBackendConfig, DatastoreBackendType, NodeStatus,
+};
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
     FailedRemote, PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource,
@@ -841,8 +843,18 @@ async fn fetch_remote_resource(remote: &Remote) -> Result<Vec<Resource>, Error> 
             let status = client.node_status().await?;
             resources.push(map_pbs_node_status(&remote_name, status));
 
+            let datastores = client.list_datastores().await?;
+            let datastore_map: HashMap<String, pbs_api_types::DataStoreConfig> = datastores
+                .into_iter()
+                .map(|store| (store.name.clone(), store))
+                .collect();
+
             for datastore_usage in client.datastore_usage().await? {
-                resources.push(map_pbs_datastore_status(&remote_name, datastore_usage));
+                resources.push(map_pbs_datastore_status(
+                    &remote_name,
+                    datastore_usage,
+                    &datastore_map,
+                ));
             }
         }
     }
@@ -997,13 +1009,52 @@ fn map_pbs_node_status(remote: &str, status: NodeStatus) -> Resource {
     })
 }
 
-fn map_pbs_datastore_status(remote: &str, status: DataStoreStatusListItem) -> Resource {
-    Resource::PbsDatastore(PbsDatastoreResource {
-        id: format!("remote/{remote}/datastore/{}", status.store),
-        name: status.store,
-        maxdisk: status.total.unwrap_or_default(),
-        disk: status.used.unwrap_or_default(),
-    })
+fn map_pbs_datastore_status(
+    remote: &str,
+    status: DataStoreStatusListItem,
+    datastore_map: &HashMap<String, pbs_api_types::DataStoreConfig>,
+) -> Resource {
+    let maxdisk = status.total.unwrap_or_default();
+    let disk = status.used.unwrap_or_default();
+
+    let usage = if maxdisk > 0 {
+        disk as f64 / maxdisk as f64
+    } else {
+        0.0
+    };
+
+    if let Some(store_config) = datastore_map.get(&status.store) {
+        let mut backend_type = None;
+        if let Some(store_backend) = &store_config.backend {
+            match store_backend.parse::<DatastoreBackendConfig>() {
+                Ok(backend_config) => {
+                    if let Some(DatastoreBackendType::S3) = backend_config.ty {
+                        backend_type = Some(DatastoreBackendType::S3.to_string())
+                    }
+                }
+                Err(_) => backend_type = Some("unknown".to_string()),
+            }
+        }
+        Resource::PbsDatastore(PbsDatastoreResource {
+            id: format!("remote/{remote}/datastore/{}", status.store),
+            name: status.store,
+            maxdisk,
+            disk,
+            usage,
+            maintenance: store_config.maintenance_mode.clone(),
+            backing_device: store_config.backing_device.clone(),
+            backend_type,
+        })
+    } else {
+        Resource::PbsDatastore(PbsDatastoreResource {
+            id: format!("remote/{remote}/datastore/{}", status.store),
+            name: status.store,
+            maxdisk,
+            disk,
+            usage,
+            ..Default::default()
+        })
+    }
 }
 
 #[cfg(test)]
