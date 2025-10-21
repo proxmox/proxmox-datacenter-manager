@@ -13,7 +13,7 @@ use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
     FailedRemote, PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource,
     PveQemuResource, PveSdnResource, PveStorageResource, RemoteResources, Resource, ResourceType,
-    ResourcesStatus, SdnStatus, SdnZoneResource, TopEntities,
+    ResourcesStatus, SdnStatus, SdnZoneResource, TopEntities, PBS_DATASTORE_HIGH_USAGE_THRESHOLD,
 };
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
@@ -450,7 +450,28 @@ pub async fn get_status(
                 }
                 // FIXME better status for pbs/datastores
                 Resource::PbsNode(_) => counts.pbs_nodes.online += 1,
-                Resource::PbsDatastore(_) => counts.pbs_datastores.available += 1,
+                Resource::PbsDatastore(r) => {
+                    if r.maintenance.is_none() {
+                        counts.pbs_datastores.online += 1;
+                    } else {
+                        *counts.pbs_datastores.in_maintenance.get_or_insert_default() += 1;
+                    }
+                    if r.usage > PBS_DATASTORE_HIGH_USAGE_THRESHOLD {
+                        *counts.pbs_datastores.high_usage.get_or_insert_default() += 1;
+                    }
+                    if r.backing_device.is_some() {
+                        *counts.pbs_datastores.removable.get_or_insert_default() += 1;
+                    }
+                    match r.backend_type.as_deref() {
+                        Some("s3") => {
+                            *counts.pbs_datastores.s3_backend.get_or_insert_default() += 1;
+                        }
+                        Some("unknown") => {
+                            *counts.pbs_datastores.unknown.get_or_insert_default() += 1;
+                        }
+                        _ => (),
+                    }
+                }
             }
         }
     }
