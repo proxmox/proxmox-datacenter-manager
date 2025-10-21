@@ -9,9 +9,9 @@ use futures::FutureExt;
 use pbs_api_types::{DataStoreStatusListItem, NodeStatus};
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
-    PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource, PveQemuResource,
-    PveSdnResource, PveStorageResource, RemoteResources, Resource, ResourceType, ResourcesStatus,
-    SdnStatus, SdnZoneResource, TopEntities,
+    FailedRemote, PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource,
+    PveQemuResource, PveSdnResource, PveStorageResource, RemoteResources, Resource, ResourceType,
+    ResourcesStatus, SdnStatus, SdnZoneResource, TopEntities,
 };
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
@@ -395,15 +395,20 @@ pub async fn get_status(
     max_age: u64,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ResourcesStatus, Error> {
-    let remotes = get_resources(max_age, None, None, rpcenv).await?;
+    let remotes_with_resources = get_resources_impl(max_age, None, None, Some(rpcenv)).await?;
     let mut counts = ResourcesStatus::default();
-    for remote in remotes {
-        if remote.error.is_some() {
+    for remote_with_resources in remotes_with_resources {
+        if let Some(err) = remote_with_resources.error {
             counts.failed_remotes += 1;
+            counts.failed_remotes_list.push(FailedRemote {
+                name: remote_with_resources.remote_name,
+                error: err.to_string(),
+                remote_type: remote_with_resources.remote.ty,
+            });
         } else {
             counts.remotes += 1;
         }
-        for resource in remote.resources {
+        for resource in remote_with_resources.resources {
             match resource {
                 Resource::PveStorage(r) => match r.status.as_str() {
                     "available" => counts.storages.available += 1,
