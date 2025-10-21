@@ -56,6 +56,7 @@ enum MatchCategory {
     Status,
     Template,
     Remote,
+    RemoteType,
 }
 
 impl std::str::FromStr for MatchCategory {
@@ -69,6 +70,7 @@ impl std::str::FromStr for MatchCategory {
             "status" => MatchCategory::Status,
             "template" => MatchCategory::Template,
             "remote" => MatchCategory::Remote,
+            "remote-type" => MatchCategory::RemoteType,
             _ => bail!("invalid category"),
         };
         Ok(category)
@@ -88,11 +90,18 @@ impl MatchCategory {
                 (Ok(a), Ok(b)) => a == b,
                 _ => false,
             },
+            MatchCategory::RemoteType => match (
+                RemoteType::from_str(value),
+                RemoteType::from_str(search_term),
+            ) {
+                (Ok(a), Ok(b)) => a == b,
+                _ => false,
+            },
         }
     }
 }
 
-// returns None if we can't decide if it matches, currently only for the `Remote` category`
+// returns None if we can't decide if it matches, currently only for the `RemoteType` category
 fn resource_matches_search_term(
     remote_name: &str,
     resource: &Resource,
@@ -112,6 +121,7 @@ fn resource_matches_search_term(
                 _ => false,
             },
             MatchCategory::Remote => category.matches(remote_name, &term.value),
+            MatchCategory::RemoteType => return None,
         },
         Some(Err(_)) => false,
         None => {
@@ -122,7 +132,12 @@ fn resource_matches_search_term(
     Some(matches)
 }
 
-fn remote_matches_search_term(remote_name: &str, online: Option<bool>, term: &SearchTerm) -> bool {
+fn remote_matches_search_term(
+    remote_name: &str,
+    remote: &Remote,
+    online: Option<bool>,
+    term: &SearchTerm,
+) -> bool {
     match term.category.as_deref().map(|c| c.parse::<MatchCategory>()) {
         Some(Ok(category)) => match category {
             MatchCategory::Type => category.matches("remote", &term.value),
@@ -135,12 +150,24 @@ fn remote_matches_search_term(remote_name: &str, online: Option<bool>, term: &Se
                 None => true,
             },
             MatchCategory::Template => false,
+            MatchCategory::RemoteType => category.matches(&remote.ty.to_string(), &term.value),
         },
         Some(Err(_)) => false,
         None => {
             MatchCategory::Name.matches(remote_name, &term.value)
                 || MatchCategory::Type.matches("remote", &term.value)
         }
+    }
+}
+
+fn remote_type_matches_search_term(remote_type: RemoteType, term: &SearchTerm) -> bool {
+    match term.category.as_deref().map(|c| c.parse::<MatchCategory>()) {
+        Some(Ok(category)) => match category {
+            MatchCategory::RemoteType => category.matches(&remote_type.to_string(), &term.value),
+            _ => true,
+        },
+        Some(Err(_)) => false,
+        None => true,
     }
 }
 
@@ -269,8 +296,13 @@ pub(crate) async fn get_resources_impl(
             }
         }
 
+        if !filters.matches(|term| remote_type_matches_search_term(remote.ty, term)) {
+            continue;
+        }
+
         if remotes_only
-            && !filters.matches(|term| remote_matches_search_term(&remote_name, None, term))
+            && !filters
+                .matches(|term| remote_matches_search_term(&remote_name, &remote, None, term))
         {
             continue;
         }
@@ -323,6 +355,7 @@ pub(crate) async fn get_resources_impl(
         } else if filters.matches(|filter| {
             remote_matches_search_term(
                 &remote_with_resources.remote_name,
+                &remote_with_resources.remote,
                 Some(remote_with_resources.error.is_none()),
                 filter,
             )
