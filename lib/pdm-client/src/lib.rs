@@ -1109,6 +1109,28 @@ impl<T: HttpApiClient> PdmClient<T> {
         }
         Ok(self.0.post(&path, &params).await?.expect_json()?.data)
     }
+
+    /// Get remote update summary.
+    pub async fn remote_update_summary(
+        &self,
+    ) -> Result<pdm_api_types::remote_updates::UpdateSummary, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/remote-updates/summary")
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Refresh remote update summary.
+    pub async fn refresh_remote_update_summary(&self) -> Result<pdm_api_types::UPID, Error> {
+        Ok(self
+            .0
+            .post_without_body("/api2/extjs/remote-updates/refresh")
+            .await?
+            .expect_json()?
+            .data)
+    }
 }
 
 /// Builder for migration parameters.
