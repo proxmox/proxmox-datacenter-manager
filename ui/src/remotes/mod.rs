@@ -56,6 +56,13 @@ pub fn system_configuration() -> Html {
                 .label(tr!("Tasks"))
                 .icon_class("fa fa-book"),
             |_| RemoteTaskList::new().into(),
+        )
+        .with_item_builder(
+            TabBarItem::new()
+                .key("updates")
+                .label(tr!("Updates"))
+                .icon_class("fa fa-refresh"),
+            |_| UpdateTree::new().into(),
         );
 
     NavigationContainer::new().with_child(panel).into()
