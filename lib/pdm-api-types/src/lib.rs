@@ -96,6 +96,8 @@ pub use openid::*;
 
 pub mod remotes;
 
+pub mod remote_updates;
+
 pub mod resource;
 
 pub mod rrddata;
