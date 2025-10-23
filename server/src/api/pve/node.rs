@@ -15,7 +15,7 @@ pub const ROUTER: Router = Router::new()
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
-    ("apt", &super::apt::ROUTER),
+    ("apt", &crate::api::remote_updates::APT_ROUTER),
     ("rrddata", &super::rrddata::NODE_RRD_ROUTER),
     ("network", &Router::new().get(&API_METHOD_GET_NETWORK)),
     ("storage", &STORAGE_ROUTER),

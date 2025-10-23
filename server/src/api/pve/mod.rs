@@ -33,7 +33,6 @@ use crate::connection::PveClient;
 use crate::connection::{self, probe_tls_connection};
 use crate::remote_tasks;
 
-mod apt;
 mod lxc;
 mod node;
 mod qemu;
