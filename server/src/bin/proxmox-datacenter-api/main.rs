@@ -377,6 +377,7 @@ async fn run(debug: bool) -> Result<(), Error> {
     tasks::remote_node_mapping::start_task();
     resource_cache::start_task();
     tasks::remote_tasks::start_task()?;
+    tasks::remote_updates::start_task()?;
 
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");
