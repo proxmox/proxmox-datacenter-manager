@@ -126,22 +126,53 @@ pub async fn get_tasks(
     .await?
 }
 
-/// Insert a newly created tasks into the list of tracked tasks.
+/// Insert a newly created PVE task into the list of tracked tasks.
 ///
 /// Any tracked task will be polled with a short interval until the task
 /// has finished.
-pub async fn track_running_task(task: RemoteUpid) -> Result<(), Error> {
+///
+/// This function returns the [`RemoteUpid`] of the tracked PVE task.
+pub async fn track_running_pve_task(remote: String, upid: PveUpid) -> Result<RemoteUpid, Error> {
     tokio::task::spawn_blocking(move || {
+        let remote_upid: RemoteUpid = (remote, upid.to_string()).try_into()?;
         let cache = get_cache()?.write()?;
-        // TODO:: Handle PBS tasks correctly.
-        let pve_upid: pve_api_types::PveUpid = task.upid.parse()?;
+
         let task = TaskCacheItem {
-            upid: task.clone(),
-            starttime: pve_upid.starttime,
+            upid: remote_upid.clone(),
+            starttime: upid.starttime,
             status: None,
             endtime: None,
         };
-        cache.add_tracked_task(task)
+        cache.add_tracked_task(task)?;
+
+        Ok(remote_upid)
+    })
+    .await?
+}
+
+/// Insert a newly created PBS task into the list of tracked tasks.
+///
+/// Any tracked task will be polled with a short interval until the task
+/// has finished.
+///
+/// This function returns the [`RemoteUpid`] of the tracked PBS task.
+pub async fn track_running_pbs_task(
+    remote: String,
+    upid: pbs_api_types::UPID,
+) -> Result<RemoteUpid, Error> {
+    tokio::task::spawn_blocking(move || {
+        let remote_upid: RemoteUpid = (remote, upid.to_string()).try_into()?;
+        let cache = get_cache()?.write()?;
+
+        let task = TaskCacheItem {
+            upid: remote_upid.clone(),
+            starttime: upid.starttime,
+            status: None,
+            endtime: None,
+        };
+        cache.add_tracked_task(task)?;
+
+        Ok(remote_upid)
     })
     .await?
 }
