@@ -14,6 +14,7 @@ pub mod nodes;
 pub mod pbs;
 pub mod pve;
 pub mod remote_tasks;
+pub mod remote_updates;
 pub mod remotes;
 pub mod resources;
 mod rrd_common;
@@ -31,6 +32,8 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("resources", &resources::ROUTER),
     ("nodes", &nodes::ROUTER),
     ("remote-tasks", &remote_tasks::ROUTER),
+    // TODO: There might be a better place for this endpoint.
+    ("remote-updates", &remote_updates::ROUTER),
     ("sdn", &sdn::ROUTER),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
 ]);
