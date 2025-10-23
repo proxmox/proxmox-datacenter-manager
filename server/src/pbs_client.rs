@@ -114,6 +114,17 @@ pub struct DatstoreListNamespaces {
     pub max_depth: Option<usize>,
 }
 
+#[api]
+/// Parameters for updating the APT database
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct AptUpdateParams {
+    /// Send notification in case of new updates.
+    pub notify: Option<bool>,
+    /// Don't show progress information in the output.
+    pub quiet: Option<bool>,
+}
+
 impl PbsClient {
     /// API version details, including some parts of the global datacenter config.
     pub async fn version(&self) -> Result<pve_api_types::VersionResponse, Error> {
@@ -266,6 +277,46 @@ impl PbsClient {
             .await?
             .expect_json()?
             .data)
+    }
+
+    /// Return a list of available system updates.
+    pub async fn list_available_updates(&self) -> Result<Vec<pbs_api_types::APTUpdateInfo>, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/nodes/localhost/apt/update")
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Update the APT database.
+    pub async fn update_apt_database(
+        &self,
+        params: AptUpdateParams,
+    ) -> Result<pbs_api_types::UPID, Error> {
+        Ok(self
+            .0
+            .post("/api2/extjs/nodes/localhost/apt/update", &params)
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Get changelog for a single package.
+    ///
+    /// `package`: Package name to get the changelog of.
+    /// `version`: Package version to get changelog of. Omit to use candidate version.
+    pub async fn get_package_changelog(
+        &self,
+        package: String,
+        version: Option<String>,
+    ) -> Result<String, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/nodes/localhost/apt/changelog")
+            .arg("name", &package)
+            .maybe_arg("version", &version)
+            .build();
+
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 }
 
