@@ -8,7 +8,7 @@ use proxmox_schema::{api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Sche
 use super::remotes::{RemoteType, REMOTE_ID_SCHEMA};
 
 /// High PBS datastore usage threshold
-pub const PBS_DATASTORE_HIGH_USAGE_THRESHOLD: f64 = 0.75;
+pub const PBS_DATASTORE_HIGH_USAGE_THRESHOLD: f64 = 0.80;
 
 #[api(
     "id-property": "id",
