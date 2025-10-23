@@ -14,7 +14,6 @@ use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::RemoteUpid;
 use pdm_buildcfg::PDM_CACHE_DIR_M;
 
-use crate::api::pve::new_remote_upid;
 use crate::connection;
 use crate::parallel_fetcher::{NodeResults, ParallelFetcher};
 
@@ -64,9 +63,22 @@ pub async fn update_apt_database(remote: &Remote, node: &str) -> Result<RemoteUp
             };
             let upid = client.update_apt_database(node, params).await?;
 
-            new_remote_upid(remote.id.clone(), upid).await
+            crate::api::pve::new_remote_upid(remote.id.clone(), upid).await
         }
-        RemoteType::Pbs => bail!("PBS is not supported yet"),
+        RemoteType::Pbs => {
+            // let client = connection::make_pbs_client(remote)?;
+            //
+            // let params = crate::pbs_client::AptUpdateParams {
+            //     notify: Some(false),
+            //     quiet: Some(false),
+            // };
+            // let upid = client.update_apt_database(params).await?;
+            //
+            // crate::api::pbs::new_remote_upid(remote.id.clone(), upid).await
+            // TODO: task infrastructure for PBS not finished yet, uncomment once
+            // this is done.
+            bail!("PBS is not supported yet");
+        }
     }
 }
 
@@ -81,7 +93,14 @@ pub async fn get_changelog(remote: Remote, node: &str, package: String) -> Resul
                 .await
                 .map_err(Into::into)
         }
-        RemoteType::Pbs => bail!("PBS is not supported yet"),
+        RemoteType::Pbs => {
+            let client = connection::make_pbs_client(&remote)?;
+
+            client
+                .get_package_changelog(package, None)
+                .await
+                .map_err(Into::into)
+        }
     }
 }
 
@@ -252,7 +271,15 @@ async fn fetch_available_updates(
                 updates,
             })
         }
-        RemoteType::Pbs => bail!("PBS is not supported yet"),
+        RemoteType::Pbs => {
+            let client = connection::make_pbs_client(&remote)?;
+            let updates = client.list_available_updates().await?;
+
+            Ok(NodeUpdateInfo {
+                last_refresh: proxmox_time::epoch_i64(),
+                updates,
+            })
+        }
     }
 }
 

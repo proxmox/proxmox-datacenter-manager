@@ -9,12 +9,16 @@ use proxmox_sortable_macro::sortable;
 use pdm_api_types::remotes::{
     NodeUrl, Remote, RemoteListEntry, RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA,
 };
-use pdm_api_types::{Authid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_SYS_MODIFY};
+use pdm_api_types::{
+    Authid, RemoteUpid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_SYS_MODIFY,
+};
 
 use crate::{
     connection::{self, probe_tls_connection},
     pbs_client::{self, get_remote, PbsClient},
 };
+
+use crate::remote_tasks;
 
 mod rrddata;
 
@@ -64,6 +68,15 @@ const DATASTORE_ITEM_SUBDIRS: SubdirMap = &sorted!([
         &Router::new().get(&API_METHOD_LIST_SNAPSHOTS_2)
     ),
 ]);
+
+// converts a remote + pbs_api_types::UPID into a RemoteUpid and starts tracking it
+pub async fn new_remote_upid(
+    remote: String,
+    upid: pbs_api_types::UPID,
+) -> Result<RemoteUpid, Error> {
+    let remote_upid = remote_tasks::track_running_pbs_task(remote, upid).await?;
+    Ok(remote_upid)
+}
 
 #[api(
     returns: {
