@@ -83,10 +83,10 @@ pub async fn update_apt_database(remote: &Remote, node: &str) -> Result<RemoteUp
 }
 
 /// Get the changelog for a given package.
-pub async fn get_changelog(remote: Remote, node: &str, package: String) -> Result<String, Error> {
+pub async fn get_changelog(remote: &Remote, node: &str, package: String) -> Result<String, Error> {
     match remote.ty {
         RemoteType::Pve => {
-            let client = connection::make_pve_client(&remote)?;
+            let client = connection::make_pve_client(remote)?;
 
             client
                 .get_package_changelog(node, package, None)
@@ -94,7 +94,7 @@ pub async fn get_changelog(remote: Remote, node: &str, package: String) -> Resul
                 .map_err(Into::into)
         }
         RemoteType::Pbs => {
-            let client = connection::make_pbs_client(&remote)?;
+            let client = connection::make_pbs_client(remote)?;
 
             client
                 .get_package_changelog(package, None)

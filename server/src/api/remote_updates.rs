@@ -201,7 +201,7 @@ async fn apt_get_changelog(
     let (config, _digest) = pdm_config::remotes::config()?;
     let remote = get_remote(&config, &remote)?;
 
-    remote_updates::get_changelog(remote.clone(), &node, options.name).await
+    remote_updates::get_changelog(remote, &node, options.name).await
 }
 
 const APT_SUBDIRS: SubdirMap = &[
