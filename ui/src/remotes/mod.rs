@@ -24,6 +24,9 @@ pub use config::{create_remote, RemoteConfigPanel};
 mod tasks;
 pub use tasks::RemoteTaskList;
 
+mod updates;
+pub use updates::UpdateTree;
+
 use yew::{function_component, Html};
 
 use pwt::prelude::*;
