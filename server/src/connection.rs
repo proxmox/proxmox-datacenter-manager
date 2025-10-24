@@ -718,11 +718,13 @@ macro_rules! try_request {
             } in $self.try_clients()
             {
                 if let Some(err) = last_err.take() {
-                    log::error!("API client error, trying another remote - {err:?}");
+                    let path = $path_and_query;
+                    log::error!("client error on request {path}, trying another remote - {err:?}");
                 }
                 if timed_out {
                     timed_out = false;
-                    log::error!("API client timed out, trying another remote");
+                    let path = $path_and_query;
+                    log::error!("client timed out on request {path}, trying another remote");
                 }
 
                 let request = client.$how($method.clone(), $path_and_query, params.as_ref());
@@ -748,10 +750,12 @@ macro_rules! try_request {
             }
 
             if let Some(err) = last_err {
-                log::error!("API client error (giving up) - {err:?}");
+                let path = $path_and_query;
+                log::error!("client error on request {path}, giving up - {err:?}");
                 Err(proxmox_client::Error::Client(err))
             } else if timed_out {
-                log::error!("API client timed out, no remotes reachable, giving up");
+                let path = $path_and_query;
+                log::error!("client timed out on request {path}, no remotes reachable, giving up");
                 Err(proxmox_client::Error::Other(
                     "failed to perform API request: timed out",
                 ))
