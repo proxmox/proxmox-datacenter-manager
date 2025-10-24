@@ -760,6 +760,8 @@ macro_rules! try_request {
                     "failed to perform API request: timed out",
                 ))
             } else {
+                let path = $path_and_query;
+                log::error!("Unknown client error out on request {path}");
                 Err(proxmox_client::Error::Other(
                     "failed to perform API request: unknown error",
                 ))
