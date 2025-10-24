@@ -21,7 +21,6 @@ static PREDEFINED_PATHS: &[&str] = &[
     "/system/network",
     "/system/network/dns",
     "/system/network/interfaces",
-    "/system/services",
     "/system/status",
     "/system/tasks",
     "/system/time",
