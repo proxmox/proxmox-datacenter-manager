@@ -10,11 +10,11 @@ use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use pdm_api_types::{
-    Authid, ConfigurationState, RemoteUpid, CIDR_FORMAT, NODE_SCHEMA, PRIV_RESOURCE_AUDIT,
-    PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
+    Authid, ConfigurationState, RemoteUpid, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MANAGE,
+    PRIV_RESOURCE_MIGRATE, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
 
-use pve_api_types::{QemuMigratePreconditions, StartQemuMigrationType};
+use pve_api_types::QemuMigratePreconditions;
 
 use crate::api::pve::get_remote;
 
@@ -297,37 +297,9 @@ pub async fn qemu_shutdown(
             },
             target: { schema: NODE_SCHEMA },
             vmid: { schema: VMID_SCHEMA },
-            online: {
-                type: bool,
-                description: "Perform an online migration if the vm is running.",
-                optional: true,
-            },
-            "target-storage": {
-                description: "Mapping of source storages to target storages.",
-                optional: true,
-            },
-            bwlimit: {
-                description: "Override I/O bandwidth limit (in KiB/s).",
-                optional: true,
-            },
-            "migration-network": {
-                description: "CIDR of the (sub) network that is used for migration.",
-                type: String,
-                format: &CIDR_FORMAT,
-                optional: true,
-            },
-            "migration-type": {
-                type: StartQemuMigrationType,
-                optional: true,
-            },
-            force: {
-                description: "Allow to migrate VMs with local devices.",
-                optional: true,
-                default: false,
-            },
-            "with-local-disks": {
-                description: "Enable live storage migration for local disks.",
-                optional: true,
+            migrate: {
+                type: pve_api_types::MigrateQemu,
+                flatten: true,
             },
         },
     },
@@ -344,38 +316,23 @@ pub async fn qemu_migrate(
     remote: String,
     node: Option<String>,
     vmid: u32,
-    bwlimit: Option<u64>,
-    force: Option<bool>,
-    migration_network: Option<String>,
-    migration_type: Option<StartQemuMigrationType>,
-    online: Option<bool>,
-    target: String,
-    target_storage: Option<String>,
-    with_local_disks: Option<bool>,
+    migrate: pve_api_types::MigrateQemu,
 ) -> Result<RemoteUpid, Error> {
-    log::info!("in-cluster migration requested for remote {remote:?} vm {vmid} to node {target:?}");
+    log::info!(
+        "in-cluster migration requested for remote {remote:?} vm {vmid} to node {:?}",
+        migrate.target
+    );
 
     let (remotes, _) = pdm_config::remotes::config()?;
     let pve = connect_to_remote(&remotes, &remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
-    if node == target {
+    if node == migrate.target {
         bail!("refusing migration to the same node");
     }
 
-    let params = pve_api_types::MigrateQemu {
-        bwlimit,
-        force,
-        migration_network,
-        migration_type,
-        online,
-        target,
-        targetstorage: target_storage,
-        with_local_disks,
-        with_conntrack_state: None,
-    };
-    let upid = pve.migrate_qemu(&node, vmid, params).await?;
+    let upid = pve.migrate_qemu(&node, vmid, migrate).await?;
 
     new_remote_upid(remote, upid).await
 }
@@ -431,32 +388,9 @@ async fn qemu_migrate_preconditions(
                 optional: true,
                 schema: VMID_SCHEMA,
             },
-            delete: {
-                description: "Delete the original VM and related data after successful migration.",
-                optional: true,
-                default: false,
-            },
-            online: {
-                type: bool,
-                description: "Perform an online migration if the vm is running.",
-                optional: true,
-                default: false,
-            },
-            "target-storage": {
-                description: "Mapping of source storages to target storages.",
-            },
-            "target-bridge": {
-                description: "Mapping of source bridges to remote bridges.",
-            },
-            bwlimit: {
-                description: "Override I/O bandwidth limit (in KiB/s).",
-                optional: true,
-            },
-            // TODO better to change remote migration to proxy to node?
-            "target-endpoint": {
-                type: String,
-                optional: true,
-                description: "The target endpoint to use for the connection.",
+            remote_migrate: {
+                type: pve_api_types::RemoteMigrateQemu,
+                flatten: true,
             },
         },
     },
@@ -474,13 +408,7 @@ pub async fn qemu_remote_migrate(
     target: String, // this is the destination remote name
     node: Option<String>,
     vmid: u32,
-    target_vmid: Option<u32>,
-    delete: bool,
-    online: bool,
-    target_storage: String,
-    target_bridge: String,
-    bwlimit: Option<u64>,
-    target_endpoint: Option<String>,
+    remote_migrate: pve_api_types::RemoteMigrateQemu,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<RemoteUpid, Error> {
     let user_info = CachedUserInfo::new()?;
@@ -494,7 +422,7 @@ pub async fn qemu_remote_migrate(
             "resource",
             &target,
             "guest",
-            &target_vmid.unwrap_or(vmid).to_string(),
+            &remote_migrate.target_vmid.unwrap_or(vmid).to_string(),
         ],
     );
     if target_privs & PRIV_RESOURCE_MIGRATE == 0 {
@@ -504,7 +432,7 @@ pub async fn qemu_remote_migrate(
         );
     }
 
-    if delete {
+    if remote_migrate.delete.unwrap_or_default() {
         check_guest_delete_perms(rpcenv, &remote, vmid)?;
     }
 
@@ -528,11 +456,13 @@ pub async fn qemu_remote_migrate(
     let target_node = target
         .nodes
         .iter()
-        .find(|endpoint| match target_endpoint.as_deref() {
-            Some(target) => target == endpoint.hostname,
-            None => true,
-        })
-        .ok_or_else(|| match target_endpoint {
+        .find(
+            |endpoint| match Some(remote_migrate.target_endpoint.clone()).as_deref() {
+                Some(target) => target == endpoint.hostname,
+                None => true,
+            },
+        )
+        .ok_or_else(|| match Some(remote_migrate.target_endpoint.clone()) {
             Some(endpoint) => format_err!("{endpoint} not configured for target cluster"),
             None => format_err!("no nodes configured for target cluster"),
         })?;
@@ -552,17 +482,10 @@ pub async fn qemu_remote_migrate(
     }
 
     log::info!("forwarding remote migration requested");
-    let params = pve_api_types::RemoteMigrateQemu {
-        target_bridge,
-        target_storage,
-        delete: Some(delete),
-        online: Some(online),
-        target_vmid,
-        target_endpoint,
-        bwlimit,
-    };
     log::info!("migrating vm {vmid} of node {node:?}");
-    let upid = source_conn.remote_migrate_qemu(&node, vmid, params).await?;
+    let upid = source_conn
+        .remote_migrate_qemu(&node, vmid, remote_migrate)
+        .await?;
 
     new_remote_upid(source, upid).await
 }
