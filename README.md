@@ -6,23 +6,26 @@ VE, Proxmox Backup Server and potentially also Proxmox Mail Gateway in one centr
 - Status and Health overview for the core resources. E.g., for PVE/PBS/PMG hosts, PVE guests or PBS
   backups
 - *Basic* Management of the core resources.
-- Connect those separate instances. E.g., cross-cluster VM live-migration.
-
+- Connect those separate instances. E.g., cross-cluster VM live-migration and also SDN in the long
+  term.
 
 ## Feature Overview
 
-The basic core features of the Datacenter Manager
+The basic core features of the Proxmox Datacenter Manager planned for the long
+run (not everything will be finished for the initial 1.0):
 
 - Connect & display an arbitrary amount of independent nodes or clusters ("Datacenters")
-- View the resource usage of all nodes and their guests ("glorified dashboard")
-  Automatic refresh with low frequency (range of ~1 - 30 minutes) combined with active refresh
-  "button" for a specific node/cluster
+- View the status and load of all resources, which includes nodes, virtual guests, storages, datastores and so on.
+  This part basically will be a "glorified dashboard" that tries to present information such that
+  potential problematic outliers can be found more easily. Automatic refresh with low frequency
+  (range of ~1 - 30 minutes) combined with active refresh "button" for a specific node/cluster
 - Basic management of the resources: shutdown, reboot, start, ...
 - Management of some configurations
 
-    - Backup jobs
-    - Firewall
-    - ..?
+  - Backup jobs
+  - Firewall
+  - SDN
+  - ..?
 
 - Off-site replication copies of guest for manual recovery on DC failure (not HA!)
 - Remote migration of virtual guests between different datacenters
@@ -32,22 +35,27 @@ The basic core features of the Datacenter Manager
 - Support for complex TFA (like PBS), ACME/Let's Encrypt from the beginning
 - For a later release:
 
-    - master-slave architecture for standby managers to avoid single point of failure
-    - PBS, PMG integration
-    - ... to be determined from user feature requests
+  - active-stanby architecture for standby managers to avoid single point of failure.
+  - integration of other projects, like Proxmox Mail Gateway, and potentially also some form of
+    Proxmox Offline Mirror.
+  - ... to be determined from user feedback and feature requests.
 
 ## Technology Stack
 
-- release as simple .deb Package, one for the backend and one for the GUI
+- Server at the backend that the frontend communicates through a REST and JSON based API.
+- As much as possible written in the rust programming language.
+- A for Proxmox projects standard dual-stack of API daemons. One as main API daemon running as
+  unprivileged users and one privileged daemon running as root. Contrary to other projects the
+  privileged daemon exclusively listens on a file based UNIX socket, thus restricting attack surface
+  even further.
 - backend: rust based, reusing PBS REST/API stack were possible
 
-    - no privileged (root) operations required, so a single daemon is enough
-    - TCP port 443 (default HTTPS one)
+  - no privileged (root) operations required, so a single daemon is enough
+  - TCP port 443 (default HTTPS one)
 
-- fronted: start out with ExtJS; not ideal framework due to upstream being basically defunct, but we
-  have lots of experience and a good widget base to create a prototype fast.
+- fronted: the Yew and Rust based 
 
-## User / Group / Permission System
+## User and Permission System
 
 ### Use cases to Support
 
@@ -67,34 +75,34 @@ proportions.
 
 - Simplified privilege-roles:
 
-    - Audit: only access to GET calls
-    - Manage: only access to GET and some POST calls, to alter the state (e.g., start/stop) of a
-      resource, but not to alter its configuration
+  - Audit: only access to GET calls
+  - Manage: only access to GET and some POST calls, to alter the state (e.g., start/stop) of a
+    resource, but not to alter its configuration
 
-      POST allows creation too, so this may require some annotations in the API schema.
+    POST allows creation too, so this may require some annotations in the API schema.
 
-    - Admin: can do everything
+  - Admin: can do everything
 
 - On PDM one configures remotes, a remote includes (at least) the following config properties:
 
-    - ID with a name (not auto-generated)
-    - A host, i.e., for a PVE (cluster), PBS, PMG instance
+  - ID with a name (not auto-generated)
+  - A host, i.e., for a PVE (cluster), PBS, PMG instance
 
-      For PVE we may want to allow configuring fallback hosts, or do some round-robin in general
+    For PVE we may want to allow configuring fallback hosts, or do some round-robin in general
 
-    - A '''list''' of API-Token (recommended, but "plain" user also allowed)
+  - A '''list''' of API-Token (recommended, but "plain" user also allowed)
 
 -  Then there are groups of remotes, they contain a list of entries with (at least):
 
-    - the remote ID
-    - the actual user to use from the list configured for that remote
-      This allows to partition privs that a PDM group can actually enact on the managed Proxmox
-      Products.
+  - the remote ID
+  - the actual user to use from the list configured for that remote
+    This allows to partition privs that a PDM group can actually enact on the managed Proxmox
+    Products.
 
-      e.g, one can add two API tokens, one for full access on a PVE cluster one for limited to a
-      pool, then one PDM admin-group can use the fully privileged and one user-group can use the
-      limited one while still requiring only a single remote entry for that PVE cluster.
+    e.g, one can add two API tokens, one for full access on a PVE cluster one for limited to a
+    pool, then one PDM admin-group can use the fully privileged and one user-group can use the
+    limited one while still requiring only a single remote entry for that PVE cluster.
 
 - PDM Users get access to that group via a priv. role on it:
 
-    - Audit/Manage/Admin -> /groups/${ID}
+  - Audit/Manage/Admin -> /groups/${ID}
