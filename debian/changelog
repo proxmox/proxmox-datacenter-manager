@@ -1,3 +1,52 @@
+proxmox-datacenter-manager (0.9.2) trixie; urgency=medium
+
+  * fix #6794: api: allow non-root users to view stats on dashboard.
+
+  * api: resources: fix subscription level for remotes where all nodes have an
+    unknown status.
+
+  * fix #6901: api: add permission checks for PBS metrics endpoints.
+
+  * fix #6901: PBS: fix permission check for showing overview by dropping the
+    bogus `node` parameter from the ACL object path.
+
+  * api: add support for adding OpenID Connect realms and using them for
+    login.
+
+  * api: add endpoints for managing API tokens. Please note that the PDM API
+    is not yet stabilized.
+
+  * PBS: request latest metrics when using hourly metrics time frame, just
+    like we do it for PVE remotes.
+
+  * resources: make search terms case insensitive.
+
+  * update client dependencies to fix compatibility issue with some PBS 3
+    versions that wrongly signalled support for HttpOnly cookies.
+
+  * metric collection: include PBS nodes in top-usage entities.
+
+  * clean up ACL tree entries and api tokens for the removed user when
+    deleting a user.
+
+  * api daemon: implement cache for pending system updates of remotes and
+    query the update status from all remotes every six hours in a background
+    task.
+
+  * api: add remote-type search category for resources to allow filtering for
+    all resources from a specific remote type like PVE or PBS.
+
+  * api: expose more status information and counters specific to PBS,
+    including maintenance mode.
+
+  * api: add property matching for resources and expose them for usage in the
+    resource search system.
+
+  * improve logging of failed remote API requests by including the full
+    request path and also explicitly log unknown errors.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 27 Oct 2025 12:53:59 +0100
+
 proxmox-datacenter-manager (0.9.1) trixie; urgency=medium
 
   * TTY login banner: fix typo.
