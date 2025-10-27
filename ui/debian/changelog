@@ -1,3 +1,25 @@
+proxmox-datacenter-manager-ui (0.9.2) trixie; urgency=medium
+
+  * wizard: remove warning about PBS 3 compatibility support now that it's
+    fixed.
+
+  * pve: qemu VMs & LXC CTs: move current status view into overview tab in
+    preparation for other tabs (like hardware overview or tasks) in the
+    future.
+
+  * add support to manage OpenID Connect realms and implement login for such
+    realms.
+
+  * add support to manage API tokens.
+
+  * add initial view for the system update status of all remote nodes.
+
+  * dashboard: add PBS-specific nodes status panel.
+
+  * dashboard: add panel for PBS datastore statistics.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 27 Oct 2025 20:11:25 +0100
+
 proxmox-datacenter-manager-ui (0.9.1) trixie; urgency=medium
 
   * dashboard: also show SDN zones if they are in a unknown state.
