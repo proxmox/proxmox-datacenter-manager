@@ -462,7 +462,7 @@ pub async fn get_status(
                     if r.maintenance.is_none() {
                         counts.pbs_datastores.online += 1;
                     } else {
-                        *counts.pbs_datastores.in_maintenance.get_or_insert_default() += 1;
+                        *counts.pbs_datastores.under_maintenance.get_or_insert_default() += 1;
                     }
                     if r.usage > PBS_DATASTORE_HIGH_USAGE_THRESHOLD {
                         *counts.pbs_datastores.high_usage.get_or_insert_default() += 1;

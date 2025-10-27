@@ -102,7 +102,7 @@ impl Resource {
                 if r.maintenance.is_none() {
                     "online"
                 } else {
-                    "in-maintenance"
+                    "under-maintenance"
                 }
             }
         }
@@ -581,7 +581,7 @@ pub struct PbsDatastoreStatusCount {
     /// Amount of online datastores
     pub online: u64,
     /// Amount of datastores which are in a maintenance mode
-    pub in_maintenance: Option<u64>,
+    pub under_maintenance: Option<u64>,
     /// Amount of datastores which have high datastore usage
     #[serde(skip_serializing_if = "Option::is_none")]
     pub high_usage: Option<u64>,

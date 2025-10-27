@@ -39,7 +39,7 @@ impl From<PbsDatastoresPanel> for VNode {
 #[derive(PartialEq, Clone)]
 pub enum StatusRow {
     Online(u64),
-    InMaintenance(u64),
+    UnderMaintenance(u64),
     Removable(u64),
     S3Backend(u64),
     HighUsage(u64),
@@ -74,12 +74,12 @@ impl yew::Component for PbsDatastoresPanelComponent {
 
         let data = vec![
             StatusRow::Online(status.online),
-            StatusRow::InMaintenance(status.in_maintenance.unwrap_or_default()),
+            StatusRow::UnderMaintenance(status.under_maintenance.unwrap_or_default()),
             StatusRow::Removable(status.removable.unwrap_or_default()),
             StatusRow::S3Backend(status.s3_backend.unwrap_or_default()),
             StatusRow::HighUsage(status.high_usage.unwrap_or_default()),
             StatusRow::Unknown(status.unknown.unwrap_or_default()),
-            StatusRow::All(status.online + status.in_maintenance.unwrap_or_default()),
+            StatusRow::All(status.online + status.under_maintenance.unwrap_or_default()),
         ];
 
         let tiles: Vec<_> = data
@@ -115,11 +115,11 @@ fn create_list_tile(
             "High usage",
             Some(("high-usage", "property")),
         ),
-        StatusRow::InMaintenance(count) => (
+        StatusRow::UnderMaintenance(count) => (
             Fa::new("wrench"),
             count,
-            "In Maintenance",
-            Some(("in-maintenance", "status")),
+            "Under Maintenance",
+            Some(("under-maintenance", "status")),
         ),
         StatusRow::Removable(count) => (
             Fa::new("plug"),
