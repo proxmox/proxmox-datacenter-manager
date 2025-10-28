@@ -287,7 +287,7 @@ fn map_pve_update_info(info: pve_api_types::AptUpdateInfo) -> APTUpdateInfo {
     APTUpdateInfo {
         package: info.package,
         title: info.title,
-        arch: info.arch,
+        arch: info.arch.to_string(),
         description: info.description,
         version: info.version,
         old_version: info.old_version.unwrap_or_default(),
