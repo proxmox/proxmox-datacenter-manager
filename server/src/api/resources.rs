@@ -512,6 +512,9 @@ pub async fn get_status(
                             SdnStatus::Error => {
                                 counts.sdn_zones.error += 1;
                             }
+                            SdnStatus::Pending => {
+                                counts.sdn_zones.pending += 1;
+                            }
                             SdnStatus::Unknown => {
                                 counts.sdn_zones.unknown += 1;
                             }

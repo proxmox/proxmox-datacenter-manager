@@ -166,6 +166,9 @@ impl ZoneTreeComponent {
                             SdnStatus::Available => {
                                 row.with_child(Fa::new("check").class(FontColor::Success))
                             }
+                            SdnStatus::Pending => {
+                                row.with_child(Fa::new("refresh").class(FontColor::Warning))
+                            }
                             SdnStatus::Error => {
                                 row.with_child(Fa::new("times-circle").class(FontColor::Error))
                             }

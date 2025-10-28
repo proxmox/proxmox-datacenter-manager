@@ -52,6 +52,7 @@ impl StatusRow {
             Self::All(_) => ("th", None),
             Self::State(SdnStatus::Available, _) => ("check", Some(FontColor::Success)),
             Self::State(SdnStatus::Error, _) => ("times-circle", Some(FontColor::Error)),
+            Self::State(SdnStatus::Pending, _) => ("refresh", Some(FontColor::Warning)),
             Self::State(SdnStatus::Unknown, _) => ("question", None),
         };
 
@@ -94,8 +95,9 @@ impl yew::Component for SdnZonePanelComponent {
         let data = vec![
             StatusRow::State(SdnStatus::Available, status.available),
             StatusRow::State(SdnStatus::Error, status.error),
+            StatusRow::State(SdnStatus::Pending, status.pending),
             StatusRow::State(SdnStatus::Unknown, status.unknown),
-            StatusRow::All(status.available + status.error + status.unknown),
+            StatusRow::All(status.available + status.pending + status.error + status.unknown),
         ];
 
         let tiles: Vec<_> = data

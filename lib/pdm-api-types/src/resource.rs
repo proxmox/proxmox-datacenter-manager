@@ -414,6 +414,7 @@ impl NetworkFabricResource {
 pub enum SdnStatus {
     Available,
     Error,
+    Pending,
     #[serde(other)]
     #[default]
     Unknown,
@@ -425,6 +426,7 @@ impl std::str::FromStr for SdnStatus {
     fn from_str(value: &str) -> Result<Self, Infallible> {
         Ok(match value {
             "ok" | "available" => Self::Available,
+            "pending" => Self::Pending,
             "error" => Self::Error,
             _ => Self::Unknown,
         })
@@ -439,6 +441,7 @@ impl SdnStatus {
         match self {
             Self::Available => "available",
             Self::Error => "error",
+            Self::Pending => "pending",
             Self::Unknown => "unknown",
         }
     }
@@ -653,6 +656,8 @@ pub struct PbsDatastoreStatusCount {
 pub struct SdnZoneCount {
     /// Amount of available / ok zones
     pub available: u64,
+    /// Amount of sdn zones with pending changes
+    pub pending: u64,
     /// Amount of erroneous sdn zones
     pub error: u64,
     /// Amount of sdn zones with an unknown status
