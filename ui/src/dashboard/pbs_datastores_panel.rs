@@ -40,8 +40,6 @@ impl From<PbsDatastoresPanel> for VNode {
 pub enum StatusRow {
     Online(u64),
     UnderMaintenance(u64),
-    Removable(u64),
-    S3Backend(u64),
     HighUsage(u64),
     Unknown(u64),
     All(u64),
@@ -75,8 +73,6 @@ impl yew::Component for PbsDatastoresPanelComponent {
         let data = vec![
             StatusRow::Online(status.online),
             StatusRow::UnderMaintenance(status.under_maintenance.unwrap_or_default()),
-            StatusRow::Removable(status.removable.unwrap_or_default()),
-            StatusRow::S3Backend(status.s3_backend.unwrap_or_default()),
             StatusRow::HighUsage(status.high_usage.unwrap_or_default()),
             StatusRow::Unknown(status.unknown.unwrap_or_default()),
             StatusRow::All(status.online + status.under_maintenance.unwrap_or_default()),
@@ -120,18 +116,6 @@ fn create_list_tile(
             count,
             "Under Maintenance",
             Some(("under-maintenance", "status")),
-        ),
-        StatusRow::Removable(count) => (
-            Fa::new("plug"),
-            count,
-            "Removable",
-            Some(("removable", "property")),
-        ),
-        StatusRow::S3Backend(count) => (
-            Fa::new("cloud-upload"),
-            count,
-            "S3",
-            Some(("s3", "property")),
         ),
         StatusRow::Unknown(count) => (
             Fa::from(Status::Unknown),
