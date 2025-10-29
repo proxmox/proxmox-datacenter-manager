@@ -276,6 +276,7 @@ impl pve_api_types::client::PveClient for FakePveClient {
         &self,
         _history: Option<bool>,
         _local_only: Option<bool>,
+        _node_list: Option<String>,
         start_time: Option<i64>,
     ) -> Result<ClusterMetrics, proxmox_client::Error> {
         tokio::time::sleep(Duration::from_millis(self.api_delay_ms as u64)).await;
