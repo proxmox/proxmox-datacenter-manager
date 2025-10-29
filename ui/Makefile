@@ -75,8 +75,11 @@ install: $(COMPILED_OUTPUT) index.hbs
 	install -m0644 dist/material-yew-style.css $(DESTDIR)$(UIDIR)
 	install -m0644 dist/desktop-yew-style.css $(DESTDIR)$(UIDIR)
 
+.PHONY: submodule
+submodule:
+	test -f "pwt-assets/README.md" || git submodule update --init
 
-$(BUILDDIR):
+$(BUILDDIR): submodule
 	rm -rf $@ $@.tmp
 	mkdir -p $@.tmp/ui
 	cp -a debian/ src/ pwt-assets/ images/ css/ index.hbs Makefile Cargo.toml $@.tmp/ui
