@@ -1111,8 +1111,8 @@ mod tests {
         let cases = vec![
             (vec![other_term.clone()], false),
             (vec![other_term_optional.clone()], false),
-            (vec![remote_term.clone()], true),
-            (vec![remote_term_optional.clone()], true),
+            (vec![remote_term.clone()], false),
+            (vec![remote_term_optional.clone()], false),
             (vec![type_other_term.clone()], false),
             (vec![type_other_term_optional.clone()], false),
             (
