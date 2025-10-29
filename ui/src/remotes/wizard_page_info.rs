@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use proxmox_schema::property_string::PropertyString;
-use proxmox_yew_comp::WizardPageRenderInfo;
+use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
 use pwt::{
     css::{self, FlexFit},
     prelude::*,
@@ -18,7 +18,7 @@ use pwt::{
     AsyncPool,
 };
 
-use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType};
+use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, REMOTE_ID_SCHEMA};
 
 use pwt_macros::builder;
 
@@ -292,7 +292,13 @@ impl Component for PdmWizardPageInfo {
         let input_panel = InputPanel::new()
             .class(FlexFit)
             .padding(4)
-            .with_field(tr!("Remote ID"), Field::new().name("id").required(true))
+            .with_field(
+                tr!("Remote ID"),
+                Field::new()
+                    .name("id")
+                    .required(true)
+                    .schema(&REMOTE_ID_SCHEMA),
+            )
             .with_custom_child(
                 RadioButton::new("login")
                     .key("login-mode-login")
