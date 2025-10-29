@@ -17,14 +17,14 @@ static PREDEFINED_PATHS: &[&str] = &[
     "/system/certificates",
     "/system/disks",
     "/system/log",
-    "/system/notifications",
     "/system/network",
     "/system/network/dns",
     "/system/network/interfaces",
+    "/system/notifications",
+    "/system/services",
     "/system/status",
     "/system/tasks",
     "/system/time",
-    "/system/services",
 ];
 
 #[widget(comp=PdmPermissionPathSelector, @input, @element)]
