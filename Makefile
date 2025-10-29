@@ -61,6 +61,8 @@ BASH_COMPLETIONS := $(addsuffix .bc,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
 ZSH_COMPLETIONS := $(addprefix _,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
 SHELL_COMPLETION_FILES := $(addprefix $(COMPLETION_DIR)/,$(BASH_COMPLETIONS) $(ZSH_COMPLETIONS))
 
+tests ?= --workspace
+
 all:
 
 install: $(COMPILED_BINS) $(SHELL_COMPLETION_FILES)
@@ -158,3 +160,6 @@ deb-ui: $(UI_DIR)
 dsc-ui: $(UI_DIR)
 	$(MAKE) -C $(UI_DIR) dsc
 	dcmd mv $(UI_DIR)/proxmox-datacenter-manager-ui*.dsc .
+
+test:
+	$(CARGO) test $(tests) $(CARGO_BUILD_ARGS)
