@@ -13,11 +13,12 @@ use proxmox_yew_comp::{NotesView, XTermJs};
 
 use pdm_api_types::remotes::RemoteType;
 
+use crate::dashboard::view::View;
 use crate::remotes::RemotesPanel;
 use crate::sdn::evpn::EvpnPanel;
 use crate::sdn::ZoneTree;
 use crate::{
-    AccessControl, CertificatesPanel, Dashboard, RemoteListCacheEntry, ServerAdministration,
+    AccessControl, CertificatesPanel, RemoteListCacheEntry, ServerAdministration,
     SystemConfiguration,
 };
 
@@ -141,7 +142,7 @@ impl Component for PdmMainMenu {
             tr!("Dashboard"),
             "dashboard",
             Some("fa fa-tachometer"),
-            move |_| Dashboard::new().into(),
+            move |_| View::new("dashboard").into(),
         );
 
         register_view(

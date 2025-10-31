@@ -27,7 +27,7 @@ mod search_provider;
 pub use search_provider::SearchProvider;
 
 mod dashboard;
-pub use dashboard::Dashboard;
+
 use yew_router::prelude::RouterScopeExt;
 
 mod widget;

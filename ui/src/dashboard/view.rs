@@ -444,7 +444,75 @@ async fn load_template() -> Result<ViewTemplate, Error> {
           \"description\": \"some description\",
           \"layout\": {
             \"layout-type\": \"rows\",
-            \"rows\": []
+            \"rows\": [
+              [
+                {
+                  \"flex\": 3.0,
+                  \"widget-type\": \"remotes\",
+                  \"show-wizard\": true
+                },
+                {
+                  \"flex\": 3.0,
+                  \"widget-type\": \"nodes\",
+                  \"remote-type\": \"pve\"
+                },
+                {
+                  \"flex\": 3.0,
+                  \"widget-type\": \"guests\",
+                  \"guest-type\": \"qemu\"
+                },
+                {
+                  \"flex\": 3.0,
+                  \"widget-type\": \"nodes\",
+                  \"remote-type\": \"pbs\"
+                },
+                {
+                  \"flex\": 3.0,
+                  \"widget-type\": \"guests\",
+                  \"guest-type\": \"lxc\"
+                },
+                {
+                  \"flex\": 3.0,
+                  \"widget-type\": \"pbs-datastores\"
+                },
+                {
+                  \"flex\": 5.0,
+                  \"widget-type\": \"subscription\"
+                }
+              ],
+              [
+                {
+                  \"widget-type\": \"leaderboard\",
+                  \"leaderboard-type\": \"guest-cpu\"
+                },
+                {
+                  \"widget-type\": \"leaderboard\",
+                  \"leaderboard-type\": \"node-cpu\"
+                },
+                {
+                  \"widget-type\": \"leaderboard\",
+                  \"leaderboard-type\": \"node-memory\"
+                }
+              ],
+              [
+                {
+                  \"flex\": 5.0,
+                  \"widget-type\": \"task-summary\",
+                  \"grouping\": \"category\",
+                  \"sorting\": \"default\"
+                },
+                {
+                  \"flex\": 5.0,
+                  \"widget-type\": \"task-summary\",
+                  \"grouping\": \"remote\",
+                  \"sorting\": \"failed-tasks\"
+                },
+                {
+                  \"flex\": 2.0,
+                  \"widget-type\": \"sdn\"
+                }
+              ]
+            ]
           }
         }
     ";
