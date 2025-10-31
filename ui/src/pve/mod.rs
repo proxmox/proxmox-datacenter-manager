@@ -45,9 +45,9 @@ impl PveRemote {
     }
 }
 
-impl Into<VNode> for PveRemote {
-    fn into(self) -> VNode {
-        VComp::new::<LoadableComponentMaster<PveRemoteComp>>(Rc::new(self), None).into()
+impl From<PveRemote> for VNode {
+    fn from(val: PveRemote) -> Self {
+        VComp::new::<LoadableComponentMaster<PveRemoteComp>>(Rc::new(val), None).into()
     }
 }
 

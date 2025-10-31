@@ -127,9 +127,9 @@ fn edit_remote_input_panel(_form_ctx: &FormContext, remote_id: &str) -> Html {
         .into()
 }
 
-impl Into<VNode> for EditRemote {
-    fn into(self) -> VNode {
-        let comp = VComp::new::<PdmEditRemote>(Rc::new(self), None);
+impl From<EditRemote> for VNode {
+    fn from(val: EditRemote) -> Self {
+        let comp = VComp::new::<PdmEditRemote>(Rc::new(val), None);
         VNode::from(comp)
     }
 }

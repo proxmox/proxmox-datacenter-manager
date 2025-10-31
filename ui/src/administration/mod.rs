@@ -124,9 +124,9 @@ impl Component for PdmServerAdministration {
     }
 }
 
-impl Into<VNode> for ServerAdministration {
-    fn into(self) -> VNode {
-        let comp = VComp::new::<PdmServerAdministration>(Rc::new(self), None);
+impl From<ServerAdministration> for VNode {
+    fn from(val: ServerAdministration) -> Self {
+        let comp = VComp::new::<PdmServerAdministration>(Rc::new(val), None);
         VNode::from(comp)
     }
 }

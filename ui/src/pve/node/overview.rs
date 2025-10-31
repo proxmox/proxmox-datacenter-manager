@@ -42,9 +42,9 @@ impl NodeOverviewPanel {
     }
 }
 
-impl Into<VNode> for NodeOverviewPanel {
-    fn into(self) -> VNode {
-        VComp::new::<NodeOverviewPanelComp>(Rc::new(self), None).into()
+impl From<NodeOverviewPanel> for VNode {
+    fn from(val: NodeOverviewPanel) -> Self {
+        VComp::new::<NodeOverviewPanelComp>(Rc::new(val), None).into()
     }
 }
 

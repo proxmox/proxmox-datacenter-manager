@@ -295,9 +295,9 @@ impl PbsRemoteConfigPanel {
     }
 }
 
-impl Into<VNode> for RemoteConfigPanel {
-    fn into(self) -> VNode {
-        let comp = VComp::new::<LoadableComponentMaster<PbsRemoteConfigPanel>>(Rc::new(self), None);
+impl From<RemoteConfigPanel> for VNode {
+    fn from(val: RemoteConfigPanel) -> Self {
+        let comp = VComp::new::<LoadableComponentMaster<PbsRemoteConfigPanel>>(Rc::new(val), None);
         VNode::from(comp)
     }
 }

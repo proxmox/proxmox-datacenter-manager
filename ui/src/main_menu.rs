@@ -306,9 +306,9 @@ impl Component for PdmMainMenu {
     }
 }
 
-impl Into<VNode> for MainMenu {
-    fn into(self) -> VNode {
-        let comp = VComp::new::<PdmMainMenu>(Rc::new(self), None);
+impl From<MainMenu> for VNode {
+    fn from(val: MainMenu) -> Self {
+        let comp = VComp::new::<PdmMainMenu>(Rc::new(val), None);
         VNode::from(comp)
     }
 }

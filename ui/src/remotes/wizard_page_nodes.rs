@@ -280,9 +280,9 @@ fn rows() -> Vec<KVGridRow> {
     ]
 }
 
-impl Into<VNode> for WizardPageNodes {
-    fn into(self) -> VNode {
-        let comp = VComp::new::<PdmWizardPageNodes>(Rc::new(self), None);
+impl From<WizardPageNodes> for VNode {
+    fn from(val: WizardPageNodes) -> Self {
+        let comp = VComp::new::<PdmWizardPageNodes>(Rc::new(val), None);
         VNode::from(comp)
     }
 }

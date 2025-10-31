@@ -41,9 +41,9 @@ impl LxcOverviewPanel {
     }
 }
 
-impl Into<VNode> for LxcOverviewPanel {
-    fn into(self) -> VNode {
-        VComp::new::<LxcanelComp>(Rc::new(self), None).into()
+impl From<LxcOverviewPanel> for VNode {
+    fn from(val: LxcOverviewPanel) -> Self {
+        VComp::new::<LxcanelComp>(Rc::new(val), None).into()
     }
 }
 

@@ -74,8 +74,8 @@ impl yew::Component for QemuPanelComp {
     }
 }
 
-impl Into<VNode> for QemuPanel {
-    fn into(self) -> VNode {
-        VComp::new::<QemuPanelComp>(Rc::new(self), None).into()
+impl From<QemuPanel> for VNode {
+    fn from(val: QemuPanel) -> Self {
+        VComp::new::<QemuPanelComp>(Rc::new(val), None).into()
     }
 }

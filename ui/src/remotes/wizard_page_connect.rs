@@ -322,9 +322,9 @@ fn rows() -> Vec<KVGridRow> {
     value
 }
 
-impl Into<VNode> for WizardPageConnect {
-    fn into(self) -> VNode {
-        let comp = VComp::new::<PdmWizardPageConnect>(Rc::new(self), None);
+impl From<WizardPageConnect> for VNode {
+    fn from(val: WizardPageConnect) -> Self {
+        let comp = VComp::new::<PdmWizardPageConnect>(Rc::new(val), None);
         VNode::from(comp)
     }
 }

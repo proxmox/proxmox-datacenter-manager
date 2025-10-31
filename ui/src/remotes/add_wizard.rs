@@ -146,9 +146,9 @@ impl Component for AddWizardState {
     }
 }
 
-impl Into<VNode> for AddWizard {
-    fn into(self) -> VNode {
-        let comp = VComp::new::<AddWizardState>(Rc::new(self), None);
+impl From<AddWizard> for VNode {
+    fn from(val: AddWizard) -> Self {
+        let comp = VComp::new::<AddWizardState>(Rc::new(val), None);
         VNode::from(comp)
     }
 }

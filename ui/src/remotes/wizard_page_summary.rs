@@ -144,9 +144,9 @@ impl Component for PdmWizardPageSummary {
     }
 }
 
-impl Into<VNode> for WizardPageSummary {
-    fn into(self) -> VNode {
-        let comp = VComp::new::<PdmWizardPageSummary>(Rc::new(self), None);
+impl From<WizardPageSummary> for VNode {
+    fn from(val: WizardPageSummary) -> Self {
+        let comp = VComp::new::<PdmWizardPageSummary>(Rc::new(val), None);
         VNode::from(comp)
     }
 }

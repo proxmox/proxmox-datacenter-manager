@@ -39,9 +39,9 @@ impl RemoteOverviewPanel {
     }
 }
 
-impl Into<VNode> for RemoteOverviewPanel {
-    fn into(self) -> VNode {
-        VComp::new::<RemoteOverviewPanelComp>(Rc::new(self), None).into()
+impl From<RemoteOverviewPanel> for VNode {
+    fn from(val: RemoteOverviewPanel) -> Self {
+        VComp::new::<RemoteOverviewPanelComp>(Rc::new(val), None).into()
     }
 }
 

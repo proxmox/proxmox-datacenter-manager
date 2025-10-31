@@ -99,9 +99,9 @@ impl PveTree {
     }
 }
 
-impl Into<VNode> for PveTree {
-    fn into(self) -> VNode {
-        VComp::new::<LoadableComponentMaster<PveTreeComp>>(Rc::new(self), None).into()
+impl From<PveTree> for VNode {
+    fn from(val: PveTree) -> Self {
+        VComp::new::<LoadableComponentMaster<PveTreeComp>>(Rc::new(val), None).into()
     }
 }
 

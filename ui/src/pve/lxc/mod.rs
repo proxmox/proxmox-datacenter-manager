@@ -74,8 +74,8 @@ impl yew::Component for LxcPanelComp {
     }
 }
 
-impl Into<VNode> for LxcPanel {
-    fn into(self) -> VNode {
-        VComp::new::<LxcPanelComp>(Rc::new(self), None).into()
+impl From<LxcPanel> for VNode {
+    fn from(val: LxcPanel) -> Self {
+        VComp::new::<LxcPanelComp>(Rc::new(val), None).into()
     }
 }

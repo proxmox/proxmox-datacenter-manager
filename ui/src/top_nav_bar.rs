@@ -292,9 +292,9 @@ impl Component for PdmTopNavBar {
     }
 }
 
-impl Into<VNode> for TopNavBar {
-    fn into(self) -> VNode {
-        let comp = VComp::new::<PdmTopNavBar>(Rc::new(self), None);
+impl From<TopNavBar> for VNode {
+    fn from(val: TopNavBar) -> Self {
+        let comp = VComp::new::<PdmTopNavBar>(Rc::new(val), None);
         VNode::from(comp)
     }
 }

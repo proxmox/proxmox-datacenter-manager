@@ -189,12 +189,12 @@ pub(crate) struct RemoteWithResources {
     error: Option<String>,
 }
 
-impl Into<RemoteResources> for RemoteWithResources {
-    fn into(self) -> RemoteResources {
+impl From<RemoteWithResources> for RemoteResources {
+    fn from(val: RemoteWithResources) -> Self {
         RemoteResources {
-            remote: self.remote_name,
-            resources: self.resources,
-            error: self.error,
+            remote: val.remote_name,
+            resources: val.resources,
+            error: val.error,
         }
     }
 }

@@ -66,9 +66,9 @@ impl WebauthnConfigEditor {
     }
 }
 
-impl Into<VNode> for WebauthnConfigEditor {
-    fn into(self) -> VNode {
-        VComp::new::<PdmWebauthnConfigEditor>(Rc::new(self), None).into()
+impl From<WebauthnConfigEditor> for VNode {
+    fn from(val: WebauthnConfigEditor) -> Self {
+        VComp::new::<PdmWebauthnConfigEditor>(Rc::new(val), None).into()
     }
 }
 

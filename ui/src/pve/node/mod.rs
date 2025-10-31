@@ -35,9 +35,9 @@ impl NodePanel {
     }
 }
 
-impl Into<VNode> for NodePanel {
-    fn into(self) -> VNode {
-        VComp::new::<NodePanelComp>(Rc::new(self), None).into()
+impl From<NodePanel> for VNode {
+    fn from(val: NodePanel) -> Self {
+        VComp::new::<NodePanelComp>(Rc::new(val), None).into()
     }
 }
 

@@ -59,9 +59,9 @@ impl StoragePanel {
     }
 }
 
-impl Into<VNode> for StoragePanel {
-    fn into(self) -> VNode {
-        VComp::new::<StoragePanelComp>(Rc::new(self), None).into()
+impl From<StoragePanel> for VNode {
+    fn from(val: StoragePanel) -> Self {
+        VComp::new::<StoragePanelComp>(Rc::new(val), None).into()
     }
 }
 

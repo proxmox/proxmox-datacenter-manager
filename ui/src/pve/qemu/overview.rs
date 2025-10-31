@@ -38,9 +38,9 @@ impl QemuOverviewPanel {
     }
 }
 
-impl Into<VNode> for QemuOverviewPanel {
-    fn into(self) -> VNode {
-        VComp::new::<QemuOverviewPanelComp>(Rc::new(self), None).into()
+impl From<QemuOverviewPanel> for VNode {
+    fn from(val: QemuOverviewPanel) -> Self {
+        VComp::new::<QemuOverviewPanelComp>(Rc::new(val), None).into()
     }
 }
 
