@@ -11,9 +11,7 @@ use proxmox_yew_comp::{http_get, Status};
 use pwt::{
     css::{AlignItems, FlexFit, JustifyContent, TextAlign},
     prelude::tr,
-    props::{
-        ContainerBuilder, CssBorderBuilder, CssPaddingBuilder, WidgetBuilder, WidgetStyleBuilder,
-    },
+    props::{ContainerBuilder, CssBorderBuilder, CssPaddingBuilder, WidgetBuilder},
     widget::{Column, Container, Fa, Panel, Row},
     AsyncPool,
 };
@@ -133,31 +131,19 @@ impl Component for PdmSubscriptionInfo {
     }
 
     fn view(&self, _ctx: &yew::Context<Self>) -> yew::Html {
-        let title: Html = Row::new()
+        Column::new()
+            .class(FlexFit)
+            .class(JustifyContent::Center)
             .class(AlignItems::Center)
-            .gap(2)
-            .with_child(Fa::new("ticket"))
-            .with_child(tr!("Subscription Status"))
-            .into();
-
-        Panel::new()
-            .flex(1.0)
-            .width(500)
-            .min_height(150)
-            .title(title)
-            .border(true)
-            .with_child(
-                Column::new()
-                    .class(FlexFit)
-                    .class(JustifyContent::Center)
-                    .class(AlignItems::Center)
-                    .with_optional_child(
-                        self.loading
-                            .then_some(html! {<i class={"pwt-loading-icon"} />}),
-                    )
-                    .with_optional_child(
-                        (!self.loading).then_some(render_subscription_status(&self.status)),
-                    ),
+            .with_optional_child(
+                self.loading.then_some(
+                    Container::new()
+                        .padding(4)
+                        .with_child(Container::from_tag("i").class("pwt-loading-icon")),
+                ),
+            )
+            .with_optional_child(
+                (!self.loading).then_some(render_subscription_status(&self.status)),
             )
             .into()
     }
@@ -168,4 +154,18 @@ impl From<SubscriptionInfo> for VNode {
         let comp = VComp::new::<PdmSubscriptionInfo>(Rc::new(val), None);
         VNode::from(comp)
     }
+}
+
+pub fn create_subscription_panel() -> Panel {
+    let title: Html = Row::new()
+        .class(AlignItems::Center)
+        .gap(2)
+        .with_child(Fa::new("ticket"))
+        .with_child(tr!("Subscription Status"))
+        .into();
+
+    Panel::new()
+        .title(title)
+        .border(true)
+        .with_child(SubscriptionInfo::new())
 }

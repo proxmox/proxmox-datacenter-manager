@@ -34,7 +34,7 @@ mod top_entities;
 pub use top_entities::TopEntities;
 
 mod subscription_info;
-pub use subscription_info::SubscriptionInfo;
+pub use subscription_info::create_subscription_panel;
 
 mod remote_panel;
 pub use remote_panel::create_remote_panel;
@@ -427,7 +427,12 @@ impl Component for PdmDashboard {
                             .width(300),
                     )
                     .with_child(self.create_pbs_datastores_panel())
-                    .with_child(SubscriptionInfo::new()),
+                    .with_child(
+                        create_subscription_panel()
+                            .flex(1.0)
+                            .width(500)
+                            .min_height(150),
+                    ),
             )
             .with_child(
                 Container::new()
