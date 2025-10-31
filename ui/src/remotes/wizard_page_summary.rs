@@ -47,7 +47,7 @@ impl PdmWizardPageSummary {
 
         if let Some(Some(nodes)) = props.info.valid_data.get("nodes").map(|n| n.as_array()) {
             let nodes = nodes
-                .into_iter()
+                .iter()
                 .filter_map(|node| match serde_json::from_value(node.clone()) {
                     Ok(value) => Some(value),
                     Err(err) => {

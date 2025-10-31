@@ -218,7 +218,7 @@ impl LoadableComponent for PveRemoteComp {
                                 let remote = ctx.props().remote.clone();
                                 move |_| {
                                     if let Some(url) =
-                                        get_deep_url(&link.yew_link(), &remote, None, "")
+                                        get_deep_url(link.yew_link(), &remote, None, "")
                                     {
                                         let _ = window().open_with_url(&url.href());
                                     }

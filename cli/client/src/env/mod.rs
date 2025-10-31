@@ -545,7 +545,7 @@ impl UseColor {
 
 fn guess_color() -> bool {
     if let Some(val) = std::env::var_os("NO_COLOR") {
-        if val.len() > 0 {
+        if !val.is_empty() {
             return false;
         }
     }

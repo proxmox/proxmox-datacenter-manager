@@ -98,7 +98,7 @@ fn extract_task_summary(data: &TaskStatistics) -> Vec<TaskSummaryItem> {
     insert_type(TaskWorkerType::Ha);
 
     for (worker_type, count) in data.by_type.iter() {
-        let task_type = TaskWorkerType::new_from_str(&worker_type);
+        let task_type = TaskWorkerType::new_from_str(worker_type);
 
         let entry = match map.get_mut(&task_type) {
             Some(entry) => entry,

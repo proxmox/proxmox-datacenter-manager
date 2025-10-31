@@ -155,7 +155,7 @@ pub(crate) fn get_deep_url_low_level<C: yew::Component>(
         });
 
     url.inspect(|url| {
-        url.set_hash(&hash);
+        url.set_hash(hash);
     })
 }
 

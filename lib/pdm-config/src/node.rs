@@ -40,10 +40,7 @@ pub fn save_config(config: &NodeConfig) -> Result<(), Error> {
 /// Returns the parsed ProxyConfig
 pub fn get_http_proxy_config(config: &NodeConfig) -> Option<ProxyConfig> {
     if let Some(http_proxy) = &config.http_proxy {
-        match ProxyConfig::parse_proxy_url(http_proxy) {
-            Ok(proxy) => Some(proxy),
-            Err(_) => None,
-        }
+        ProxyConfig::parse_proxy_url(http_proxy).ok()
     } else {
         None
     }

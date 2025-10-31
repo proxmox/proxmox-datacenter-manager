@@ -136,7 +136,7 @@ impl UpdateTreeComponent {
                     Row::new()
                         .class(css::AlignItems::Baseline)
                         .gap(2)
-                        .with_optional_child(icon.map(|icon| Fa::new(icon)))
+                        .with_optional_child(icon.map(Fa::new))
                         .with_child(entry.name())
                         .into()
                 })
@@ -388,7 +388,7 @@ impl UpdateTreeComponent {
                             RemoteType::Pbs => {
                                 let hash = "#pbsServerAdministration:updates";
                                 if let Some(url) =
-                                    get_deep_url_low_level(link.yew_link(), &remote, None, &hash)
+                                    get_deep_url_low_level(link.yew_link(), &remote, None, hash)
                                 {
                                     let _ = gloo_utils::window().open_with_url(&url.href());
                                 }

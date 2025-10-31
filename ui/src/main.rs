@@ -120,7 +120,7 @@ impl DatacenterManagerApp {
                 }
 
                 let remote_list_cache: Vec<RemoteListCacheEntry> = list
-                    .into_iter()
+                    .iter()
                     .map(|item| RemoteListCacheEntry {
                         id: item.id.clone(),
                         ty: item.ty,
@@ -252,7 +252,7 @@ impl Component for DatacenterManagerApp {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let on_login = ctx.link().callback(|info| Msg::Login(info));
+        let on_login = ctx.link().callback(Msg::Login);
         let loading = self.login_info.is_some() && self.show_subscription_alert.is_none();
         let subscription_alert = self.show_subscription_alert.and_then(|show| {
             (self.login_info.is_some() && show).then_some(

@@ -128,7 +128,7 @@ impl ZoneTreeComponent {
                     Row::new()
                         .class(css::AlignItems::Baseline)
                         .gap(2)
-                        .with_optional_child(icon.map(|icon| Fa::new(icon)))
+                        .with_optional_child(icon.map(Fa::new))
                         .with_child(entry.name())
                         .into()
                 })
@@ -166,7 +166,7 @@ impl ZoneTreeComponent {
                         ZoneTreeEntry::Remote(remote) => {
                             // TODO: do not hardcode this here.
                             let hash = "#v1:0:18:4:::::::53";
-                            crate::get_deep_url_low_level(link.yew_link(), &remote, None, hash)
+                            crate::get_deep_url_low_level(link.yew_link(), remote, None, hash)
                         }
                         ZoneTreeEntry::Zone(zone_data) => {
                             let id = format!("sdn/{}/{}", zone_data.node, zone_data.name);

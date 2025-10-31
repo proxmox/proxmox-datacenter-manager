@@ -258,12 +258,12 @@ impl Component for PdmWizardPageConnect {
 
 fn get_fingerprint(form_ctx: &FormContext) -> Option<String> {
     let fingerprint = form_ctx.read().get_field_text("fingerprint");
-    let fingerprint = if fingerprint.is_empty() {
+
+    if fingerprint.is_empty() {
         None
     } else {
         Some(fingerprint)
-    };
-    fingerprint
+    }
 }
 
 fn call_on_connect_change(props: &WizardPageConnect, certificate_info: Option<CertificateInfo>) {

@@ -289,7 +289,7 @@ impl PbsRemoteConfigPanel {
     }
 
     fn create_edit_dialog(&self, ctx: &LoadableComponentContext<Self>, key: Key) -> Html {
-        EditRemote::new(&*key)
+        EditRemote::new(&key)
             .on_done(ctx.link().change_view_callback(|_| None))
             .into()
     }
