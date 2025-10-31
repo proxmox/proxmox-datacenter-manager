@@ -1,19 +1,17 @@
 use std::rc::Rc;
 
-use pdm_api_types::remotes::RemoteType;
-use pdm_api_types::resource::NodeStatusCount;
+use yew::virtual_dom::{VComp, VNode};
+
 use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::Status;
-use pwt::{
-    css::{AlignItems, FlexFit, JustifyContent},
-    prelude::*,
-    widget::{Column, Fa},
-};
-use yew::{
-    virtual_dom::{VComp, VNode},
-    Properties,
-};
+use pwt::css::{AlignItems, FlexFit, JustifyContent};
+use pwt::prelude::*;
+use pwt::widget::{Column, Fa, Panel};
 
+use pdm_api_types::resource::NodeStatusCount;
+use pdm_api_types::{remotes::RemoteType, resource::ResourcesStatus};
+
+use crate::dashboard::create_title_with_icon;
 use crate::search_provider::get_search_provider;
 
 use super::loading_column;
@@ -141,4 +139,36 @@ fn map_status(
     };
 
     (icon, status_msg, search_terms)
+}
+
+pub fn create_node_panel(remote_type: RemoteType, status: Option<ResourcesStatus>) -> Panel {
+    let (icon, title) = match remote_type {
+        RemoteType::Pve => ("building", tr!("Virtual Environment Nodes")),
+        RemoteType::Pbs => ("building-o", tr!("Backup Server Nodes")),
+    };
+
+    let (nodes_status, failed_remotes) = match status {
+        Some(status) => {
+            let nodes_status = match remote_type {
+                RemoteType::Pve => Some(status.pve_nodes.clone()),
+                RemoteType::Pbs => Some(status.pbs_nodes.clone()),
+            };
+            let failed_remotes = status
+                .failed_remotes_list
+                .iter()
+                .filter(|item| item.remote_type == remote_type)
+                .count();
+            (nodes_status, failed_remotes)
+        }
+        None => (None, 0),
+    };
+
+    Panel::new()
+        .title(create_title_with_icon(icon, title))
+        .border(true)
+        .with_child(NodeStatusPanel::new(
+            remote_type,
+            nodes_status,
+            failed_remotes,
+        ))
 }

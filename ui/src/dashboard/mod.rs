@@ -44,7 +44,7 @@ mod guest_panel;
 pub use guest_panel::create_guest_panel;
 
 mod node_status_panel;
-use node_status_panel::NodeStatusPanel;
+use node_status_panel::create_node_panel;
 
 mod sdn_zone_panel;
 use sdn_zone_panel::SdnZonePanel;
@@ -149,35 +149,6 @@ pub struct PdmDashboard {
 }
 
 impl PdmDashboard {
-    fn create_node_panel(&self, icon: &str, title: String, remote_type: RemoteType) -> Panel {
-        let (nodes_status, failed_remotes) = match &self.status {
-            Some(status) => {
-                let nodes_status = match remote_type {
-                    RemoteType::Pve => Some(status.pve_nodes.clone()),
-                    RemoteType::Pbs => Some(status.pbs_nodes.clone()),
-                };
-                let failed_remotes = status
-                    .failed_remotes_list
-                    .iter()
-                    .filter(|item| item.remote_type == remote_type)
-                    .count();
-                (nodes_status, failed_remotes)
-            }
-            None => (None, 0),
-        };
-
-        Panel::new()
-            .flex(1.0)
-            .width(300)
-            .title(create_title_with_icon(icon, title))
-            .border(true)
-            .with_child(NodeStatusPanel::new(
-                remote_type,
-                nodes_status,
-                failed_remotes,
-            ))
-    }
-
     fn create_sdn_panel(&self) -> Panel {
         let sdn_zones_status = self.status.as_ref().map(|status| status.sdn_zones.clone());
 
@@ -498,11 +469,11 @@ impl Component for PdmDashboard {
                             )
                             .with_child(RemotePanel::new(self.status.clone())),
                     )
-                    .with_child(self.create_node_panel(
-                        "building",
-                        tr!("Virtual Environment Nodes"),
-                        RemoteType::Pve,
-                    ))
+                    .with_child(
+                        create_node_panel(RemoteType::Pve, self.status.clone())
+                            .flex(1.0)
+                            .width(300),
+                    )
                     .with_child(
                         create_guest_panel(Some(GuestType::Qemu), self.status.clone())
                             .flex(1.0)
@@ -513,11 +484,11 @@ impl Component for PdmDashboard {
                             .flex(1.0)
                             .width(300),
                     )
-                    .with_child(self.create_node_panel(
-                        "building-o",
-                        tr!("Backup Server Nodes"),
-                        RemoteType::Pbs,
-                    ))
+                    .with_child(
+                        create_node_panel(RemoteType::Pbs, self.status.clone())
+                            .flex(1.0)
+                            .width(300),
+                    )
                     .with_child(self.create_pbs_datastores_panel())
                     .with_child(SubscriptionInfo::new()),
             )
