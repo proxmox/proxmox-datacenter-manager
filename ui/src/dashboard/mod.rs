@@ -47,13 +47,12 @@ use status_row::DashboardStatusRow;
 mod filtered_tasks;
 
 mod pbs_datastores_panel;
-use pbs_datastores_panel::PbsDatastoresPanel;
+pub use pbs_datastores_panel::create_pbs_datastores_panel;
 
 mod tasks;
 use tasks::{create_task_summary_panel, get_task_options};
 
 pub mod types;
-
 
 mod refresh_config_edit;
 pub use refresh_config_edit::{
@@ -118,23 +117,6 @@ pub struct PdmDashboard {
 }
 
 impl PdmDashboard {
-    fn create_pbs_datastores_panel(&self) -> Panel {
-        let pbs_datastores = self
-            .status
-            .as_ref()
-            .map(|status| status.pbs_datastores.clone());
-
-        Panel::new()
-            .flex(1.0)
-            .width(300)
-            .title(create_title_with_icon(
-                "database",
-                tr!("Backup Server Datastores"),
-            ))
-            .border(true)
-            .with_child(PbsDatastoresPanel::new(pbs_datastores))
-    }
-
     fn reload(&mut self, ctx: &yew::Context<Self>) {
         let max_age = if self.loaded_once {
             self.config.max_age.unwrap_or(DEFAULT_MAX_AGE_S)
@@ -364,7 +346,11 @@ impl Component for PdmDashboard {
                             .flex(1.0)
                             .width(300),
                     )
-                    .with_child(self.create_pbs_datastores_panel())
+                    .with_child(
+                        create_pbs_datastores_panel(self.status.clone())
+                            .flex(1.0)
+                            .width(300),
+                    )
                     .with_child(
                         create_subscription_panel()
                             .flex(1.0)
