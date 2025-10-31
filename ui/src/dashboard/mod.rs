@@ -21,7 +21,7 @@ use pwt::{
 
 use pdm_api_types::{remotes::RemoteType, resource::ResourcesStatus, TaskStatistics};
 
-use crate::{pve::GuestType, remotes::AddWizard, RemoteList};
+use crate::{pve::GuestType, remotes::AddWizard};
 
 mod top_entities;
 pub use top_entities::create_top_entities_panel;
@@ -86,7 +86,6 @@ pub enum LoadingResult {
 
 pub enum Msg {
     LoadingFinished(LoadingResult),
-    RemoteListChanged(RemoteList),
     CreateWizard(Option<RemoteType>),
     Reload,
     ForceReload,
@@ -108,10 +107,8 @@ pub struct PdmDashboard {
     loaded_once: bool,
     loading: bool,
     load_finished_time: Option<f64>,
-    remote_list: RemoteList,
     show_wizard: Option<RemoteType>,
     show_config_window: bool,
-    _context_listener: ContextHandle<RemoteList>,
     async_pool: AsyncPool,
     config: PersistentState<RefreshConfig>,
 }
@@ -179,11 +176,6 @@ impl Component for PdmDashboard {
             PersistentState::new(StorageLocation::local(refresh_config_id("dashboard")));
         let async_pool = AsyncPool::new();
 
-        let (remote_list, _context_listener) = ctx
-            .link()
-            .context(ctx.link().callback(Msg::RemoteListChanged))
-            .expect("No Remote list context provided");
-
         let mut this = Self {
             status: None,
             last_error: None,
@@ -196,10 +188,8 @@ impl Component for PdmDashboard {
             loaded_once: false,
             loading: true,
             load_finished_time: None,
-            remote_list,
             show_wizard: None,
             show_config_window: false,
-            _context_listener,
             async_pool,
             config,
         };
@@ -247,11 +237,6 @@ impl Component for PdmDashboard {
                     }
                 }
                 true
-            }
-            Msg::RemoteListChanged(remote_list) => {
-                let changed = self.remote_list != remote_list;
-                self.remote_list = remote_list;
-                changed
             }
             Msg::CreateWizard(remote_type) => {
                 self.show_wizard = remote_type;
