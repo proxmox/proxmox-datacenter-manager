@@ -1,12 +1,10 @@
 use std::rc::Rc;
 
 use web_sys::HtmlElement;
-use yew::{
-    virtual_dom::{VComp, VNode},
-    Component, NodeRef, PointerEvent, Properties, TargetCast,
-};
+use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_yew_comp::utils::render_epoch;
+use pwt::prelude::*;
 use pwt::{
     css::{AlignItems, Display, FlexFit, JustifyContent},
     dom::align::{align_to, AlignOptions},
@@ -15,12 +13,13 @@ use pwt::{
         WidgetStyleBuilder,
     },
     tr,
-    widget::{ActionIcon, Column, Container, Row},
+    widget::{error_message, ActionIcon, Column, Container, Panel, Row},
 };
 
 use pdm_client::types::{Resource, TopEntity};
 
 use crate::{
+    dashboard::{create_title_with_icon, loading_column, types::LeaderboardType},
     get_deep_url, get_resource_node, navigate_to,
     renderer::{render_resource_icon, render_resource_name},
 };
@@ -325,4 +324,40 @@ fn graph_from_data(data: &Vec<Option<f64>>, threshold: f64) -> Container {
                 list.join(", ")
             ),
         )
+}
+
+pub fn create_top_entities_panel(
+    entities: Option<Vec<TopEntity>>,
+    error: Option<&proxmox_client::Error>,
+    leaderboard_type: LeaderboardType,
+) -> Panel {
+    let (icon, title, metrics_title, threshold) = match leaderboard_type {
+        LeaderboardType::GuestCpu => (
+            "desktop",
+            tr!("Guests With the Highest CPU Usage"),
+            tr!("CPU usage"),
+            0.85,
+        ),
+        LeaderboardType::NodeCpu => (
+            "building",
+            tr!("Nodes With the Highest CPU Usage"),
+            tr!("CPU usage"),
+            0.85,
+        ),
+        LeaderboardType::NodeMemory => (
+            "building",
+            tr!("Nodes With the Highest Memory Usage"),
+            tr!("Memory usage"),
+            0.95,
+        ),
+    };
+    let loading = entities.is_none() && error.is_none();
+    Panel::new()
+        .border(true)
+        .title(create_title_with_icon(icon, title))
+        .with_optional_child(
+            entities.map(|entities| TopEntities::new(entities, metrics_title, threshold)),
+        )
+        .with_optional_child(loading.then_some(loading_column()))
+        .with_optional_child(error.map(|err| error_message(&err.to_string())))
 }

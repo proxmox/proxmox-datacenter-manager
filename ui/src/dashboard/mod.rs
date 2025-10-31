@@ -17,7 +17,6 @@ use pwt::{
     props::StorageLocation,
     state::PersistentState,
     widget::{
-        error_message,
         form::{DisplayField, FormContext, Number},
         Column, Container, Fa, InputPanel, Panel, Row,
     },
@@ -25,13 +24,12 @@ use pwt::{
 };
 
 use pdm_api_types::{remotes::RemoteType, resource::ResourcesStatus, TaskStatistics};
-use pdm_client::types::TopEntity;
 use proxmox_client::ApiResponseData;
 
 use crate::{pve::GuestType, remotes::AddWizard, RemoteList};
 
 mod top_entities;
-pub use top_entities::TopEntities;
+pub use top_entities::create_top_entities_panel;
 
 mod subscription_info;
 pub use subscription_info::create_subscription_panel;
@@ -58,6 +56,8 @@ use pbs_datastores_panel::PbsDatastoresPanel;
 
 mod tasks;
 use tasks::create_task_summary_panel;
+
+pub mod types;
 
 /// The initial 'max-age' parameter in seconds. The backend polls every 15 minutes, so to increase
 /// the chance of showing some data quickly use that as max age at the very first load.
@@ -148,32 +148,6 @@ pub struct PdmDashboard {
 }
 
 impl PdmDashboard {
-    fn create_top_entities_panel(
-        &self,
-        icon: &str,
-        title: String,
-        metrics_title: String,
-        entities: Option<&Vec<TopEntity>>,
-        threshold: f64,
-    ) -> Panel {
-        Panel::new()
-            .flex(1.0)
-            .width(500)
-            .min_width(400)
-            .border(true)
-            .title(create_title_with_icon(icon, title))
-            .with_optional_child(
-                entities
-                    .map(|entities| TopEntities::new(entities.clone(), metrics_title, threshold)),
-            )
-            .with_optional_child(self.top_entities.is_none().then_some(loading_column()))
-            .with_optional_child(
-                self.last_top_entities_error
-                    .as_ref()
-                    .map(|err| error_message(&err.to_string())),
-            )
-    }
-
     fn create_pbs_datastores_panel(&self) -> Panel {
         let pbs_datastores = self
             .status
@@ -442,27 +416,36 @@ impl Component for PdmDashboard {
                     .padding_top(0)
                     .class(FlexWrap::Wrap)
                     //.min_height(175)
-                    .with_child(self.create_top_entities_panel(
-                        "desktop",
-                        tr!("Guests With the Highest CPU Usage"),
-                        tr!("CPU usage"),
-                        self.top_entities.as_ref().map(|e| &e.guest_cpu),
-                        0.85,
-                    ))
-                    .with_child(self.create_top_entities_panel(
-                        "building",
-                        tr!("Nodes With the Highest CPU Usage"),
-                        tr!("CPU usage"),
-                        self.top_entities.as_ref().map(|e| &e.node_cpu),
-                        0.85,
-                    ))
-                    .with_child(self.create_top_entities_panel(
-                        "building",
-                        tr!("Nodes With the Highest Memory Usage"),
-                        tr!("Memory usage"),
-                        self.top_entities.as_ref().map(|e| &e.node_memory),
-                        0.95,
-                    )),
+                    .with_child(
+                        create_top_entities_panel(
+                            self.top_entities.as_ref().map(|e| e.guest_cpu.clone()),
+                            self.last_top_entities_error.as_ref(),
+                            types::LeaderboardType::GuestCpu,
+                        )
+                        .flex(1.0)
+                        .width(500)
+                        .min_width(400),
+                    )
+                    .with_child(
+                        create_top_entities_panel(
+                            self.top_entities.as_ref().map(|e| e.node_cpu.clone()),
+                            self.last_top_entities_error.as_ref(),
+                            types::LeaderboardType::NodeCpu,
+                        )
+                        .flex(1.0)
+                        .width(500)
+                        .min_width(400),
+                    )
+                    .with_child(
+                        create_top_entities_panel(
+                            self.top_entities.as_ref().map(|e| e.node_memory.clone()),
+                            self.last_top_entities_error.as_ref(),
+                            types::LeaderboardType::NodeCpu,
+                        )
+                        .flex(1.0)
+                        .width(500)
+                        .min_width(400),
+                    ),
             )
             .with_child(
                 Container::new()
