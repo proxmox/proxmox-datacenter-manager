@@ -1,30 +1,34 @@
 use std::rc::Rc;
 
-use pdm_api_types::resource::{GuestStatusCount, ResourceType};
+use pdm_api_types::resource::{GuestStatusCount, ResourceType, ResourcesStatus};
 use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::GuestState;
 use pwt::{
     css::{self, TextAlign},
     prelude::*,
-    widget::{Container, Fa, List, ListTile},
+    widget::{Container, Fa, List, ListTile, Panel},
 };
 use yew::{
     virtual_dom::{VComp, VNode},
     Properties,
 };
 
-use crate::{pve::GuestType, search_provider::get_search_provider};
+use crate::{
+    dashboard::create_title_with_icon, pve::GuestType, search_provider::get_search_provider,
+};
 
 use super::loading_column;
 
 #[derive(PartialEq, Clone, Properties)]
 pub struct GuestPanel {
-    guest_type: GuestType,
-    status: Option<GuestStatusCount>,
+    guest_type: Option<GuestType>,
+    status: Option<ResourcesStatus>,
 }
 
 impl GuestPanel {
-    pub fn new(guest_type: GuestType, status: Option<GuestStatusCount>) -> Self {
+    /// Creates a new guest panel. Setting `guest_type` to `None` means we
+    /// create one for all guests, regardless of type.
+    pub fn new(guest_type: Option<GuestType>, status: Option<ResourcesStatus>) -> Self {
         yew::props!(Self { guest_type, status })
     }
 }
@@ -63,7 +67,16 @@ impl yew::Component for PdmGuestPanel {
         let props = ctx.props();
         let guest_type = props.guest_type;
         let status = match &props.status {
-            Some(status) => status,
+            Some(status) => match guest_type {
+                Some(GuestType::Qemu) => status.qemu.clone(),
+                Some(GuestType::Lxc) => status.lxc.clone(),
+                None => GuestStatusCount {
+                    running: status.qemu.running + status.lxc.running,
+                    stopped: status.qemu.stopped + status.lxc.stopped,
+                    template: status.qemu.template + status.lxc.template,
+                    unknown: status.qemu.unknown + status.lxc.unknown,
+                },
+            },
             None => return loading_column().into(),
         };
 
@@ -93,7 +106,7 @@ impl yew::Component for PdmGuestPanel {
 
 fn create_list_tile(
     link: &html::Scope<PdmGuestPanel>,
-    guest_type: GuestType,
+    guest_type: Option<GuestType>,
     status_row: StatusRow,
 ) -> Option<ListTile> {
     let (icon, text, count, status, template) = match status_row {
@@ -129,7 +142,13 @@ fn create_list_tile(
                 None,
             ),
         },
-        StatusRow::All(count) => (Fa::from(guest_type), tr!("All"), count, None, None),
+        StatusRow::All(count) => (
+            Fa::from(guest_type.unwrap_or(GuestType::Qemu)),
+            tr!("All"),
+            count,
+            None,
+            None,
+        ),
     };
 
     Some(
@@ -158,19 +177,29 @@ fn create_list_tile(
 }
 
 fn create_guest_search_term(
-    guest_type: GuestType,
+    guest_type: Option<GuestType>,
     status: Option<&'static str>,
     template: Option<bool>,
 ) -> Search {
-    let resource_type: ResourceType = guest_type.into();
-    if status.is_none() && template.is_none() {
-        return Search::with_terms(vec![
-            SearchTerm::new(resource_type.as_str()).category(Some("type"))
-        ]);
+    let mut terms = Vec::new();
+    match guest_type {
+        Some(guest_type) => {
+            let resource_type: ResourceType = guest_type.into();
+            terms.push(SearchTerm::new(resource_type.as_str()).category(Some("type")));
+        }
+        None => {
+            terms.push(
+                SearchTerm::new(ResourceType::PveQemu.as_str())
+                    .category(Some("type"))
+                    .optional(true),
+            );
+            terms.push(
+                SearchTerm::new(ResourceType::PveLxc.as_str())
+                    .category(Some("type"))
+                    .optional(true),
+            );
+        }
     }
-
-    let mut terms = vec![SearchTerm::new(resource_type.as_str()).category(Some("type"))];
-
     if let Some(template) = template {
         terms.push(SearchTerm::new(template.to_string()).category(Some("template")));
     }
@@ -178,4 +207,18 @@ fn create_guest_search_term(
         terms.push(SearchTerm::new(status).category(Some("status")));
     }
     Search::with_terms(terms)
+}
+
+/// Creates a new guest panel. Setting `guest_type` to `None` means we
+/// create one for all guests, regardless of type.
+pub fn create_guest_panel(guest_type: Option<GuestType>, status: Option<ResourcesStatus>) -> Panel {
+    let (icon, title) = match guest_type {
+        Some(GuestType::Qemu) => ("desktop", tr!("Virtual Machines")),
+        Some(GuestType::Lxc) => ("cubes", tr!("Linux Container")),
+        None => ("desktop", tr!("Guests")),
+    };
+    Panel::new()
+        .title(create_title_with_icon(icon, title))
+        .border(true)
+        .with_child(GuestPanel::new(guest_type, status))
 }

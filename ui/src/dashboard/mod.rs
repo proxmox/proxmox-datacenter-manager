@@ -41,7 +41,7 @@ mod remote_panel;
 use remote_panel::RemotePanel;
 
 mod guest_panel;
-use guest_panel::GuestPanel;
+pub use guest_panel::create_guest_panel;
 
 mod node_status_panel;
 use node_status_panel::NodeStatusPanel;
@@ -149,15 +149,6 @@ pub struct PdmDashboard {
 }
 
 impl PdmDashboard {
-    fn create_title_with_icon(&self, icon: &str, title: String) -> Html {
-        Row::new()
-            .class(AlignItems::Center)
-            .gap(2)
-            .with_child(Fa::new(icon))
-            .with_child(title)
-            .into()
-    }
-
     fn create_node_panel(&self, icon: &str, title: String, remote_type: RemoteType) -> Panel {
         let (nodes_status, failed_remotes) = match &self.status {
             Some(status) => {
@@ -178,7 +169,7 @@ impl PdmDashboard {
         Panel::new()
             .flex(1.0)
             .width(300)
-            .title(self.create_title_with_icon(icon, title))
+            .title(create_title_with_icon(icon, title))
             .border(true)
             .with_child(NodeStatusPanel::new(
                 remote_type,
@@ -187,34 +178,13 @@ impl PdmDashboard {
             ))
     }
 
-    fn create_guest_panel(&self, guest_type: GuestType) -> Panel {
-        let (icon, title, status) = match guest_type {
-            GuestType::Qemu => (
-                "desktop",
-                tr!("Virtual Machines"),
-                self.status.as_ref().map(|s| s.qemu.clone()),
-            ),
-            GuestType::Lxc => (
-                "cubes",
-                tr!("Linux Container"),
-                self.status.as_ref().map(|s| s.lxc.clone()),
-            ),
-        };
-        Panel::new()
-            .flex(1.0)
-            .width(300)
-            .title(self.create_title_with_icon(icon, title))
-            .border(true)
-            .with_child(GuestPanel::new(guest_type, status))
-    }
-
     fn create_sdn_panel(&self) -> Panel {
         let sdn_zones_status = self.status.as_ref().map(|status| status.sdn_zones.clone());
 
         Panel::new()
             .flex(1.0)
             .width(200)
-            .title(self.create_title_with_icon("sdn", tr!("SDN Zones")))
+            .title(create_title_with_icon("sdn", tr!("SDN Zones")))
             .border(true)
             .with_child(SdnZonePanel::new(
                 (!self.loading).then_some(sdn_zones_status).flatten(),
@@ -235,7 +205,7 @@ impl PdmDashboard {
             .flex(1.0)
             .width(500)
             .border(true)
-            .title(self.create_title_with_icon("list", title))
+            .title(create_title_with_icon("list", title))
             .with_child(
                 Container::new()
                     .class(FlexFit)
@@ -272,7 +242,7 @@ impl PdmDashboard {
             .width(500)
             .min_width(400)
             .border(true)
-            .title(self.create_title_with_icon(icon, title))
+            .title(create_title_with_icon(icon, title))
             .with_optional_child(
                 entities
                     .map(|entities| TopEntities::new(entities.clone(), metrics_title, threshold)),
@@ -294,7 +264,10 @@ impl PdmDashboard {
         Panel::new()
             .flex(1.0)
             .width(300)
-            .title(self.create_title_with_icon("database", tr!("Backup Server Datastores")))
+            .title(create_title_with_icon(
+                "database",
+                tr!("Backup Server Datastores"),
+            ))
             .border(true)
             .with_child(PbsDatastoresPanel::new(pbs_datastores))
     }
@@ -499,7 +472,7 @@ impl Component for PdmDashboard {
                     .padding_top(0)
                     .with_child(
                         Panel::new()
-                            .title(self.create_title_with_icon("server", tr!("Remotes")))
+                            .title(create_title_with_icon("server", tr!("Remotes")))
                             .flex(1.0)
                             //.border(true)
                             .width(300)
@@ -530,8 +503,16 @@ impl Component for PdmDashboard {
                         tr!("Virtual Environment Nodes"),
                         RemoteType::Pve,
                     ))
-                    .with_child(self.create_guest_panel(GuestType::Qemu))
-                    .with_child(self.create_guest_panel(GuestType::Lxc))
+                    .with_child(
+                        create_guest_panel(Some(GuestType::Qemu), self.status.clone())
+                            .flex(1.0)
+                            .width(300),
+                    )
+                    .with_child(
+                        create_guest_panel(Some(GuestType::Lxc), self.status.clone())
+                            .flex(1.0)
+                            .width(300),
+                    )
                     .with_child(self.create_node_panel(
                         "building-o",
                         tr!("Backup Server Nodes"),
@@ -681,4 +662,14 @@ fn loading_column() -> Column {
         .class(JustifyContent::Center)
         .class(AlignItems::Center)
         .with_child(html! {<i class={"pwt-loading-icon"} />})
+}
+
+/// Create a consistent title component for the given title and icon
+pub fn create_title_with_icon(icon: &str, title: String) -> Html {
+    Row::new()
+        .class(AlignItems::Center)
+        .gap(2)
+        .with_child(Fa::new(icon))
+        .with_child(title)
+        .into()
 }
