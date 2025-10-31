@@ -294,6 +294,9 @@ impl Component for ProxmoxTaskSummary {
                     .striped(false)
                     .borderless(true)
                     .hover(true)
+                    // these change the layout logic, which is necessary for the dashboards flex
+                    // layout
+                    .virtual_scroll(false)
                     .show_header(false),
             )
             .with_optional_child(tasks)
