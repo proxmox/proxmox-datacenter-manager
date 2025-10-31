@@ -50,7 +50,7 @@ mod pbs_datastores_panel;
 use pbs_datastores_panel::PbsDatastoresPanel;
 
 mod tasks;
-use tasks::create_task_summary_panel;
+use tasks::{create_task_summary_panel, get_task_options};
 
 pub mod types;
 
@@ -60,8 +60,7 @@ pub use refresh_config_edit::{
     create_refresh_config_edit_window, refresh_config_id, RefreshConfig,
 };
 use refresh_config_edit::{
-    DEFAULT_MAX_AGE_S, DEFAULT_REFRESH_INTERVAL_S, DEFAULT_TASK_SUMMARY_HOURS,
-    FORCE_RELOAD_MAX_AGE_S, INITIAL_MAX_AGE_S,
+    DEFAULT_MAX_AGE_S, DEFAULT_REFRESH_INTERVAL_S, FORCE_RELOAD_MAX_AGE_S, INITIAL_MAX_AGE_S,
 };
 
 #[derive(Properties, PartialEq)]
@@ -147,7 +146,7 @@ impl PdmDashboard {
 
     fn do_reload(&mut self, ctx: &yew::Context<Self>, max_age: u64) {
         let link = ctx.link().clone();
-        let (_, since) = Self::get_task_options(&self.config);
+        let (_, since) = get_task_options(self.config.task_last_hours);
 
         self.load_finished_time = None;
         self.async_pool.spawn(async move {
@@ -186,12 +185,6 @@ impl PdmDashboard {
             join!(top_entities_future, status_future, statistics_future);
             link.send_message(Msg::LoadingFinished(LoadingResult::All));
         });
-    }
-
-    fn get_task_options(config: &PersistentState<RefreshConfig>) -> (u32, i64) {
-        let hours = config.task_last_hours.unwrap_or(DEFAULT_TASK_SUMMARY_HOURS);
-        let since = (Date::now() / 1000.0) as i64 - (hours * 60 * 60) as i64;
-        (hours, since)
     }
 }
 
@@ -295,9 +288,9 @@ impl Component for PdmDashboard {
                 true
             }
             Msg::UpdateConfig(dashboard_config) => {
-                let (old_hours, _) = Self::get_task_options(&self.config);
+                let (old_hours, _) = get_task_options(self.config.task_last_hours);
                 self.config.update(dashboard_config);
-                let (new_hours, _) = Self::get_task_options(&self.config);
+                let (new_hours, _) = get_task_options(self.config.task_last_hours);
 
                 if old_hours != new_hours {
                     self.reload(ctx);
@@ -310,7 +303,7 @@ impl Component for PdmDashboard {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let (hours, since) = Self::get_task_options(&self.config);
+        let (hours, since) = get_task_options(self.config.task_last_hours);
         let content = Column::new()
             .class(FlexFit)
             .with_child(

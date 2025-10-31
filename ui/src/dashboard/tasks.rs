@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use anyhow::Error;
+use js_sys::Date;
 use yew::html::Scope;
 use yew::virtual_dom::Key;
 
@@ -21,6 +22,7 @@ use pdm_api_types::TaskStatistics;
 
 use crate::dashboard::create_title_with_icon;
 use crate::dashboard::loading_column;
+use crate::dashboard::refresh_config_edit::DEFAULT_TASK_SUMMARY_HOURS;
 use crate::tasks::TaskWorkerType;
 
 use super::filtered_tasks::FilteredTasks;
@@ -327,4 +329,10 @@ pub fn create_task_summary_panel(
                 .with_optional_child((loading).then_some(loading_column()))
                 .with_optional_child(error.map(|err| error_message(&err.to_string()))),
         )
+}
+
+pub fn get_task_options(last_hours: Option<u32>) -> (u32, i64) {
+    let hours = last_hours.unwrap_or(DEFAULT_TASK_SUMMARY_HOURS);
+    let since = (Date::now() / 1000.0) as i64 - (hours * 60 * 60) as i64;
+    (hours, since)
 }
