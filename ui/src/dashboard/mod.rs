@@ -54,6 +54,8 @@ use tasks::{create_task_summary_panel, get_task_options};
 
 pub mod types;
 
+pub mod view;
+
 mod refresh_config_edit;
 pub use refresh_config_edit::{
     create_refresh_config_edit_window, refresh_config_id, RefreshConfig,

@@ -3,6 +3,7 @@ use std::{fmt::Display, rc::Rc};
 use gloo_utils::window;
 use proxmox_client::Error;
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use serde::{Deserialize, Serialize};
 use yew::{
     prelude::Html,
     virtual_dom::{VComp, VNode},
@@ -67,7 +68,8 @@ impl std::fmt::Display for Action {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum GuestType {
     Qemu,
     Lxc,
