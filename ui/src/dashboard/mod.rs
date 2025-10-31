@@ -443,10 +443,14 @@ impl Component for PdmDashboard {
                     .with_child(
                         create_remote_panel(
                             self.status.clone(),
-                            ctx.link()
-                                .callback(|_| Msg::CreateWizard(Some(RemoteType::Pve))),
-                            ctx.link()
-                                .callback(|_| Msg::CreateWizard(Some(RemoteType::Pbs))),
+                            Some(
+                                ctx.link()
+                                    .callback(|_| Msg::CreateWizard(Some(RemoteType::Pve))),
+                            ),
+                            Some(
+                                ctx.link()
+                                    .callback(|_| Msg::CreateWizard(Some(RemoteType::Pbs))),
+                            ),
                         )
                         .flex(1.0)
                         .width(300)

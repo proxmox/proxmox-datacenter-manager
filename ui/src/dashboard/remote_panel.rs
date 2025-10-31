@@ -117,26 +117,31 @@ fn create_search_term(failure: bool) -> Search {
 
 pub fn create_remote_panel(
     status: Option<ResourcesStatus>,
-    on_pve_wizard: impl IntoEventCallback<MenuEvent>,
-    on_pbs_wizard: impl IntoEventCallback<MenuEvent>,
+    on_pve_wizard: Option<impl IntoEventCallback<MenuEvent>>,
+    on_pbs_wizard: Option<impl IntoEventCallback<MenuEvent>>,
 ) -> Panel {
-    Panel::new()
+    let mut panel = Panel::new()
         .title(create_title_with_icon("server", tr!("Remotes")))
         .border(true)
-        .with_tool(
-            MenuButton::new(tr!("Add")).show_arrow(true).menu(
-                Menu::new()
-                    .with_item(
-                        MenuItem::new("Proxmox VE")
-                            .icon_class("fa fa-building")
-                            .on_select(on_pve_wizard),
-                    )
-                    .with_item(
-                        MenuItem::new("Proxmox Backup Server")
-                            .icon_class("fa fa-floppy-o")
-                            .on_select(on_pbs_wizard),
-                    ),
-            ),
-        )
-        .with_child(RemotePanel::new(status))
+        .with_child(RemotePanel::new(status));
+
+    if on_pve_wizard.is_some() || on_pbs_wizard.is_some() {
+        let mut menu = Menu::new();
+        if let Some(on_pve_wizard) = on_pve_wizard {
+            menu.add_item(
+                MenuItem::new("Proxmox VE")
+                    .icon_class("fa fa-building")
+                    .on_select(on_pve_wizard),
+            );
+        }
+        if let Some(on_pbs_wizard) = on_pbs_wizard {
+            menu.add_item(
+                MenuItem::new("Proxmox Backup Server")
+                    .icon_class("fa fa-floppy-o")
+                    .on_select(on_pbs_wizard),
+            );
+        }
+        panel.add_tool(MenuButton::new(tr!("Add")).show_arrow(true).menu(menu));
+    }
+    panel
 }
