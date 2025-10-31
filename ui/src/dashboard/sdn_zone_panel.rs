@@ -1,18 +1,18 @@
 use std::rc::Rc;
 
-use pdm_api_types::resource::{ResourceType, SdnStatus, SdnZoneCount};
+use pdm_api_types::resource::{ResourceType, ResourcesStatus, SdnStatus, SdnZoneCount};
 use pdm_search::{Search, SearchTerm};
 use pwt::{
     css::{self, FontColor, TextAlign},
     prelude::*,
-    widget::{Container, Fa, List, ListTile},
+    widget::{Container, Fa, List, ListTile, Panel},
 };
 use yew::{
     virtual_dom::{VComp, VNode},
     Properties,
 };
 
-use crate::search_provider::get_search_provider;
+use crate::{dashboard::create_title_with_icon, search_provider::get_search_provider};
 
 use super::loading_column;
 
@@ -154,4 +154,13 @@ fn create_sdn_zone_search_term(status: Option<SdnStatus>) -> Search {
     }
 
     Search::with_terms(terms)
+}
+
+pub fn create_sdn_panel(status: Option<ResourcesStatus>) -> Panel {
+    let sdn_zones_status = status.map(|status| status.sdn_zones);
+
+    Panel::new()
+        .title(create_title_with_icon("sdn", tr!("SDN Zones")))
+        .border(true)
+        .with_child(SdnZonePanel::new(sdn_zones_status))
 }

@@ -46,7 +46,7 @@ mod node_status_panel;
 use node_status_panel::create_node_panel;
 
 mod sdn_zone_panel;
-use sdn_zone_panel::SdnZonePanel;
+use sdn_zone_panel::create_sdn_panel;
 
 mod status_row;
 use status_row::DashboardStatusRow;
@@ -148,19 +148,6 @@ pub struct PdmDashboard {
 }
 
 impl PdmDashboard {
-    fn create_sdn_panel(&self) -> Panel {
-        let sdn_zones_status = self.status.as_ref().map(|status| status.sdn_zones.clone());
-
-        Panel::new()
-            .flex(1.0)
-            .width(200)
-            .title(create_title_with_icon("sdn", tr!("SDN Zones")))
-            .border(true)
-            .with_child(SdnZonePanel::new(
-                (!self.loading).then_some(sdn_zones_status).flatten(),
-            ))
-    }
-
     fn create_task_summary_panel(
         &self,
         statistics: &StatisticsOptions,
@@ -519,7 +506,7 @@ impl Component for PdmDashboard {
                     .class(FlexWrap::Wrap)
                     .with_child(self.create_task_summary_panel(&self.statistics, None))
                     .with_child(self.create_task_summary_panel(&self.statistics, Some(5)))
-                    .with_child(self.create_sdn_panel()),
+                    .with_child(create_sdn_panel(self.status.clone()).flex(1.0).width(200)),
             );
 
         Panel::new()
