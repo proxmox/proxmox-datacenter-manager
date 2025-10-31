@@ -45,6 +45,7 @@ pub enum Msg {
 #[doc(hidden)]
 pub struct PdmDashboardStatusRow {
     _interval: Interval,
+    loading: bool,
 }
 
 impl PdmDashboardStatusRow {
@@ -68,6 +69,7 @@ impl Component for PdmDashboardStatusRow {
     fn create(ctx: &yew::Context<Self>) -> Self {
         Self {
             _interval: Self::create_interval(ctx),
+            loading: false,
         }
     }
 
@@ -76,19 +78,24 @@ impl Component for PdmDashboardStatusRow {
         match msg {
             Msg::Reload(clicked) => {
                 props.on_reload.emit(clicked);
+                self.loading = true;
                 true
             }
         }
     }
 
-    fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
+    fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {
         self._interval = Self::create_interval(ctx);
+        let new_refresh = ctx.props().last_refresh;
+        if new_refresh.is_some() && old_props.last_refresh != new_refresh {
+            self.loading = false;
+        }
         true
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
-        let is_loading = props.last_refresh.is_none();
+        let is_loading = props.last_refresh.is_none() || self.loading;
         let on_settings_click = props.on_settings_click.clone();
         Row::new()
             .gap(1)

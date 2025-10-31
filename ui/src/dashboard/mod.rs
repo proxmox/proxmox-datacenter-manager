@@ -104,8 +104,6 @@ pub struct PdmDashboard {
     top_entities: Option<pdm_client::types::TopEntities>,
     last_top_entities_error: Option<proxmox_client::Error>,
     statistics: StatisticsOptions,
-    loaded_once: bool,
-    loading: bool,
     load_finished_time: Option<f64>,
     show_wizard: Option<RemoteType>,
     show_config_window: bool,
@@ -115,7 +113,7 @@ pub struct PdmDashboard {
 
 impl PdmDashboard {
     fn reload(&mut self, ctx: &yew::Context<Self>) {
-        let max_age = if self.loaded_once {
+        let max_age = if self.load_finished_time.is_some() {
             self.config.max_age.unwrap_or(DEFAULT_MAX_AGE_S)
         } else {
             INITIAL_MAX_AGE_S
@@ -127,7 +125,6 @@ impl PdmDashboard {
         let link = ctx.link().clone();
         let (_, since) = get_task_options(self.config.task_last_hours);
 
-        self.load_finished_time = None;
         self.async_pool.spawn(async move {
             let client = crate::pdm_client();
 
@@ -185,8 +182,6 @@ impl Component for PdmDashboard {
                 data: None,
                 error: None,
             },
-            loaded_once: false,
-            loading: true,
             load_finished_time: None,
             show_wizard: None,
             show_config_window: false,
@@ -226,9 +221,7 @@ impl Component for PdmDashboard {
                         Err(err) => self.statistics.error = Some(err),
                     },
                     LoadingResult::All => {
-                        self.loading = false;
-                        if !self.loaded_once {
-                            self.loaded_once = true;
+                        if self.load_finished_time.is_none() {
                             // immediately trigger a "normal" reload after the first load with the
                             // configured or default max-age to ensure users sees more current data.
                             ctx.link().send_message(Msg::Reload);
