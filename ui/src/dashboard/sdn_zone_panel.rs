@@ -1,10 +1,13 @@
 use std::rc::Rc;
 
+use anyhow::Error;
+
 use pdm_api_types::resource::{ResourceType, ResourcesStatus, SdnStatus, SdnZoneCount};
 use pdm_search::{Search, SearchTerm};
 use pwt::{
     css::{self, FontColor, TextAlign},
     prelude::*,
+    state::SharedState,
     widget::{Container, Fa, List, ListTile, Panel},
 };
 use yew::{
@@ -12,7 +15,7 @@ use yew::{
     Properties,
 };
 
-use crate::{dashboard::create_title_with_icon, search_provider::get_search_provider};
+use crate::{dashboard::create_title_with_icon, search_provider::get_search_provider, LoadResult};
 
 use super::loading_column;
 
@@ -156,11 +159,14 @@ fn create_sdn_zone_search_term(status: Option<SdnStatus>) -> Search {
     Search::with_terms(terms)
 }
 
-pub fn create_sdn_panel(status: Option<ResourcesStatus>) -> Panel {
-    let sdn_zones_status = status.map(|status| status.sdn_zones);
+pub fn create_sdn_panel(status: SharedState<LoadResult<ResourcesStatus, Error>>) -> Panel {
+    let sdn_zones_status = status
+        .read()
+        .data
+        .as_ref()
+        .map(|status| status.sdn_zones.clone());
 
     Panel::new()
         .title(create_title_with_icon("sdn", tr!("SDN Zones")))
-        .border(true)
         .with_child(SdnZonePanel::new(sdn_zones_status))
 }

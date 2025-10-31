@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use anyhow::Error;
 use js_sys::Date;
+use pwt::state::SharedState;
 use yew::html::Scope;
 use yew::virtual_dom::Key;
 
@@ -24,6 +25,7 @@ use crate::dashboard::create_title_with_icon;
 use crate::dashboard::loading_column;
 use crate::dashboard::refresh_config_edit::DEFAULT_TASK_SUMMARY_HOURS;
 use crate::tasks::TaskWorkerType;
+use crate::LoadResult;
 
 use super::filtered_tasks::FilteredTasks;
 
@@ -307,8 +309,7 @@ impl Component for ProxmoxTaskSummary {
 }
 
 pub fn create_task_summary_panel(
-    statistics: Option<TaskStatistics>,
-    error: Option<&Error>,
+    statistics: SharedState<LoadResult<TaskStatistics, Error>>,
     remotes: Option<u32>,
     hours: u32,
     since: i64,
@@ -317,15 +318,17 @@ pub fn create_task_summary_panel(
         Some(_count) => tr!("Task Summary Sorted by Failed Tasks (Last {0}h)", hours),
         None => tr!("Task Summary by Category (Last {0}h)", hours),
     };
-    let loading = error.is_none() && statistics.is_none();
+    let loading = !statistics.read().has_data();
+    let guard = statistics.read();
+    let data = guard.data.clone();
+    let error = guard.error.as_ref();
     Panel::new()
-        .border(true)
         .title(create_title_with_icon("list", title))
         .with_child(
             Container::new()
                 .class(css::FlexFit)
                 .padding(2)
-                .with_optional_child(statistics.map(|data| TaskSummary::new(data, since, remotes)))
+                .with_optional_child(data.map(|data| TaskSummary::new(data, since, remotes)))
                 .with_optional_child((loading).then_some(loading_column()))
                 .with_optional_child(error.map(|err| error_message(&err.to_string()))),
         )

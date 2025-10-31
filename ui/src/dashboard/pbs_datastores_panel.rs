@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use anyhow::Error;
 use yew::virtual_dom::{VComp, VNode};
 
 use pdm_api_types::resource::{PbsDatastoreStatusCount, ResourceType, ResourcesStatus};
@@ -7,10 +8,12 @@ use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::Status;
 use pwt::css::{self, TextAlign};
 use pwt::prelude::*;
+use pwt::state::SharedState;
 use pwt::widget::{Container, Fa, List, ListTile, Panel};
 
 use crate::dashboard::create_title_with_icon;
 use crate::search_provider::get_search_provider;
+use crate::LoadResult;
 
 use super::loading_column;
 
@@ -155,8 +158,14 @@ fn create_pbs_datastores_status_search_term(search_term: Option<(&str, &str)>) -
     Search::with_terms(terms)
 }
 
-pub fn create_pbs_datastores_panel(status: Option<ResourcesStatus>) -> Panel {
-    let pbs_datastores = status.map(|status| status.pbs_datastores.clone());
+pub fn create_pbs_datastores_panel(
+    status: SharedState<LoadResult<ResourcesStatus, Error>>,
+) -> Panel {
+    let pbs_datastores = status
+        .read()
+        .data
+        .as_ref()
+        .map(|status| status.pbs_datastores.clone());
 
     Panel::new()
         .title(create_title_with_icon(

@@ -1,20 +1,24 @@
 use std::rc::Rc;
 
+use anyhow::Error;
+use yew::{
+    virtual_dom::{VComp, VNode},
+    Properties,
+};
+
 use pdm_api_types::resource::{GuestStatusCount, ResourceType, ResourcesStatus};
 use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::GuestState;
 use pwt::{
     css::{self, TextAlign},
     prelude::*,
-    widget::{Container, Fa, List, ListTile, Panel},
-};
-use yew::{
-    virtual_dom::{VComp, VNode},
-    Properties,
+    state::SharedState,
+    widget::{error_message, Container, Fa, List, ListTile, Panel},
 };
 
 use crate::{
     dashboard::create_title_with_icon, pve::GuestType, search_provider::get_search_provider,
+    LoadResult,
 };
 
 use super::loading_column;
@@ -211,14 +215,23 @@ fn create_guest_search_term(
 
 /// Creates a new guest panel. Setting `guest_type` to `None` means we
 /// create one for all guests, regardless of type.
-pub fn create_guest_panel(guest_type: Option<GuestType>, status: Option<ResourcesStatus>) -> Panel {
+pub fn create_guest_panel(
+    guest_type: Option<GuestType>,
+    status: SharedState<LoadResult<ResourcesStatus, Error>>,
+) -> Panel {
     let (icon, title) = match guest_type {
         Some(GuestType::Qemu) => ("desktop", tr!("Virtual Machines")),
         Some(GuestType::Lxc) => ("cubes", tr!("Linux Container")),
         None => ("desktop", tr!("Guests")),
     };
+    let status = status.read();
     Panel::new()
         .title(create_title_with_icon(icon, title))
-        .border(true)
-        .with_child(GuestPanel::new(guest_type, status))
+        .with_child(GuestPanel::new(guest_type, status.data.clone()))
+        .with_optional_child(
+            status
+                .error
+                .as_ref()
+                .map(|err| error_message(&err.to_string())),
+        )
 }

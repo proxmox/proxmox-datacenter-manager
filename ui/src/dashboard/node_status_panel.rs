@@ -1,18 +1,21 @@
 use std::rc::Rc;
 
+use anyhow::Error;
 use yew::virtual_dom::{VComp, VNode};
 
 use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::Status;
 use pwt::css::{AlignItems, FlexFit, JustifyContent};
 use pwt::prelude::*;
-use pwt::widget::{Column, Fa, Panel};
+use pwt::state::SharedState;
+use pwt::widget::{error_message, Column, Fa, Panel};
 
 use pdm_api_types::resource::NodeStatusCount;
 use pdm_api_types::{remotes::RemoteType, resource::ResourcesStatus};
 
 use crate::dashboard::create_title_with_icon;
 use crate::search_provider::get_search_provider;
+use crate::LoadResult;
 
 use super::loading_column;
 
@@ -150,7 +153,7 @@ fn map_status(
 /// Passing `None` to `remote_type` means creating a panel for all nodes, regardless of remote type.
 pub fn create_node_panel(
     remote_type: Option<RemoteType>,
-    status: Option<ResourcesStatus>,
+    status: SharedState<LoadResult<ResourcesStatus, Error>>,
 ) -> Panel {
     let (icon, title) = match remote_type {
         Some(RemoteType::Pve) => ("building", tr!("Virtual Environment Nodes")),
@@ -158,7 +161,9 @@ pub fn create_node_panel(
         None => ("building", tr!("Nodes")),
     };
 
-    let (nodes_status, failed_remotes) = match status {
+    let status = status.read();
+
+    let (nodes_status, failed_remotes) = match &status.data {
         Some(status) => {
             let nodes_status = match remote_type {
                 Some(RemoteType::Pve) => Some(status.pve_nodes.clone()),
@@ -190,4 +195,10 @@ pub fn create_node_panel(
             nodes_status,
             failed_remotes,
         ))
+        .with_optional_child(
+            status
+                .error
+                .as_ref()
+                .map(|err| error_message(&err.to_string())),
+        )
 }

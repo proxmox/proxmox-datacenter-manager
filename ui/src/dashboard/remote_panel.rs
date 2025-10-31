@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use anyhow::Error;
 use yew::html::IntoEventCallback;
 use yew::virtual_dom::{VComp, VNode};
 
@@ -8,11 +9,13 @@ use proxmox_yew_comp::Status;
 use pwt::css;
 use pwt::prelude::*;
 use pwt::props::{ContainerBuilder, WidgetBuilder};
+use pwt::state::SharedState;
 use pwt::widget::menu::{Menu, MenuButton, MenuEvent, MenuItem};
-use pwt::widget::{Column, Container, Fa, Panel};
+use pwt::widget::{error_message, Column, Container, Fa, Panel};
 
 use pdm_api_types::resource::ResourcesStatus;
 
+use crate::LoadResult;
 use crate::{dashboard::create_title_with_icon, search_provider::get_search_provider};
 
 #[derive(Properties, PartialEq)]
@@ -116,14 +119,14 @@ fn create_search_term(failure: bool) -> Search {
 }
 
 pub fn create_remote_panel(
-    status: Option<ResourcesStatus>,
+    status: SharedState<LoadResult<ResourcesStatus, Error>>,
     on_pve_wizard: Option<impl IntoEventCallback<MenuEvent>>,
     on_pbs_wizard: Option<impl IntoEventCallback<MenuEvent>>,
 ) -> Panel {
+    let status = status.read();
     let mut panel = Panel::new()
         .title(create_title_with_icon("server", tr!("Remotes")))
-        .border(true)
-        .with_child(RemotePanel::new(status));
+        .with_child(RemotePanel::new(status.data.clone()));
 
     if on_pve_wizard.is_some() || on_pbs_wizard.is_some() {
         let mut menu = Menu::new();
@@ -143,5 +146,10 @@ pub fn create_remote_panel(
         }
         panel.add_tool(MenuButton::new(tr!("Add")).show_arrow(true).menu(menu));
     }
-    panel
+    panel.with_optional_child(
+        status
+            .error
+            .as_ref()
+            .map(|err| error_message(&err.to_string())),
+    )
 }

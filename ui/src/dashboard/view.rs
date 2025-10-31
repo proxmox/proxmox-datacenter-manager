@@ -103,37 +103,19 @@ fn render_widget(
     statistics: SharedState<LoadResult<TaskStatistics, Error>>,
     refresh_config: RefreshConfig,
 ) -> Html {
-    let status = status.read();
-    let top_entities = top_entities.read();
-    let statistics = statistics.read();
-
     let mut widget = match &item.r#type {
-        WidgetType::Nodes { remote_type } => create_node_panel(*remote_type, status.data.clone()),
-        WidgetType::Guests { guest_type } => create_guest_panel(*guest_type, status.data.clone()),
+        WidgetType::Nodes { remote_type } => create_node_panel(*remote_type, status),
+        WidgetType::Guests { guest_type } => create_guest_panel(*guest_type, status),
         WidgetType::Remotes { show_wizard } => create_remote_panel(
-            status.data.clone(),
+            status,
             show_wizard.then_some(link.callback(|_| Msg::CreateWizard(Some(RemoteType::Pve)))),
-            show_wizard.then_some(link.callback(|_| Msg::CreateWizard(Some(RemoteType::Pve)))),
+            show_wizard.then_some(link.callback(|_| Msg::CreateWizard(Some(RemoteType::Pbs)))),
         ),
-        WidgetType::PbsDatastores => create_pbs_datastores_panel(status.data.clone()),
+        WidgetType::PbsDatastores => create_pbs_datastores_panel(status),
         WidgetType::Subscription => create_subscription_panel(subscriptions),
-        WidgetType::Sdn => create_sdn_panel(status.data.clone()),
+        WidgetType::Sdn => create_sdn_panel(status),
         WidgetType::Leaderboard { leaderboard_type } => {
-            let entities = match leaderboard_type {
-                LeaderboardType::GuestCpu => top_entities
-                    .data
-                    .as_ref()
-                    .map(|entities| entities.guest_cpu.clone()),
-                LeaderboardType::NodeCpu => top_entities
-                    .data
-                    .as_ref()
-                    .map(|entities| entities.node_cpu.clone()),
-                LeaderboardType::NodeMemory => top_entities
-                    .data
-                    .as_ref()
-                    .map(|entities| entities.node_memory.clone()),
-            };
-            create_top_entities_panel(entities, top_entities.error.as_ref(), *leaderboard_type)
+            create_top_entities_panel(top_entities, *leaderboard_type)
         }
         WidgetType::TaskSummary { grouping } => {
             let remotes = match grouping {
@@ -141,13 +123,7 @@ fn render_widget(
                 TaskSummaryGrouping::Remote => Some(5),
             };
             let (hours, since) = get_task_options(refresh_config.task_last_hours);
-            create_task_summary_panel(
-                statistics.data.clone(),
-                statistics.error.as_ref(),
-                remotes,
-                hours,
-                since,
-            )
+            create_task_summary_panel(statistics, remotes, hours, since)
         }
     };
 
