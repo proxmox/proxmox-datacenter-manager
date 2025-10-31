@@ -57,7 +57,7 @@ mod pbs_datastores_panel;
 use pbs_datastores_panel::PbsDatastoresPanel;
 
 mod tasks;
-use tasks::TaskSummary;
+use tasks::create_task_summary_panel;
 
 /// The initial 'max-age' parameter in seconds. The backend polls every 15 minutes, so to increase
 /// the chance of showing some data quickly use that as max age at the very first load.
@@ -148,44 +148,6 @@ pub struct PdmDashboard {
 }
 
 impl PdmDashboard {
-    fn create_task_summary_panel(
-        &self,
-        statistics: &StatisticsOptions,
-        remotes: Option<u32>,
-    ) -> Panel {
-        let (hours, since) = Self::get_task_options(&self.config);
-        let title = match remotes {
-            Some(_count) => tr!("Task Summary Sorted by Failed Tasks (Last {0}h)", hours),
-            None => tr!("Task Summary by Category (Last {0}h)", hours),
-        };
-        Panel::new()
-            .flex(1.0)
-            .width(500)
-            .border(true)
-            .title(create_title_with_icon("list", title))
-            .with_child(
-                Container::new()
-                    .class(FlexFit)
-                    .padding(2)
-                    .with_optional_child(
-                        statistics
-                            .data
-                            .clone()
-                            .map(|data| TaskSummary::new(data, since, remotes)),
-                    )
-                    .with_optional_child(
-                        (statistics.error.is_none() && statistics.data.is_none())
-                            .then_some(loading_column()),
-                    )
-                    .with_optional_child(
-                        statistics
-                            .error
-                            .as_ref()
-                            .map(|err| error_message(&err.to_string())),
-                    ),
-            )
-    }
-
     fn create_top_entities_panel(
         &self,
         icon: &str,
@@ -403,6 +365,7 @@ impl Component for PdmDashboard {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
+        let (hours, since) = Self::get_task_options(&self.config);
         let content = Column::new()
             .class(FlexFit)
             .with_child(
@@ -504,8 +467,28 @@ impl Component for PdmDashboard {
                     .style("padding-top", "0")
                     .class(pwt::css::Flex::Fill)
                     .class(FlexWrap::Wrap)
-                    .with_child(self.create_task_summary_panel(&self.statistics, None))
-                    .with_child(self.create_task_summary_panel(&self.statistics, Some(5)))
+                    .with_child(
+                        create_task_summary_panel(
+                            self.statistics.data.clone(),
+                            self.statistics.error.as_ref(),
+                            None,
+                            hours,
+                            since,
+                        )
+                        .flex(1.0)
+                        .width(500),
+                    )
+                    .with_child(
+                        create_task_summary_panel(
+                            self.statistics.data.clone(),
+                            self.statistics.error.as_ref(),
+                            Some(5),
+                            hours,
+                            since,
+                        )
+                        .flex(1.0)
+                        .width(500),
+                    )
                     .with_child(create_sdn_panel(self.status.clone()).flex(1.0).width(200)),
             );
 
