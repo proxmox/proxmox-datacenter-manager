@@ -34,6 +34,7 @@ use crate::{pdm_client, LoadResult};
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::resource::ResourcesStatus;
+use pdm_api_types::subscription::RemoteSubscriptions;
 use pdm_api_types::TaskStatistics;
 use pdm_client::types::TopEntities;
 
@@ -62,6 +63,7 @@ pub enum LoadingResult {
     Resources(Result<ResourcesStatus, Error>),
     TopEntities(Result<pdm_client::types::TopEntities, proxmox_client::Error>),
     TaskStatistics(Result<TaskStatistics, Error>),
+    SubscriptionInfo(Result<Vec<RemoteSubscriptions>, Error>),
     All,
 }
 
@@ -81,6 +83,7 @@ struct ViewComp {
     status: SharedState<LoadResult<ResourcesStatus, Error>>,
     top_entities: SharedState<LoadResult<TopEntities, proxmox_client::Error>>,
     statistics: SharedState<LoadResult<TaskStatistics, Error>>,
+    subscriptions: SharedState<LoadResult<Vec<RemoteSubscriptions>, Error>>,
 
     refresh_config: PersistentState<RefreshConfig>,
 
@@ -95,6 +98,7 @@ fn render_widget(
     link: yew::html::Scope<ViewComp>,
     item: &RowWidget,
     status: SharedState<LoadResult<ResourcesStatus, Error>>,
+    subscriptions: SharedState<LoadResult<Vec<RemoteSubscriptions>, Error>>,
     top_entities: SharedState<LoadResult<TopEntities, proxmox_client::Error>>,
     statistics: SharedState<LoadResult<TaskStatistics, Error>>,
     refresh_config: RefreshConfig,
@@ -112,7 +116,7 @@ fn render_widget(
             show_wizard.then_some(link.callback(|_| Msg::CreateWizard(Some(RemoteType::Pve)))),
         ),
         WidgetType::PbsDatastores => create_pbs_datastores_panel(status.data.clone()),
-        WidgetType::Subscription => create_subscription_panel(),
+        WidgetType::Subscription => create_subscription_panel(subscriptions),
         WidgetType::Sdn => create_sdn_panel(status.data.clone()),
         WidgetType::Leaderboard { leaderboard_type } => {
             let entities = match leaderboard_type {
@@ -200,7 +204,12 @@ impl ViewComp {
                     }
                 };
 
-                join!(status_future, entities_future, tasks_future);
+                let subs_future = async {
+                    let res = http_get("/resources/subscription", None).await;
+                    link.send_message(Msg::LoadingResult(LoadingResult::SubscriptionInfo(res)));
+                };
+
+                join!(status_future, entities_future, tasks_future, subs_future);
                 link.send_message(Msg::LoadingResult(LoadingResult::All));
             });
         } else {
@@ -279,6 +288,7 @@ impl Component for ViewComp {
             status: SharedState::new(LoadResult::new()),
             top_entities: SharedState::new(LoadResult::new()),
             statistics: SharedState::new(LoadResult::new()),
+            subscriptions: SharedState::new(LoadResult::new()),
 
             refresh_config,
             load_finished_time: None,
@@ -301,6 +311,9 @@ impl Component for ViewComp {
                 }
                 LoadingResult::TaskStatistics(task_statistics) => {
                     self.statistics.write().update(task_statistics)
+                }
+                LoadingResult::SubscriptionInfo(subscriptions) => {
+                    self.subscriptions.write().update(subscriptions);
                 }
                 LoadingResult::All => {
                     self.loading = false;
@@ -372,7 +385,7 @@ impl Component for ViewComp {
             view.add_child(
                 Row::new()
                     .class("pwt-content-spacer")
-                    .with_child(create_subscription_panel()),
+                    .with_child(create_subscription_panel(self.subscriptions.clone())),
             );
         }
         match self.template.data.as_ref().map(|template| &template.layout) {
@@ -380,6 +393,7 @@ impl Component for ViewComp {
                 view.add_child(RowView::new(rows.clone(), {
                     let link = ctx.link().clone();
                     let status = self.status.clone();
+                    let subscriptions = self.subscriptions.clone();
                     let top_entities = self.top_entities.clone();
                     let statistics = self.statistics.clone();
                     let refresh_config = self.refresh_config.clone();
@@ -388,6 +402,7 @@ impl Component for ViewComp {
                             link.clone(),
                             widget,
                             status.clone(),
+                            subscriptions.clone(),
                             top_entities.clone(),
                             statistics.clone(),
                             refresh_config.clone(),

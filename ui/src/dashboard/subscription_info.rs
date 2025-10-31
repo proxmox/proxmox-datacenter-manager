@@ -7,31 +7,30 @@ use yew::{
     Component, Html, Properties,
 };
 
-use proxmox_yew_comp::{http_get, Status};
+use proxmox_yew_comp::Status;
+use pwt::prelude::*;
+use pwt::widget::{Column, Container, Fa, Panel, Row};
 use pwt::{
     css::{AlignItems, FlexFit, JustifyContent, TextAlign},
-    prelude::tr,
-    props::{ContainerBuilder, CssBorderBuilder, CssPaddingBuilder, WidgetBuilder},
-    widget::{Column, Container, Fa, Panel, Row},
-    AsyncPool,
+    state::SharedState,
 };
 
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 
+use crate::LoadResult;
+
 #[derive(Properties, PartialEq)]
-pub struct SubscriptionInfo {}
+pub struct SubscriptionInfo {
+    subs: Option<Vec<RemoteSubscriptions>>,
+}
 
 impl SubscriptionInfo {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(subs: Option<Vec<RemoteSubscriptions>>) -> Self {
+        Self { subs }
     }
 }
 
-struct PdmSubscriptionInfo {
-    status: Vec<RemoteSubscriptions>,
-    loading: bool,
-    _async_pool: AsyncPool,
-}
+struct PdmSubscriptionInfo {}
 
 fn render_subscription_status(subs: &[RemoteSubscriptions]) -> Row {
     let mut none = 0;
@@ -98,52 +97,31 @@ fn render_subscription_status(subs: &[RemoteSubscriptions]) -> Row {
 }
 
 impl Component for PdmSubscriptionInfo {
-    type Message = Result<Vec<RemoteSubscriptions>, Error>;
-
+    type Message = ();
     type Properties = SubscriptionInfo;
 
-    fn create(ctx: &yew::Context<Self>) -> Self {
-        let link = ctx.link().clone();
-        let mut _async_pool = AsyncPool::new();
-        _async_pool.spawn(async move {
-            let result = http_get("/resources/subscription", None).await;
-            link.send_message(result);
-        });
-
-        Self {
-            status: Vec::new(),
-            loading: true,
-            _async_pool,
-        }
+    fn create(_ctx: &yew::Context<Self>) -> Self {
+        Self {}
     }
 
-    fn update(&mut self, _ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            Ok(result) => {
-                self.status = result;
-            }
-            Err(_) => self.status = Vec::new(),
-        }
-
-        self.loading = false;
-
-        true
-    }
-
-    fn view(&self, _ctx: &yew::Context<Self>) -> yew::Html {
+    fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
+        let props = ctx.props();
         Column::new()
             .class(FlexFit)
             .class(JustifyContent::Center)
             .class(AlignItems::Center)
             .with_optional_child(
-                self.loading.then_some(
+                props.subs.is_none().then_some(
                     Container::new()
                         .padding(4)
                         .with_child(Container::from_tag("i").class("pwt-loading-icon")),
                 ),
             )
             .with_optional_child(
-                (!self.loading).then_some(render_subscription_status(&self.status)),
+                props
+                    .subs
+                    .as_ref()
+                    .map(|subs| render_subscription_status(subs)),
             )
             .into()
     }
@@ -156,7 +134,9 @@ impl From<SubscriptionInfo> for VNode {
     }
 }
 
-pub fn create_subscription_panel() -> Panel {
+pub fn create_subscription_panel(
+    subs: SharedState<LoadResult<Vec<RemoteSubscriptions>, Error>>,
+) -> Panel {
     let title: Html = Row::new()
         .class(AlignItems::Center)
         .gap(2)
@@ -167,5 +147,5 @@ pub fn create_subscription_panel() -> Panel {
     Panel::new()
         .title(title)
         .border(true)
-        .with_child(SubscriptionInfo::new())
+        .with_child(SubscriptionInfo::new(subs.read().data.clone()))
 }
