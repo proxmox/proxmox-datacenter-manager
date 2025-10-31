@@ -19,6 +19,7 @@ use pdm_api_types::{resource::PveLxcResource, rrddata::LxcDataPoint};
 use pdm_client::types::{IsRunning, LxcStatus};
 
 use crate::renderer::{separator, status_row};
+use crate::LoadResult;
 
 #[derive(Clone, Debug, Properties, PartialEq)]
 pub struct LxcOverviewPanel {
@@ -56,8 +57,7 @@ pub enum Msg {
 }
 
 pub struct LxcanelComp {
-    status: Option<LxcStatus>,
-    last_status_error: Option<proxmox_client::Error>,
+    status: LoadResult<LxcStatus, proxmox_client::Error>,
     last_rrd_error: Option<proxmox_client::Error>,
     _status_timeout: Option<Timeout>,
     _rrd_timeout: Option<Timeout>,
@@ -104,12 +104,11 @@ impl yew::Component for LxcanelComp {
         ctx.link()
             .send_message_batch(vec![Msg::ReloadStatus, Msg::ReloadRrd]);
         Self {
-            status: None,
+            status: LoadResult::new(),
             _status_timeout: None,
             _rrd_timeout: None,
             _async_pool: AsyncPool::new(),
             last_rrd_error: None,
-            last_status_error: None,
 
             rrd_time_frame: RRDTimeframe::load(),
 
@@ -144,15 +143,7 @@ impl yew::Component for LxcanelComp {
                 false
             }
             Msg::StatusResult(res) => {
-                match res {
-                    Ok(status) => {
-                        self.last_status_error = None;
-                        self.status = Some(status);
-                    }
-                    Err(err) => {
-                        self.last_status_error = Some(err);
-                    }
-                }
+                self.status.update(res);
 
                 self._status_timeout = Some(Timeout::new(props.status_interval, move || {
                     link.send_message(Msg::ReloadStatus)
@@ -211,8 +202,7 @@ impl yew::Component for LxcanelComp {
         let props = ctx.props();
 
         if props.remote != old_props.remote || props.info != old_props.info {
-            self.status = None;
-            self.last_status_error = None;
+            self.status = LoadResult::new();
             self.last_rrd_error = None;
 
             self.time = Rc::new(Vec::new());
@@ -236,7 +226,7 @@ impl yew::Component for LxcanelComp {
         let props = ctx.props();
 
         let mut status_comp = Column::new().gap(2).padding(4);
-        let status = match &self.status {
+        let status = match &self.status.data {
             Some(status) => status,
             None => &LxcStatus {
                 cpu: Some(props.info.cpu),
@@ -319,16 +309,14 @@ impl yew::Component for LxcanelComp {
             HumanByte::from(status.maxdisk.unwrap_or_default() as u64).to_string(),
         ));
 
-        let loading = self.status.is_none() && self.last_status_error.is_none();
-
         Panel::new()
             .class(FlexFit)
             .class(ColorScheme::Neutral)
             .with_child(
                 // FIXME: add some 'visible' or 'active' property to the progress
                 Progress::new()
-                    .value((!loading).then_some(0.0))
-                    .style("opacity", (!loading).then_some("0")),
+                    .value(self.status.has_data().then_some(0.0))
+                    .style("opacity", self.status.has_data().then_some("0")),
             )
             .with_child(status_comp)
             .with_child(separator().padding_x(4))

@@ -39,6 +39,9 @@ pub mod sdn;
 
 pub mod renderer;
 
+mod load_result;
+pub use load_result::LoadResult;
+
 mod tasks;
 pub use tasks::register_pve_tasks;
 

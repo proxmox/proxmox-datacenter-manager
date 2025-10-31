@@ -17,7 +17,7 @@ use pwt::{
 use pdm_api_types::rrddata::NodeDataPoint;
 use pdm_client::types::NodeStatus;
 
-use crate::renderer::separator;
+use crate::{renderer::separator, LoadResult};
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
 pub struct NodeOverviewPanel {
@@ -62,12 +62,11 @@ pub struct NodeOverviewPanelComp {
     load_data: Rc<Series>,
     mem_data: Rc<Series>,
     mem_total_data: Rc<Series>,
-    status: Option<NodeStatus>,
+    status: LoadResult<NodeStatus, proxmox_client::Error>,
 
     rrd_time_frame: RRDTimeframe,
 
     last_error: Option<proxmox_client::Error>,
-    last_status_error: Option<proxmox_client::Error>,
 
     async_pool: AsyncPool,
     _timeout: Option<gloo_timers::callback::Timeout>,
@@ -103,9 +102,8 @@ impl yew::Component for NodeOverviewPanelComp {
             mem_data: Rc::new(Series::new("", Vec::new())),
             mem_total_data: Rc::new(Series::new("", Vec::new())),
             rrd_time_frame: RRDTimeframe::load(),
-            status: None,
+            status: LoadResult::new(),
             last_error: None,
-            last_status_error: None,
             async_pool: AsyncPool::new(),
             _timeout: None,
             _status_timeout: None,
@@ -165,13 +163,7 @@ impl yew::Component for NodeOverviewPanelComp {
                 Err(err) => self.last_error = Some(err),
             },
             Msg::StatusLoadFinished(res) => {
-                match res {
-                    Ok(status) => {
-                        self.last_status_error = None;
-                        self.status = Some(status);
-                    }
-                    Err(err) => self.last_status_error = Some(err),
-                }
+                self.status.update(res);
                 let link = ctx.link().clone();
                 self._status_timeout = Some(gloo_timers::callback::Timeout::new(
                     ctx.props().status_interval,
@@ -191,8 +183,7 @@ impl yew::Component for NodeOverviewPanelComp {
         let props = ctx.props();
 
         if props.remote != old_props.remote || props.node != old_props.node {
-            self.status = None;
-            self.last_status_error = None;
+            self.status = LoadResult::new();
             self.last_error = None;
             self.time_data = Rc::new(Vec::new());
             self.cpu_data = Rc::new(Series::new("", Vec::new()));
@@ -209,20 +200,20 @@ impl yew::Component for NodeOverviewPanelComp {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let status_comp = node_info(self.status.as_ref().map(|s| s.into()));
-        let loading = self.status.is_none() && self.last_status_error.is_none();
+        let status_comp = node_info(self.status.data.as_ref().map(|s| s.into()));
         Container::new()
             .class(FlexFit)
             .class(ColorScheme::Neutral)
             .with_child(
                 // FIXME: add some 'visible' or 'active' property to the progress
                 Progress::new()
-                    .value((!loading).then_some(0.0))
-                    .style("opacity", (!loading).then_some("0")),
+                    .value(self.status.has_data().then_some(0.0))
+                    .style("opacity", self.status.has_data().then_some("0")),
             )
             .with_child(status_comp)
             .with_optional_child(
-                self.last_status_error
+                self.status
+                    .error
                     .as_ref()
                     .map(|err| error_message(&err.to_string())),
             )
