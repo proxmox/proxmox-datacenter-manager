@@ -470,7 +470,7 @@ impl Component for PdmDashboard {
                             .with_child(RemotePanel::new(self.status.clone())),
                     )
                     .with_child(
-                        create_node_panel(RemoteType::Pve, self.status.clone())
+                        create_node_panel(Some(RemoteType::Pve), self.status.clone())
                             .flex(1.0)
                             .width(300),
                     )
@@ -485,7 +485,7 @@ impl Component for PdmDashboard {
                             .width(300),
                     )
                     .with_child(
-                        create_node_panel(RemoteType::Pbs, self.status.clone())
+                        create_node_panel(Some(RemoteType::Pbs), self.status.clone())
                             .flex(1.0)
                             .width(300),
                     )

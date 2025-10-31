@@ -18,14 +18,17 @@ use super::loading_column;
 
 #[derive(PartialEq, Clone, Properties)]
 pub struct NodeStatusPanel {
-    remote_type: RemoteType,
+    remote_type: Option<RemoteType>,
     status: Option<NodeStatusCount>,
     failed_remotes: usize,
 }
 
 impl NodeStatusPanel {
+    /// Create a node status panel.
+    ///
+    /// Passing `None` to `remote_type` means creating a panel for all nodes, regardless of remote type.
     pub fn new(
-        remote_type: RemoteType,
+        remote_type: Option<RemoteType>,
         status: Option<NodeStatusCount>,
         failed_remotes: usize,
     ) -> Self {
@@ -95,13 +98,14 @@ impl yew::Component for NodeStatusPanelComponent {
 
 fn map_status(
     status: &NodeStatusCount,
-    remote_type: RemoteType,
+    remote_type: Option<RemoteType>,
     failed_remotes: usize,
 ) -> (Fa, String, Vec<SearchTerm>) {
-    let mut search_terms = vec![
-        SearchTerm::new("node").category(Some("type")),
-        SearchTerm::new(remote_type.to_string()).category(Some("remote-type")),
-    ];
+    let mut search_terms = vec![SearchTerm::new("node").category(Some("type"))];
+
+    if let Some(remote_type) = remote_type {
+        search_terms.push(SearchTerm::new(remote_type.to_string()).category(Some("remote-type")));
+    }
     let (icon, status_msg) = match status {
         NodeStatusCount {
             online,
@@ -126,11 +130,11 @@ fn map_status(
             )
         }
         NodeStatusCount { online, .. } if failed_remotes > 0 => match remote_type {
-            RemoteType::Pve => (
+            Some(RemoteType::Pve) | None => (
                 Status::Unknown.into(),
                 tr!("{0} of an unknown number of nodes online", online),
             ),
-            RemoteType::Pbs => (
+            Some(RemoteType::Pbs) => (
                 Status::Error.into(),
                 tr!("{0} remotes failed", failed_remotes),
             ),
@@ -141,22 +145,37 @@ fn map_status(
     (icon, status_msg, search_terms)
 }
 
-pub fn create_node_panel(remote_type: RemoteType, status: Option<ResourcesStatus>) -> Panel {
+/// Create a node status panel.
+///
+/// Passing `None` to `remote_type` means creating a panel for all nodes, regardless of remote type.
+pub fn create_node_panel(
+    remote_type: Option<RemoteType>,
+    status: Option<ResourcesStatus>,
+) -> Panel {
     let (icon, title) = match remote_type {
-        RemoteType::Pve => ("building", tr!("Virtual Environment Nodes")),
-        RemoteType::Pbs => ("building-o", tr!("Backup Server Nodes")),
+        Some(RemoteType::Pve) => ("building", tr!("Virtual Environment Nodes")),
+        Some(RemoteType::Pbs) => ("building-o", tr!("Backup Server Nodes")),
+        None => ("building", tr!("Nodes")),
     };
 
     let (nodes_status, failed_remotes) = match status {
         Some(status) => {
             let nodes_status = match remote_type {
-                RemoteType::Pve => Some(status.pve_nodes.clone()),
-                RemoteType::Pbs => Some(status.pbs_nodes.clone()),
+                Some(RemoteType::Pve) => Some(status.pve_nodes.clone()),
+                Some(RemoteType::Pbs) => Some(status.pbs_nodes.clone()),
+                None => Some(NodeStatusCount {
+                    online: status.pve_nodes.online + status.pbs_nodes.online,
+                    offline: status.pve_nodes.offline + status.pbs_nodes.offline,
+                    unknown: status.pve_nodes.unknown + status.pbs_nodes.unknown,
+                }),
             };
             let failed_remotes = status
                 .failed_remotes_list
                 .iter()
-                .filter(|item| item.remote_type == remote_type)
+                .filter(|item| match remote_type {
+                    Some(remote_type) => item.remote_type == remote_type,
+                    None => true,
+                })
                 .count();
             (nodes_status, failed_remotes)
         }
