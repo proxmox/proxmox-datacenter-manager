@@ -1,30 +1,25 @@
-use std::{collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 use anyhow::Error;
 use futures::join;
 use js_sys::Date;
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 use yew::{
     virtual_dom::{VComp, VNode},
     Component,
 };
 
-use proxmox_yew_comp::{http_get, EditWindow};
+use proxmox_yew_comp::http_get;
 use pwt::{
     css::{AlignItems, FlexDirection, FlexFit, FlexWrap, JustifyContent},
     prelude::*,
     props::StorageLocation,
     state::PersistentState,
-    widget::{
-        form::{DisplayField, FormContext, Number},
-        Column, Container, Fa, InputPanel, Panel, Row,
-    },
+    widget::{form::FormContext, Column, Container, Fa, Panel, Row},
     AsyncPool,
 };
 
 use pdm_api_types::{remotes::RemoteType, resource::ResourcesStatus, TaskStatistics};
-use proxmox_client::ApiResponseData;
 
 use crate::{pve::GuestType, remotes::AddWizard, RemoteList};
 
@@ -59,28 +54,15 @@ use tasks::create_task_summary_panel;
 
 pub mod types;
 
-/// The initial 'max-age' parameter in seconds. The backend polls every 15 minutes, so to increase
-/// the chance of showing some data quickly use that as max age at the very first load.
-pub const INITIAL_MAX_AGE_S: u64 = 900;
 
-/// The 'max-age' parameter in seconds for when user forces a reload. Do not use 0 as the data will
-/// never be realtime anyway, with 5s we get very current data while avoiding that one or more
-/// "fidgety" users put unbounded load onto the remotes.
-pub const FORCE_RELOAD_MAX_AGE_S: u64 = 3;
-
-/// The default 'max-age' parameter in seconds. The backend polls every 15 minutes, but if a user
-/// has the dashboard active for a longer time it's beneficial to refresh a bit more often, forcing
-/// new data twice a minute is a good compromise.
-pub const DEFAULT_MAX_AGE_S: u64 = 30;
-
-/// The default refresh interval, we poll more frequently than the default max-age to quicker show
-/// any new data that was gathered either by the backend polling tasks or by a manual update
-/// triggered by another user.
-pub const DEFAULT_REFRESH_INTERVAL_S: u32 = 10;
-
-/// The default hours to show for task summaries. Use 2 days to ensure that all tasks from yesterday
-/// are included independent from the time a user checks the dashboard on the current day.
-pub const DEFAULT_TASK_SUMMARY_HOURS: u32 = 48;
+mod refresh_config_edit;
+pub use refresh_config_edit::{
+    create_refresh_config_edit_window, refresh_config_id, RefreshConfig,
+};
+use refresh_config_edit::{
+    DEFAULT_MAX_AGE_S, DEFAULT_REFRESH_INTERVAL_S, DEFAULT_TASK_SUMMARY_HOURS,
+    FORCE_RELOAD_MAX_AGE_S, INITIAL_MAX_AGE_S,
+};
 
 #[derive(Properties, PartialEq)]
 pub struct Dashboard {}
@@ -97,17 +79,6 @@ impl Default for Dashboard {
     }
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
-#[serde(rename_all = "kebab-case")]
-pub struct DashboardConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    refresh_interval: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_age: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    task_last_hours: Option<u32>,
-}
-
 pub enum LoadingResult {
     Resources(Result<ResourcesStatus, Error>),
     TopEntities(Result<pdm_client::types::TopEntities, proxmox_client::Error>),
@@ -121,7 +92,7 @@ pub enum Msg {
     CreateWizard(Option<RemoteType>),
     Reload,
     ForceReload,
-    UpdateConfig(DashboardConfig),
+    UpdateConfig(RefreshConfig),
     ConfigWindow(bool),
 }
 
@@ -144,7 +115,7 @@ pub struct PdmDashboard {
     show_config_window: bool,
     _context_listener: ContextHandle<RemoteList>,
     async_pool: AsyncPool,
-    config: PersistentState<DashboardConfig>,
+    config: PersistentState<RefreshConfig>,
 }
 
 impl PdmDashboard {
@@ -217,7 +188,7 @@ impl PdmDashboard {
         });
     }
 
-    fn get_task_options(config: &PersistentState<DashboardConfig>) -> (u32, i64) {
+    fn get_task_options(config: &PersistentState<RefreshConfig>) -> (u32, i64) {
         let hours = config.task_last_hours.unwrap_or(DEFAULT_TASK_SUMMARY_HOURS);
         let since = (Date::now() / 1000.0) as i64 - (hours * 60 * 60) as i64;
         (hours, since)
@@ -229,8 +200,8 @@ impl Component for PdmDashboard {
     type Properties = Dashboard;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
-        let config: PersistentState<DashboardConfig> =
-            PersistentState::new(StorageLocation::local("dashboard-config"));
+        let config: PersistentState<RefreshConfig> =
+            PersistentState::new(StorageLocation::local(refresh_config_id("dashboard")));
         let async_pool = AsyncPool::new();
 
         let (remote_list, _context_listener) = ctx
@@ -483,75 +454,21 @@ impl Component for PdmDashboard {
         Panel::new()
             .class(FlexFit)
             .with_child(content)
-            .with_optional_child(
-                self.show_wizard.map(|remote_type| {
-                    AddWizard::new(remote_type)
-                        .on_close(ctx.link().callback(|_| Msg::CreateWizard(None)))
-                        .on_submit(move |ctx| {
-                            crate::remotes::create_remote(ctx, remote_type)
-                        })
-                }),
-            )
+            .with_optional_child(self.show_wizard.map(|remote_type| {
+                AddWizard::new(remote_type)
+                    .on_close(ctx.link().callback(|_| Msg::CreateWizard(None)))
+                    .on_submit(move |ctx| crate::remotes::create_remote(ctx, remote_type))
+            }))
             .with_optional_child(
                 self.show_config_window.then_some(
-                    EditWindow::new(tr!("Dashboard Configuration"))
-                        .submit_text(tr!("Save"))
-                        .loader({
-                            || {
-                                let data: PersistentState<DashboardConfig> = PersistentState::new(
-                                    StorageLocation::local("dashboard-config"),
-                                );
-
-                                async move {
-                                    let data = serde_json::to_value(data.into_inner())?;
-                                    Ok(ApiResponseData {
-                                        attribs: HashMap::new(),
-                                        data,
-                                    })
-                                }
-                            }
-                        })
-                        .renderer(|_ctx: &FormContext| {
-                            InputPanel::new()
-                                .width(600)
-                                .padding(2)
-                                .with_field(
-                                    tr!("Refresh Interval (seconds)"),
-                                    Number::new()
-                                        .name("refresh-interval")
-                                        .min(5u64)
-                                        .step(5)
-                                        .placeholder(DEFAULT_REFRESH_INTERVAL_S.to_string()),
-                                )
-                                .with_field(
-                                    tr!("Max Age (seconds)"),
-                                    Number::new()
-                                        .name("max-age")
-                                        .min(0u64)
-                                        .step(5)
-                                        .placeholder(DEFAULT_MAX_AGE_S.to_string()),
-                                )
-                                .with_field(
-                                    "",
-                                    DisplayField::new()
-                                        .key("max-age-explanation")
-                                        .value(tr!("If a response from a remote is older than 'Max Age', it will be updated on the next refresh.")))
-                                .with_field(
-                                    tr!("Task Summary Time Range (last hours)"),
-                                    Number::new()
-                                        .name("task-last-hours")
-                                        .min(0u64)
-                                        .placeholder(DEFAULT_TASK_SUMMARY_HOURS.to_string()),
-                                )
-                                .into()
-                        })
+                    create_refresh_config_edit_window("dashboard")
                         .on_close(ctx.link().callback(|_| Msg::ConfigWindow(false)))
                         .on_submit({
                             let link = ctx.link().clone();
                             move |ctx: FormContext| {
                                 let link = link.clone();
                                 async move {
-                                    let data: DashboardConfig =
+                                    let data: RefreshConfig =
                                         serde_json::from_value(ctx.get_submit_data())?;
                                     link.send_message(Msg::UpdateConfig(data));
                                     Ok(())
