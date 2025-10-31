@@ -1,21 +1,19 @@
 use std::rc::Rc;
 
+use yew::html::IntoEventCallback;
+use yew::virtual_dom::{VComp, VNode};
+
 use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::Status;
-use pwt::{
-    css,
-    prelude::*,
-    props::{ContainerBuilder, WidgetBuilder},
-    widget::{Column, Container, Fa},
-};
-use yew::{
-    virtual_dom::{VComp, VNode},
-    Component, Properties,
-};
+use pwt::css;
+use pwt::prelude::*;
+use pwt::props::{ContainerBuilder, WidgetBuilder};
+use pwt::widget::menu::{Menu, MenuButton, MenuEvent, MenuItem};
+use pwt::widget::{Column, Container, Fa, Panel};
 
 use pdm_api_types::resource::ResourcesStatus;
 
-use crate::search_provider::get_search_provider;
+use crate::{dashboard::create_title_with_icon, search_provider::get_search_provider};
 
 #[derive(Properties, PartialEq)]
 /// A panel for showing the overall remotes status
@@ -115,4 +113,30 @@ fn create_search_term(failure: bool) -> Search {
     } else {
         Search::with_terms(vec![SearchTerm::new("remote").category(Some("type"))])
     }
+}
+
+pub fn create_remote_panel(
+    status: Option<ResourcesStatus>,
+    on_pve_wizard: impl IntoEventCallback<MenuEvent>,
+    on_pbs_wizard: impl IntoEventCallback<MenuEvent>,
+) -> Panel {
+    Panel::new()
+        .title(create_title_with_icon("server", tr!("Remotes")))
+        .border(true)
+        .with_tool(
+            MenuButton::new(tr!("Add")).show_arrow(true).menu(
+                Menu::new()
+                    .with_item(
+                        MenuItem::new("Proxmox VE")
+                            .icon_class("fa fa-building")
+                            .on_select(on_pve_wizard),
+                    )
+                    .with_item(
+                        MenuItem::new("Proxmox Backup Server")
+                            .icon_class("fa fa-floppy-o")
+                            .on_select(on_pbs_wizard),
+                    ),
+            ),
+        )
+        .with_child(RemotePanel::new(status))
 }

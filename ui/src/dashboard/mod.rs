@@ -19,7 +19,6 @@ use pwt::{
     widget::{
         error_message,
         form::{DisplayField, FormContext, Number},
-        menu::{Menu, MenuButton, MenuItem},
         Column, Container, Fa, InputPanel, Panel, Row,
     },
     AsyncPool,
@@ -38,7 +37,7 @@ mod subscription_info;
 pub use subscription_info::SubscriptionInfo;
 
 mod remote_panel;
-use remote_panel::RemotePanel;
+pub use remote_panel::create_remote_panel;
 
 mod guest_panel;
 pub use guest_panel::create_guest_panel;
@@ -442,32 +441,16 @@ impl Component for PdmDashboard {
                     .class(FlexWrap::Wrap)
                     .padding_top(0)
                     .with_child(
-                        Panel::new()
-                            .title(create_title_with_icon("server", tr!("Remotes")))
-                            .flex(1.0)
-                            //.border(true)
-                            .width(300)
-                            .min_height(175)
-                            .with_tool(
-                                MenuButton::new(tr!("Add")).show_arrow(true).menu(
-                                    Menu::new()
-                                        .with_item(
-                                            MenuItem::new("Proxmox VE")
-                                                .icon_class("fa fa-building")
-                                                .on_select(ctx.link().callback(|_| {
-                                                    Msg::CreateWizard(Some(RemoteType::Pve))
-                                                })),
-                                        )
-                                        .with_item(
-                                            MenuItem::new("Proxmox Backup Server")
-                                                .icon_class("fa fa-floppy-o")
-                                                .on_select(ctx.link().callback(|_| {
-                                                    Msg::CreateWizard(Some(RemoteType::Pbs))
-                                                })),
-                                        ),
-                                ),
-                            )
-                            .with_child(RemotePanel::new(self.status.clone())),
+                        create_remote_panel(
+                            self.status.clone(),
+                            ctx.link()
+                                .callback(|_| Msg::CreateWizard(Some(RemoteType::Pve))),
+                            ctx.link()
+                                .callback(|_| Msg::CreateWizard(Some(RemoteType::Pbs))),
+                        )
+                        .flex(1.0)
+                        .width(300)
+                        .min_height(175),
                     )
                     .with_child(
                         create_node_panel(Some(RemoteType::Pve), self.status.clone())
