@@ -7,9 +7,10 @@ use yew::virtual_dom::{VComp, VNode};
 
 use pwt::css::FlexFit;
 use pwt::prelude::*;
-use pwt::widget::form::{delete_empty_values, DisplayField, Field, FormContext, InputType};
+use pwt::widget::form::{DisplayField, Field, FormContext, InputType};
 use pwt::widget::{Container, InputPanel};
 
+use proxmox_yew_comp::form::delete_empty_values;
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use proxmox_yew_comp::{EditWindow, SchemaValidation};
 
