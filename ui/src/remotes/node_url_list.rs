@@ -276,11 +276,11 @@ fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader
                         .placeholder(tr!("Use trusted certificate"))
                         .on_change(link.callback(move |value| Msg::UpdateFingerprint(index, value)))
                         .with_trigger(
-                            Trigger::new(
-                                (!fingerprint.is_empty())
-                                    .then_some("fa fa-times")
-                                    .unwrap_or_default(),
-                            )
+                            Trigger::new(if !fingerprint.is_empty() {
+                                "fa fa-times"
+                            } else {
+                                Default::default()
+                            })
                             .tip(tr!("Clear"))
                             .on_activate(
                                 link.callback(move |_| {

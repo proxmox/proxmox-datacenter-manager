@@ -54,11 +54,7 @@ impl yew::Component for NodePanelComp {
     fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {
         let props = ctx.props();
 
-        if props.remote != old_props.remote || props.node != old_props.node {
-            true
-        } else {
-            false
-        }
+        props.remote != old_props.remote || props.node != old_props.node
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {

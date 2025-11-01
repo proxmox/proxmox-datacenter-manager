@@ -78,7 +78,7 @@ thread_local! {
                 if item.ns.name().is_empty() && item.comment.is_none() {
                     html!{"The Root (default) Namespace."}
                 } else {
-                    html!{item.comment.clone().unwrap_or(String::new())}
+                    html!{item.comment.clone().unwrap_or_default()}
                 }
             })
             .into(),
