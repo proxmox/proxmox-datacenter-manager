@@ -175,7 +175,7 @@ impl TaskWorkerType {
     ///
     /// Note: The result has to be filtered with this again, since more records will be returned.
     /// E.g. using 'vz' will also return 'vzdump' tasks which are not desired.
-    pub fn to_filter<'a>(&'a self) -> &'a str {
+    pub fn to_filter(&self) -> &str {
         match self {
             TaskWorkerType::Migrate => "migrate",
             TaskWorkerType::Qemu => "qm",
