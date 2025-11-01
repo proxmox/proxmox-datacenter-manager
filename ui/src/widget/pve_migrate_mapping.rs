@@ -278,7 +278,7 @@ impl ManagedField for PveMigrateMapComp {
                     let mut store = self.store.write();
                     let key = entry.extract_key();
                     if let Some(store_entry) = store.iter_mut().find(|e| e.extract_key() == key) {
-                        (*store_entry).target = entry.target.clone();
+                        store_entry.target = entry.target.clone();
                     }
                 }
                 let list: Vec<_> = self
