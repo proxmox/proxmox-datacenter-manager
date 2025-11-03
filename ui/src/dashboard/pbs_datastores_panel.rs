@@ -102,28 +102,28 @@ fn create_list_tile(
         StatusRow::Online(count) => (
             Fa::from(Status::Success),
             count,
-            "Online",
+            tr!("Online"),
             Some(("online", "status")),
         ),
         StatusRow::HighUsage(count) => (
             Fa::from(Status::Warning),
             count,
-            "High usage",
+            tr!("High usage"),
             Some(("high-usage", "property")),
         ),
         StatusRow::UnderMaintenance(count) => (
             Fa::new("wrench"),
             count,
-            "Under Maintenance",
+            tr!("Under Maintenance"),
             Some(("under-maintenance", "status")),
         ),
         StatusRow::Unknown(count) => (
             Fa::from(Status::Unknown),
             count,
-            "Unknown",
+            tr!("Unknown"),
             Some(("unknown", "property")),
         ),
-        StatusRow::All(count) => (Fa::new("database"), count, "All", None),
+        StatusRow::All(count) => (Fa::new("database"), count, tr!("All"), None),
     };
 
     Some(
