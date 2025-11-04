@@ -6,10 +6,11 @@ use pbs_api_types::REMOTE_ID_SCHEMA;
 use pdm_api_types::{
     remotes::RemoteType,
     sdn::{CreateZoneRemote, ListZone, SDN_ID_SCHEMA, VXLAN_ID_SCHEMA},
-    Authid,
+    Authid, PRIV_RESOURCE_AUDIT,
 };
+use proxmox_access_control::CachedUserInfo;
 use proxmox_rest_server::WorkerTask;
-use proxmox_router::{Router, RpcEnvironment};
+use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use pve_api_types::{CreateZone, ListZonesType};
 
@@ -57,6 +58,12 @@ pub const ROUTER: Router = Router::new()
             type: ListZone,
         },
     },
+    access: {
+        permission: &Permission::Anybody,
+        description: "The user needs to have at least the `Resource.Audit` privilege under `/resource`.
+        Only zones from remotes for which the user has `Resource.Audit` on `/resource/{remote_name}`
+        will be included in the returned list."
+    }
 )]
 /// Query zones of remotes with optional filtering options
 pub async fn list_zones(
@@ -64,10 +71,25 @@ pub async fn list_zones(
     running: Option<bool>,
     ty: Option<ListZonesType>,
     remotes: Option<HashSet<String>>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<ListZone>, Error> {
-    let (remote_config, _) = pdm_config::remotes::config()?;
+    let user_info = CachedUserInfo::new()?;
 
-    let filtered_remotes = remote_config.into_iter().filter_map(|(_, remote)| {
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .ok_or_else(|| format_err!("no authid available"))?
+        .parse()?;
+
+    if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT)? {
+        http_bail!(FORBIDDEN, "user has no access to resources");
+    }
+
+    let (remote_config, _) = pdm_config::remotes::config()?;
+    let authorized_remotes = remote_config.into_iter().filter(|(remote_name, _)| {
+        user_info.lookup_privs(&auth_id, &["resource", &remote_name]) & PRIV_RESOURCE_AUDIT != 0
+    });
+
+    let filtered_remotes = authorized_remotes.filter_map(|(_, remote)| {
         if remote.ty == RemoteType::Pve
             && remotes
                 .as_ref()
