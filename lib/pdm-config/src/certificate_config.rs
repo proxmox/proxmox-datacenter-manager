@@ -95,7 +95,7 @@ impl AcmeCertificateConfig {
         })
     }
 
-    pub fn acme_domains(&self) -> AcmeDomainIter {
+    pub fn acme_domains(&self) -> AcmeDomainIter<'_> {
         AcmeDomainIter::new(self)
     }
 
