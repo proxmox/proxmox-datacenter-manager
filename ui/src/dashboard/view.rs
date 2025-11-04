@@ -21,7 +21,7 @@ use crate::dashboard::refresh_config_edit::{
 use crate::dashboard::tasks::get_task_options;
 use crate::dashboard::types::RowWidget;
 use crate::dashboard::types::{
-    LeaderboardType, TaskSummaryGrouping, ViewLayout, ViewTemplate, WidgetType,
+    TaskSummaryGrouping, ViewLayout, ViewTemplate, WidgetType,
 };
 use crate::dashboard::{
     create_guest_panel, create_node_panel, create_pbs_datastores_panel,
