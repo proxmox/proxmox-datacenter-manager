@@ -83,9 +83,6 @@ pub enum Msg {
     ShowFilteredTasks(Option<(TaskWorkerType, TaskStatusClass)>), // task_tyope
 }
 
-#[derive(PartialEq)]
-pub enum ViewState {}
-
 #[doc(hidden)]
 pub struct ProxmoxTaskSummary {
     store: Store<TaskSummaryItem>,
