@@ -113,16 +113,12 @@ const_regex! {
 
     pub HOST_OPTIONAL_PORT_REGEX = concatcp!(r"^(?:", DNS_NAME_STR, "|", IPRE_BRACKET_STR, ")(?::", PORT_REGEX_STR ,")?$");
 
-    pub SUBSCRIPTION_KEY_REGEX = concat!(r"^pbs(?:[cbsp])-[0-9a-f]{10}$");
-
     // FIXME: use from pve-api-types once exposed
     pub PVE_STORAGE_ID_REGEX = r"^(?i:[a-z][a-z0-9\-_.]*[a-z0-9])$";
 }
 
 pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&BLOCKDEVICE_NAME_REGEX);
-pub const SUBSCRIPTION_KEY_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&SUBSCRIPTION_KEY_REGEX);
 
 pub const HOSTNAME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HOSTNAME_REGEX);
 pub const OPENSSL_CIPHERS_TLS_FORMAT: ApiStringFormat =
