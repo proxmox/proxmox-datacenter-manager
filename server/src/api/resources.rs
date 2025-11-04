@@ -530,14 +530,14 @@ pub async fn get_subscription_status(
     let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
     let allow_all = user_info
-        .check_privs(&auth_id, &["resources"], PRIV_RESOURCE_AUDIT, false)
+        .check_privs(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT, false)
         .is_ok();
 
     let check_priv = |remote_name: &str| -> bool {
         user_info
             .check_privs(
                 &auth_id,
-                &["resources", remote_name],
+                &["resource", remote_name],
                 PRIV_RESOURCE_AUDIT,
                 false,
             )
