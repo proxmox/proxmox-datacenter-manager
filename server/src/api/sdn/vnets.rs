@@ -80,7 +80,7 @@ async fn list_vnets(
 
     let (remote_config, _) = pdm_config::remotes::config()?;
     let authorized_remotes = remote_config.into_iter().filter(|(remote_name, _)| {
-        user_info.lookup_privs(&auth_id, &["resource", &remote_name]) & PRIV_RESOURCE_AUDIT != 0
+        user_info.lookup_privs(&auth_id, &["resource", remote_name]) & PRIV_RESOURCE_AUDIT != 0
     });
 
     let filtered_remotes = authorized_remotes.filter_map(|(_, remote)| {
