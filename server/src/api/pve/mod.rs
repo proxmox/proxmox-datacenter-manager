@@ -197,7 +197,7 @@ pub async fn cluster_resources(
         .ok_or_else(|| format_err!("no authid available"))?
         .parse()?;
     if !user_info.any_privs_below(&auth_id, &["resource", &remote], PRIV_RESOURCE_AUDIT)? {
-        http_bail!(UNAUTHORIZED, "user has no access to resource list");
+        http_bail!(FORBIDDEN, "user has no access to resource list");
     }
 
     let cluster_resources = connect_to_remote(&remotes, &remote)?
@@ -268,7 +268,7 @@ fn check_guest_list_permissions(
     let user_info = CachedUserInfo::new()?;
 
     if !user_info.any_privs_below(&auth_id, &["resource", remote], PRIV_RESOURCE_AUDIT)? {
-        http_bail!(UNAUTHORIZED, "user has no access to resource list");
+        http_bail!(FORBIDDEN, "user has no access to resource list");
     }
 
     let top_level_allowed =

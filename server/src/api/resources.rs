@@ -286,7 +286,7 @@ pub(crate) async fn get_resources_impl(
             .ok_or_else(|| format_err!("no authid available"))?
             .parse()?;
         if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT)? {
-            http_bail!(UNAUTHORIZED, "user has no access to resources");
+            http_bail!(FORBIDDEN, "user has no access to resources");
         }
         opt_auth_id = Some(auth_id);
     }

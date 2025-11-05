@@ -379,7 +379,7 @@ pub async fn lxc_remote_migrate(
     );
     if target_privs & PRIV_RESOURCE_MIGRATE == 0 {
         http_bail!(
-            UNAUTHORIZED,
+            FORBIDDEN,
             "missing PRIV_RESOURCE_MIGRATE on target remote+vmid"
         );
     }
