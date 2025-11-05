@@ -20,9 +20,7 @@ use crate::dashboard::refresh_config_edit::{
 };
 use crate::dashboard::tasks::get_task_options;
 use crate::dashboard::types::RowWidget;
-use crate::dashboard::types::{
-    TaskSummaryGrouping, ViewLayout, ViewTemplate, WidgetType,
-};
+use crate::dashboard::types::{TaskSummaryGrouping, ViewLayout, ViewTemplate, WidgetType};
 use crate::dashboard::{
     create_guest_panel, create_node_panel, create_pbs_datastores_panel,
     create_refresh_config_edit_window, create_remote_panel, create_sdn_panel,
