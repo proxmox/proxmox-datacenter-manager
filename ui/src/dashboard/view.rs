@@ -179,7 +179,7 @@ impl ViewComp {
                 };
 
                 let subs_future = async {
-                    let res = http_get("/resources/subscription", None).await;
+                    let res = http_get("/resources/subscription?verbose=true", None).await;
                     link.send_message(Msg::LoadingResult(LoadingResult::SubscriptionInfo(res)));
                 };
 

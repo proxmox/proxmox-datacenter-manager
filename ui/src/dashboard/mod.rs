@@ -8,6 +8,9 @@ pub use top_entities::create_top_entities_panel;
 mod subscription_info;
 pub use subscription_info::create_subscription_panel;
 
+mod subscriptions_list;
+pub use subscriptions_list::SubscriptionsList;
+
 mod remote_panel;
 pub use remote_panel::create_remote_panel;
 

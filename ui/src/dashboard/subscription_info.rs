@@ -9,7 +9,7 @@ use yew::{
 
 use proxmox_yew_comp::Status;
 use pwt::prelude::*;
-use pwt::widget::{Column, Container, Fa, Panel, Row};
+use pwt::widget::{Column, Container, Dialog, Fa, Panel, Row};
 use pwt::{
     css::{AlignItems, FlexFit, JustifyContent, TextAlign},
     state::SharedState,
@@ -17,7 +17,7 @@ use pwt::{
 
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 
-use crate::LoadResult;
+use crate::{dashboard::SubscriptionsList, LoadResult};
 
 #[derive(Properties, PartialEq)]
 pub struct SubscriptionInfo {
@@ -30,7 +30,13 @@ impl SubscriptionInfo {
     }
 }
 
-struct PdmSubscriptionInfo {}
+enum Msg {
+    ShowDialog(Option<Dialog>),
+}
+
+struct PdmSubscriptionInfo {
+    dialog: Option<Dialog>,
+}
 
 fn render_subscription_status(subs: &[RemoteSubscriptions]) -> Row {
     let mut none = 0;
@@ -97,19 +103,49 @@ fn render_subscription_status(subs: &[RemoteSubscriptions]) -> Row {
 }
 
 impl Component for PdmSubscriptionInfo {
-    type Message = ();
+    type Message = Msg;
     type Properties = SubscriptionInfo;
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
-        Self {}
+        Self { dialog: None }
+    }
+
+    fn update(&mut self, _: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            Msg::ShowDialog(dialog) => {
+                self.dialog = dialog;
+                true
+            }
+        }
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
-        Column::new()
+
+        let mut column = Column::new()
             .class(FlexFit)
             .class(JustifyContent::Center)
-            .class(AlignItems::Center)
+            .class(AlignItems::Center);
+
+        if let Some(subs) = props.subs.as_ref() {
+            let dialog = Dialog::new(tr!("Your Subscriptions"))
+                .resizable(true)
+                .width(500)
+                .height(400)
+                .min_width(200)
+                .min_height(50)
+                .with_child(SubscriptionsList::new(subs.clone()))
+                .on_close(ctx.link().callback(|_| Msg::ShowDialog(None)));
+
+            column = column
+                .onclick(
+                    ctx.link()
+                        .callback(move |_| Msg::ShowDialog(Some(dialog.clone()))),
+                )
+                .style("cursor", "pointer");
+        }
+
+        column
             .with_optional_child(
                 props.subs.is_none().then_some(
                     Container::new()
@@ -123,6 +159,7 @@ impl Component for PdmSubscriptionInfo {
                     .as_ref()
                     .map(|subs| render_subscription_status(subs)),
             )
+            .with_optional_child(self.dialog.clone())
             .into()
     }
 }
