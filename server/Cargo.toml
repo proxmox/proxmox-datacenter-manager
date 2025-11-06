@@ -72,6 +72,7 @@ proxmox-time-api = { workspace = true, features = [ "impl" ] }
 proxmox-network-api = { workspace = true, features = [ "impl" ] }
 proxmox-syslog-api = { workspace = true, features = [ "impl" ] }
 proxmox-acme-api = { workspace = true, features = [ "impl" ] }
+proxmox-node-status = { workspace = true, features = [ "api" ] }
 
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true

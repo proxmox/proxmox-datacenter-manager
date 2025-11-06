@@ -391,6 +391,8 @@ fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
     let key_path = configdir!("/auth/api.key");
     let cert_path = configdir!("/auth/api.pem");
 
+    proxmox_node_status::init_node_status_api(cert_path)?;
+
     proxmox_rest_server::connection::TlsAcceptorBuilder::new()
         .certificate_paths_pem(key_path, cert_path)
         .build()

@@ -10,6 +10,7 @@ pub mod dns;
 pub mod journal;
 pub mod network;
 pub mod rrddata;
+pub mod status;
 pub mod syslog;
 pub mod tasks;
 pub mod termproxy;
@@ -45,6 +46,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     ("journal", &journal::ROUTER),
     ("network", &network::ROUTER),
     ("rrdata", &rrddata::ROUTER),
+    ("status", &status::ROUTER),
     ("syslog", &syslog::ROUTER),
     ("tasks", &tasks::ROUTER),
     ("termproxy", &termproxy::ROUTER),

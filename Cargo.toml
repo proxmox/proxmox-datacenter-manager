@@ -78,6 +78,7 @@ proxmox-time-api = "1"
 proxmox-network-api = "1"
 proxmox-syslog-api = "1"
 proxmox-acme-api = "1"
+proxmox-node-status = "1"
 
 # API types for PVE (and later PMG?)
 pve-api-types = "8.0.5"
@@ -163,6 +164,7 @@ zstd = { version = "0.13" }
 # proxmox-log = { path = "../proxmox/proxmox-log" }
 # proxmox-metrics = { path = "../proxmox/proxmox-metrics" }
 # proxmox-network-api = { path = "../proxmox/proxmox-network-api" }
+# proxmox-node-status = { path = "../proxmox/proxmox-node-status" }
 # proxmox-notify = { path = "../proxmox/proxmox-notify" }
 # proxmox-openid = { path = "../proxmox/proxmox-openid" }
 # proxmox-product-config = { path = "../proxmox/proxmox-product-config" }
