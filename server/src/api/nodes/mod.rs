@@ -36,7 +36,6 @@ pub const ITEM_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
     .subdirs(SUBDIRS);
 
-#[rustfmt::skip] // it'll put both entries on 1 line...
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
     ("apt", &apt::ROUTER),
