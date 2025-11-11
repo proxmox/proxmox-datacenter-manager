@@ -15,8 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_sys::fs::CreateOptions;
 
-use pdm_api_types::RemoteUpid;
-use pve_api_types::PveUpid;
+use pdm_api_types::{NativeUpid, RemoteUpid};
 
 /// Filename for the file containing running tasks.
 const ACTIVE_FILENAME: &str = "active";
@@ -405,15 +404,21 @@ impl WritableTaskCache {
             // Remove this finished task from our set of active tasks.
             active_tasks.remove(&task.upid);
 
-            // TODO:: Handle PBS tasks correctly.
-            // TODO: This is awkward, maybe overhaul RemoteUpid type to make this easier
-            match task.upid.upid().parse::<PveUpid>() {
-                Ok(upid) => {
+            match task.upid.native_upid() {
+                Ok(NativeUpid::PveUpid(upid)) => {
                     let node = &upid.node;
                     let remote = task.upid.remote();
 
                     if node_success_map.node_successful(remote, node) {
-                        state.update_cutoff_timestamp(task.upid.remote(), node, task.starttime);
+                        state.update_cutoff_timestamp(remote, node, task.starttime);
+                    }
+                }
+                Ok(NativeUpid::PbsUpid(upid)) => {
+                    let node = &upid.node;
+                    let remote = task.upid.remote();
+
+                    if node_success_map.node_successful(remote, node) {
+                        state.update_cutoff_timestamp(remote, node, task.starttime);
                     }
                 }
                 Err(error) => {

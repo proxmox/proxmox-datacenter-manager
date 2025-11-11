@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::Error;
 
-use pdm_api_types::{RemoteUpid, TaskFilters, TaskListItem, TaskStateType};
+use pdm_api_types::{NativeUpid, RemoteUpid, TaskFilters, TaskListItem, TaskStateType};
 use pve_api_types::PveUpid;
 
 pub mod task_cache;
@@ -52,10 +52,9 @@ pub async fn get_tasks(
                         return None;
                     }
                 }
-                // TODO: Handle PBS tasks
-                let pve_upid: Result<PveUpid, Error> = task.upid.upid().parse();
-                match pve_upid {
-                    Ok(pve_upid) => Some(TaskListItem {
+
+                match task.upid.native_upid() {
+                    Ok(NativeUpid::PveUpid(pve_upid)) => Some(TaskListItem {
                         upid: task.upid.to_string(),
                         node: pve_upid.node,
                         pid: pve_upid.pid as i64,
@@ -64,6 +63,18 @@ pub async fn get_tasks(
                         worker_type: pve_upid.worker_type,
                         worker_id: None,
                         user: pve_upid.auth_id,
+                        endtime: task.endtime,
+                        status: task.status,
+                    }),
+                    Ok(NativeUpid::PbsUpid(pbs_upid)) => Some(TaskListItem {
+                        upid: task.upid.to_string(),
+                        node: pbs_upid.node,
+                        pid: pbs_upid.pid as i64,
+                        pstart: pbs_upid.pstart,
+                        starttime: pbs_upid.starttime,
+                        worker_type: pbs_upid.worker_type,
+                        worker_id: pbs_upid.worker_id,
+                        user: pbs_upid.auth_id,
                         endtime: task.endtime,
                         status: task.status,
                     }),
