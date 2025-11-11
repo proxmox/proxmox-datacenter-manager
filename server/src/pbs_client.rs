@@ -307,6 +307,12 @@ impl PbsClient {
         Ok(self.0.get(path).await?.expect_json()?.data)
     }
 
+    /// Return a term ticket for calling the vncwebsocket endpoint
+    pub async fn node_shell_termproxy(&self) -> Result<pbs_api_types::NodeShellTicket, Error> {
+        let path = "/api2/extjs/nodes/localhost/termproxy";
+        Ok(self.0.post_without_body(path).await?.expect_json()?.data)
+    }
+
     /// Return the datastore status
     pub async fn datastore_status(
         &self,
