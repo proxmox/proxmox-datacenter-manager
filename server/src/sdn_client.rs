@@ -334,7 +334,7 @@ impl<C> LockedSdnClients<C> {
         loop {
             tokio::time::sleep(Self::POLLING_INTERVAL).await;
 
-            let status = client.get_task_status(&node, &upid.upid).await?;
+            let status = client.get_task_status(&node, upid.upid()).await?;
 
             if !status.is_running() {
                 if status.finished_successfully() == Some(true) {

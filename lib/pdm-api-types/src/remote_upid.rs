@@ -13,7 +13,7 @@ pub const REMOTE_UPID_SCHEMA: Schema = StringSchema::new("A remote UPID")
 pub struct RemoteUpid {
     remote: String,
     /// This is usually a pve upid, but may also be a pbs upid, they have distinct formats.
-    pub upid: String,
+    upid: String,
 }
 
 impl RemoteUpid {
@@ -23,6 +23,16 @@ impl RemoteUpid {
 
     pub fn into_remote(self) -> String {
         self.remote
+    }
+
+    /// Get the raw UPID.
+    pub fn upid(&self) -> &str {
+        &self.upid
+    }
+
+    /// Get the raw UPID, consuming self.
+    pub fn into_upid(self) -> String {
+        self.upid
     }
 }
 

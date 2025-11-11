@@ -89,13 +89,13 @@ async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
     let pve = get_remote(&remotes, upid.remote())?;
 
     let pve_upid: PveUpid = upid
-        .upid
+        .upid()
         .parse()
-        .map_err(|err| format_err!("invalid upid for PVE: {} - {err}", upid.upid))?;
+        .map_err(|err| format_err!("invalid upid for PVE: {} - {err}", upid.upid()))?;
 
     let pve = connect(pve)?;
 
-    Ok(pve.stop_task(&pve_upid.node, &upid.upid).await?)
+    Ok(pve.stop_task(&pve_upid.node, upid.upid()).await?)
 }
 
 #[api(
@@ -135,14 +135,14 @@ pub async fn get_task_status(
     let pve = get_remote(&remotes, upid.remote())?;
 
     let pve_upid: PveUpid = upid
-        .upid
+        .upid()
         .parse()
-        .map_err(|err| format_err!("invalid upid for PVE: {} - {err}", upid.upid))?;
+        .map_err(|err| format_err!("invalid upid for PVE: {} - {err}", upid.upid()))?;
 
     let pve = connect(pve)?;
 
     loop {
-        let status = pve.get_task_status(&pve_upid.node, &upid.upid).await?;
+        let status = pve.get_task_status(&pve_upid.node, upid.upid()).await?;
         if !wait || !status.is_running() {
             break Ok(status);
         }
@@ -218,14 +218,14 @@ async fn read_task_log(
     let pve = get_remote(&remotes, upid.remote())?;
 
     let pve_upid: PveUpid = upid
-        .upid
+        .upid()
         .parse()
-        .map_err(|err| format_err!("invalid upid for PVE: {} - {err}", upid.upid))?;
+        .map_err(|err| format_err!("invalid upid for PVE: {} - {err}", upid.upid()))?;
 
     let pve = connect(pve)?;
 
     let response = pve
-        .get_task_log(&pve_upid.node, &upid.upid, download, limit, start)
+        .get_task_log(&pve_upid.node, upid.upid(), download, limit, start)
         .await?;
 
     for (key, value) in response.attribs {

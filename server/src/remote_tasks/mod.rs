@@ -53,7 +53,7 @@ pub async fn get_tasks(
                     }
                 }
                 // TODO: Handle PBS tasks
-                let pve_upid: Result<PveUpid, Error> = task.upid.upid.parse();
+                let pve_upid: Result<PveUpid, Error> = task.upid.upid().parse();
                 match pve_upid {
                     Ok(pve_upid) => Some(TaskListItem {
                         upid: task.upid.to_string(),

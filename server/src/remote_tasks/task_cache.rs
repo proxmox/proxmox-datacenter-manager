@@ -407,7 +407,7 @@ impl WritableTaskCache {
 
             // TODO:: Handle PBS tasks correctly.
             // TODO: This is awkward, maybe overhaul RemoteUpid type to make this easier
-            match task.upid.upid.parse::<PveUpid>() {
+            match task.upid.upid().parse::<PveUpid>() {
                 Ok(upid) => {
                     let node = &upid.node;
                     let remote = task.upid.remote();

@@ -112,9 +112,9 @@ pub fn register_pve_tasks() {
 /// If it's a [`RemoteUpid`], prefixes it with the remote name
 pub fn format_optional_remote_upid(upid: &str, include_remote: bool) -> String {
     if let Ok(remote_upid) = upid.parse::<RemoteUpid>() {
-        let description = match remote_upid.upid.parse::<PveUpid>() {
+        let description = match remote_upid.upid().parse::<PveUpid>() {
             Ok(upid) => format_task_description(&upid.worker_type, upid.worker_id.as_deref()),
-            Err(_) => format_upid(&remote_upid.upid),
+            Err(_) => format_upid(&remote_upid.upid()),
         };
         if include_remote {
             format!("{} - {}", remote_upid.remote(), description)
