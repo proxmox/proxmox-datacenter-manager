@@ -24,4 +24,5 @@ proxmox-time.workspace = true
 proxmox-serde.workspace = true
 proxmox-subscription = { workspace = true, features = ["api-types"], default-features = false }
 
+pbs-api-types = { workspace = true }
 pve-api-types = { workspace = true }

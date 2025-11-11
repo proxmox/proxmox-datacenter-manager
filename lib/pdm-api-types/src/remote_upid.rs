@@ -5,19 +5,30 @@ use anyhow::{bail, Error};
 use proxmox_schema::api_types::SAFE_ID_REGEX;
 use proxmox_schema::{ApiType, Schema, StringSchema};
 
+use crate::remotes::RemoteType;
+
 pub const REMOTE_UPID_SCHEMA: Schema = StringSchema::new("A remote UPID")
-    .min_length("C!UPID:N:12345678:12345678:12345678:::".len())
+    .min_length("abc:C!UPID:N:12345678:12345678:12345678:::".len())
     .schema();
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 /// A UPID type for tasks on a specific remote.
 pub struct RemoteUpid {
     remote: String,
+    remote_type: RemoteType,
     // This can either be a PVE UPID or a PBS UPID, both have distinct, incompatible formats.
     upid: String,
 }
 
 impl RemoteUpid {
+    /// Create a new remote UPID.
+    pub fn new(remote: String, remote_type: RemoteType, upid: String) -> Self {
+        Self {
+            remote,
+            upid,
+            remote_type,
+        }
+    }
     /// Get the remote for this UPID.
     pub fn remote(&self) -> &str {
         &self.remote
@@ -37,6 +48,21 @@ impl RemoteUpid {
     pub fn into_upid(self) -> String {
         self.upid
     }
+
+    /// Return the type of the remote which corresponds to this UPID.
+    pub fn remote_type(&self) -> RemoteType {
+        self.remote_type
+    }
+
+    fn deduce_type(raw_upid: &str) -> Result<RemoteType, Error> {
+        if raw_upid.parse::<pve_api_types::PveUpid>().is_ok() {
+            Ok(RemoteType::Pve)
+        } else if raw_upid.parse::<pbs_api_types::UPID>().is_ok() {
+            Ok(RemoteType::Pbs)
+        } else {
+            bail!("invalid upid: {raw_upid}");
+        }
+    }
 }
 
 impl ApiType for RemoteUpid {
@@ -51,7 +77,13 @@ impl TryFrom<(String, String)> for RemoteUpid {
             bail!("bad remote id in remote upid");
         }
 
-        Ok(Self { remote, upid })
+        let ty = Self::deduce_type(&upid)?;
+
+        Ok(Self {
+            remote,
+            upid,
+            remote_type: ty,
+        })
     }
 }
 
@@ -63,9 +95,12 @@ impl TryFrom<(String, &str)> for RemoteUpid {
             bail!("bad remote id in remote upid");
         }
 
+        let ty = Self::deduce_type(upid)?;
+
         Ok(Self {
             remote,
             upid: upid.to_string(),
+            remote_type: ty,
         })
     }
 }
@@ -78,9 +113,30 @@ impl TryFrom<(&str, &str)> for RemoteUpid {
             bail!("bad remote id in remote upid");
         }
 
+        let ty = Self::deduce_type(upid)?;
+
         Ok(Self {
             remote: remote.to_string(),
             upid: upid.to_string(),
+            remote_type: ty,
+        })
+    }
+}
+
+impl TryFrom<(&str, &str, &str)> for RemoteUpid {
+    type Error = Error;
+
+    fn try_from((ty, remote, upid): (&str, &str, &str)) -> Result<Self, Error> {
+        if !SAFE_ID_REGEX.is_match(remote) {
+            bail!("bad remote id in remote upid");
+        }
+
+        let ty = ty.parse()?;
+
+        Ok(Self {
+            remote: remote.to_string(),
+            upid: upid.to_string(),
+            remote_type: ty,
         })
     }
 }
@@ -89,16 +145,19 @@ impl std::str::FromStr for RemoteUpid {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        match s.find('!') {
+        match s.split_once('!') {
             None => bail!("missing '!' separator in remote upid"),
-            Some(pos) => (&s[..pos], &s[(pos + 1)..]).try_into(),
+            Some((remote_and_type, upid)) => match remote_and_type.split_once(':') {
+                Some((ty, remote)) => (ty, remote, upid).try_into(),
+                None => (remote_and_type, upid).try_into(),
+            },
         }
     }
 }
 
 impl fmt::Display for RemoteUpid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}!{}", self.remote, self.upid)
+        write!(f, "{}:{}!{}", self.remote_type, self.remote, self.upid)
     }
 }
 
@@ -110,13 +169,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_from_str() {
+    fn test_from_str_old_format() {
         let pve_upid: RemoteUpid =
             "pve-remote!UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:"
                 .parse()
                 .unwrap();
 
         assert_eq!(pve_upid.remote(), "pve-remote");
+        assert_eq!(pve_upid.remote_type(), RemoteType::Pve);
         assert_eq!(
             pve_upid.upid(),
             "UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:"
@@ -128,6 +188,34 @@ mod tests {
                 .unwrap();
 
         assert_eq!(pbs_upid.remote(), "pbs-remote");
+        assert_eq!(pbs_upid.remote_type(), RemoteType::Pbs);
+        assert_eq!(
+            pbs_upid.upid(),
+            "UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:"
+        );
+    }
+
+    #[test]
+    fn test_from_str_new_format() {
+        let pve_upid: RemoteUpid =
+            "pve:pve-remote!UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:"
+                .parse()
+                .unwrap();
+
+        assert_eq!(pve_upid.remote(), "pve-remote");
+        assert_eq!(pve_upid.remote_type(), RemoteType::Pve);
+        assert_eq!(
+            pve_upid.upid(),
+            "UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:"
+        );
+
+        let pbs_upid: RemoteUpid =
+            "pbs:pbs-remote!UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:"
+                .parse()
+                .unwrap();
+
+        assert_eq!(pbs_upid.remote(), "pbs-remote");
+        assert_eq!(pbs_upid.remote_type(), RemoteType::Pbs);
         assert_eq!(
             pbs_upid.upid(),
             "UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:"
@@ -136,24 +224,26 @@ mod tests {
 
     #[test]
     fn test_display() {
-        let pve_upid = RemoteUpid {
-            remote: "pve-remote".to_string(),
-            upid: "UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:".to_string(),
-        };
+        let pve_upid = RemoteUpid::new(
+            "pve-remote".to_string(),
+            RemoteType::Pve,
+            "UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:".to_string(),
+        );
 
         assert_eq!(
             pve_upid.to_string(),
-            "pve-remote!UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:"
+            "pve:pve-remote!UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:"
         );
 
-        let pbs_upid = RemoteUpid {
-            remote: "pbs-remote".to_string(),
-            upid: "UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:".to_string(),
-        };
+        let pbs_upid = RemoteUpid::new(
+            "pbs-remote".to_string(),
+            RemoteType::Pbs,
+            "UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:".to_string(),
+        );
 
         assert_eq!(
             pbs_upid.to_string(),
-            "pbs-remote!UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:"
+            "pbs:pbs-remote!UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:"
         );
     }
 }
