@@ -141,7 +141,7 @@ impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
     /// Check path based tickets. (Used for terminal tickets).
     fn check_path_ticket(
         &self,
-        userid: &Userid,
+        auth_id: &Authid,
         password: &str,
         path: String,
         privs: String,
@@ -155,11 +155,10 @@ impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
             ticket.verify(
                 &self.keyring,
                 TERM_PREFIX,
-                Some(&format!("{}{}{}", userid, path, port)),
+                Some(&format!("{}{}{}", auth_id, path, port)),
             )
         }) {
             let user_info = CachedUserInfo::new()?;
-            let auth_id = Authid::from(userid.clone());
             for (name, privilege) in pdm_api_types::PRIVILEGES {
                 if *name == privs {
                     let mut path_vec = Vec::new();
