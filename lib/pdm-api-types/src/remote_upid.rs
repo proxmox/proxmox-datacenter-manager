@@ -104,3 +104,56 @@ impl fmt::Display for RemoteUpid {
 
 serde_plain::derive_deserialize_from_fromstr!(RemoteUpid, "valid remote upid");
 serde_plain::derive_serialize_from_display!(RemoteUpid);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_str() {
+        let pve_upid: RemoteUpid =
+            "pve-remote!UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:"
+                .parse()
+                .unwrap();
+
+        assert_eq!(pve_upid.remote(), "pve-remote");
+        assert_eq!(
+            pve_upid.upid(),
+            "UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:"
+        );
+
+        let pbs_upid: RemoteUpid =
+            "pbs-remote!UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:"
+                .parse()
+                .unwrap();
+
+        assert_eq!(pbs_upid.remote(), "pbs-remote");
+        assert_eq!(
+            pbs_upid.upid(),
+            "UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:"
+        );
+    }
+
+    #[test]
+    fn test_display() {
+        let pve_upid = RemoteUpid {
+            remote: "pve-remote".to_string(),
+            upid: "UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:".to_string(),
+        };
+
+        assert_eq!(
+            pve_upid.to_string(),
+            "pve-remote!UPID:pve:00039E4D:002638B8:67B4A9D1:stopall::root@pam:"
+        );
+
+        let pbs_upid = RemoteUpid {
+            remote: "pbs-remote".to_string(),
+            upid: "UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:".to_string(),
+        };
+
+        assert_eq!(
+            pbs_upid.to_string(),
+            "pbs-remote!UPID:pbs:000002B2:00000158:00000000:674D828C:logrotate::root@pam:"
+        );
+    }
+}
