@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use gloo_utils::window;
-use proxmox_yew_comp::AptPackageManager;
+use proxmox_yew_comp::{AptPackageManager, ConsoleType, XTermJs};
 use yew::{
     virtual_dom::{VComp, VNode},
     Context,
@@ -110,6 +110,22 @@ impl yew::Component for NodePanelComp {
                                 }
                             })
                             .into()
+                    }
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("shell_view")
+                    .label(tr!("Shell"))
+                    .icon_class("fa fa-terminal"),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    move |_| {
+                        let mut xtermjs = XTermJs::new();
+                        xtermjs.set_node_name(node.clone());
+                        xtermjs.set_console_type(ConsoleType::RemotePveLoginShell(remote.clone()));
+                        xtermjs.into()
                     }
                 },
             )
