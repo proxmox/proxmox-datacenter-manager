@@ -18,6 +18,14 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("apt", &crate::api::remote_updates::APT_ROUTER),
     ("rrddata", &super::rrddata::NODE_RRD_ROUTER),
     ("network", &Router::new().get(&API_METHOD_GET_NETWORK)),
+    (
+        "termproxy",
+        &Router::new().post(&crate::api::remote_shell::API_METHOD_SHELL_TICKET)
+    ),
+    (
+        "vncwebsocket",
+        &Router::new().upgrade(&crate::api::remote_shell::API_METHOD_SHELL_WEBSOCKET)
+    ),
     ("storage", &STORAGE_ROUTER),
     ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
 ]);
