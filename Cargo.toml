@@ -40,7 +40,7 @@ proxmox-auth-api = "1.0.5"
 proxmox-base64 = "1"
 proxmox-client = "1"
 proxmox-daemon = "1"
-proxmox-http = { version = "1", features = [ "client", "http-helpers", "websocket" ] } # see below
+proxmox-http = { version = "1.0.4", features = [ "client", "http-helpers", "websocket" ] } # see below
 proxmox-human-byte = "1"
 proxmox-io = "1.0.1" # tools and client use "tokio" feature
 proxmox-ldap = { version = "1.1", features = ["sync"] }
