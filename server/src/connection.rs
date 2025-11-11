@@ -252,6 +252,9 @@ pub trait ClientFactory {
     ///
     /// Note: currently does not support two factor authentication.
     async fn make_pbs_client_and_login(&self, remote: &Remote) -> Result<Box<PbsClient>, Error>;
+
+    /// Create a new API client for raw acess to the given remote
+    fn make_raw_client(&self, remote: &Remote) -> Result<Box<Client>, Error>;
 }
 
 /// Default production client factory
@@ -346,6 +349,10 @@ impl ClientFactory for DefaultClientFactory {
         ConnectionCache::get().make_pve_client(remote)
     }
 
+    fn make_raw_client(&self, remote: &Remote) -> Result<Box<Client>, Error> {
+        Ok(Box::new(crate::connection::connect(remote, None)?))
+    }
+
     fn make_pbs_client(&self, remote: &Remote) -> Result<Box<PbsClient>, Error> {
         let client = crate::connection::connect(remote, None)?;
         Ok(Box::new(PbsClient(client)))
@@ -416,6 +423,10 @@ pub fn make_pve_client_with_node(remote: &Remote, node: &str) -> Result<Arc<PveC
 /// Create a new API client for PBS remotes
 pub fn make_pbs_client(remote: &Remote) -> Result<Box<PbsClient>, Error> {
     instance().make_pbs_client(remote)
+}
+
+pub fn make_raw_client(remote: &Remote) -> Result<Box<Client>, Error> {
+    instance().make_raw_client(remote)
 }
 
 /// Create a new API client for PVE remotes.

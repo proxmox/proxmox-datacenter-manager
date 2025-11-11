@@ -5,6 +5,7 @@ use serde::Deserialize;
 
 use pdm_api_types::{remotes::Remote, Authid, ConfigDigest};
 use pdm_config::remotes::RemoteConfig;
+use proxmox_client::Client;
 use proxmox_product_config::ApiLockGuard;
 use proxmox_section_config::typed::SectionConfigData;
 use pve_api_types::{
@@ -97,6 +98,10 @@ impl ClientFactory for FakeClientFactory {
     }
 
     fn make_pbs_client(&self, _remote: &Remote) -> Result<Box<PbsClient>, Error> {
+        bail!("not implemented")
+    }
+
+    fn make_raw_client(&self, _remote: &Remote) -> Result<Box<Client>, Error> {
         bail!("not implemented")
     }
 

@@ -387,6 +387,7 @@ pub(super) mod tests {
     use http::StatusCode;
 
     use pdm_api_types::Authid;
+    use proxmox_client::Client;
     use pve_api_types::{ClusterMetrics, ClusterMetricsData};
 
     use crate::{
@@ -427,6 +428,10 @@ pub(super) mod tests {
         }
 
         fn make_pbs_client(&self, _remote: &Remote) -> Result<Box<PbsClient>, Error> {
+            bail!("not implemented")
+        }
+
+        fn make_raw_client(&self, _remote: &Remote) -> Result<Box<Client>, Error> {
             bail!("not implemented")
         }
 
