@@ -20,6 +20,12 @@ pub struct RemoteUpid {
     upid: String,
 }
 
+/// Type containing the parsed, native UPID for each type of remote.
+pub enum NativeUpid {
+    PveUpid(pve_api_types::PveUpid),
+    PbsUpid(pbs_api_types::UPID),
+}
+
 impl RemoteUpid {
     /// Create a new remote UPID.
     pub fn new(remote: String, remote_type: RemoteType, upid: String) -> Self {
@@ -52,6 +58,16 @@ impl RemoteUpid {
     /// Return the type of the remote which corresponds to this UPID.
     pub fn remote_type(&self) -> RemoteType {
         self.remote_type
+    }
+
+    /// Get the parsed, native UPID type.
+    ///
+    /// This function will return an error if the UPID could not be parsed.
+    pub fn native_upid(&self) -> Result<NativeUpid, Error> {
+        Ok(match self.remote_type() {
+            RemoteType::Pve => NativeUpid::PveUpid(self.upid.parse()?),
+            RemoteType::Pbs => NativeUpid::PbsUpid(self.upid.parse()?),
+        })
     }
 
     fn deduce_type(raw_upid: &str) -> Result<RemoteType, Error> {
