@@ -10,17 +10,20 @@ pub const REMOTE_UPID_SCHEMA: Schema = StringSchema::new("A remote UPID")
     .schema();
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+/// A UPID type for tasks on a specific remote.
 pub struct RemoteUpid {
     remote: String,
-    /// This is usually a pve upid, but may also be a pbs upid, they have distinct formats.
+    // This can either be a PVE UPID or a PBS UPID, both have distinct, incompatible formats.
     upid: String,
 }
 
 impl RemoteUpid {
+    /// Get the remote for this UPID.
     pub fn remote(&self) -> &str {
         &self.remote
     }
 
+    /// Get the remote for this UPID, consuming self.
     pub fn into_remote(self) -> String {
         self.remote
     }
