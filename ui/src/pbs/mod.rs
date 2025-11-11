@@ -7,7 +7,9 @@ use pbs_api_types::DataStoreConfig;
 use yew::virtual_dom::{VComp, VNode};
 use yew::{Html, Properties};
 
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use proxmox_yew_comp::{
+    ConsoleType, LoadableComponent, LoadableComponentContext, LoadableComponentMaster, XTermJs,
+};
 use pwt::css::{AlignItems, FlexFit};
 use pwt::prelude::*;
 use pwt::state::NavigationContainer;
@@ -144,6 +146,20 @@ impl LoadableComponent for PbsRemoteComp {
                                             {
                                                 let _ = window().open_with_url(&url.href());
                                             }
+                                        }
+                                    }),
+                            )
+                            .with_tool(
+                                Button::new(tr!("Open Shell"))
+                                    .icon_class("fa fa-terminal")
+                                    .on_activate({
+                                        let remote = ctx.props().remote.clone();
+                                        move |_| {
+                                            XTermJs::open_xterm_js_viewer(
+                                                ConsoleType::RemotePbsLoginShell(remote.clone()),
+                                                "localhost",
+                                                false,
+                                            )
                                         }
                                     }),
                             )
