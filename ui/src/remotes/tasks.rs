@@ -124,8 +124,11 @@ impl Component for PbsRemoteTaskList {
             .as_ref()
             .and_then(|(upid, endtime)| upid.parse::<RemoteUpid>().ok().map(|upid| (upid, endtime)))
             .map(|(remote_upid, endtime)| {
-                // TODO PBS
-                let base_url = format!("/pve/remotes/{}/tasks", remote_upid.remote());
+                let base_url = format!(
+                    "/{}/remotes/{}/tasks",
+                    remote_upid.remote_type(),
+                    remote_upid.remote()
+                );
                 TaskViewer::new(remote_upid.to_string())
                     .endtime(endtime)
                     .base_url(base_url)
