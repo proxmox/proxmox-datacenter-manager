@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::ErrorKind;
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
 use proxmox_apt_api_types::APTUpdateInfo;
@@ -66,18 +66,15 @@ pub async fn update_apt_database(remote: &Remote, node: &str) -> Result<RemoteUp
             crate::api::pve::new_remote_upid(remote.id.clone(), upid).await
         }
         RemoteType::Pbs => {
-            // let client = connection::make_pbs_client(remote)?;
-            //
-            // let params = crate::pbs_client::AptUpdateParams {
-            //     notify: Some(false),
-            //     quiet: Some(false),
-            // };
-            // let upid = client.update_apt_database(params).await?;
-            //
-            // crate::api::pbs::new_remote_upid(remote.id.clone(), upid).await
-            // TODO: task infrastructure for PBS not finished yet, uncomment once
-            // this is done.
-            bail!("PBS is not supported yet");
+            let client = connection::make_pbs_client(remote)?;
+
+            let params = crate::pbs_client::AptUpdateParams {
+                notify: Some(false),
+                quiet: Some(false),
+            };
+            let upid = client.update_apt_database(params).await?;
+
+            crate::api::pbs::new_remote_upid(remote.id.clone(), upid).await
         }
     }
 }
