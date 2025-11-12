@@ -494,3 +494,24 @@ pub struct TaskFilters {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub statusfilter: Option<Vec<TaskStateType>>,
 }
+
+pub const TASKLOG_START_PARAM_SCHEMA: Schema =
+    proxmox_schema::IntegerSchema::new("Start at this line when reading the tasklog")
+        .minimum(0)
+        .default(0)
+        .schema();
+
+pub const TASKLOG_LIMIT_PARAM_SCHEMA: Schema = proxmox_schema::IntegerSchema::new(
+    "The amount of lines to read from the tasklog. \
+         Setting this parameter to 0 will return all lines until the end of the file.",
+)
+.minimum(0)
+.default(50)
+.schema();
+
+pub const TASKLOG_DOWNLOAD_PARAM_SCHEMA: Schema = proxmox_schema::BooleanSchema::new(
+    "Whether the tasklog file should be downloaded. \
+        This parameter can't be used in conjunction with other parameters",
+)
+.default(false)
+.schema();

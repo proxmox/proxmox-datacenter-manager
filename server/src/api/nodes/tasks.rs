@@ -13,7 +13,8 @@ use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::{
     Authid, TaskFilters, TaskListItem, TaskStateType, Tokenname, Userid, NODE_SCHEMA,
-    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, UPID, UPID_SCHEMA,
+    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, TASKLOG_DOWNLOAD_PARAM_SCHEMA, TASKLOG_LIMIT_PARAM_SCHEMA,
+    TASKLOG_START_PARAM_SCHEMA, UPID, UPID_SCHEMA,
 };
 
 pub const ROUTER: Router = Router::new()
@@ -305,27 +306,6 @@ async fn get_task_status(upid: UPID, rpcenv: &mut dyn RpcEnvironment) -> Result<
     Ok(result)
 }
 
-const START_PARAM_SCHEMA: Schema =
-    proxmox_schema::IntegerSchema::new("Start at this line when reading the tasklog")
-        .minimum(0)
-        .default(0)
-        .schema();
-
-const LIMIT_PARAM_SCHEMA: Schema = proxmox_schema::IntegerSchema::new(
-    "The amount of lines to read from the tasklog. \
-         Setting this parameter to 0 will return all lines until the end of the file.",
-)
-.minimum(0)
-.default(50)
-.schema();
-
-const DOWNLOAD_PARAM_SCHEMA: Schema = proxmox_schema::BooleanSchema::new(
-    "Whether the tasklog file should be downloaded. \
-        This parameter can't be used in conjunction with other parameters",
-)
-.default(false)
-.schema();
-
 const TEST_STATUS_PARAM_SCHEMA: Schema = proxmox_schema::BooleanSchema::new(
     "Test task status, and set result attribute \"active\" accordingly.",
 )
@@ -339,9 +319,9 @@ pub const API_METHOD_READ_TASK_LOG: proxmox_router::ApiMethod = proxmox_router::
         &sorted!([
             ("node", false, &NODE_SCHEMA),
             ("upid", false, &UPID_SCHEMA),
-            ("start", true, &START_PARAM_SCHEMA),
-            ("limit", true, &LIMIT_PARAM_SCHEMA),
-            ("download", true, &DOWNLOAD_PARAM_SCHEMA),
+            ("start", true, &TASKLOG_START_PARAM_SCHEMA),
+            ("limit", true, &TASKLOG_LIMIT_PARAM_SCHEMA),
+            ("download", true, &TASKLOG_DOWNLOAD_PARAM_SCHEMA),
             ("test-status", true, &TEST_STATUS_PARAM_SCHEMA)
         ]),
     ),

@@ -3,11 +3,14 @@
 use anyhow::{bail, format_err, Error};
 
 use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
-use proxmox_schema::{api, Schema};
+use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
-use pdm_api_types::{RemoteUpid, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MANAGE};
+use pdm_api_types::{
+    RemoteUpid, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MANAGE,
+    TASKLOG_DOWNLOAD_PARAM_SCHEMA, TASKLOG_LIMIT_PARAM_SCHEMA, TASKLOG_START_PARAM_SCHEMA,
+};
 use pve_api_types::PveUpid;
 
 use super::{connect, connect_to_remote, get_remote};
@@ -149,28 +152,6 @@ pub async fn get_task_status(
     }
 }
 
-// FIXME: Deduplicate these into pdm_api_types:
-const START_PARAM_SCHEMA: Schema =
-    proxmox_schema::IntegerSchema::new("Start at this line when reading the tasklog")
-        .minimum(0)
-        .default(0)
-        .schema();
-
-const LIMIT_PARAM_SCHEMA: Schema = proxmox_schema::IntegerSchema::new(
-    "The amount of lines to read from the tasklog. \
-         Setting this parameter to 0 will return all lines until the end of the file.",
-)
-.minimum(0)
-.default(50)
-.schema();
-
-const DOWNLOAD_PARAM_SCHEMA: Schema = proxmox_schema::BooleanSchema::new(
-    "Whether the tasklog file should be downloaded. \
-        This parameter can't be used in conjunction with other parameters",
-)
-.default(false)
-.schema();
-
 // FIXME: make *actually* streaming with router support!
 #[api(
     input: {
@@ -178,15 +159,15 @@ const DOWNLOAD_PARAM_SCHEMA: Schema = proxmox_schema::BooleanSchema::new(
             remote: { schema: REMOTE_ID_SCHEMA },
             upid: { type: RemoteUpid },
             start: {
-                schema: START_PARAM_SCHEMA,
+                schema: TASKLOG_START_PARAM_SCHEMA,
                 optional: true,
             },
             limit: {
-                schema: LIMIT_PARAM_SCHEMA,
+                schema: TASKLOG_LIMIT_PARAM_SCHEMA,
                 optional: true,
             },
             download: {
-                schema: DOWNLOAD_PARAM_SCHEMA,
+                schema: TASKLOG_DOWNLOAD_PARAM_SCHEMA,
                 optional: true,
             }
         },
