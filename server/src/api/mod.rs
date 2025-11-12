@@ -1,6 +1,7 @@
 //! Common API endpoints
 
-use anyhow::Error;
+use anyhow::{bail, Error};
+use pdm_api_types::{remotes::RemoteType, RemoteUpid};
 use serde_json::{json, Value};
 
 use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
@@ -66,4 +67,23 @@ fn version() -> Result<Value, Error> {
         "release": pdm_buildcfg::PROXMOX_PKG_RELEASE,
         "repoid": pdm_buildcfg::PROXMOX_PKG_REPOID
     }))
+}
+
+/// Check a [`RemoteUpid`] matches the expected remote name and type.
+pub(crate) fn verify_upid(
+    remote: &str,
+    remote_type: RemoteType,
+    upid: &RemoteUpid,
+) -> Result<(), Error> {
+    if upid.remote() != remote {
+        bail!(
+            "remote '{remote}' does not match remote in upid ('{}')",
+            upid.remote()
+        );
+    }
+    if upid.remote_type() != remote_type {
+        bail!("upid does not belong to a {remote_type} remote");
+    }
+
+    Ok(())
 }

@@ -22,6 +22,7 @@ use crate::remote_tasks;
 
 mod node;
 mod rrddata;
+pub mod tasks;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -49,7 +50,8 @@ const REMOTE_SUBDIRS: SubdirMap = &sorted!([
     ("nodes", &NODES_ROUTER),
     ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
     ("rrddata", &rrddata::PBS_NODE_RRD_ROUTER),
-    ("datastore", &DATASTORE_ROUTER)
+    ("datastore", &DATASTORE_ROUTER),
+    ("tasks", &tasks::ROUTER),
 ]);
 
 const DATASTORE_ROUTER: Router = Router::new()
