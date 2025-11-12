@@ -1,43 +1,37 @@
 # Proxmox Datacenter Manager
 
 A stand-alone API + GUI product with the following main features for multiple instances of Proxmox
-VE, Proxmox Backup Server and potentially also Proxmox Mail Gateway in one central place:
-
-- Status and Health overview for the core resources. E.g., for PVE/PBS/PMG hosts, PVE guests or PBS
-  backups
-- *Basic* Management of the core resources.
-- Connect those separate instances. E.g., cross-cluster VM live-migration and also SDN in the long
-  term.
+VE and Proxmox Backup Server in one central place.
 
 ## Feature Overview
 
-The basic core features of the Proxmox Datacenter Manager planned for the long
-run (not everything will be finished for the initial 1.0):
-
-- Connect & display an arbitrary amount of independent nodes or clusters ("Datacenters")
-- View the status and load of all resources, which includes nodes, virtual guests, storages, datastores and so on.
-  This part basically will be a "glorified dashboard" that tries to present information such that
-  potential problematic outliers can be found more easily. Automatic refresh with low frequency
-  (range of ~1 - 30 minutes) combined with active refresh "button" for a specific node/cluster
-- Basic management of the resources: shutdown, reboot, start, ...
-- Management of some configurations
-
-  - Backup jobs
-  - Firewall
-  - SDN
-  - ..?
-
-- Off-site replication copies of guest for manual recovery on DC failure (not HA!)
+- Connect & display an arbitrary amount of independent nodes or clusters ("Remotes")
+- View the status and load of all resources, which includes nodes, virtual guests, storages,
+  datastores and so on. Proxmox Datacenter Manager provides a dashboard that tries to present
+  information such that potential problematic outliers can be found easily.
+- Customizable dashboards ("views") showing a configurable subset of resources
+- Basic management of the guest resources
+  - Resource graphs
+  - Basic power management (start, reboot, shutdown)
+- Remote shell for Proxmox VE and Proxmox Backup Server remotes
+- Global overview over available system updates for managed remotes
+- Firewall overview for all managed remotes
+- Basic SDN overview for all managed remotes
 - Remote migration of virtual guests between different datacenters
   Advertising use of ZFS & Ceph backed replication for quicker transfer on actual migration
-- View configuration health state (subscription, apt repositories, pending updates, backups done ...)
-- Stand-alone daemon, possible to run in CT, VM, PVE host
-- Support for complex TFA (like PBS), ACME/Let's Encrypt from the beginning
-- For a later release:
+- View configuration health state (subscription, APT repositories, pending updates, ...)
+- User management / access control
+  - Users/API token
+  - Support for LDAP and Active Directory
+  - Support for OpenID Connect
+  - Support for complex Two-Factor Authentication
+- ACME/Let's Encrypt
 
-  - active-stanby architecture for standby managers to avoid single point of failure.
-  - integration of other projects, like Proxmox Mail Gateway, and potentially also some form of
-    Proxmox Offline Mirror.
+- A non-exhaustive list of features planned for future releases is:
+  - Management of more configuration (e.g. backup jobs, notification policies, package repos, HA)
+  - Active-standby architecture for standby instances of PDM to avoid single point of failure.
+  - Integration of other projects, like Proxmox Mail Gateway, and potentially also Proxmox Offline Mirror.
+  - Off-site replication copies of guest for manual recovery on DC failure (not HA!)
   - ... to be determined from user feedback and feature requests.
 
 ## Technology Overview
