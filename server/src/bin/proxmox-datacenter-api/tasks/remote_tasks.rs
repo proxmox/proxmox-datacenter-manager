@@ -13,11 +13,11 @@ use pdm_api_types::{
     RemoteUpid,
 };
 use proxmox_section_config::typed::SectionConfigData;
-use pve_api_types::{ListTasks, ListTasksResponse, ListTasksSource};
 
 use server::{
-    api::pve,
+    connection,
     parallel_fetcher::{NodeResults, ParallelFetcher},
+    pbs_client,
     remote_tasks::{
         self,
         task_cache::{NodeFetchSuccessMap, State, TaskCache, TaskCacheItem},
@@ -260,42 +260,57 @@ async fn fetch_tasks_from_single_node(
     remote: Remote,
     node: String,
 ) -> Result<Vec<TaskCacheItem>, Error> {
+    let since = context
+        .cutoff_timestamp(&remote.id, &node)
+        .unwrap_or_else(|| {
+            proxmox_time::epoch_i64() - (KEEP_OLD_FILES as u64 * ROTATE_AFTER) as i64
+        });
+
     match remote.ty {
         RemoteType::Pve => {
-            let since = context
-                .cutoff_timestamp(&remote.id, &node)
-                .unwrap_or_else(|| {
-                    proxmox_time::epoch_i64() - (KEEP_OLD_FILES as u64 * ROTATE_AFTER) as i64
-                });
-
-            let params = ListTasks {
-                source: Some(ListTasksSource::Archive),
+            let params = pve_api_types::ListTasks {
+                source: Some(pve_api_types::ListTasksSource::Archive),
                 since: Some(since),
                 // If `limit` is not provided, we only receive 50 tasks
                 limit: Some(MAX_TASKS_TO_FETCH),
                 ..Default::default()
             };
 
-            let client = pve::connect(&remote)?;
+            let client = connection::make_pve_client(&remote)?;
 
             let task_list = client
                 .get_task_list(&node, params)
                 .await?
                 .into_iter()
-                .filter_map(|task| match map_pve_task(task, &remote.id) {
-                    Ok(task) => Some(task),
-                    Err(err) => {
-                        log::error!("could not map PVE task: {err:#}");
+                .map(|task| map_pve_task(task, remote.id.clone()))
+                .collect();
+
+            Ok(task_list)
+        }
+        RemoteType::Pbs => {
+            let params = pbs_client::ListTasks {
+                since: Some(since),
+                // If `limit` is not provided, we only receive 50 tasks
+                limit: Some(MAX_TASKS_TO_FETCH),
+            };
+
+            let client = connection::make_pbs_client(&remote)?;
+
+            let task_list = client
+                .get_task_list(params)
+                .await?
+                .into_iter()
+                .filter_map(|task| {
+                    if task.endtime.is_none() {
+                        // We only care about finished tasks.
+                        Some(map_pbs_task(task, remote.id.clone()))
+                    } else {
                         None
                     }
                 })
                 .collect();
 
             Ok(task_list)
-        }
-        RemoteType::Pbs => {
-            // TODO: Support PBS.
-            Ok(vec![])
         }
     }
 }
@@ -426,22 +441,53 @@ async fn poll_single_tracked_task(remote: Remote, task: RemoteUpid) -> (RemoteUp
             (task, result)
         }
         RemoteType::Pbs => {
-            // TODO: Implement for PBS
-            (task, PollResult::RequestError)
+            let status = match server::api::pbs::tasks::get_task_status(
+                remote.id.clone(),
+                task.clone(),
+                false,
+            )
+            .await
+            {
+                Ok(status) => status,
+                Err(err) => {
+                    log::error!("could not get status from remote: {err:#}");
+                    return (task, PollResult::RequestError);
+                }
+            };
+
+            let result = if status.exitstatus.is_some() {
+                PollResult::Finished
+            } else {
+                PollResult::Running
+            };
+
+            (task, result)
         }
     }
 }
 
-/// Map a `ListTasksResponse` to `TaskCacheItem`
-fn map_pve_task(task: ListTasksResponse, remote: &str) -> Result<TaskCacheItem, Error> {
-    let remote_upid: RemoteUpid = (remote.to_string(), task.upid.to_string()).try_into()?;
+/// Map a `pve_api_types::ListTasksResponse` to `TaskCacheItem`
+fn map_pve_task(task: pve_api_types::ListTasksResponse, remote: String) -> TaskCacheItem {
+    let remote_upid = RemoteUpid::new(remote, RemoteType::Pve, task.upid);
 
-    Ok(TaskCacheItem {
+    TaskCacheItem {
         upid: remote_upid,
         starttime: task.starttime,
         endtime: task.endtime,
         status: task.status,
-    })
+    }
+}
+
+/// Map a `pbs_api_types::TaskListItem` to `TaskCacheItem`
+fn map_pbs_task(task: pbs_api_types::TaskListItem, remote: String) -> TaskCacheItem {
+    let remote_upid = RemoteUpid::new(remote, RemoteType::Pbs, task.upid);
+
+    TaskCacheItem {
+        upid: remote_upid,
+        starttime: task.starttime,
+        endtime: task.endtime,
+        status: task.status,
+    }
 }
 
 /// Update task cache with results from tracked task polling & regular task fetching.
