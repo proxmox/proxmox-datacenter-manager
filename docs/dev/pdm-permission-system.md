@@ -1,5 +1,6 @@
 # ACL-Object path & Privileges
 
+
 ## `/system/{network,updates,disks,...}`
 
 For basic PDM system management.
@@ -58,3 +59,17 @@ could be still added later on, as it's an extension.
 - ResourceAuditor
 - AccessAuditor
 - ... can be extended in the future.
+
+## Use cases to Support (TODO: is this still relevant?)
+
+- Simplest, one or more admin working on equal terms and using PDM to manage resources owned by the
+  same entity (e.g., company)
+  They want a simple way to add one API-token per Proxmox product to PDM
+- More complex admin hierarchy, or (support) staff involved, where some need to manage parts of
+  their Proxmox infra, and some need to only audit part of the Proxmox infra, possibly on partially
+  overlapping hosts sets.
+  Flexible groups are required, some way to distinguish between admin/audit user while not blowing
+  up complexity of different credentials to add for each Proxmox project
+
+IOW., we want to have a somewhat flexible system while not blowing out (potential) complexity out of
+proportions.

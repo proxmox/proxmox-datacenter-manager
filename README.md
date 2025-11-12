@@ -62,54 +62,7 @@ There are two CLI tools to manage Proxmox Datacenter Manager.
 
 Their implementation can be found in `cli/admin` and `cli/client`, respectively.
 
-## User and Permission System
 
-### Use cases to Support
+## Documentation
 
-- Simplest, one or more admin working on equal terms and using PDM to manage resources owned by the
-  same entity (e.g., company)
-  They want a simple way to add one API-token per Proxmox product to PDM
-- More complex admin hierarchy, or (support) staff involved, where some need to manage parts of
-  their Proxmox infra, and some need to only audit part of the Proxmox infra, possibly on partially
-  overlapping hosts sets.
-  Flexible groups are required, some way to distinguish between admin/audit user while not blowing
-  up complexity of different credentials to add for each Proxmox project
-
-IOW., we want to have a somewhat flexible system while not blowing out (potential) complexity out of
-proportions.
-
-### Proposed mechanism:
-
-- Simplified privilege-roles:
-
-  - Audit: only access to GET calls
-  - Manage: only access to GET and some POST calls, to alter the state (e.g., start/stop) of a
-    resource, but not to alter its configuration
-
-    POST allows creation too, so this may require some annotations in the API schema.
-
-  - Admin: can do everything
-
-- On PDM one configures remotes, a remote includes (at least) the following config properties:
-
-  - ID with a name (not auto-generated)
-  - A host, i.e., for a PVE (cluster), PBS, PMG instance
-
-    For PVE we may want to allow configuring fallback hosts, or do some round-robin in general
-
-  - A '''list''' of API-Token (recommended, but "plain" user also allowed)
-
--  Then there are groups of remotes, they contain a list of entries with (at least):
-
-  - the remote ID
-  - the actual user to use from the list configured for that remote
-    This allows to partition privs that a PDM group can actually enact on the managed Proxmox
-    Products.
-
-    e.g, one can add two API tokens, one for full access on a PVE cluster one for limited to a
-    pool, then one PDM admin-group can use the fully privileged and one user-group can use the
-    limited one while still requiring only a single remote entry for that PVE cluster.
-
-- PDM Users get access to that group via a priv. role on it:
-
-  - Audit/Manage/Admin -> /groups/${ID}
+Documentation (user-facing as well as developer-facing) can be found in `docs/`.
