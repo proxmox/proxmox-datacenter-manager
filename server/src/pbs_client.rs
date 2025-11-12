@@ -6,9 +6,9 @@
 
 use anyhow::bail; // don't import Error as default error in here
 use http_body_util::BodyExt;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use proxmox_client::{ApiPathBuilder, Error, HttpApiClient};
+use proxmox_client::{ApiPathBuilder, ApiResponseData, Error, HttpApiClient};
 use proxmox_router::stream::JsonRecords;
 use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
@@ -123,6 +123,75 @@ pub struct AptUpdateParams {
     pub notify: Option<bool>,
     /// Don't show progress information in the output.
     pub quiet: Option<bool>,
+}
+
+// TODO: This is incomplete, it only contains the parameters needed for remote task fetching.
+// Ideally, the task list API in PBS would use a parameter struct defined in pbs-api-types, which
+// is then also used here.
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct ListTasks {
+    /// Only list this number of tasks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u64>,
+
+    /// Only list tasks since this UNIX epoch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub since: Option<i64>,
+}
+
+// TODO: The task-status APIs in PBS as well as PDM don't have a
+// proper type defined anywhere. This should be moved to a shared crate
+// and then the API handlers adapted.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TaskStatus {
+    pub exitstatus: Option<String>,
+
+    pub id: Option<String>,
+
+    pub node: String,
+
+    pub pid: i64,
+
+    pub pstart: i64,
+
+    pub starttime: i64,
+
+    pub status: IsRunning,
+
+    #[serde(rename = "type")]
+    pub ty: String,
+
+    pub upid: String,
+
+    pub user: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum IsRunning {
+    Running,
+    Stopped,
+}
+
+impl TaskStatus {
+    /// Checks if the task is currently running.
+    pub fn is_running(&self) -> bool {
+        self.status == IsRunning::Running
+    }
+}
+
+#[api]
+// TODO: The task-status APIs in PBS as well as PDM don't have a
+// proper type defined anywhere. This should be moved to a shared crate
+// and then the API handlers adapted.
+/// One line in the task log.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TaskLogLine {
+    /// Line number
+    pub n: i64,
+
+    /// Line text
+    pub t: String,
 }
 
 impl PbsClient {
@@ -317,6 +386,53 @@ impl PbsClient {
             .build();
 
         Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    /// Get list of tasks.
+    ///
+    /// `params`: Filters specifying which tasks to get.
+    pub async fn get_task_list(
+        &self,
+        params: ListTasks,
+    ) -> Result<Vec<pbs_api_types::TaskListItem>, Error> {
+        let ListTasks { limit, since } = params;
+
+        let url = ApiPathBuilder::new("/api2/extjs/nodes/localhost/tasks".to_string())
+            .maybe_arg("limit", &limit)
+            .maybe_arg("since", &since)
+            .build();
+
+        Ok(self.0.get(&url).await?.expect_json()?.data)
+    }
+
+    /// Read task log.
+    pub async fn get_task_log(
+        &self,
+        upid: &str,
+        download: Option<bool>,
+        limit: Option<u64>,
+        start: Option<u64>,
+    ) -> Result<ApiResponseData<Vec<TaskLogLine>>, Error> {
+        let url = ApiPathBuilder::new(format!("/api2/extjs/nodes/localhost/tasks/{upid}/log"))
+            .maybe_bool_arg("download", download)
+            .maybe_arg("limit", &limit)
+            .maybe_arg("start", &start)
+            .build();
+
+        self.0.get(&url).await?.expect_json()
+    }
+
+    /// Read task status.
+    pub async fn get_task_status(&self, upid: &str) -> Result<TaskStatus, Error> {
+        let url = format!("/api2/extjs/nodes/localhost/tasks/{upid}/status");
+        let response = self.0.get(&url).await?;
+        Ok(response.expect_json()?.data)
+    }
+
+    /// Stop a task.
+    pub async fn stop_task(&self, upid: &str) -> Result<(), Error> {
+        let url = format!("/api2/extjs/nodes/localhost/tasks/{upid}");
+        self.0.delete(&url).await?.nodata()
     }
 }
 
