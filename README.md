@@ -40,20 +40,33 @@ run (not everything will be finished for the initial 1.0):
     Proxmox Offline Mirror.
   - ... to be determined from user feedback and feature requests.
 
-## Technology Stack
+## Technology Overview
 
-- Server at the backend that the frontend communicates through a REST and JSON based API.
-- As much as possible written in the rust programming language.
+### Backend
+- Implemented in Rust, reusing code from Proxmox Backup Server where possible
 - A for Proxmox projects standard dual-stack of API daemons. One as main API daemon running as
   unprivileged users and one privileged daemon running as root. Contrary to other projects the
   privileged daemon exclusively listens on a file based UNIX socket, thus restricting attack surface
   even further.
-- backend: rust based, reusing PBS REST/API stack were possible
+- The backend listens on port 8443 (TLS only)
+- The code for the backend server is located in the `server/` directory.
 
-  - no privileged (root) operations required, so a single daemon is enough
-  - TCP port 443 (default HTTPS one)
+### Frontend
 
-- fronted: the Yew and Rust based 
+- The Web UI communicates with the backend server via a JSON-based REST API.
+- The UI is implemented in Rust, using [Yew](https://yew.rs/) and the 
+  [proxmox-yew-widget-toolkit](https://git.proxmox.com/?p=ui/proxmox-yew-widget-toolkit.git;a=summary).
+  The Rust code is compiled to WebAssembly.
+- The code for the UI is located in the `ui/` directory.
+
+### CLI tools
+
+There are two CLI tools to manage Proxmox Datacenter Manager.
+- `proxmox-datacenter-manager-client`: client using the PDM API, can be used to
+  control local or remote PDM instances
+- `proxmox-datacenter-manager-admin`: root-only, local administration tool
+
+Their implementation can be found in `cli/admin` and `cli/client`, respectively.
 
 ## User and Permission System
 
