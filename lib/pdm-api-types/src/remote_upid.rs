@@ -70,6 +70,28 @@ impl RemoteUpid {
         })
     }
 
+    /// Get the parsed PVE UPID.
+    ///
+    /// If the UPID could not be parsed, or has an unexpected format (PBS),
+    /// an error is returned.
+    pub fn pve_upid(&self) -> Result<pve_api_types::PveUpid, Error> {
+        match self.native_upid()? {
+            NativeUpid::PveUpid(pve_upid) => Ok(pve_upid),
+            NativeUpid::PbsUpid(_) => bail!("got a PBS UPID when expecting a PVE UPID"),
+        }
+    }
+
+    /// Get the parsed PBS UPID.
+    ///
+    /// If the UPID could not be parsed, or has an unexpected format (PVE),
+    /// an error is returned.
+    pub fn pbs_upid(&self) -> Result<pbs_api_types::UPID, Error> {
+        match self.native_upid()? {
+            NativeUpid::PveUpid(_) => bail!("got a PVE UPID when expecting a PBS UPID"),
+            NativeUpid::PbsUpid(pbs_upid) => Ok(pbs_upid),
+        }
+    }
+
     fn deduce_type(raw_upid: &str) -> Result<RemoteType, Error> {
         if raw_upid.parse::<pve_api_types::PveUpid>().is_ok() {
             Ok(RemoteType::Pve)
