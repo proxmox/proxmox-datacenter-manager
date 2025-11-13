@@ -140,6 +140,10 @@ impl ZoneTreeComponent {
                         ZoneTreeEntry::NetworkResource(r) => match r.network_type {
                             ClusterResourceNetworkType::Fabric => Some("road"),
                             ClusterResourceNetworkType::Zone => Some("th"),
+                            ClusterResourceNetworkType::UnknownEnumValue(variant) => {
+                                log::warn!("unknown network resource type {variant}");
+                                Some("question-circle-o")
+                            }
                         },
                         _ => None,
                     };
