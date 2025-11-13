@@ -6,10 +6,8 @@ use std::rc::Rc;
 use yew::virtual_dom::{Key, VComp, VNode};
 use yew::{html, ContextHandle, Html, Properties};
 
-use pdm_api_types::resource::{
-    PveSdnResource, RemoteResources, ResourceType, SdnStatus, SdnZoneResource,
-};
-use pdm_client::types::Resource;
+use pdm_api_types::resource::{PveNetworkResource, RemoteResources, ResourceType, SdnStatus};
+use pdm_client::types::{ClusterResourceNetworkType, Resource};
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 use pwt::props::EventSubscriber;
 use pwt::widget::{ActionIcon, Button, Toolbar};
@@ -44,11 +42,13 @@ impl From<ZoneTree> for VNode {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-struct ZoneData {
+struct NetworkData {
     remote: String,
     node: String,
     name: String,
+    network_type: ClusterResourceNetworkType,
     status: SdnStatus,
+    legacy: bool,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -56,17 +56,31 @@ enum ZoneTreeEntry {
     Root,
     Remote(String),
     Node(String, String),
-    Zone(ZoneData),
+    NetworkResource(NetworkData),
 }
 
 impl ZoneTreeEntry {
-    fn from_zone_resource(remote: String, value: SdnZoneResource) -> Self {
-        Self::Zone(ZoneData {
-            remote,
-            node: value.node.clone(),
-            name: value.name.clone(),
-            status: value.status,
-        })
+    fn from_network_resource(remote: String, value: PveNetworkResource) -> Self {
+        let network_type = value.network_type();
+
+        match value {
+            PveNetworkResource::Zone(zone) => Self::NetworkResource(NetworkData {
+                remote: remote,
+                node: zone.node,
+                name: zone.network,
+                status: zone.status,
+                network_type,
+                legacy: zone.legacy,
+            }),
+            PveNetworkResource::Fabric(fabric) => Self::NetworkResource(NetworkData {
+                remote: remote,
+                node: fabric.node,
+                name: fabric.network,
+                status: fabric.status,
+                network_type,
+                legacy: false,
+            }),
+        }
     }
 
     fn name(&self) -> &str {
@@ -74,7 +88,7 @@ impl ZoneTreeEntry {
             Self::Root => "",
             Self::Remote(name) => name,
             Self::Node(_, name) => name,
-            Self::Zone(zone) => &zone.name,
+            Self::NetworkResource(network_resource) => &network_resource.name,
         }
     }
 }
@@ -85,7 +99,9 @@ impl ExtractPrimaryKey for ZoneTreeEntry {
             ZoneTreeEntry::Root => "/".to_string(),
             ZoneTreeEntry::Remote(name) => format!("/{name}"),
             ZoneTreeEntry::Node(remote_name, name) => format!("/{remote_name}/{name}"),
-            ZoneTreeEntry::Zone(zone) => format!("/{}/{}/{}", zone.remote, zone.node, zone.name),
+            ZoneTreeEntry::NetworkResource(r) => {
+                format!("/{}/{}/{}/{}", r.remote, r.node, r.network_type, r.name)
+            }
         })
     }
 }
@@ -121,7 +137,10 @@ impl ZoneTreeComponent {
                     let icon = match entry {
                         ZoneTreeEntry::Remote(_) => Some("server"),
                         ZoneTreeEntry::Node(_, _) => Some("building"),
-                        ZoneTreeEntry::Zone(_) => Some("th"),
+                        ZoneTreeEntry::NetworkResource(r) => match r.network_type {
+                            ClusterResourceNetworkType::Fabric => Some("road"),
+                            ClusterResourceNetworkType::Zone => Some("th"),
+                        },
                         _ => None,
                     };
 
@@ -138,8 +157,8 @@ impl ZoneTreeComponent {
                 .render(|entry: &ZoneTreeEntry| {
                     let mut row = Row::new().class(css::AlignItems::Baseline).gap(2);
 
-                    if let ZoneTreeEntry::Zone(zone) = entry {
-                        row = match zone.status {
+                    if let ZoneTreeEntry::NetworkResource(r) = entry {
+                        row = match r.status {
                             SdnStatus::Available => {
                                 row.with_child(Fa::new("check").class(FontColor::Success))
                             }
@@ -149,7 +168,7 @@ impl ZoneTreeComponent {
                             _ => row,
                         };
 
-                        row = row.with_child(zone.status);
+                        row = row.with_child(r.status);
                     } else {
                         row = row.with_child("");
                     }
@@ -168,9 +187,22 @@ impl ZoneTreeComponent {
                             let hash = "#v1:0:18:4:::::::53";
                             crate::get_deep_url_low_level(link.yew_link(), remote, None, hash)
                         }
-                        ZoneTreeEntry::Zone(zone_data) => {
-                            let id = format!("sdn/{}/{}", zone_data.node, zone_data.name);
-                            get_deep_url(link.yew_link(), &zone_data.remote, None, &id)
+                        ZoneTreeEntry::NetworkResource(network_resource) => {
+                            if network_resource.legacy {
+                                let id = format!(
+                                    "sdn/{}/{}",
+                                    network_resource.node, network_resource.name
+                                );
+                                get_deep_url(link.yew_link(), &network_resource.remote, None, &id)
+                            } else {
+                                let id = format!(
+                                    "network/{}/{}/{}",
+                                    network_resource.node,
+                                    network_resource.network_type,
+                                    network_resource.name
+                                );
+                                get_deep_url(link.yew_link(), &network_resource.remote, None, &id)
+                            }
                         }
                     };
 
@@ -211,36 +243,34 @@ fn build_store_from_response(
         remote.set_expanded(true);
 
         for resource in resources.resources {
-            if let Resource::PveSdn(PveSdnResource::Zone(zone_resource)) = resource {
-                let node_entry = remote.children_mut().find(|entry| {
-                    if let ZoneTreeEntry::Node(_, name) = entry.record() {
-                        if name == &zone_resource.node {
-                            return true;
-                        }
-                    }
+            let Resource::PveNetwork(resource) = resource else {
+                continue;
+            };
 
-                    false
-                });
+            let node_entry = remote.children_mut().find(|entry| {
+                if let ZoneTreeEntry::Node(_, name) = entry.record() {
+                    return name == resource.node();
+                }
 
-                let node_name = zone_resource.node.clone();
+                false
+            });
 
-                let entry =
-                    ZoneTreeEntry::from_zone_resource(resources.remote.clone(), zone_resource);
+            let node_name = resource.node().to_string();
+            let entry = ZoneTreeEntry::from_network_resource(resources.remote.clone(), resource);
 
-                match node_entry {
-                    Some(mut node_entry) => {
-                        node_entry.append(entry);
-                    }
-                    None => {
-                        let mut node_entry =
-                            remote.append(ZoneTreeEntry::Node(resources.remote.clone(), node_name));
+            match node_entry {
+                Some(mut node_entry) => {
+                    node_entry.append(entry);
+                }
+                None => {
+                    let mut node_entry =
+                        remote.append(ZoneTreeEntry::Node(resources.remote.clone(), node_name));
 
-                        node_entry.set_expanded(true);
+                    node_entry.set_expanded(true);
 
-                        node_entry.append(entry);
-                    }
-                };
-            }
+                    node_entry.append(entry);
+                }
+            };
         }
     }
 
@@ -281,7 +311,7 @@ impl LoadableComponent for ZoneTreeComponent {
         Box::pin(async move {
             let client = pdm_client();
             let remote_resources = client
-                .resources_by_type(None, ResourceType::PveSdnZone, None)
+                .resources_by_type(None, ResourceType::PveNetwork, None)
                 .await?;
             link.send_message(Self::Message::LoadFinished(remote_resources));
 

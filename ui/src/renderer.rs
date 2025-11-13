@@ -1,4 +1,3 @@
-use pdm_api_types::resource::PveSdnResource;
 use proxmox_yew_comp::MeterLabel;
 use pwt::{
     css::AlignItems,
@@ -19,7 +18,7 @@ pub fn render_resource_name(resource: &Resource, vmid_first: bool) -> String {
         Resource::PveQemu(qemu) => pve::utils::render_qemu_name(qemu, vmid_first),
         Resource::PveLxc(lxc) => pve::utils::render_lxc_name(lxc, vmid_first),
         Resource::PveNode(node) => node.node.clone(),
-        Resource::PveSdn(sdn) => sdn.name().to_string(),
+        Resource::PveNetwork(network) => network.name().to_string(),
         Resource::PbsNode(node) => node.name.clone(),
         Resource::PbsDatastore(store) => store.name.clone(),
     }
@@ -31,7 +30,7 @@ pub fn render_resource_icon(resource: &Resource) -> Fa {
         Resource::PveQemu(_) => "desktop",
         Resource::PveLxc(_) => "cube",
         Resource::PveNode(_) => "building",
-        Resource::PveSdn(_) => "fa-sdn",
+        Resource::PveNetwork(_) => "fa-sdn",
         Resource::PbsNode(_) => "building-o",
         Resource::PbsDatastore(_) => "floppy-o",
     };
@@ -45,7 +44,7 @@ pub fn render_status_icon(resource: &Resource) -> Container {
         Resource::PveQemu(qemu) => pve::utils::render_qemu_status_icon(qemu),
         Resource::PveLxc(lxc) => pve::utils::render_lxc_status_icon(lxc),
         Resource::PveNode(node) => pve::utils::render_node_status_icon(node),
-        Resource::PveSdn(PveSdnResource::Zone(zone)) => pve::utils::render_sdn_status_icon(zone),
+        Resource::PveNetwork(network) => pve::utils::render_sdn_status_icon(network),
         // FIXME: implement remaining types
         _ => Container::new().with_child(render_resource_icon(resource)),
     }

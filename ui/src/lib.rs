@@ -1,6 +1,6 @@
 use js_sys::{Array, JsString, Object};
 use pdm_api_types::remotes::RemoteType;
-use pdm_api_types::resource::{PveLxcResource, PveQemuResource, PveSdnResource};
+use pdm_api_types::resource::{PveLxcResource, PveNetworkResource, PveQemuResource};
 use pdm_client::types::Resource;
 use serde::{Deserialize, Serialize};
 
@@ -182,7 +182,7 @@ pub(crate) fn navigate_to<C: yew::Component>(
                         true,
                         format!("storage+{}+{}", storage.node, storage.storage),
                     ),
-                    pdm_client::types::Resource::PveSdn(PveSdnResource::Zone(_)) => {
+                    pdm_client::types::Resource::PveNetwork(PveNetworkResource::Zone(_)) => {
                         (false, "sdn/zones".to_string())
                     }
                     pdm_client::types::Resource::PbsDatastore(store) => (true, store.name.clone()),
@@ -208,7 +208,7 @@ pub(crate) fn get_resource_node(resource: &Resource) -> Option<&str> {
         Resource::PveQemu(qemu) => Some(&qemu.node),
         Resource::PveLxc(lxc) => Some(&lxc.node),
         Resource::PveNode(node) => Some(&node.node),
-        Resource::PveSdn(sdn) => Some(sdn.node()),
+        Resource::PveNetwork(network) => Some(network.node()),
         Resource::PbsNode(_) => None,
         Resource::PbsDatastore(_) => None,
     }

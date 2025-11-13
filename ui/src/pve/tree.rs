@@ -199,7 +199,7 @@ impl PveTreeComp {
                     }
                     node.append(PveTreeNode::Storage(storage.clone()));
                 }
-                PveResource::Sdn(_) => {}
+                PveResource::Network(_) => {}
             }
         }
         if !self.loaded {

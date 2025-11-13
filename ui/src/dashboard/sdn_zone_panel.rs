@@ -148,9 +148,12 @@ fn create_list_tile(
 }
 
 fn create_sdn_zone_search_term(status: Option<SdnStatus>) -> Search {
-    let resource_type: ResourceType = ResourceType::PveSdnZone;
+    let resource_type: ResourceType = ResourceType::PveNetwork;
 
-    let mut terms = vec![SearchTerm::new(resource_type.as_str()).category(Some("type"))];
+    let mut terms = vec![
+        SearchTerm::new(resource_type.as_str()).category(Some("type")),
+        SearchTerm::new("zone").category(Some("network-type")),
+    ];
 
     if let Some(status) = status {
         terms.push(SearchTerm::new(status.to_string()).category(Some("status")));
