@@ -1180,6 +1180,10 @@ pub(super) fn map_pve_network(
                         legacy: false,
                     }))
                 }
+                ClusterResourceNetworkType::UnknownEnumValue(variant) => {
+                    log::debug!("ignoring unknown network type variant {variant}");
+                    None
+                },
             }
         }
         _ => None,
