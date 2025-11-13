@@ -956,9 +956,13 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
-    pub async fn get_top_entities(&self) -> Result<TopEntities, Error> {
-        let path = "/api2/extjs/resources/top-entities";
-        Ok(self.0.get(path).await?.expect_json()?.data)
+    pub async fn get_top_entities(&self, view: Option<&str>) -> Result<TopEntities, Error> {
+        let builder = ApiPathBuilder::new("/api2/extjs/resources/top-entities".to_string())
+            .maybe_arg("view", &view);
+
+        let path = builder.build();
+
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     pub async fn pve_node_status(&self, remote: &str, node: &str) -> Result<NodeStatus, Error> {

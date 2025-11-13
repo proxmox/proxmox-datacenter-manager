@@ -162,7 +162,7 @@ impl ViewComp {
                     if top_entities {
                         let client: pdm_client::PdmClient<Rc<proxmox_yew_comp::HttpClientWasm>> =
                             pdm_client();
-                        let res = client.get_top_entities().await;
+                        let res = client.get_top_entities(None).await;
                         link.send_message(Msg::LoadingResult(LoadingResult::TopEntities(res)));
                     }
                 };
