@@ -140,6 +140,10 @@ fn store_metric_pve(cache: &RrdCache, remote_name: &str, data_point: &ClusterMet
         ClusterMetricsDataType::Gauge => DataSourceType::Gauge,
         ClusterMetricsDataType::Counter => DataSourceType::Counter,
         ClusterMetricsDataType::Derive => DataSourceType::Derive,
+        ClusterMetricsDataType::UnknownEnumValue(value) => {
+            log::warn!("encountered unknown metric type: {value}");
+            return;
+        }
     };
 
     cache.update_value(

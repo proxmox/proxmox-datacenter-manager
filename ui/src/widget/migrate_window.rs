@@ -122,6 +122,9 @@ impl PdmMigrateWindow {
                 match status.status {
                     pdm_client::types::IsRunning::Running => tr!("Online"),
                     pdm_client::types::IsRunning::Stopped => tr!("Offline"),
+                    pdm_client::types::IsRunning::UnknownEnumValue(value) => {
+                        bail!("encountered unknown guest status: {value}")
+                    }
                 }
             }
             crate::pve::GuestType::Lxc => {
@@ -131,6 +134,9 @@ impl PdmMigrateWindow {
                 match status.status {
                     pdm_client::types::IsRunning::Running => tr!("Restart"),
                     pdm_client::types::IsRunning::Stopped => tr!("Offline"),
+                    pdm_client::types::IsRunning::UnknownEnumValue(value) => {
+                        bail!("encountered unknown guest status: {value}")
+                    }
                 }
             }
         };

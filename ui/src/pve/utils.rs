@@ -295,5 +295,6 @@ pub(crate) fn render_content_type(ty: &StorageContent) -> String {
         StorageContent::Snippets => tr!("Snippets"),
         StorageContent::Vztmpl => tr!("Container template"),
         StorageContent::None => tr!("None"),
+        StorageContent::UnknownEnumValue(value) => tr!("unknown content type ({0})", value),
     }
 }
