@@ -425,6 +425,10 @@ pub(crate) async fn get_resources_impl(
                 default: 30,
                 optional: true,
             },
+            view: {
+                schema: VIEW_ID_SCHEMA,
+                optional: true,
+            },
         }
     },
     returns: {
@@ -438,10 +442,11 @@ pub(crate) async fn get_resources_impl(
 /// Return the amount of configured/seen resources by type
 pub async fn get_status(
     max_age: u64,
+    view: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ResourcesStatus, Error> {
     let remotes_with_resources =
-        get_resources_impl(max_age, None, None, None, Some(rpcenv)).await?;
+        get_resources_impl(max_age, None, None, view.as_deref(), Some(rpcenv)).await?;
     let mut counts = ResourcesStatus::default();
     for remote_with_resources in remotes_with_resources {
         if let Some(err) = remote_with_resources.error {
