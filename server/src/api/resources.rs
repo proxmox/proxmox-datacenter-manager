@@ -54,6 +54,7 @@ const SUBDIRS: SubdirMap = &sorted!([
 
 enum MatchCategory {
     Type,
+    NetworkType,
     Name,
     Id,
     Status,
@@ -69,6 +70,7 @@ impl std::str::FromStr for MatchCategory {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let category = match s {
             "type" => MatchCategory::Type,
+            "network-type" => MatchCategory::NetworkType,
             "name" => MatchCategory::Name,
             "id" => MatchCategory::Id,
             "status" => MatchCategory::Status,
@@ -85,7 +87,7 @@ impl std::str::FromStr for MatchCategory {
 impl MatchCategory {
     fn matches(&self, value: &str, search_term: &str) -> bool {
         match self {
-            MatchCategory::Type | MatchCategory::Status => value
+            MatchCategory::Type | MatchCategory::Status | MatchCategory::NetworkType => value
                 .to_lowercase()
                 .starts_with(&search_term.to_lowercase()),
             MatchCategory::Name | MatchCategory::Id | MatchCategory::Remote => {
@@ -132,6 +134,12 @@ fn resource_matches_search_term(
             },
             MatchCategory::Remote => category.matches(remote_name, &term.value),
             MatchCategory::RemoteType => return None,
+            MatchCategory::NetworkType => match resource {
+                Resource::PveNetwork(network_resource) => {
+                    category.matches(&network_resource.network_type().as_str(), &term.value)
+                }
+                _ => false,
+            },
         },
         Some(Err(_)) => false,
         None => {
@@ -162,6 +170,7 @@ fn remote_matches_search_term(
             MatchCategory::Property => false,
             MatchCategory::Template => false,
             MatchCategory::RemoteType => category.matches(&remote.ty.to_string(), &term.value),
+            MatchCategory::NetworkType => false,
         },
         Some(Err(_)) => false,
         None => {
