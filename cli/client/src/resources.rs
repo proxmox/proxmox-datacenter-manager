@@ -31,7 +31,7 @@ pub fn cli() -> CommandLineInterface {
 )]
 /// List all the remotes this instance is managing.
 async fn get_resources(max_age: Option<u64>) -> Result<(), Error> {
-    let mut resources = client()?.resources(max_age).await?;
+    let mut resources = client()?.resources(max_age, None).await?;
     let output_format = env().format_args.output_format;
     if output_format == OutputFormat::Text {
         if resources.is_empty() {

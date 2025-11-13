@@ -281,7 +281,7 @@ impl LoadableComponent for ZoneTreeComponent {
         Box::pin(async move {
             let client = pdm_client();
             let remote_resources = client
-                .resources_by_type(None, ResourceType::PveSdnZone)
+                .resources_by_type(None, ResourceType::PveSdnZone, None)
                 .await?;
             link.send_message(Self::Message::LoadFinished(remote_resources));
 

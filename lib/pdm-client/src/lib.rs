@@ -863,9 +863,14 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
-    pub async fn resources(&self, max_age: Option<u64>) -> Result<Vec<RemoteResources>, Error> {
+    pub async fn resources(
+        &self,
+        max_age: Option<u64>,
+        view: Option<&str>,
+    ) -> Result<Vec<RemoteResources>, Error> {
         let path = ApiPathBuilder::new("/api2/extjs/resources/list")
             .maybe_arg("max-age", &max_age)
+            .maybe_arg("view", &view)
             .build();
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
@@ -874,10 +879,12 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         max_age: Option<u64>,
         resource_type: ResourceType,
+        view: Option<&str>,
     ) -> Result<Vec<RemoteResources>, Error> {
         let path = ApiPathBuilder::new("/api2/extjs/resources/list")
             .maybe_arg("max-age", &max_age)
             .arg("resource-type", resource_type)
+            .maybe_arg("view", &view)
             .build();
 
         Ok(self.0.get(&path).await?.expect_json()?.data)
