@@ -1,3 +1,35 @@
+proxmox-datacenter-manager-ui (0.9.3) trixie; urgency=medium
+
+  * remote wizard: validate remote ID for better UX.
+
+  * permission path selector: remove duplicate path entry.
+
+  * sort permission path selector paths.
+
+  * dashboard: drop s3 and removable stores from PBS datastore widget for now,
+    those are datastore types while the rest of the shown rows represent
+    current datastore status.
+
+  * pbs datastores panel: make status label translatable.
+
+  * rework dashboard code and layout as initial preparation for flexible
+    custom views.
+
+  * dashboard: status row: make loading less jarring.
+
+  * api token panel: ask for confirmation when removing a token.
+
+  * remote tasks: use correct base url for PBS tasks.
+
+  * fix #6797: ui: add initial dialog to view remote subscriptions. For now
+    this is accessible by clicking the subscription widget in the dashboard.
+
+  * ui: add basic node status tab to the administration panel, including very
+    basic info about the PDM node itself, and providing a reboot and shutdown
+    button for the PDM instance.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 13 Nov 2025 23:04:44 +0100
+
 proxmox-datacenter-manager-ui (0.9.2) trixie; urgency=medium
 
   * wizard: remove warning about PBS 3 compatibility support now that it's
