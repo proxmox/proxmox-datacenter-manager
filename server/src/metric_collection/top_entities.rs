@@ -116,7 +116,7 @@ pub fn calculate_top(
                             }
                         }
                     }
-                    Resource::PveSdn(_) => {}
+                    Resource::PveNetwork(_) => {}
                     Resource::PbsDatastore(_) => {}
                 }
             }

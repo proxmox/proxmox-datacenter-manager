@@ -191,7 +191,7 @@ impl<'a> From<&'a Resource> for ResourceData<'a> {
                 resource_id: value.global_id(),
             },
             Resource::PveNode(_)
-            | Resource::PveSdn(_)
+            | Resource::PveNetwork(_)
             | Resource::PbsNode(_)
             | Resource::PbsDatastore(_)
             | Resource::PveStorage(_) => ResourceData {

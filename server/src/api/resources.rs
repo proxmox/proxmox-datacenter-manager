@@ -11,9 +11,10 @@ use pbs_api_types::{
 };
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
-    FailedRemote, PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNodeResource,
-    PveQemuResource, PveSdnResource, PveStorageResource, RemoteResources, Resource, ResourceType,
-    ResourcesStatus, SdnStatus, SdnZoneResource, TopEntities, PBS_DATASTORE_HIGH_USAGE_THRESHOLD,
+    FailedRemote, NetworkFabricResource, NetworkZoneResource, PbsDatastoreResource,
+    PbsNodeResource, PveLxcResource, PveNetworkResource, PveNodeResource, PveQemuResource,
+    PveStorageResource, RemoteResources, Resource, ResourceType, ResourcesStatus, SdnStatus,
+    TopEntities, PBS_DATASTORE_HIGH_USAGE_THRESHOLD,
 };
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
@@ -28,7 +29,7 @@ use proxmox_rrd_api_types::RrdTimeframe;
 use proxmox_schema::{api, parse_boolean};
 use proxmox_sortable_macro::sortable;
 use proxmox_subscription::SubscriptionStatus;
-use pve_api_types::{ClusterResource, ClusterResourceType};
+use pve_api_types::{ClusterResource, ClusterResourceNetworkType, ClusterResourceType};
 
 use crate::metric_collection::top_entities;
 use crate::{connection, views};
@@ -482,18 +483,18 @@ pub async fn get_status(
                     "offline" => counts.pve_nodes.offline += 1,
                     _ => counts.pve_nodes.unknown += 1,
                 },
-                Resource::PveSdn(r) => {
-                    let PveSdnResource::Zone(_) = &r;
-
-                    match r.status() {
-                        SdnStatus::Available => {
-                            counts.sdn_zones.available += 1;
-                        }
-                        SdnStatus::Error => {
-                            counts.sdn_zones.error += 1;
-                        }
-                        SdnStatus::Unknown => {
-                            counts.sdn_zones.unknown += 1;
+                Resource::PveNetwork(r) => {
+                    if let PveNetworkResource::Zone(zone) = r {
+                        match zone.status() {
+                            SdnStatus::Available => {
+                                counts.sdn_zones.available += 1;
+                            }
+                            SdnStatus::Error => {
+                                counts.sdn_zones.error += 1;
+                            }
+                            SdnStatus::Unknown => {
+                                counts.sdn_zones.unknown += 1;
+                            }
                         }
                     }
                 }
@@ -1114,18 +1115,63 @@ pub(super) fn map_pve_storage(
     }
 }
 
-pub(super) fn map_pve_sdn(remote: &str, resource: ClusterResource) -> Option<PveSdnResource> {
+pub(super) fn map_pve_sdn(remote: &str, resource: ClusterResource) -> Option<PveNetworkResource> {
     match resource.ty {
         ClusterResourceType::Sdn => {
             let node = resource.node.unwrap_or_default();
 
-            Some(PveSdnResource::Zone(SdnZoneResource {
+            Some(PveNetworkResource::Zone(NetworkZoneResource {
                 id: format!("remote/{remote}/sdn/{}", &resource.id),
-                name: resource.sdn.unwrap_or_default(),
+                network: resource.sdn.unwrap_or_default(),
                 node,
+                // is empty in this format
+                zone_type: resource.zone_type.unwrap_or_default(),
                 status: SdnStatus::from_str(resource.status.unwrap_or_default().as_str())
                     .unwrap_or_default(),
+                legacy: true,
             }))
+        }
+        _ => None,
+    }
+}
+
+pub(super) fn map_pve_network(
+    remote: &str,
+    resource: ClusterResource,
+) -> Option<PveNetworkResource> {
+    match resource.ty {
+        ClusterResourceType::Network => {
+            let Some(network_type) = resource.network_type else {
+                return None;
+            };
+
+            let id = format!("remote/{remote}/{}", &resource.id);
+            let node = resource.node.unwrap_or_default();
+            let network = resource.network.unwrap_or_default();
+            let status = SdnStatus::from_str(resource.status.unwrap_or_default().as_str())
+                .unwrap_or_default();
+
+            match network_type {
+                ClusterResourceNetworkType::Fabric => {
+                    Some(PveNetworkResource::Fabric(NetworkFabricResource {
+                        id,
+                        network,
+                        node,
+                        status,
+                        protocol: resource.protocol.unwrap_or_default(),
+                    }))
+                }
+                ClusterResourceNetworkType::Zone => {
+                    Some(PveNetworkResource::Zone(NetworkZoneResource {
+                        id,
+                        network,
+                        node,
+                        status,
+                        zone_type: resource.zone_type.unwrap_or_default(),
+                        legacy: false,
+                    }))
+                }
+            }
         }
         _ => None,
     }
@@ -1137,7 +1183,8 @@ fn map_pve_resource(remote: &str, resource: ClusterResource) -> Option<Resource>
         ClusterResourceType::Lxc => map_pve_lxc(remote, resource).map(Resource::PveLxc),
         ClusterResourceType::Qemu => map_pve_qemu(remote, resource).map(Resource::PveQemu),
         ClusterResourceType::Storage => map_pve_storage(remote, resource).map(Resource::PveStorage),
-        ClusterResourceType::Sdn => map_pve_sdn(remote, resource).map(Resource::PveSdn),
+        ClusterResourceType::Sdn => map_pve_sdn(remote, resource).map(Resource::PveNetwork),
+        ClusterResourceType::Network => map_pve_network(remote, resource).map(Resource::PveNetwork),
         _ => None,
     }
 }

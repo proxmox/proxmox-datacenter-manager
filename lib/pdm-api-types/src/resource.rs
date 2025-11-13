@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::{api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema};
 
 use super::remotes::{RemoteType, REMOTE_ID_SCHEMA};
+use pve_api_types::ClusterResourceNetworkType;
 
 /// High PBS datastore usage threshold
 pub const PBS_DATASTORE_HIGH_USAGE_THRESHOLD: f64 = 0.80;
@@ -25,7 +26,7 @@ pub enum Resource {
     PveQemu(PveQemuResource),
     PveLxc(PveLxcResource),
     PveNode(PveNodeResource),
-    PveSdn(PveSdnResource),
+    PveNetwork(PveNetworkResource),
     PbsNode(PbsNodeResource),
     PbsDatastore(PbsDatastoreResource),
 }
@@ -39,7 +40,15 @@ impl Resource {
             Resource::PveQemu(r) => format!("qemu/{}", r.vmid),
             Resource::PveLxc(r) => format!("lxc/{}", r.vmid),
             Resource::PveNode(r) => format!("node/{}", r.node),
-            Resource::PveSdn(PveSdnResource::Zone(r)) => format!("sdn/{}/{}", r.node, r.name),
+            Resource::PveNetwork(r) => {
+                if let PveNetworkResource::Zone(z) = r {
+                    if z.legacy {
+                        return format!("sdn/{}/{}", r.node(), r.name());
+                    }
+                }
+
+                format!("network/{}/{}/{}", r.node(), r.network_type(), r.name())
+            }
             Resource::PbsNode(r) => format!("node/{}", r.name),
             Resource::PbsDatastore(r) => r.name.clone(),
         }
@@ -53,7 +62,7 @@ impl Resource {
             Resource::PveQemu(r) => r.id.as_str(),
             Resource::PveLxc(r) => r.id.as_str(),
             Resource::PveNode(r) => r.id.as_str(),
-            Resource::PveSdn(r) => r.id(),
+            Resource::PveNetwork(r) => r.id(),
             Resource::PbsNode(r) => r.id.as_str(),
             Resource::PbsDatastore(r) => r.id.as_str(),
         }
@@ -67,7 +76,7 @@ impl Resource {
             Resource::PveQemu(r) => r.name.as_str(),
             Resource::PveLxc(r) => r.name.as_str(),
             Resource::PveNode(r) => r.node.as_str(),
-            Resource::PveSdn(r) => r.name(),
+            Resource::PveNetwork(r) => r.name(),
             Resource::PbsNode(r) => r.name.as_str(),
             Resource::PbsDatastore(r) => r.name.as_str(),
         }
@@ -78,7 +87,7 @@ impl Resource {
             Resource::PveStorage(_) => ResourceType::PveStorage,
             Resource::PveQemu(_) => ResourceType::PveQemu,
             Resource::PveLxc(_) => ResourceType::PveLxc,
-            Resource::PveSdn(PveSdnResource::Zone(_)) => ResourceType::PveSdnZone,
+            Resource::PveNetwork(_) => ResourceType::PveNetwork,
             Resource::PveNode(_) | Resource::PbsNode(_) => ResourceType::Node,
             Resource::PbsDatastore(_) => ResourceType::PbsDatastore,
         }
@@ -90,7 +99,7 @@ impl Resource {
             Resource::PveQemu(r) => r.status.as_str(),
             Resource::PveLxc(r) => r.status.as_str(),
             Resource::PveNode(r) => r.status.as_str(),
-            Resource::PveSdn(r) => r.status().as_str(),
+            Resource::PveNetwork(r) => r.status(),
             Resource::PbsNode(r) => {
                 if r.uptime > 0 {
                     "online"
@@ -138,9 +147,9 @@ pub enum ResourceType {
     /// PVE LXC Resource
     #[serde(rename = "lxc")]
     PveLxc,
-    /// PVE SDN Resource
-    #[serde(rename = "sdn-zone")]
-    PveSdnZone,
+    /// PVE Network Resource
+    #[serde(rename = "network")]
+    PveNetwork,
     /// PBS Datastore Resource
     #[serde(rename = "datastore")]
     PbsDatastore,
@@ -156,7 +165,7 @@ impl ResourceType {
             ResourceType::PveStorage => "storage",
             ResourceType::PveQemu => "qemu",
             ResourceType::PveLxc => "lxc",
-            ResourceType::PveSdnZone => "sdn-zone",
+            ResourceType::PveNetwork => "network",
             ResourceType::PbsDatastore => "datastore",
             ResourceType::Node => "node",
         }
@@ -177,7 +186,7 @@ impl std::str::FromStr for ResourceType {
             "storage" => ResourceType::PveStorage,
             "qemu" => ResourceType::PveQemu,
             "lxc" => ResourceType::PveLxc,
-            "sdn-zone" => ResourceType::PveSdnZone,
+            "network" => ResourceType::PveNetwork,
             "datastore" => ResourceType::PbsDatastore,
             "node" => ResourceType::Node,
             _ => bail!("invalid resource type"),
@@ -201,7 +210,7 @@ pub enum PveResource {
     Qemu(PveQemuResource),
     Lxc(PveLxcResource),
     Node(PveNodeResource),
-    Sdn(PveSdnResource),
+    Network(PveNetworkResource),
 }
 
 #[api(
@@ -352,15 +361,48 @@ pub struct PveStorageResource {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// SDN Zone
-pub struct SdnZoneResource {
+pub struct NetworkZoneResource {
     /// Resource ID
     pub id: String,
-    /// Name of the resource
-    pub name: String,
     /// Cluster node name
     pub node: String,
+    /// Name of the resource
+    pub network: String,
     /// SDN status (available / error)
     pub status: SdnStatus,
+    /// Zone type
+    pub zone_type: String,
+    /// legacy
+    pub legacy: bool,
+}
+
+impl NetworkZoneResource {
+    pub fn status(&self) -> SdnStatus {
+        self.status
+    }
+}
+
+#[api]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+/// SDN Fabric
+pub struct NetworkFabricResource {
+    /// Resource ID
+    pub id: String,
+    /// Cluster node name
+    pub node: String,
+    /// Name of the resource
+    pub network: String,
+    /// SDN status (available / error)
+    pub status: SdnStatus,
+    /// faabric protocol
+    pub protocol: String,
+}
+
+impl NetworkFabricResource {
+    pub fn status(&self) -> SdnStatus {
+        self.status
+    }
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Copy, Default)]
@@ -407,58 +449,67 @@ impl ApiType for SdnStatus {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-#[serde(tag = "sdn_type", rename_all = "lowercase")]
+#[serde(tag = "network_type", rename_all = "lowercase")]
 /// SDN resource in PDM
-pub enum PveSdnResource {
-    Zone(SdnZoneResource),
+pub enum PveNetworkResource {
+    Fabric(NetworkFabricResource),
+    Zone(NetworkZoneResource),
 }
 
-impl ApiType for PveSdnResource {
+impl ApiType for PveNetworkResource {
     const API_SCHEMA: Schema = OneOfSchema::new(
-        "PVE SDN resource",
+        "PVE Network resource",
         &(
-            "sdn_type",
+            "network_type",
             false,
-            &StringSchema::new("PVE SDN resource type")
-                .format(&ApiStringFormat::Enum(&[EnumEntry::new(
-                    "zone",
-                    "An SDN zone.",
-                )]))
+            &StringSchema::new("PVE Network resource type")
+                .format(&ApiStringFormat::Enum(&[
+                    EnumEntry::new("zone", "An SDN zone."),
+                    EnumEntry::new("fabric", "An SDN fabric."),
+                ]))
                 .schema(),
         ),
-        &[("zone", &SdnZoneResource::API_SCHEMA)],
+        &[
+            ("fabric", &NetworkFabricResource::API_SCHEMA),
+            ("zone", &NetworkZoneResource::API_SCHEMA),
+        ],
     )
     .schema();
 }
 
-impl PveSdnResource {
+impl PveNetworkResource {
     pub fn id(&self) -> &str {
         match self {
             Self::Zone(zone) => zone.id.as_str(),
+            Self::Fabric(fabric) => fabric.id.as_str(),
         }
     }
 
     pub fn name(&self) -> &str {
         match self {
-            Self::Zone(zone) => zone.name.as_str(),
+            Self::Zone(zone) => zone.network.as_str(),
+            Self::Fabric(fabric) => fabric.network.as_str(),
         }
     }
 
     pub fn node(&self) -> &str {
         match self {
             Self::Zone(zone) => zone.node.as_str(),
+            Self::Fabric(fabric) => fabric.node.as_str(),
         }
     }
 
-    pub fn status(&self) -> SdnStatus {
+    pub fn status(&self) -> &str {
         match self {
-            Self::Zone(zone) => zone.status,
+            Self::Zone(zone) => zone.status.as_str(),
+            Self::Fabric(fabric) => fabric.status.as_str(),
         }
     }
 
-    pub fn sdn_type(&self) -> &'static str {
+    pub fn network_type(&self) -> ClusterResourceNetworkType {
         match self {
-            Self::Zone(_) => "sdn-zone",
+            Self::Zone(_) => ClusterResourceNetworkType::Zone,
+            Self::Fabric(_) => ClusterResourceNetworkType::Fabric,
         }
     }
 }
