@@ -4,7 +4,6 @@ use std::rc::Rc;
 use anyhow::Error;
 use gloo_utils::window;
 use pbs_api_types::DataStoreConfig;
-use pwt::props::ExtractPrimaryKey;
 use yew::virtual_dom::{VComp, VNode};
 use yew::{Html, Properties};
 
