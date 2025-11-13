@@ -12,6 +12,7 @@ pub mod remote_tasks;
 pub mod remote_updates;
 pub mod resource_cache;
 pub mod task_utils;
+pub mod views;
 
 pub mod connection;
 pub mod pbs_client;
