@@ -18,7 +18,7 @@ use pdm_api_types::resource::{
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
 };
-use pdm_api_types::{Authid, PRIV_RESOURCE_AUDIT};
+use pdm_api_types::{Authid, PRIV_RESOURCE_AUDIT, VIEW_ID_SCHEMA};
 use pdm_search::{Search, SearchTerm};
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
@@ -30,8 +30,8 @@ use proxmox_sortable_macro::sortable;
 use proxmox_subscription::SubscriptionStatus;
 use pve_api_types::{ClusterResource, ClusterResourceType};
 
-use crate::connection;
 use crate::metric_collection::top_entities;
+use crate::{connection, views};
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -221,6 +221,10 @@ impl From<RemoteWithResources> for RemoteResources {
                 type: ResourceType,
                 optional: true,
             },
+            view: {
+                schema: VIEW_ID_SCHEMA,
+                optional: true,
+            },
         }
     },
     returns: {
@@ -236,10 +240,17 @@ pub async fn get_resources(
     max_age: u64,
     resource_type: Option<ResourceType>,
     search: Option<String>,
+    view: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<RemoteResources>, Error> {
-    let remotes_with_resources =
-        get_resources_impl(max_age, search, resource_type, Some(rpcenv)).await?;
+    let remotes_with_resources = get_resources_impl(
+        max_age,
+        search,
+        resource_type,
+        view.as_deref(),
+        Some(rpcenv),
+    )
+    .await?;
     let resources = remotes_with_resources.into_iter().map(Into::into).collect();
     Ok(resources)
 }
@@ -276,6 +287,7 @@ pub(crate) async fn get_resources_impl(
     max_age: u64,
     search: Option<String>,
     resource_type: Option<ResourceType>,
+    view: Option<&str>,
     rpcenv: Option<&mut dyn RpcEnvironment>,
 ) -> Result<Vec<RemoteWithResources>, Error> {
     let user_info = CachedUserInfo::new()?;
@@ -285,9 +297,15 @@ pub(crate) async fn get_resources_impl(
             .get_auth_id()
             .ok_or_else(|| format_err!("no authid available"))?
             .parse()?;
-        if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT)? {
+
+        // NOTE: Assumption is that the regular permission check is completely replaced by a check
+        // on the view ACL object *if* a view parameter is passed.
+        if let Some(view) = &view {
+            user_info.check_privs(&auth_id, &["view", view], PRIV_RESOURCE_AUDIT, false)?;
+        } else if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT)? {
             http_bail!(FORBIDDEN, "user has no access to resources");
         }
+
         opt_auth_id = Some(auth_id);
     }
 
@@ -296,10 +314,16 @@ pub(crate) async fn get_resources_impl(
 
     let filters = search.map(Search::from).unwrap_or_default();
 
+    let view = views::get_optional_view(view)?;
+
     let remotes_only = is_remotes_only(&filters);
 
     for (remote_name, remote) in remotes_config {
-        if let Some(ref auth_id) = opt_auth_id {
+        if let Some(view) = &view {
+            if view.can_skip_remote(&remote_name) {
+                continue;
+            }
+        } else if let Some(ref auth_id) = opt_auth_id {
             let remote_privs = user_info.lookup_privs(auth_id, &["resource", &remote_name]);
             if remote_privs & PRIV_RESOURCE_AUDIT == 0 {
                 continue;
@@ -374,6 +398,17 @@ pub(crate) async fn get_resources_impl(
         }
     }
 
+    if let Some(view) = &view {
+        remote_resources.retain_mut(|r| {
+            r.resources
+                .retain(|resource| view.resource_matches(&r.remote_name, resource));
+
+            let has_any_matched_resources = !r.resources.is_empty();
+            has_any_matched_resources
+                || (r.error.is_some() && view.is_remote_explicitly_included(&r.remote_name))
+        });
+    }
+
     Ok(remote_resources)
 }
 
@@ -405,7 +440,8 @@ pub async fn get_status(
     max_age: u64,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ResourcesStatus, Error> {
-    let remotes_with_resources = get_resources_impl(max_age, None, None, Some(rpcenv)).await?;
+    let remotes_with_resources =
+        get_resources_impl(max_age, None, None, None, Some(rpcenv)).await?;
     let mut counts = ResourcesStatus::default();
     for remote_with_resources in remotes_with_resources {
         if let Some(err) = remote_with_resources.error {
