@@ -1,6 +1,5 @@
 use anyhow::{format_err, Error};
 use nix::unistd::{Gid, Group, Uid, User};
-
 pub use pdm_buildcfg::{BACKUP_GROUP_NAME, BACKUP_USER_NAME};
 
 pub mod certificate_config;
@@ -8,6 +7,7 @@ pub mod domains;
 pub mod node;
 pub mod remotes;
 pub mod setup;
+pub mod views;
 
 mod config_version_cache;
 pub use config_version_cache::ConfigVersionCache;
