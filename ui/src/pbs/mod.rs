@@ -94,7 +94,6 @@ impl LoadableComponent for PbsRemoteComp {
     fn update(&mut self, _ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::SelectedView(pbs_tree_node) => {
-                log::info!("selected: {:?}", pbs_tree_node.extract_key());
                 self.view = pbs_tree_node;
             }
             Msg::ResourcesList(vec) => {
