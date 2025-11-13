@@ -16,6 +16,8 @@ use pwt_macros::builder;
 //mod services;
 //pub use services::Services;
 
+mod node_status;
+
 use proxmox_yew_comp::{AptPackageManager, AptRepositories, ExistingProduct, Syslog, Tasks};
 
 #[derive(Clone, PartialEq, Properties)]
@@ -67,6 +69,13 @@ impl Component for PdmServerAdministration {
                 |_| Services::new().into(),
             )
             */
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("status")
+                    .label(tr!("Node Status"))
+                    .icon_class("fa fa-book"),
+                move |_| node_status::NodeStatus::new().into(),
+            )
             .with_item_builder(
                 TabBarItem::new()
                     .key("updates")
