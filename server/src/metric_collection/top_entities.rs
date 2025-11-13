@@ -37,6 +37,7 @@ pub fn calculate_top(
     timeframe: proxmox_rrd_api_types::RrdTimeframe,
     num: usize,
     check_remote_privs: impl Fn(&str) -> bool,
+    is_resource_included: impl Fn(&str, &Resource) -> bool,
 ) -> TopEntities {
     let mut guest_cpu = Vec::new();
     let mut node_cpu = Vec::new();
@@ -51,6 +52,10 @@ pub fn calculate_top(
             crate::api::resources::get_cached_resources(remote_name, i64::MAX as u64)
         {
             for res in data.resources {
+                if !is_resource_included(remote_name, &res) {
+                    continue;
+                }
+
                 let id = res.id().to_string();
                 let name = format!("pve/{remote_name}/{id}");
                 match &res {

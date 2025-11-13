@@ -619,7 +619,11 @@ pub async fn get_subscription_status(
             "timeframe": {
                 type: RrdTimeframe,
                 optional: true,
-            }
+            },
+            view: {
+                schema: VIEW_ID_SCHEMA,
+                optional: true,
+            },
         }
     },
     access: {
@@ -632,6 +636,7 @@ pub async fn get_subscription_status(
 /// Returns the top X entities regarding the chosen type
 async fn get_top_entities(
     timeframe: Option<RrdTimeframe>,
+    view: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<TopEntities, Error> {
     let user_info = CachedUserInfo::new()?;
@@ -640,17 +645,43 @@ async fn get_top_entities(
         .ok_or_else(|| format_err!("no authid available"))?
         .parse()?;
 
-    if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT)? {
+    if let Some(view) = &view {
+        user_info.check_privs(&auth_id, &["view", view], PRIV_RESOURCE_AUDIT, false)?;
+    } else if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT)? {
         http_bail!(FORBIDDEN, "user has no access to resources");
     }
 
+    let view = views::get_optional_view(view.as_deref())?;
+
     let (remotes_config, _) = pdm_config::remotes::config()?;
+
     let check_remote_privs = |remote_name: &str| {
-        user_info.lookup_privs(&auth_id, &["resource", remote_name]) & PRIV_RESOURCE_AUDIT != 0
+        if let Some(view) = &view {
+            // if `include-remote` or `exclude-remote` are used we can limit the
+            // number of remotes to check.
+            !view.can_skip_remote(remote_name)
+        } else {
+            user_info.lookup_privs(&auth_id, &["resource", remote_name]) & PRIV_RESOURCE_AUDIT != 0
+        }
+    };
+
+    let is_resource_included = |remote: &str, resource: &Resource| {
+        if let Some(view) = &view {
+            view.resource_matches(remote, resource)
+        } else {
+            true
+        }
     };
 
     let timeframe = timeframe.unwrap_or(RrdTimeframe::Day);
-    let res = top_entities::calculate_top(&remotes_config, timeframe, 10, check_remote_privs);
+    let res = top_entities::calculate_top(
+        &remotes_config,
+        timeframe,
+        10,
+        check_remote_privs,
+        is_resource_included,
+    );
+
     Ok(res)
 }
 
