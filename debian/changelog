@@ -1,3 +1,33 @@
+proxmox-datacenter-manager (0.9.3) trixie; urgency=medium
+
+  * server: use types indead of string for migration parameters.
+
+  * fix #6901: api: add explicit permission check for SDN zones, vnets and
+    controllers list endpoints.
+
+  * api: subscription status: use correct resource ACL path in permission
+    check.
+
+  * api: use HTTP 403 Forbidden response code if user does have access to
+    resource over the previously wrongly used 401 Unauthorized code.
+
+  * api: add endpoints for querying the PDM node's status.
+
+  * improve remote UPID handling, making it more type safe.
+
+  * api, pbs-client: add bindings for task list, task status, task log and add
+    PBS task API endpoints similar to the PVE ones.
+
+  * remote updates, upgrade checks: fix old-version being now correctly being
+    marked as optional.
+
+  * add initial backend support for views, not yet exposed in the UI.
+
+  * handle new unknown enum variants for better forward compatibility with
+    newer remote project releases and features.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 13 Nov 2025 22:54:13 +0100
+
 proxmox-datacenter-manager (0.9.2) trixie; urgency=medium
 
   * fix #6794: api: allow non-root users to view stats on dashboard.
