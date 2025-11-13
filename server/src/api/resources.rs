@@ -548,6 +548,10 @@ pub async fn get_status(
                 default: false,
                 description: "If true, includes subscription information per node (with enough privileges)",
             },
+            view: {
+                schema: VIEW_ID_SCHEMA,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -562,6 +566,7 @@ pub async fn get_status(
 pub async fn get_subscription_status(
     max_age: u64,
     verbose: bool,
+    view: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<RemoteSubscriptions>, Error> {
     let (remotes_config, _) = pdm_config::remotes::config()?;
@@ -570,9 +575,17 @@ pub async fn get_subscription_status(
 
     let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let allow_all = user_info
-        .check_privs(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT, false)
-        .is_ok();
+
+    let allow_all = if let Some(view) = &view {
+        user_info.check_privs(&auth_id, &["view", view], PRIV_RESOURCE_AUDIT, false)?;
+        false
+    } else {
+        user_info
+            .check_privs(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT, false)
+            .is_ok()
+    };
+
+    let view = views::get_optional_view(view.as_deref())?;
 
     let check_priv = |remote_name: &str| -> bool {
         user_info
@@ -586,35 +599,64 @@ pub async fn get_subscription_status(
     };
 
     for (remote_name, remote) in remotes_config {
-        if !allow_all && !check_priv(&remote_name) {
+        if let Some(view) = &view {
+            if view.can_skip_remote(&remote_name) {
+                continue;
+            }
+        } else if !allow_all && !check_priv(&remote_name) {
             continue;
         }
+
+        let view = view.clone();
 
         let future = async move {
             let (node_status, error) =
                 match get_subscription_info_for_remote(&remote, max_age).await {
-                    Ok(node_status) => (Some(node_status), None),
+                    Ok(mut node_status) => {
+                        node_status.retain(|node, _| {
+                            if let Some(view) = &view {
+                                view.is_node_included(&remote.id, node)
+                            } else {
+                                true
+                            }
+                        });
+                        (Some(node_status), None)
+                    }
                     Err(error) => (None, Some(error.to_string())),
                 };
 
-            let mut state = RemoteSubscriptionState::Unknown;
-
-            if let Some(node_status) = &node_status {
-                state = map_node_subscription_list_to_state(node_status);
+            if let Some(view) = view {
+                if error.is_some() && !view.is_remote_explicitly_included(&remote.id) {
+                    // Don't leak the existence of failed remotes unless they were explicitly
+                    // pulled in by a `include remote:<id>` rule.
+                    return None;
+                }
             }
 
-            RemoteSubscriptions {
+            let state = if let Some(node_status) = &node_status {
+                if node_status.is_empty() {
+                    return None;
+                }
+
+                map_node_subscription_list_to_state(node_status)
+            } else {
+                RemoteSubscriptionState::Unknown
+            };
+
+            Some(RemoteSubscriptions {
                 remote: remote_name,
                 error,
                 state,
                 node_status: if verbose { node_status } else { None },
-            }
+            })
         };
 
         futures.push(future);
     }
 
-    Ok(join_all(futures).await)
+    let status = join_all(futures).await.into_iter().flatten().collect();
+
+    Ok(status)
 }
 
 // FIXME: make timeframe and count parameters?
