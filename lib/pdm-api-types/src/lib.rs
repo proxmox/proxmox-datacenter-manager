@@ -107,6 +107,8 @@ pub mod subscription;
 
 pub mod sdn;
 
+pub mod views;
+
 const_regex! {
     // just a rough check - dummy acceptor is used before persisting
     pub OPENSSL_CIPHERS_REGEX = r"^[0-9A-Za-z_:, +!\-@=.]+$";
@@ -149,6 +151,12 @@ pub const PDM_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .schema();
 
 pub const REALM_ID_SCHEMA: Schema = StringSchema::new("Realm name.")
+    .format(&PROXMOX_SAFE_ID_FORMAT)
+    .min_length(2)
+    .max_length(32)
+    .schema();
+
+pub const VIEW_ID_SCHEMA: Schema = StringSchema::new("View name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(2)
     .max_length(32)
