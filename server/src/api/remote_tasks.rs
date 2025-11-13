@@ -4,9 +4,10 @@ use anyhow::Error;
 
 use pdm_api_types::{
     remotes::REMOTE_ID_SCHEMA, RemoteUpid, TaskCount, TaskFilters, TaskListItem, TaskStateType,
-    TaskStatistics,
+    TaskStatistics, PRIV_RESOURCE_AUDIT, VIEW_ID_SCHEMA,
 };
-use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
+use proxmox_access_control::CachedUserInfo;
+use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
@@ -41,6 +42,11 @@ const SUBDIRS: SubdirMap = &sorted!([
                 schema: REMOTE_ID_SCHEMA,
                 optional: true,
             },
+            view: {
+                schema: VIEW_ID_SCHEMA,
+                optional: true,
+            },
+
         },
     },
 )]
@@ -48,8 +54,17 @@ const SUBDIRS: SubdirMap = &sorted!([
 async fn list_tasks(
     filters: TaskFilters,
     remote: Option<String>,
+    view: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
-    let tasks = remote_tasks::get_tasks(filters, remote).await?;
+    let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
+    if let Some(view) = &view {
+        user_info.check_privs(&auth_id, &["view", view], PRIV_RESOURCE_AUDIT, false)?;
+    }
+
+    let tasks = remote_tasks::get_tasks(filters, remote, view).await?;
 
     Ok(tasks)
 }
@@ -70,6 +85,10 @@ async fn list_tasks(
                 schema: REMOTE_ID_SCHEMA,
                 optional: true,
             },
+            view: {
+                schema: VIEW_ID_SCHEMA,
+                optional: true,
+            },
         },
     },
 )]
@@ -77,8 +96,17 @@ async fn list_tasks(
 async fn task_statistics(
     filters: TaskFilters,
     remote: Option<String>,
+    view: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<TaskStatistics, Error> {
-    let tasks = remote_tasks::get_tasks(filters, remote).await?;
+    let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
+    if let Some(view) = &view {
+        user_info.check_privs(&auth_id, &["view", view], PRIV_RESOURCE_AUDIT, false)?;
+    }
+
+    let tasks = remote_tasks::get_tasks(filters, remote, view).await?;
 
     let mut by_type: HashMap<String, TaskCount> = HashMap::new();
     let mut by_remote: HashMap<String, TaskCount> = HashMap::new();

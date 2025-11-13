@@ -9,6 +9,8 @@ pub mod task_cache;
 
 use task_cache::{GetTasks, TaskCache, TaskCacheItem};
 
+use crate::views;
+
 /// Base directory for the remote task cache.
 pub const REMOTE_TASKS_DIR: &str = concat!(pdm_buildcfg::PDM_CACHE_DIR_M!(), "/remote-tasks");
 
@@ -29,7 +31,10 @@ const NUMBER_OF_UNCOMPRESSED_FILES: u32 = 2;
 pub async fn get_tasks(
     filters: TaskFilters,
     remote_filter: Option<String>,
+    view: Option<String>,
 ) -> Result<Vec<TaskListItem>, Error> {
+    let view = views::get_optional_view(view.as_deref())?;
+
     tokio::task::spawn_blocking(move || {
         let cache = get_cache()?.read()?;
 
@@ -54,30 +59,44 @@ pub async fn get_tasks(
                 }
 
                 match task.upid.native_upid() {
-                    Ok(NativeUpid::PveUpid(pve_upid)) => Some(TaskListItem {
-                        upid: task.upid.to_string(),
-                        node: pve_upid.node,
-                        pid: pve_upid.pid as i64,
-                        pstart: pve_upid.pstart,
-                        starttime: pve_upid.starttime,
-                        worker_type: pve_upid.worker_type,
-                        worker_id: None,
-                        user: pve_upid.auth_id,
-                        endtime: task.endtime,
-                        status: task.status,
-                    }),
-                    Ok(NativeUpid::PbsUpid(pbs_upid)) => Some(TaskListItem {
-                        upid: task.upid.to_string(),
-                        node: pbs_upid.node,
-                        pid: pbs_upid.pid as i64,
-                        pstart: pbs_upid.pstart,
-                        starttime: pbs_upid.starttime,
-                        worker_type: pbs_upid.worker_type,
-                        worker_id: pbs_upid.worker_id,
-                        user: pbs_upid.auth_id,
-                        endtime: task.endtime,
-                        status: task.status,
-                    }),
+                    Ok(NativeUpid::PveUpid(pve_upid)) => {
+                        if let Some(view) = &view {
+                            if !view.is_node_included(task.upid.remote(), &pve_upid.node) {
+                                return None;
+                            }
+                        }
+                        Some(TaskListItem {
+                            upid: task.upid.to_string(),
+                            node: pve_upid.node,
+                            pid: pve_upid.pid as i64,
+                            pstart: pve_upid.pstart,
+                            starttime: pve_upid.starttime,
+                            worker_type: pve_upid.worker_type,
+                            worker_id: None,
+                            user: pve_upid.auth_id,
+                            endtime: task.endtime,
+                            status: task.status,
+                        })
+                    }
+                    Ok(NativeUpid::PbsUpid(pbs_upid)) => {
+                        if let Some(view) = &view {
+                            if !view.is_node_included(task.upid.remote(), &pbs_upid.node) {
+                                return None;
+                            }
+                        }
+                        Some(TaskListItem {
+                            upid: task.upid.to_string(),
+                            node: pbs_upid.node,
+                            pid: pbs_upid.pid as i64,
+                            pstart: pbs_upid.pstart,
+                            starttime: pbs_upid.starttime,
+                            worker_type: pbs_upid.worker_type,
+                            worker_id: pbs_upid.worker_id,
+                            user: pbs_upid.auth_id,
+                            endtime: task.endtime,
+                            status: task.status,
+                        })
+                    }
                     Err(err) => {
                         log::error!("could not parse UPID: {err:#}");
                         None
