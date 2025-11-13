@@ -150,6 +150,12 @@ impl proxmox_access_control::init::AccessControlConfig for AccessControlConfig {
                     _ => {}
                 }
             }
+            "view" => {
+                // `/view` and `/view/{view-id}`
+                if components_len <= 2 {
+                    return Ok(());
+                }
+            }
             _ => {}
         }
 
