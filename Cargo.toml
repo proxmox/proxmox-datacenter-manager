@@ -81,7 +81,7 @@ proxmox-acme-api = "1"
 proxmox-node-status = "1"
 
 # API types for PVE (and later PMG?)
-pve-api-types = "8.0.5"
+pve-api-types = "8.0.9"
 # API types for PBS
 pbs-api-types = "1.0.3"
 
