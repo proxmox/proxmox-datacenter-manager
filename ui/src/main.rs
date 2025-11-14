@@ -232,10 +232,12 @@ impl Component for DatacenterManagerApp {
                 true
             }
             Msg::TaskChanged => {
-                let running_tasks = self.running_tasks.clone();
-                self.running_tasks_timeout = Some(Timeout::new(3000, move || {
-                    running_tasks.load();
-                }));
+                if self.login_info.is_some() {
+                    let running_tasks = self.running_tasks.clone();
+                    self.running_tasks_timeout = Some(Timeout::new(3000, move || {
+                        running_tasks.load();
+                    }));
+                }
                 false
             } /*
             Msg::SaveFingerprint(fp) => {
@@ -247,7 +249,13 @@ impl Component for DatacenterManagerApp {
             false
             }
              */
-            Msg::RemoteList(remotes) => self.update_remotes(ctx, remotes),
+            Msg::RemoteList(remotes) => {
+                if self.login_info.is_some() {
+                    return self.update_remotes(ctx, remotes);
+                }
+
+                false
+            }
         }
     }
 
