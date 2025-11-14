@@ -9,9 +9,10 @@ use pwt::state::Selection;
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
 use pwt::widget::{Container, Row, SelectionView, SelectionViewRenderInfo};
 
-use proxmox_yew_comp::{NotesView, XTermJs};
+use proxmox_yew_comp::{AclContext, NotesView, XTermJs};
 
 use pdm_api_types::remotes::RemoteType;
+use pdm_api_types::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
 use crate::dashboard::view::View;
 use crate::remotes::RemotesPanel;
@@ -63,11 +64,14 @@ impl MainMenu {
 
 pub enum Msg {
     Select(Key),
+    UpdateAcl(AclContext),
 }
 
 pub struct PdmMainMenu {
     active: Key,
     menu_selection: Selection,
+    acl_context: AclContext,
+    _acl_context_listener: ContextHandle<AclContext>,
 }
 
 fn register_view(
@@ -110,10 +114,17 @@ impl Component for PdmMainMenu {
     type Message = Msg;
     type Properties = MainMenu;
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let (acl_context, acl_context_listener) = ctx
+            .link()
+            .context(ctx.link().callback(Msg::UpdateAcl))
+            .expect("acl context not present");
+
         Self {
             active: Key::from("dashboard"),
             menu_selection: Selection::new(),
+            acl_context,
+            _acl_context_listener: acl_context_listener,
         }
     }
 
@@ -121,6 +132,10 @@ impl Component for PdmMainMenu {
         match msg {
             Msg::Select(key) => {
                 self.active = key;
+                true
+            }
+            Msg::UpdateAcl(acl_context) => {
+                self.acl_context = acl_context;
                 true
             }
         }
@@ -145,25 +160,38 @@ impl Component for PdmMainMenu {
             move |_| View::new("dashboard").into(),
         );
 
-        register_view(
-            &mut menu,
-            &mut content,
-            tr!("Notes"),
-            "notes",
-            Some("fa fa-sticky-note-o"),
-            move |_| {
-                let notes = NotesView::new("/config/notes").on_submit(|notes| async move {
-                    proxmox_yew_comp::http_put("/config/notes", Some(serde_json::to_value(&notes)?))
-                        .await
-                });
+        if self.acl_context.check_privs(&["system"], PRIV_SYS_AUDIT) {
+            let allow_editing = self
+                .acl_context
+                .check_privs(&["system", "notes"], PRIV_SYS_MODIFY);
 
-                Container::new()
-                    .class("pwt-content-spacer")
-                    .class(pwt::css::FlexFit)
-                    .with_child(notes)
-                    .into()
-            },
-        );
+            register_view(
+                &mut menu,
+                &mut content,
+                tr!("Notes"),
+                "notes",
+                Some("fa fa-sticky-note-o"),
+                move |_| {
+                    let mut notes = NotesView::new("/config/notes");
+
+                    if allow_editing {
+                        notes.set_on_submit(|notes| async move {
+                            proxmox_yew_comp::http_put(
+                                "/config/notes",
+                                Some(serde_json::to_value(&notes)?),
+                            )
+                            .await
+                        });
+                    }
+
+                    Container::new()
+                        .class("pwt-content-spacer")
+                        .class(pwt::css::FlexFit)
+                        .with_child(notes)
+                        .into()
+                },
+            )
+        }
 
         let mut config_submenu = Menu::new();
 
