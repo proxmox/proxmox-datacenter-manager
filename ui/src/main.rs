@@ -17,8 +17,8 @@ use pbs_api_types::TaskListItem;
 use proxmox_login::Authentication;
 use proxmox_yew_comp::utils::init_task_descr_table_base;
 use proxmox_yew_comp::{
-    authentication_from_cookie, http_get, register_auth_observer, AuthObserver, LoginPanel,
-    SubscriptionAlert,
+    authentication_from_cookie, http_get, register_auth_observer, AclContextProvider, AuthObserver,
+    LoginPanel, SubscriptionAlert,
 };
 
 //use pbs::MainMenu;
@@ -293,7 +293,9 @@ impl Component for DatacenterManagerApp {
         DesktopApp::new(html! {
             <ContextProvider<SearchProvider> context={search_context}>
                 <ContextProvider<RemoteList> {context}>
-                    {body}
+                    <AclContextProvider>
+                        {body}
+                    </AclContextProvider>
                 </ContextProvider<RemoteList>>
             </ContextProvider<SearchProvider>>
         })
@@ -341,6 +343,12 @@ fn main() {
     pwt::state::set_available_themes(&["Desktop", "Crisp"]);
 
     pwt::state::set_available_languages(proxmox_yew_comp::available_language_list());
+
+    if let Err(e) =
+        proxmox_access_control::init::init_access_config(&pdm_api_types::AccessControlConfig)
+    {
+        log::error!("could not initialize access control config - {e:#}");
+    }
 
     yew::Renderer::<DatacenterManagerApp>::new().render();
 }
