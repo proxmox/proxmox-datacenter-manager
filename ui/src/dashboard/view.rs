@@ -3,6 +3,7 @@ use std::rc::Rc;
 use anyhow::Error;
 use futures::join;
 use js_sys::Date;
+use pwt::widget::Dialog;
 use serde_json::json;
 use yew::virtual_dom::{VComp, VNode};
 
@@ -18,6 +19,7 @@ use crate::dashboard::refresh_config_edit::{
     refresh_config_id, RefreshConfig, DEFAULT_MAX_AGE_S, DEFAULT_REFRESH_INTERVAL_S,
     FORCE_RELOAD_MAX_AGE_S, INITIAL_MAX_AGE_S,
 };
+use crate::dashboard::subscription_info::create_subscriptions_dialog;
 use crate::dashboard::tasks::get_task_options;
 use crate::dashboard::types::RowWidget;
 use crate::dashboard::types::{TaskSummaryGrouping, ViewLayout, ViewTemplate, WidgetType};
@@ -72,6 +74,7 @@ pub enum Msg {
     Reload(bool),       // force
     ConfigWindow(bool), // show
     UpdateConfig(RefreshConfig),
+    ShowSubscriptionsDialog(Option<Dialog>),
 }
 
 struct ViewComp {
@@ -90,6 +93,7 @@ struct ViewComp {
     load_finished_time: Option<f64>,
     show_config_window: bool,
     show_create_wizard: Option<RemoteType>,
+    subscriptions_dialog: Option<Dialog>,
 }
 
 fn render_widget(
@@ -110,7 +114,16 @@ fn render_widget(
             show_wizard.then_some(link.callback(|_| Msg::CreateWizard(Some(RemoteType::Pbs)))),
         ),
         WidgetType::PbsDatastores => create_pbs_datastores_panel(status),
-        WidgetType::Subscription => create_subscription_panel(subscriptions),
+        WidgetType::Subscription => create_subscription_panel(
+            subscriptions.clone(),
+            link.clone().callback(move |_| {
+                let dialog = create_subscriptions_dialog(
+                    subscriptions.clone(),
+                    link.callback(|_| Msg::ShowSubscriptionsDialog(None)),
+                );
+                Msg::ShowSubscriptionsDialog(dialog)
+            }),
+        ),
         WidgetType::Sdn => create_sdn_panel(status),
         WidgetType::Leaderboard { leaderboard_type } => {
             create_top_entities_panel(top_entities, *leaderboard_type)
@@ -269,6 +282,7 @@ impl Component for ViewComp {
             loading: true,
             show_config_window: false,
             show_create_wizard: None,
+            subscriptions_dialog: None,
         }
     }
 
@@ -324,6 +338,9 @@ impl Component for ViewComp {
 
                 self.show_config_window = false;
             }
+            Msg::ShowSubscriptionsDialog(dialog) => {
+                self.subscriptions_dialog = dialog;
+            }
         }
         true
     }
@@ -356,11 +373,18 @@ impl Component for ViewComp {
                 )),
         );
         if !has_sub_panel(self.template.data.as_ref()) {
-            view.add_child(
-                Row::new()
-                    .class("pwt-content-spacer")
-                    .with_child(create_subscription_panel(self.subscriptions.clone())),
-            );
+            let subs = self.subscriptions.clone();
+            let link = ctx.link().clone();
+            view.add_child(Row::new().class("pwt-content-spacer").with_child(
+                create_subscription_panel(
+                    subs.clone(),
+                    link.clone().callback(move |_| {
+                        let on_dialog_close = link.callback(|_| Msg::ShowSubscriptionsDialog(None));
+                        let dialog = create_subscriptions_dialog(subs.clone(), on_dialog_close);
+                        Msg::ShowSubscriptionsDialog(dialog)
+                    }),
+                ),
+            ));
         }
         match self.template.data.as_ref().map(|template| &template.layout) {
             Some(ViewLayout::Rows { rows }) => {
@@ -421,6 +445,9 @@ impl Component for ViewComp {
                 .on_close(ctx.link().callback(|_| Msg::CreateWizard(None)))
                 .on_submit(move |ctx| crate::remotes::create_remote(ctx, remote_type))
         }));
+
+        view.add_optional_child(self.subscriptions_dialog.clone());
+
         view.into()
     }
 }

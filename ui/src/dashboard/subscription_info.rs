@@ -2,14 +2,13 @@ use std::rc::Rc;
 
 use anyhow::Error;
 use yew::{
-    html,
     virtual_dom::{VComp, VNode},
     Component, Html, Properties,
 };
 
 use proxmox_yew_comp::Status;
 use pwt::prelude::*;
-use pwt::widget::{Column, Container, Dialog, Fa, Panel, Row};
+use pwt::widget::{Button, Column, Container, Dialog, Fa, Panel, Row};
 use pwt::{
     css::{AlignItems, FlexFit, JustifyContent, TextAlign},
     state::SharedState,
@@ -30,13 +29,7 @@ impl SubscriptionInfo {
     }
 }
 
-enum Msg {
-    ShowDialog(Option<Dialog>),
-}
-
-struct PdmSubscriptionInfo {
-    dialog: Option<Dialog>,
-}
+struct PdmSubscriptionInfo;
 
 fn render_subscription_status(subs: &[RemoteSubscriptions]) -> Row {
     let mut none = 0;
@@ -103,49 +96,19 @@ fn render_subscription_status(subs: &[RemoteSubscriptions]) -> Row {
 }
 
 impl Component for PdmSubscriptionInfo {
-    type Message = Msg;
+    type Message = ();
     type Properties = SubscriptionInfo;
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
-        Self { dialog: None }
-    }
-
-    fn update(&mut self, _: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            Msg::ShowDialog(dialog) => {
-                self.dialog = dialog;
-                true
-            }
-        }
+        Self {}
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
-
-        let mut column = Column::new()
+        Column::new()
             .class(FlexFit)
             .class(JustifyContent::Center)
-            .class(AlignItems::Center);
-
-        if let Some(subs) = props.subs.as_ref() {
-            let dialog = Dialog::new(tr!("Your Subscriptions"))
-                .resizable(true)
-                .width(500)
-                .height(400)
-                .min_width(200)
-                .min_height(50)
-                .with_child(SubscriptionsList::new(subs.clone()))
-                .on_close(ctx.link().callback(|_| Msg::ShowDialog(None)));
-
-            column = column
-                .onclick(
-                    ctx.link()
-                        .callback(move |_| Msg::ShowDialog(Some(dialog.clone()))),
-                )
-                .style("cursor", "pointer");
-        }
-
-        column
+            .class(AlignItems::Center)
             .with_optional_child(
                 props.subs.is_none().then_some(
                     Container::new()
@@ -159,7 +122,6 @@ impl Component for PdmSubscriptionInfo {
                     .as_ref()
                     .map(|subs| render_subscription_status(subs)),
             )
-            .with_optional_child(self.dialog.clone())
             .into()
     }
 }
@@ -171,8 +133,27 @@ impl From<SubscriptionInfo> for VNode {
     }
 }
 
+pub fn create_subscriptions_dialog(
+    subs: SharedState<LoadResult<Vec<RemoteSubscriptions>, Error>>,
+    on_dialog_close: Callback<()>,
+) -> Option<Dialog> {
+    if let Some(subs) = subs.read().data.clone() {
+        let dialog = Dialog::new(tr!("Your Subscriptions"))
+            .resizable(true)
+            .width(500)
+            .height(400)
+            .min_width(200)
+            .min_height(50)
+            .with_child(SubscriptionsList::new(subs.clone()))
+            .on_close(on_dialog_close);
+        return Some(dialog);
+    }
+    None
+}
+
 pub fn create_subscription_panel(
     subs: SharedState<LoadResult<Vec<RemoteSubscriptions>, Error>>,
+    on_details_clicked: Callback<MouseEvent>,
 ) -> Panel {
     let title: Html = Row::new()
         .class(AlignItems::Center)
@@ -181,8 +162,14 @@ pub fn create_subscription_panel(
         .with_child(tr!("Subscription Status"))
         .into();
 
-    Panel::new()
+    let mut panel = Panel::new()
         .title(title)
         .border(true)
-        .with_child(SubscriptionInfo::new(subs.read().data.clone()))
+        .with_child(SubscriptionInfo::new(subs.read().data.clone()));
+
+    if subs.read().data.is_some() {
+        panel.add_tool(Button::new(tr!("Details")).onclick(on_details_clicked));
+    }
+
+    panel
 }
