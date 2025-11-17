@@ -301,7 +301,7 @@ async fn fetch_tasks_from_single_node(
                 .await?
                 .into_iter()
                 .filter_map(|task| {
-                    if task.endtime.is_none() {
+                    if task.endtime.is_some() {
                         // We only care about finished tasks.
                         Some(map_pbs_task(task, remote.id.clone()))
                     } else {
