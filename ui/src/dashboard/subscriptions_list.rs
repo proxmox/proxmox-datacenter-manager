@@ -146,7 +146,7 @@ fn columns(
         .sorter(|a: &SubscriptionTreeEntry, b: &SubscriptionTreeEntry| a.name().cmp(b.name()))
         .into();
 
-    let subscription_column = DataTableColumn::new(tr!("Subcription"))
+    let subscription_column = DataTableColumn::new(tr!("Subscription"))
         .render(|entry: &SubscriptionTreeEntry| match entry {
             SubscriptionTreeEntry::Node(node) => {
                 let text = match node.level {
