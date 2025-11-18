@@ -1395,32 +1395,27 @@ where
         return serializer.serialize_none();
     }
 
-    let mut output = String::new();
+    let mut list = Vec::with_capacity(mapping.len());
+
     if mapping.len() == 1 {
         let (key, value) = mapping.iter().next().unwrap();
 
-        // special case 1: '* = *' => identity mapping
         if key == "*" && value == "*" {
-            return serializer.serialize_str("1");
-        }
-
-        // special case 2: '* = <something>' => single value of <something> )
-        return serializer.serialize_str(value);
-    }
-
-    for (from, to) in mapping.iter() {
-        if !output.is_empty() {
-            output.reserve(from.len() + to.len() + 2);
-            output.push(',');
+            // special case 1: '* = *' => identity mapping
+            list.push("1".to_string());
+        } else if key == "*" {
+            // special case 2: '* = <something>' => single value of <something>
+            list.push(value.clone());
         } else {
-            output.reserve(from.len() + to.len() + 1);
+            list.push(format!("{key}:{value}"));
         }
-        output.push_str(from);
-        output.push(':');
-        output.push_str(to);
+    } else {
+        for (from, to) in mapping.iter() {
+            list.push(format!("{from}:{to}"));
+        }
     }
 
-    serializer.serialize_str(&output)
+    list.serialize(serializer)
 }
 
 #[derive(Serialize)]

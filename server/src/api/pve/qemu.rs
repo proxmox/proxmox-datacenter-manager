@@ -303,8 +303,13 @@ pub async fn qemu_shutdown(
                 optional: true,
             },
             "target-storage": {
-                description: "Mapping of source storages to target storages.",
+                description: "List of storage mappings",
                 optional: true,
+                items: {
+                    description: "Mappings of source storages to target storages.",
+                    type: String,
+                },
+                type: Array,
             },
             bwlimit: {
                 description: "Override I/O bandwidth limit (in KiB/s).",
@@ -350,7 +355,7 @@ pub async fn qemu_migrate(
     migration_type: Option<StartQemuMigrationType>,
     online: Option<bool>,
     target: String,
-    target_storage: Option<String>,
+    target_storage: Option<Vec<String>>,
     with_local_disks: Option<bool>,
 ) -> Result<RemoteUpid, Error> {
     log::info!("in-cluster migration requested for remote {remote:?} vm {vmid} to node {target:?}");
@@ -443,10 +448,20 @@ async fn qemu_migrate_preconditions(
                 default: false,
             },
             "target-storage": {
-                description: "Mapping of source storages to target storages.",
+                description: "List of storage mappings",
+                items: {
+                    description: "Mappings of source storages to target storages.",
+                    type: String,
+                },
+                type: Array,
             },
             "target-bridge": {
-                description: "Mapping of source bridges to remote bridges.",
+                description: "List of bridge mappings",
+                items: {
+                    description: "Mappings of source bridges to remote bridges.",
+                    type: String,
+                },
+                type: Array,
             },
             bwlimit: {
                 description: "Override I/O bandwidth limit (in KiB/s).",
@@ -477,8 +492,8 @@ pub async fn qemu_remote_migrate(
     target_vmid: Option<u32>,
     delete: bool,
     online: bool,
-    target_storage: String,
-    target_bridge: String,
+    target_storage: Vec<String>,
+    target_bridge: Vec<String>,
     bwlimit: Option<u64>,
     target_endpoint: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
