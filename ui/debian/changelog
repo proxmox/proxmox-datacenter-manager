@@ -1,3 +1,23 @@
+proxmox-datacenter-manager-ui (0.9.4) trixie; urgency=medium
+
+  * dashboard: add Details button to subscription overview card to make it
+    more obvious where one can find the full list of remotes and their
+    subscriptions.
+
+  * ui: main menu: check the permissions of the logged in user to determine
+    which UI elements should be hidden completely when they cannot be useful
+    due to that user not having enough permissions anyway. For now just hide
+    the Notes menu, if appropriate.
+
+  * pve, pbs: integrate xtermjs based console to access the remote nodes
+    system shell.
+
+  * stop running tasks that make API requests when a user is logged out, they
+    cannot succeed anyway and just cause the browsers developer console and
+    the  access log of the PDM backend to fill up needlessly.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 19 Nov 2025 21:38:58 +0100
+
 proxmox-datacenter-manager-ui (0.9.3) trixie; urgency=medium
 
   * remote wizard: validate remote ID for better UX.
