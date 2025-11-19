@@ -1,3 +1,23 @@
+proxmox-datacenter-manager (0.9.4) trixie; urgency=medium
+
+  * api: add new remote shell module with termproxy endpoints, which can be
+    used to proxy a websocket based connection from PDM UI to the remote node.
+
+  * api: pve: wire up remote shell support.
+
+  * api: pbs: wire up node shell endpoints.
+
+  * remote tasks: correctly filter out foreign running PBS tasks, avoiding
+    suggesting that there seemingly is a steadily increasing amount of running
+    remote tasks.
+
+  * api: pve guests: fix regression with cross-remote  migration
+
+  * api: pve guest migrate: make passing storage and bridge mappings more
+    robust.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 19 Nov 2025 21:32:12 +0100
+
 proxmox-datacenter-manager (0.9.3) trixie; urgency=medium
 
   * server: use types indead of string for migration parameters.
