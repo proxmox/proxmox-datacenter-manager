@@ -20,7 +20,7 @@ use pdm_api_types::rrddata::PbsNodeDataPoint;
 use crate::{renderer::separator, LoadResult};
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
-pub struct RemoteOverviewPanel {
+pub struct PbsNodeOverviewPanel {
     /// The remote to show
     pub remote: String,
 
@@ -33,19 +33,19 @@ pub struct RemoteOverviewPanel {
     pub status_interval: u32,
 }
 
-impl RemoteOverviewPanel {
+impl PbsNodeOverviewPanel {
     pub fn new(remote: String) -> Self {
         yew::props!(Self { remote })
     }
 }
 
-impl From<RemoteOverviewPanel> for VNode {
-    fn from(val: RemoteOverviewPanel) -> Self {
-        VComp::new::<RemoteOverviewPanelComp>(Rc::new(val), None).into()
+impl From<PbsNodeOverviewPanel> for VNode {
+    fn from(val: PbsNodeOverviewPanel) -> Self {
+        VComp::new::<PbsNodeOverviewPanelComp>(Rc::new(val), None).into()
     }
 }
 
-pub enum Msg {
+enum Msg {
     ReloadRrd,
     ReloadStatus,
     LoadFinished(Result<Vec<PbsNodeDataPoint>, proxmox_client::Error>),
@@ -53,7 +53,7 @@ pub enum Msg {
     UpdateRrdTimeframe(RRDTimeframe),
 }
 
-pub struct RemoteOverviewPanelComp {
+struct PbsNodeOverviewPanelComp {
     time_data: Rc<Vec<i64>>,
     cpu_data: Rc<Series>,
     load_data: Rc<Series>,
@@ -70,7 +70,7 @@ pub struct RemoteOverviewPanelComp {
     _status_timeout: Option<gloo_timers::callback::Timeout>,
 }
 
-impl RemoteOverviewPanelComp {
+impl PbsNodeOverviewPanelComp {
     async fn reload_rrd(remote: &str, rrd_time_frame: RRDTimeframe) -> Msg {
         let res = crate::pdm_client()
             .pbs_node_rrddata(remote, rrd_time_frame.mode, rrd_time_frame.timeframe)
@@ -85,9 +85,9 @@ impl RemoteOverviewPanelComp {
     }
 }
 
-impl yew::Component for RemoteOverviewPanelComp {
+impl yew::Component for PbsNodeOverviewPanelComp {
     type Message = Msg;
-    type Properties = RemoteOverviewPanel;
+    type Properties = PbsNodeOverviewPanel;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
         ctx.link().send_message(Msg::ReloadRrd);
