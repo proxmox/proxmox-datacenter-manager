@@ -865,6 +865,24 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
+    pub async fn pbs_list_tasks(
+        &self,
+        remote: &str,
+    ) -> Result<Vec<pbs_api_types::TaskListItem>, Error> {
+        let query = format!("/api2/extjs/pbs/remotes/{remote}/tasks");
+        Ok(self.0.get(&query).await?.expect_json()?.data)
+    }
+
+    pub async fn pbs_task_status(
+        &self,
+        upid: &RemoteUpid,
+    ) -> Result<pdm_api_types::pbs::TaskStatus, Error> {
+        let remote = upid.remote();
+        let upid = upid.to_string();
+        let path = format!("/api2/extjs/pbs/remotes/{remote}/tasks/{upid}/status");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
     pub async fn resources(
         &self,
         max_age: Option<u64>,
