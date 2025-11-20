@@ -24,11 +24,11 @@ pub use datastore::DatastorePanel;
 mod namespace_selector;
 
 mod node;
-use node::overview::PbsNodeOverviewPanel;
 
 mod snapshot_list;
 pub use snapshot_list::SnapshotList;
 
+use crate::pbs::node::PbsNodePanel;
 use crate::pbs::tree::PbsTree;
 use crate::{get_deep_url, pdm_client};
 
@@ -108,7 +108,7 @@ impl LoadableComponent for PbsRemoteComp {
         let props = ctx.props();
 
         let content: Html = match &self.view {
-            tree::PbsTreeNode::Root => PbsNodeOverviewPanel::new(props.remote.clone()).into(),
+            tree::PbsTreeNode::Root => PbsNodePanel::new(props.remote.clone()).into(),
             tree::PbsTreeNode::Datastore(data_store_config) => {
                 DatastorePanel::new(props.remote.clone(), data_store_config.clone()).into()
             }

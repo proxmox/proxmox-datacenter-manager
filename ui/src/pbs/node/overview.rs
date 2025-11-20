@@ -7,10 +7,10 @@ use yew::{
 
 use proxmox_yew_comp::{node_info, RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
 use pwt::{
-    css::{AlignItems, ColorScheme, FlexFit, JustifyContent},
+    css::{ColorScheme, FlexFit, JustifyContent},
     prelude::*,
     props::{ContainerBuilder, WidgetBuilder},
-    widget::{error_message, Column, Container, Fa, Panel, Progress, Row},
+    widget::{error_message, Column, Container, Panel, Progress, Row},
     AsyncPool,
 };
 
@@ -197,14 +197,7 @@ impl yew::Component for PbsNodeOverviewPanelComp {
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let status_comp = node_info(self.status.data.as_ref().map(|s| s.into()));
 
-        let title: Html = Row::new()
-            .gap(2)
-            .class(AlignItems::Baseline)
-            .with_child(Fa::new("tachometer"))
-            .with_child(tr! {"Overview"})
-            .into();
         Panel::new()
-            .title(title)
             .class(FlexFit)
             .class(ColorScheme::Neutral)
             .with_child(
