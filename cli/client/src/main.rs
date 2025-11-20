@@ -24,6 +24,7 @@ pub mod pbs;
 pub mod pve;
 pub mod remotes;
 pub mod resources;
+pub mod subscriptions;
 pub mod time;
 pub mod user;
 
@@ -104,6 +105,7 @@ fn main_do() -> Result<(), Error> {
         .insert("pve", pve::cli())
         .insert("remote", remotes::cli())
         .insert("resources", resources::cli())
+        .insert("subscriptions", subscriptions::cli())
         .insert("user", user::cli())
         .insert_help()
         .build();

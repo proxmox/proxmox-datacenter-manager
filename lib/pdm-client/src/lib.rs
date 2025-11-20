@@ -68,6 +68,8 @@ pub mod types {
     pub use pve_api_types::ClusterResourceNetworkType;
 
     pub use pve_api_types::StorageStatus as PveStorageStatus;
+
+    pub use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -904,6 +906,22 @@ impl<T: HttpApiClient> PdmClient<T> {
         let path = ApiPathBuilder::new("/api2/extjs/resources/list")
             .maybe_arg("max-age", &max_age)
             .arg("resource-type", resource_type)
+            .maybe_arg("view", &view)
+            .build();
+
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    /// Get the subscription status.
+    pub async fn get_subscription_status(
+        &self,
+        max_age: Option<u64>,
+        verbose: Option<bool>,
+        view: Option<&str>,
+    ) -> Result<Vec<RemoteSubscriptions>, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/resources/subscription")
+            .maybe_arg("max-age", &max_age)
+            .maybe_arg("verbose", &verbose)
             .maybe_arg("view", &view)
             .build();
 
