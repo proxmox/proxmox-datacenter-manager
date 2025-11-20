@@ -1,6 +1,6 @@
 //! PBS node commands.
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 
 use pbs_api_types::DATASTORE_SCHEMA;
 use proxmox_router::cli::{
@@ -11,7 +11,6 @@ use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
-use pdm_api_types::RemoteUpid;
 
 use crate::{client, env};
 
@@ -254,15 +253,15 @@ async fn list_tasks(remote: String) -> Result<(), Error> {
     input: {
         properties: {
             remote: { schema: REMOTE_ID_SCHEMA },
-            upid: { type: RemoteUpid },
+            upid: {
+                description: "The task UPID, optionally with the remote name prefix",
+            },
         }
     }
 )]
 /// Query the status of a task.
-async fn task_status(remote: String, upid: RemoteUpid) -> Result<(), Error> {
-    if remote != upid.remote() {
-        bail!("mismatching remote in upid");
-    }
+async fn task_status(remote: String, upid: String) -> Result<(), Error> {
+    let upid = crate::upid::parse_for_remote(Some(&remote), &upid)?;
     let data = client()?.pbs_task_status(&upid).await?;
 
     format_and_print_result_full(

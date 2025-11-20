@@ -15,6 +15,8 @@ use pdm_client::PdmClient;
 #[macro_use]
 pub mod env;
 
+pub mod upid;
+
 pub mod acl;
 pub mod config;
 pub mod metric_collection;

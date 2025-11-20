@@ -3,7 +3,7 @@
 use std::fmt;
 use std::time::Duration;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{format_err, Error};
 
 use proxmox_router::cli::{
     format_and_print_result, format_and_print_result_full, CliCommand, CliCommandMap,
@@ -13,7 +13,7 @@ use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
-use pdm_api_types::{RemoteUpid, CIDR_FORMAT, NODE_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA};
+use pdm_api_types::{CIDR_FORMAT, NODE_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA};
 use pve_api_types::StartQemuMigrationType;
 
 use crate::{client, env};
@@ -1075,15 +1075,15 @@ async fn list_tasks(remote: String, node: Option<String>) -> Result<(), Error> {
     input: {
         properties: {
             remote: { schema: REMOTE_ID_SCHEMA },
-            upid: { type: RemoteUpid },
+            upid: {
+                description: "The task UPID, optionally with the remote name prefix",
+            },
         }
     }
 )]
 /// Query the status of a task.
-async fn task_status(remote: String, upid: RemoteUpid) -> Result<(), Error> {
-    if remote != upid.remote() {
-        bail!("mismatching remote in upid");
-    }
+async fn task_status(remote: String, upid: String) -> Result<(), Error> {
+    let upid = crate::upid::parse_for_remote(Some(&remote), &upid)?;
     let data = client()?.pve_task_status(&upid).await?;
 
     format_and_print_result_full(
