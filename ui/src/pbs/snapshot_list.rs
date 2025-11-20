@@ -114,6 +114,7 @@ impl SnapshotListComp {
                                 BackupType::Vm => "desktop",
                                 BackupType::Ct => "cube",
                                 BackupType::Host => "building",
+                                BackupType::UnknownEnumValue(_) => "question-circle-o",
                             },
                             group.to_string(),
                         ),
@@ -234,6 +235,7 @@ impl Component for SnapshotListComp {
                                 match state.state {
                                     VerifyState::Ok => verify_state.ok += 1,
                                     VerifyState::Failed => verify_state.failed += 1,
+                                    VerifyState::UnknownEnumValue(_) => {}
                                 }
 
                                 let age_days = (now - state.upid.starttime) / (30 * 24 * 60 * 60);
@@ -436,6 +438,11 @@ fn render_verification(entry: &SnapshotTreeEntry) -> Html {
                 let (text, icon_class, class) = match state.state {
                     VerifyState::Ok => (tr!("Ok"), "check", FontColor::Success),
                     VerifyState::Failed => (tr!("Failed"), "times", FontColor::Warning),
+                    VerifyState::UnknownEnumValue(s) => (
+                        tr!("Unknown ({0})", s),
+                        "question-circle-o",
+                        FontColor::Error,
+                    ),
                 };
                 let icon = Fa::new(icon_class).class(class).padding_end(2);
                 Tooltip::new(html! {<>{icon}<span>{text}</span></>})

@@ -165,6 +165,10 @@ fn store_metric_pbs(cache: &RrdCache, remote_name: &str, data_point: &MetricData
         MetricDataType::Gauge => DataSourceType::Gauge,
         MetricDataType::Counter => DataSourceType::Counter,
         MetricDataType::Derive => DataSourceType::Derive,
+        MetricDataType::UnknownEnumValue(s) => {
+            log::warn!("unknown metric data type: {s}");
+            return;
+        }
     };
 
     cache.update_value(

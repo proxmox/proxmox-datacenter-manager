@@ -83,7 +83,7 @@ proxmox-node-status = "1"
 # API types for PVE (and later PMG?)
 pve-api-types = "8.1.0"
 # API types for PBS
-pbs-api-types = "1.0.5"
+pbs-api-types = { version = "1.0.9", features = [ "enum-fallback" ] }
 
 # PDM workspace
 server = { path = "server" }
