@@ -96,7 +96,7 @@ pub async fn get_task_status(
     remote: String,
     upid: RemoteUpid,
     wait: bool,
-) -> Result<pbs_client::TaskStatus, Error> {
+) -> Result<pdm_api_types::pbs::TaskStatus, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
 
     crate::api::verify_upid(&remote, RemoteType::Pbs, &upid)?;

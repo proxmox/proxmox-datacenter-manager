@@ -15,6 +15,8 @@ use proxmox_time::parse_daily_duration;
 mod acl;
 pub use acl::*;
 
+pub mod pbs;
+
 mod node_config;
 pub use node_config::*;
 

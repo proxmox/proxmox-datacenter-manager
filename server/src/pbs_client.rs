@@ -139,47 +139,6 @@ pub struct ListTasks {
     pub since: Option<i64>,
 }
 
-// TODO: The task-status APIs in PBS as well as PDM don't have a
-// proper type defined anywhere. This should be moved to a shared crate
-// and then the API handlers adapted.
-#[derive(Debug, Deserialize, Serialize)]
-pub struct TaskStatus {
-    pub exitstatus: Option<String>,
-
-    pub id: Option<String>,
-
-    pub node: String,
-
-    pub pid: i64,
-
-    pub pstart: i64,
-
-    pub starttime: i64,
-
-    pub status: IsRunning,
-
-    #[serde(rename = "type")]
-    pub ty: String,
-
-    pub upid: String,
-
-    pub user: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "kebab-case")]
-pub enum IsRunning {
-    Running,
-    Stopped,
-}
-
-impl TaskStatus {
-    /// Checks if the task is currently running.
-    pub fn is_running(&self) -> bool {
-        self.status == IsRunning::Running
-    }
-}
-
 #[api]
 // TODO: The task-status APIs in PBS as well as PDM don't have a
 // proper type defined anywhere. This should be moved to a shared crate
@@ -429,7 +388,10 @@ impl PbsClient {
     }
 
     /// Read task status.
-    pub async fn get_task_status(&self, upid: &str) -> Result<TaskStatus, Error> {
+    pub async fn get_task_status(
+        &self,
+        upid: &str,
+    ) -> Result<pdm_api_types::pbs::TaskStatus, Error> {
         let url = format!("/api2/extjs/nodes/localhost/tasks/{upid}/status");
         let response = self.0.get(&url).await?;
         Ok(response.expect_json()?.data)
