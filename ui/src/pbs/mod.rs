@@ -23,12 +23,12 @@ pub use datastore::DatastorePanel;
 
 mod namespace_selector;
 
-mod remote;
+mod node;
+use node::overview::RemoteOverviewPanel;
 
 mod snapshot_list;
 pub use snapshot_list::SnapshotList;
 
-use crate::pbs::remote::RemoteOverviewPanel;
 use crate::pbs::tree::PbsTree;
 use crate::{get_deep_url, pdm_client};
 
