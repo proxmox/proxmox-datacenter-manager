@@ -16,12 +16,12 @@ use pwt::{
 
 mod overview;
 
-use overview::NodeOverviewPanel;
+use overview::PveNodeOverviewPanel;
 
 use crate::get_deep_url;
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
-pub struct NodePanel {
+pub struct PveNodePanel {
     /// The remote to show
     pub remote: String,
 
@@ -29,23 +29,23 @@ pub struct NodePanel {
     pub node: String,
 }
 
-impl NodePanel {
+impl PveNodePanel {
     pub fn new(remote: String, node: String) -> Self {
         yew::props!(Self { remote, node })
     }
 }
 
-impl From<NodePanel> for VNode {
-    fn from(val: NodePanel) -> Self {
-        VComp::new::<NodePanelComp>(Rc::new(val), None).into()
+impl From<PveNodePanel> for VNode {
+    fn from(val: PveNodePanel) -> Self {
+        VComp::new::<PveNodePanelComp>(Rc::new(val), None).into()
     }
 }
 
-pub struct NodePanelComp;
+struct PveNodePanelComp;
 
-impl yew::Component for NodePanelComp {
+impl yew::Component for PveNodePanelComp {
     type Message = ();
-    type Properties = NodePanel;
+    type Properties = PveNodePanel;
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
         Self
@@ -79,7 +79,7 @@ impl yew::Component for NodePanelComp {
                 {
                     let remote = props.remote.clone();
                     let node = props.node.clone();
-                    move |_| NodeOverviewPanel::new(remote.clone(), node.clone()).into()
+                    move |_| PveNodeOverviewPanel::new(remote.clone(), node.clone()).into()
                 },
             )
             .with_item_builder(

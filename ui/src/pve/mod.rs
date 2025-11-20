@@ -178,7 +178,7 @@ impl LoadableComponent for PveRemoteComp {
                 .with_child(RemoteTaskList::new().remote(remote.clone()))
                 .into(),
             PveTreeNode::Node(node) => {
-                node::NodePanel::new(remote.clone(), node.node.clone()).into()
+                node::PveNodePanel::new(remote.clone(), node.node.clone()).into()
             }
             PveTreeNode::Qemu(qemu) => {
                 qemu::QemuPanel::new(remote.clone(), qemu.node.clone(), qemu.clone()).into()
