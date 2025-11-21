@@ -287,7 +287,8 @@ fn columns(
                     tr!("Querying Remote..."),
                 ),
                 PbsTreeNode::Root => (
-                    Container::new().with_child(Fa::new("server")),
+                    Container::new().with_child(Fa::new("building-o")),
+                    // TODO: get real node hostname from PBS API.
                     remote_name.clone(),
                 ),
                 PbsTreeNode::Datastore(datastore) => (
