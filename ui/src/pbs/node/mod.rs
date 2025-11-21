@@ -59,7 +59,7 @@ impl yew::Component for PbsNodePanelComp {
         let title: Html = Row::new()
             .gap(2)
             .class(AlignItems::Baseline)
-            .with_child(Fa::new("building"))
+            .with_child(Fa::new("building-o"))
             .with_child(tr!("Node"))
             .into();
 
