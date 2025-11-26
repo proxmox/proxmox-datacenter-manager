@@ -7,7 +7,7 @@ use proxmox_router::{http_bail, http_err, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pdm_api_types::{
-    views::{ViewConfig, ViewConfigEntry, ViewConfigUpdater},
+    views::{ViewConfig, ViewConfigEntry, ViewConfigUpdater, ViewTemplate},
     PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY,
 };
 
@@ -92,6 +92,12 @@ pub fn add_view(view: ViewConfig, digest: Option<ConfigDigest>) -> Result<(), Er
     config_digest.detect_modification(digest.as_ref())?;
 
     let id = view.id.clone();
+
+    if !view.layout.is_empty() {
+        if let Err(err) = serde_json::from_str::<ViewTemplate>(&view.layout) {
+            param_bail!("layout", "layout is not valid: '{}'", err)
+        }
+    }
 
     if let Some(ViewConfigEntry::View(_)) = config.insert(id.clone(), ViewConfigEntry::View(view)) {
         param_bail!("id", "view '{}' already exists.", id)
@@ -190,6 +196,11 @@ pub fn update_view(
     }
 
     if let Some(layout) = view.layout {
+        if !layout.is_empty() {
+            if let Err(err) = serde_json::from_str::<ViewTemplate>(&layout) {
+                param_bail!("layout", "layout is not valid: '{}'", err)
+            }
+        }
         conf.layout = layout;
     }
 
