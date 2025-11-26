@@ -62,6 +62,7 @@ enum MatchCategory {
     Remote,
     RemoteType,
     Property,
+    View,
 }
 
 impl std::str::FromStr for MatchCategory {
@@ -78,6 +79,7 @@ impl std::str::FromStr for MatchCategory {
             "remote" => MatchCategory::Remote,
             "remote-type" => MatchCategory::RemoteType,
             "property" => MatchCategory::Property,
+            "view" => MatchCategory::View,
             _ => bail!("invalid category"),
         };
         Ok(category)
@@ -108,6 +110,7 @@ impl MatchCategory {
                 .to_lowercase()
                 .split(",")
                 .any(|property| property == search_term.to_lowercase()),
+            MatchCategory::View => true,
         }
     }
 }
@@ -140,6 +143,7 @@ fn resource_matches_search_term(
                 }
                 _ => false,
             },
+            MatchCategory::View => return None,
         },
         Some(Err(_)) => false,
         None => {
@@ -171,6 +175,7 @@ fn remote_matches_search_term(
             MatchCategory::Template => false,
             MatchCategory::RemoteType => category.matches(&remote.ty.to_string(), &term.value),
             MatchCategory::NetworkType => false,
+            MatchCategory::View => true,
         },
         Some(Err(_)) => false,
         None => {
@@ -325,6 +330,18 @@ pub(crate) async fn get_resources_impl(
     let filters = search.map(Search::from).unwrap_or_default();
 
     let view = views::get_optional_view(view)?;
+
+    let mut view_filter_from_search = None;
+    filters.matches(|term| {
+        if let Some("view") = term.category.as_deref() {
+            view_filter_from_search = Some(term.value.to_string());
+        }
+        true
+    });
+
+    let view = view.or(views::get_optional_view(
+        view_filter_from_search.as_deref(),
+    )?);
 
     let remotes_only = is_remotes_only(&filters);
 
@@ -1183,7 +1200,7 @@ pub(super) fn map_pve_network(
                 ClusterResourceNetworkType::UnknownEnumValue(variant) => {
                     log::debug!("ignoring unknown network type variant {variant}");
                     None
-                },
+                }
             }
         }
         _ => None,
