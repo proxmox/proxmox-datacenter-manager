@@ -26,3 +26,9 @@ mod remote_selector;
 pub use remote_selector::RemoteSelector;
 
 mod remote_endpoint_selector;
+
+mod view_selector;
+pub use view_selector::ViewSelector;
+
+mod view_filter_selector;
+pub use view_filter_selector::ViewFilterSelector;
