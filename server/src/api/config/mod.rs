@@ -6,6 +6,7 @@ pub mod access;
 pub mod acme;
 pub mod certificate;
 pub mod notes;
+pub mod views;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
@@ -13,6 +14,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("acme", &acme::ROUTER),
     ("certificate", &certificate::ROUTER),
     ("notes", &notes::ROUTER),
+    ("views", &views::ROUTER)
 ]);
 
 pub const ROUTER: Router = Router::new()
