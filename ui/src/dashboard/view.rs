@@ -29,6 +29,7 @@ use crate::dashboard::{
     DashboardStatusRow,
 };
 use crate::remotes::AddWizard;
+use crate::widget::RedrawController;
 use crate::{pdm_client, LoadResult};
 
 use pdm_api_types::remotes::RemoteType;
@@ -120,6 +121,7 @@ struct WidgetRenderArgs {
     subscriptions: SharedState<LoadResult<Vec<RemoteSubscriptions>, Error>>,
     top_entities: SharedState<LoadResult<TopEntities, proxmox_client::Error>>,
     statistics: SharedState<LoadResult<TaskStatistics, Error>>,
+    redraw_controller: RedrawController,
 }
 
 fn render_widget(
@@ -133,6 +135,7 @@ fn render_widget(
         subscriptions,
         top_entities,
         statistics,
+        redraw_controller,
     } = render_args;
 
     let mut widget = match &item.r#type {
@@ -168,7 +171,7 @@ fn render_widget(
             let (hours, since) = get_task_options(refresh_config.task_last_hours);
             create_task_summary_panel(statistics, remotes, hours, since)
         }
-        WidgetType::ResourceTree => create_resource_tree(),
+        WidgetType::ResourceTree => create_resource_tree(redraw_controller),
     };
 
     if let Some(title) = &item.title {
@@ -189,6 +192,7 @@ impl ViewComp {
     }
 
     fn do_reload(&mut self, ctx: &yew::Context<Self>, max_age: u64) {
+        self.render_args.redraw_controller.redraw_request();
         if let Some(data) = self.template.data.as_ref() {
             let link = ctx.link().clone();
             let (_, since) = get_task_options(self.refresh_config.task_last_hours);
@@ -343,6 +347,7 @@ impl Component for ViewComp {
                 top_entities: SharedState::new(LoadResult::new()),
                 statistics: SharedState::new(LoadResult::new()),
                 subscriptions: SharedState::new(LoadResult::new()),
+                redraw_controller: RedrawController::new(),
             },
         }
     }

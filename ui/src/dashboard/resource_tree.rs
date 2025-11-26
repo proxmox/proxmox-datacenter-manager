@@ -7,10 +7,16 @@ use pwt::widget::Panel;
 use pwt::widget::Row;
 use pwt::widget::Toolbar;
 
+use crate::widget::RedrawController;
 use crate::widget::ResourceTree;
 
+#[derive(Properties, Clone, PartialEq)]
+struct ResourceTreeWithSearchProps {
+    redraw_controller: RedrawController,
+}
+
 #[function_component]
-fn ResourceTreeWithSearch() -> Html {
+fn ResourceTreeWithSearch(props: &ResourceTreeWithSearchProps) -> Html {
     let search = use_state(String::new);
 
     Column::new()
@@ -28,6 +34,7 @@ fn ResourceTreeWithSearch() -> Html {
             // column size that does not decrease
             Row::new().class(css::FlexFit).with_child(
                 ResourceTree::new()
+                    .redraw_controller(props.redraw_controller.clone())
                     .search_term(search.to_string())
                     .flex(1.0)
                     .width(250)
@@ -38,9 +45,9 @@ fn ResourceTreeWithSearch() -> Html {
         .into()
 }
 
-pub fn create_resource_tree() -> Panel {
+pub fn create_resource_tree(redraw_controller: RedrawController) -> Panel {
     Panel::new()
         .class(css::FlexFit)
         .title(tr!("Resources"))
-        .with_child(html! {<ResourceTreeWithSearch />})
+        .with_child(html! {<ResourceTreeWithSearch {redraw_controller} />})
 }

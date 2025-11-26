@@ -4,7 +4,11 @@ use anyhow::Error;
 use gloo_timers::callback::Timeout;
 use serde_json::json;
 use web_sys::window;
-use yew::{html::IntoEventCallback, virtual_dom::Key, Component};
+use yew::{
+    html::{IntoEventCallback, IntoPropValue},
+    virtual_dom::Key,
+    Component,
+};
 
 use pwt::{
     css::{FlexFit, FontColor},
@@ -36,6 +40,25 @@ use crate::{
 const REFRESH_TIME_S: u32 = 60;
 const INPUT_BUFFER_MS: u32 = 500;
 
+/// A simple counter that, when used as a property, can be used to force refresh a child component.
+#[derive(Clone, PartialEq)]
+pub struct RedrawController(pub usize);
+
+impl RedrawController {
+    /// increase the counter, triggering a property change
+    ///
+    /// After this, the child component has to be rerendered in the `view` method with a new clone
+    /// of this controller.
+    pub fn redraw_request(&mut self) {
+        self.0 = self.0.wrapping_add(1);
+    }
+
+    /// Returns a new RedrawController
+    pub fn new() -> Self {
+        Self(0)
+    }
+}
+
 #[widget(comp=PdmResourceTree, @element)]
 #[derive(Properties, Clone, PartialEq)]
 #[builder]
@@ -55,6 +78,11 @@ pub struct ResourceTree {
     #[builder_cb(IntoEventCallback, into_event_callback, ())]
     /// Triggered after the user navigated to an entry by clicking or using the keyboard
     pub on_navigate: Option<Callback<()>>,
+
+    #[prop_or_default]
+    #[builder(IntoPropValue, into_prop_value)]
+    /// If set, will trigger a reload on a redraw request.
+    pub redraw_controller: Option<RedrawController>,
 }
 
 impl ResourceTree {
@@ -244,7 +272,16 @@ impl Component for PdmResourceTree {
 
     fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {
         let props = ctx.props();
-        if props.search_term != old_props.search_term {
+
+        let needs_reload = props.search_term != old_props.search_term;
+        let mut redraw_request = false;
+        if let Some(redraw_controller) = props.redraw_controller.clone() {
+            redraw_request = match &old_props.redraw_controller {
+                Some(controller) => controller.0 != redraw_controller.0,
+                None => true,
+            };
+        }
+        if needs_reload || redraw_request {
             if !props.search_only || !props.search_term.is_empty() {
                 ctx.link().clone().send_message(Msg::Load);
             } else if props.search_term.is_empty() {

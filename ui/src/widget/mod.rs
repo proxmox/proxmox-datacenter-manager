@@ -17,7 +17,7 @@ mod pve_realm_selector;
 pub use pve_realm_selector::PveRealmSelector;
 
 mod resource_tree;
-pub use resource_tree::ResourceTree;
+pub use resource_tree::{RedrawController, ResourceTree};
 
 mod search_box;
 pub use search_box::SearchBox;
