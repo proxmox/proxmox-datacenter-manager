@@ -13,8 +13,8 @@ use pwt::{
     state::{Selection, TreeStore},
     widget::{
         data_table::{
-            DataTable, DataTableColumn, DataTableHeader, DataTableKeyboardEvent,
-            DataTableMouseEvent,
+            DataTable, DataTableCellRenderArgs, DataTableColumn, DataTableHeader,
+            DataTableKeyboardEvent, DataTableMouseEvent,
         },
         ActionIcon, Column, Container, Fa, Panel, Progress, Row, Tooltip,
     },
@@ -312,8 +312,10 @@ fn columns(
         DataTableColumn::new(tr!("ID"))
             .tree_column(store)
             .flex(1)
-            .render(|item: &PdmTreeEntry| {
-                let (icon, text, tooltip) = match item {
+            .render_cell(|args: &mut DataTableCellRenderArgs<PdmTreeEntry>| {
+                let item = args.record();
+                let mut colspan = false;
+                let (icon, text, tooltip) = match &item {
                     PdmTreeEntry::Root => (
                         Container::new().with_child(Fa::new("server").fixed_width()),
                         String::from("root"),
@@ -331,24 +333,32 @@ fn columns(
                             .with_optional_child(err.is_some().then_some(
                                 Fa::from(Status::Error).fixed_width().class("status-icon"),
                             )),
-                        remote.clone(),
+                        match err {
+                            Some(err) => {
+                                colspan = true;
+                                format!("{remote} - {err}").into()
+                            }
+                            None => remote.into(),
+                        },
                         err.as_ref().map(|err| err.to_string()),
                     ),
                 };
+                if colspan {
+                    args.set_attribute("colspan", "2");
+                }
                 Tooltip::new(Row::new().gap(4).with_child(icon).with_child(text))
                     .tip(tooltip)
                     .into()
             })
             .into(),
-        DataTableColumn::new(tr!("Node/Error"))
-            .flex(2)
+        DataTableColumn::new("Node")
+            .width("150px")
             .render(|item: &PdmTreeEntry| {
                 match item {
                     PdmTreeEntry::Root => "",
                     PdmTreeEntry::Resource(_, resource) => {
                         get_resource_node(resource).unwrap_or("")
                     }
-                    PdmTreeEntry::Remote(_, Some(err)) => err,
                     PdmTreeEntry::Remote(_, _) => "",
                 }
                 .into()
