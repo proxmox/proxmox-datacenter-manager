@@ -236,11 +236,10 @@ impl Component for PdmTopNavBar {
                 .on_close(ctx.link().callback(|_| Msg::ChangeView(None)))
                 .into(),
             ViewState::OpenTask((task_id, _endtime)) => {
-                // TODO PBS
                 let base_url = task_id
                     .parse::<RemoteUpid>()
                     .ok()
-                    .map(|upid| format!("/pve/remotes/{}/tasks", upid.remote()));
+                    .map(|upid| format!("/{}/remotes/{}/tasks", upid.remote_type(), upid.remote()));
                 TaskViewer::new(task_id)
                     .base_url(base_url.unwrap_or("/nodes/localhost/tasks".to_string()))
                     .on_close(ctx.link().callback(|_| Msg::ChangeView(None)))

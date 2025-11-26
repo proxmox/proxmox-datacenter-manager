@@ -175,8 +175,7 @@ impl Component for PdmFilteredTasks {
         }
 
         if let Some((upid, endtime)) = &self.task_info {
-            // TODO PBS
-            let base_url = format!("/pve/remotes/{}/tasks", upid.remote());
+            let base_url = format!("/{}/remotes/{}/tasks", upid.remote_type(), upid.remote());
             TaskViewer::new(upid.to_string())
                 .endtime(endtime)
                 .base_url(base_url)
