@@ -10,7 +10,7 @@ use yew::prelude::*;
 
 use pwt::prelude::*;
 use pwt::props::TextRenderFn;
-use pwt::state::{Loader, PersistentState};
+use pwt::state::{Loader, PersistentState, SharedStateObserver};
 use pwt::widget::{Column, DesktopApp, Dialog, Mask};
 
 use pbs_api_types::TaskListItem;
@@ -23,11 +23,14 @@ use proxmox_yew_comp::{
 
 //use pbs::MainMenu;
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
+use pdm_api_types::views::ViewConfig;
 use pdm_ui::{
     register_pve_tasks, MainMenu, RemoteList, RemoteListCacheEntry, SearchProvider, TopNavBar,
+    ViewListContext,
 };
 
 type MsgRemoteList = Result<RemoteList, Error>;
+type MsgViewList = Result<Vec<String>, Error>;
 
 enum Msg {
     ConfirmSubscription,
@@ -37,6 +40,8 @@ enum Msg {
     Logout,
     TaskChanged,
     RemoteList(MsgRemoteList),
+    ViewList(MsgViewList),
+    UpdateViewList,
 }
 
 struct DatacenterManagerApp {
@@ -51,6 +56,10 @@ struct DatacenterManagerApp {
     remote_list_error: Option<String>,
     remote_list_timeout: Option<Timeout>,
     search_provider: SearchProvider,
+
+    view_list: Vec<String>,
+    view_list_context: ViewListContext,
+    _view_list_observer: SharedStateObserver<usize>,
 }
 
 async fn check_subscription() -> Msg {
@@ -95,7 +104,22 @@ impl DatacenterManagerApp {
             //ctx.link().send_future_batch(get_fingerprint());
             //
             self.remote_list_timeout = Self::poll_remote_list(ctx, true);
+            self.update_views(ctx);
         }
+    }
+
+    fn update_views(&mut self, ctx: &Context<Self>) {
+        ctx.link().send_future(async move {
+            let res = http_get("/config/views", None)
+                .await
+                .map(|list: Vec<ViewConfig>| {
+                    let mut list: Vec<_> = list.into_iter().map(|config| config.id).collect();
+                    list.sort();
+                    list
+                });
+
+            Msg::ViewList(res)
+        });
     }
 
     fn update_remotes(&mut self, ctx: &Context<Self>, result: MsgRemoteList) -> bool {
@@ -183,6 +207,10 @@ impl Component for DatacenterManagerApp {
 
         let login_info = authentication_from_cookie(&proxmox_yew_comp::ExistingProduct::PDM);
 
+        let view_list_context = ViewListContext::new();
+        let _view_list_observer =
+            view_list_context.add_listener(ctx.link().callback(|_| Msg::UpdateViewList));
+
         let mut this = Self {
             _auth_observer,
             login_info,
@@ -195,6 +223,9 @@ impl Component for DatacenterManagerApp {
             remote_list_error: None,
             remote_list_timeout: None,
             search_provider: SearchProvider::new(),
+            view_list: Vec::new(),
+            view_list_context,
+            _view_list_observer,
         };
 
         this.on_login(ctx, false);
@@ -253,7 +284,14 @@ impl Component for DatacenterManagerApp {
                 if self.login_info.is_some() {
                     return self.update_remotes(ctx, remotes);
                 }
-
+                false
+            }
+            Msg::ViewList(views) => {
+                self.view_list = views.ok().unwrap_or_default();
+                true
+            }
+            Msg::UpdateViewList => {
+                self.update_views(ctx);
                 false
             }
         }
@@ -280,6 +318,7 @@ impl Component for DatacenterManagerApp {
             .with_child({
                 let main_view: Html = if self.login_info.is_some() && !loading {
                     MainMenu::new()
+                        .view_list(self.view_list.clone())
                         .username(username.clone())
                         .remote_list(self.remote_list_cache.clone())
                         .remote_list_loading(self.remote_list_error.is_some())
@@ -297,12 +336,15 @@ impl Component for DatacenterManagerApp {
 
         let context = self.remote_list.clone();
         let search_context = self.search_provider.clone();
+        let view_list_context = self.view_list_context.clone();
 
         DesktopApp::new(html! {
             <ContextProvider<SearchProvider> context={search_context}>
                 <ContextProvider<RemoteList> {context}>
                     <AclContextProvider>
-                        {body}
+                        <ContextProvider<ViewListContext> context={view_list_context}>
+                            {body}
+                        </ContextProvider<ViewListContext>>
                     </AclContextProvider>
                 </ContextProvider<RemoteList>>
             </ContextProvider<SearchProvider>>
