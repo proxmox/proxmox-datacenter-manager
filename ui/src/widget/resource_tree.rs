@@ -28,6 +28,7 @@ use pdm_api_types::resource::{RemoteResources, Resource};
 use crate::{
     dashboard::view::ViewContext,
     get_deep_url, get_resource_node,
+    pve::utils::render_guest_tags,
     renderer::{render_resource_name, render_status_icon},
     RemoteList,
 };
@@ -331,12 +332,20 @@ fn columns(
                 let (icon, text, tooltip) = match &item {
                     PdmTreeEntry::Root => (
                         Container::new().with_child(Fa::new("server").fixed_width()),
-                        String::from("root"),
+                        html! {{"root"}},
                         None,
                     ),
                     PdmTreeEntry::Resource(_, resource) => (
                         render_status_icon(resource),
-                        render_resource_name(resource, true),
+                        Row::new()
+                            .gap(1)
+                            .with_child(render_resource_name(resource, true))
+                            .with_child(render_guest_tags(match resource {
+                                Resource::PveQemu(pve_qemu_resource) => &pve_qemu_resource.tags[..],
+                                Resource::PveLxc(pve_lxc_resource) => &pve_lxc_resource.tags[..],
+                                _ => &[],
+                            }))
+                            .into(),
                         None,
                     ),
                     PdmTreeEntry::Remote(remote, err) => (
