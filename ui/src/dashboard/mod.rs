@@ -34,8 +34,6 @@ pub use pbs_datastores_panel::create_pbs_datastores_panel;
 mod tasks;
 pub use tasks::create_task_summary_panel;
 
-pub mod types;
-
 pub mod view;
 
 mod refresh_config_edit;

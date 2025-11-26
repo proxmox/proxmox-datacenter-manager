@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use gloo_timers::callback::Timeout;
+use pdm_api_types::resource::GuestType;
 use wasm_bindgen::JsCast;
 use web_sys::Element;
 use yew::html::{IntoEventCallback, IntoPropValue};
@@ -15,11 +16,13 @@ use pwt::widget::menu::{Menu, MenuButton, MenuItem};
 use pwt::widget::{ActionIcon, Button, Column, Container, Row, Tooltip};
 use pwt_macros::builder;
 
-use crate::dashboard::types::{RowWidget, ViewLayout, WidgetType};
 use crate::dashboard::view::row_element::RowElement;
 use crate::dashboard::view::EditingMessage;
 
 use pdm_api_types::remotes::RemoteType;
+use pdm_api_types::views::{
+    LeaderboardType, RowWidget, TaskSummaryGrouping, ViewLayout, WidgetType,
+};
 
 #[derive(Properties, PartialEq)]
 #[builder]
@@ -557,14 +560,14 @@ fn create_menu(ctx: &yew::Context<RowViewComp>, new_coords: Position) -> Menu {
                     .with_item(
                         MenuItem::new(tr!("Virtual Machines")).on_select(create_callback(
                             WidgetType::Guests {
-                                guest_type: Some(crate::pve::GuestType::Qemu),
+                                guest_type: Some(GuestType::Qemu),
                             },
                         )),
                     )
                     .with_item(
                         MenuItem::new(tr!("Linux Container")).on_select(create_callback(
                             WidgetType::Guests {
-                                guest_type: Some(crate::pve::GuestType::Lxc),
+                                guest_type: Some(GuestType::Lxc),
                             },
                         )),
                     ),
@@ -584,23 +587,21 @@ fn create_menu(ctx: &yew::Context<RowViewComp>, new_coords: Position) -> Menu {
                     .with_item(
                         MenuItem::new(tr!("Guests with Highest CPU Usage")).on_select(
                             create_callback(WidgetType::Leaderboard {
-                                leaderboard_type:
-                                    crate::dashboard::types::LeaderboardType::GuestCpu,
+                                leaderboard_type: LeaderboardType::GuestCpu,
                             }),
                         ),
                     )
                     .with_item(
                         MenuItem::new(tr!("Nodes With the Hightest CPU Usagge)")).on_select(
                             create_callback(WidgetType::Leaderboard {
-                                leaderboard_type: crate::dashboard::types::LeaderboardType::NodeCpu,
+                                leaderboard_type: LeaderboardType::NodeCpu,
                             }),
                         ),
                     )
                     .with_item(
                         MenuItem::new(tr!("Nodes With the Highest Memory Usage")).on_select(
                             create_callback(WidgetType::Leaderboard {
-                                leaderboard_type:
-                                    crate::dashboard::types::LeaderboardType::NodeMemory,
+                                leaderboard_type: LeaderboardType::NodeMemory,
                             }),
                         ),
                     ),
@@ -611,13 +612,13 @@ fn create_menu(ctx: &yew::Context<RowViewComp>, new_coords: Position) -> Menu {
                 Menu::new()
                     .with_item(MenuItem::new(tr!("Task Summary by Category")).on_select(
                         create_callback(WidgetType::TaskSummary {
-                            grouping: crate::dashboard::types::TaskSummaryGrouping::Category,
+                            grouping: TaskSummaryGrouping::Category,
                         }),
                     ))
                     .with_item(
                         MenuItem::new(tr!("Task Summary Sorted by Failed Tasks")).on_select(
                             create_callback(WidgetType::TaskSummary {
-                                grouping: crate::dashboard::types::TaskSummaryGrouping::Remote,
+                                grouping: TaskSummaryGrouping::Remote,
                             }),
                         ),
                     ),

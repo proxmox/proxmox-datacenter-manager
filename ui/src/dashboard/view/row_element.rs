@@ -6,7 +6,7 @@ use pwt::props::RenderFn;
 use pwt::widget::{ActionIcon, Card, Fa, Panel, Row};
 use pwt_macros::{builder, widget};
 
-use crate::dashboard::types::RowWidget;
+use pdm_api_types::views::RowWidget;
 
 #[widget(comp=RowElementComp, @element)]
 #[derive(PartialEq, Properties, Clone)]

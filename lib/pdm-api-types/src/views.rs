@@ -11,7 +11,9 @@ use proxmox_schema::{
 use proxmox_section_config::{typed::ApiSectionDataEntry, SectionConfig, SectionConfigPlugin};
 
 use crate::{
-    remotes::REMOTE_ID_SCHEMA, resource::ResourceType, PROXMOX_SAFE_ID_REGEX, VIEW_ID_SCHEMA,
+    remotes::{RemoteType, REMOTE_ID_SCHEMA},
+    resource::{GuestType, ResourceType},
+    PROXMOX_SAFE_ID_REGEX, VIEW_ID_SCHEMA,
 };
 
 const_regex! {
@@ -232,6 +234,80 @@ proxmox_serde::forward_serialize_to_display!(FilterRule);
 
 fn verify_filter_rule(input: &str) -> Result<(), anyhow::Error> {
     FilterRule::from_str(input).map(|_| ())
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct ViewTemplate {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub description: String,
+    pub layout: ViewLayout,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "kebab-case")]
+#[serde(tag = "layout-type")]
+pub enum ViewLayout {
+    Rows {
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        rows: Vec<Vec<RowWidget>>,
+    },
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct RowWidget {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flex: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(flatten)]
+    pub r#type: WidgetType,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "kebab-case")]
+#[serde(tag = "widget-type")]
+pub enum WidgetType {
+    #[serde(rename_all = "kebab-case")]
+    Nodes {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        remote_type: Option<RemoteType>,
+    },
+    #[serde(rename_all = "kebab-case")]
+    Guests {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        guest_type: Option<GuestType>,
+    },
+    PbsDatastores,
+    #[serde(rename_all = "kebab-case")]
+    Remotes {
+        show_wizard: bool,
+    },
+    Subscription,
+    Sdn,
+    #[serde(rename_all = "kebab-case")]
+    Leaderboard {
+        leaderboard_type: LeaderboardType,
+    },
+    TaskSummary {
+        grouping: TaskSummaryGrouping,
+    },
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
+pub enum LeaderboardType {
+    GuestCpu,
+    NodeCpu,
+    NodeMemory,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
+pub enum TaskSummaryGrouping {
+    Category,
+    Remote,
 }
 
 #[cfg(test)]

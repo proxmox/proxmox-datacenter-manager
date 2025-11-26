@@ -75,6 +75,15 @@ pub enum GuestType {
     Lxc,
 }
 
+impl From<pdm_api_types::resource::GuestType> for GuestType {
+    fn from(value: pdm_api_types::resource::GuestType) -> Self {
+        match value {
+            pdm_api_types::resource::GuestType::Qemu => GuestType::Qemu,
+            pdm_api_types::resource::GuestType::Lxc => GuestType::Lxc,
+        }
+    }
+}
+
 impl Display for GuestType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

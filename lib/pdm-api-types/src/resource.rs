@@ -775,3 +775,10 @@ pub struct TopEntities {
     /// The top entries for Node Memory
     pub node_memory: Vec<TopEntity>,
 }
+
+#[derive(PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum GuestType {
+    Qemu,
+    Lxc,
+}

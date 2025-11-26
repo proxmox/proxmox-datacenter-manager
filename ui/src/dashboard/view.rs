@@ -22,8 +22,6 @@ use crate::dashboard::refresh_config_edit::{
 };
 use crate::dashboard::subscription_info::create_subscriptions_dialog;
 use crate::dashboard::tasks::get_task_options;
-use crate::dashboard::types::RowWidget;
-use crate::dashboard::types::{TaskSummaryGrouping, ViewLayout, ViewTemplate, WidgetType};
 use crate::dashboard::{
     create_guest_panel, create_node_panel, create_pbs_datastores_panel,
     create_refresh_config_edit_window, create_remote_panel, create_sdn_panel,
@@ -36,7 +34,9 @@ use crate::{pdm_client, LoadResult};
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::resource::ResourcesStatus;
 use pdm_api_types::subscription::RemoteSubscriptions;
-use pdm_api_types::views::ViewConfig;
+use pdm_api_types::views::{
+    RowWidget, TaskSummaryGrouping, ViewConfig, ViewLayout, ViewTemplate, WidgetType,
+};
 use pdm_api_types::TaskStatistics;
 use pdm_client::types::TopEntities;
 
@@ -123,7 +123,9 @@ fn render_widget(
 ) -> Html {
     let mut widget = match &item.r#type {
         WidgetType::Nodes { remote_type } => create_node_panel(*remote_type, status),
-        WidgetType::Guests { guest_type } => create_guest_panel(*guest_type, status),
+        WidgetType::Guests { guest_type } => {
+            create_guest_panel(guest_type.map(|g| g.into()), status)
+        }
         WidgetType::Remotes { show_wizard } => create_remote_panel(
             status,
             show_wizard.then_some(link.callback(|_| Msg::CreateWizard(Some(RemoteType::Pve)))),

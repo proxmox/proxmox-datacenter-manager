@@ -17,11 +17,12 @@ use pwt::{
     widget::{error_message, ActionIcon, Column, Container, Panel, Row},
 };
 
+use pdm_api_types::views::LeaderboardType;
 use pdm_client::types::{Resource, TopEntity};
 
 use crate::LoadResult;
 use crate::{
-    dashboard::{create_title_with_icon, loading_column, types::LeaderboardType},
+    dashboard::{create_title_with_icon, loading_column},
     get_deep_url, get_resource_node, navigate_to,
     renderer::{render_resource_icon, render_resource_name},
 };
