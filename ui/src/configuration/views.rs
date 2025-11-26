@@ -335,7 +335,10 @@ fn add_view_input_panel(form_ctx: &FormContext, store: Store<ViewConfig>) -> Htm
         )
         .with_field(
             tr!("Include All"),
-            Checkbox::new().name("include-all").default(true),
+            Checkbox::new()
+                .name("include-all")
+                .box_label(tr!("Include all remotes and their resources."))
+                .default(true),
         )
         .with_field_and_options(
             pwt::widget::FieldPosition::Large,
