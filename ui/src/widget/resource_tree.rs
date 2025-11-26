@@ -146,7 +146,7 @@ impl Component for PdmResourceTree {
                 let props = ctx.props();
                 let link = ctx.link().clone();
                 let search_term = props.search_term.clone();
-                if props.search_only && !search_term.is_empty() {
+                if !props.search_only || !search_term.is_empty() {
                     self._load_timeout = Some(Timeout::new(INPUT_BUFFER_MS, move || {
                         link.send_future(async move {
                             Msg::LoadResult(load_resources(search_term).await)
