@@ -64,31 +64,34 @@ impl View {
     /// When there are `include remote:<...>` or `exclude remote:<...>` rules, we can use these to
     /// check if a remote needs to be considered at all.
     pub fn can_skip_remote(&self, remote: &str) -> bool {
-        let mut has_any_include_remote = false;
-        let mut matches_any_include_remote = false;
-
-        let mut any_other = false;
-
-        for include in &self.config.include {
-            if let FilterRule::Remote(r) = include {
-                has_any_include_remote = true;
-                if r.matches(remote) {
-                    matches_any_include_remote = true;
-                    break;
-                }
-            } else {
-                any_other = true;
-            }
-        }
-
         let matches_any_exclude_remote = self
             .config
             .exclude
             .iter()
             .any(|rule| Self::matches_remote_rule(remote, rule));
 
-        (has_any_include_remote && !matches_any_include_remote && !any_other)
-            || matches_any_exclude_remote
+        if matches_any_exclude_remote {
+            return true;
+        }
+
+        if self.config.include_all.unwrap_or_default() {
+            return false;
+        }
+
+        for include in &self.config.include {
+            if let FilterRule::Remote(r) = include {
+                if r.matches(remote) {
+                    return false;
+                }
+            } else {
+                // If there is any other type of rule, we cannot safely infer whether we can skip
+                // the remote (e.g. for 'tag' matches, we have to check *all* remotes for resources
+                // with a given tag)
+                return false;
+            }
+        }
+
+        true
     }
 
     /// Check if a remote is *explicitly* included (and not excluded).
@@ -96,18 +99,22 @@ impl View {
     /// A subset of the resources of a remote might still be pulled in by other rules,
     /// but this function check if the remote as a whole is matched.
     pub fn is_remote_explicitly_included(&self, remote: &str) -> bool {
-        let matches_include_remote = self
-            .config
-            .include
-            .iter()
-            .any(|rule| Self::matches_remote_rule(remote, rule));
+        let included = if self.config.include_all.unwrap_or_default() {
+            true
+        } else {
+            self.config
+                .include
+                .iter()
+                .any(|rule| Self::matches_remote_rule(remote, rule))
+        };
+
         let matches_exclude_remote = self
             .config
             .exclude
             .iter()
             .any(|rule| Self::matches_remote_rule(remote, rule));
 
-        matches_include_remote && !matches_exclude_remote
+        included && !matches_exclude_remote
     }
 
     /// Check if a node is matched by the filter rules.
@@ -131,8 +138,7 @@ impl View {
     }
 
     fn check_if_included(&self, remote: &str, resource: &ResourceData) -> bool {
-        if self.config.include.is_empty() {
-            // If there are no include rules, any resource is included (unless excluded)
+        if self.config.include_all.unwrap_or_default() {
             return true;
         }
 

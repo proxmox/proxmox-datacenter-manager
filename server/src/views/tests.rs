@@ -135,6 +135,7 @@ fn exclude_remotes() {
             FilterRule::Remote(StringMatcher::Exact("remote-a".into())),
             FilterRule::Remote(StringMatcher::Exact("remote-b".into())),
         ],
+        include_all: Some(true),
         ..Default::default()
     };
 
@@ -184,6 +185,8 @@ fn include_exclude_remotes() {
             FilterRule::Remote(StringMatcher::Exact("remote-b".into())),
             FilterRule::Remote(StringMatcher::Exact("remote-c".into())),
         ],
+
+        ..Default::default()
     };
     run_test(
         config.clone(),
@@ -224,6 +227,7 @@ fn include_exclude_remotes() {
 fn empty_config() {
     let config = ViewConfig {
         id: "empty".into(),
+        include_all: Some(true),
         ..Default::default()
     };
     run_test(
@@ -301,6 +305,7 @@ fn exclude_type() {
                 FilterRule::ResourceType(EnumMatcher(ResourceType::PveStorage)),
                 FilterRule::ResourceType(EnumMatcher(ResourceType::PveQemu)),
             ],
+            include_all: Some(true),
             ..Default::default()
         },
         &[
@@ -329,6 +334,7 @@ fn include_exclude_type() {
             exclude: vec![FilterRule::ResourceType(EnumMatcher(
                 ResourceType::PveStorage,
             ))],
+            ..Default::default()
         },
         &[
             (
@@ -357,6 +363,7 @@ fn include_exclude_tags() {
                 FilterRule::Tag(StringMatcher::Exact("tag2".to_string())),
             ],
             exclude: vec![FilterRule::Tag(StringMatcher::Exact("tag3".to_string()))],
+            ..Default::default()
         },
         &[
             (
@@ -404,6 +411,7 @@ fn include_exclude_resource_pool() {
             exclude: vec![FilterRule::ResourcePool(StringMatcher::Exact(
                 "pool2".to_string(),
             ))],
+            ..Default::default()
         },
         &[
             (
@@ -459,6 +467,7 @@ fn include_exclude_resource_id() {
                     "remote/{REMOTE}/storage/{NODE}/otherstorage"
                 ))),
             ],
+            ..Default::default()
         },
         &[
             (
@@ -509,6 +518,7 @@ fn node_included() {
         exclude: vec![FilterRule::Remote(StringMatcher::Exact(
             "remote-b".to_string(),
         ))],
+        ..Default::default()
     });
 
     assert!(view.is_node_included("remote-a", "somenode"));
@@ -528,6 +538,7 @@ fn can_skip_remote_if_excluded() {
         exclude: vec![FilterRule::Remote(StringMatcher::Exact(
             "remote-b".to_string(),
         ))],
+        include_all: Some(true),
     });
 
     assert!(!view.can_skip_remote("remote-a"));
@@ -542,6 +553,7 @@ fn can_skip_remote_if_included() {
             "remote-b".to_string(),
         ))],
         exclude: vec![],
+        ..Default::default()
     });
 
     assert!(!view.can_skip_remote("remote-b"));
@@ -559,6 +571,7 @@ fn can_skip_remote_cannot_skip_if_any_other_include() {
             )),
         ],
         exclude: vec![],
+        ..Default::default()
     });
 
     assert!(!view.can_skip_remote("remote-b"));
@@ -575,6 +588,7 @@ fn can_skip_remote_explicit_remote_exclude() {
         exclude: vec![FilterRule::Remote(StringMatcher::Exact(
             "remote-a".to_string(),
         ))],
+        ..Default::default()
     });
 
     assert!(view.can_skip_remote("remote-a"));
@@ -584,8 +598,19 @@ fn can_skip_remote_explicit_remote_exclude() {
 fn can_skip_remote_with_empty_config() {
     let view = View::new(ViewConfig {
         id: "abc".into(),
-        include: vec![],
-        exclude: vec![],
+        ..Default::default()
+    });
+
+    assert!(view.can_skip_remote("remote-a"));
+    assert!(view.can_skip_remote("remote-b"));
+}
+
+#[test]
+fn can_skip_remote_cannot_skip_if_all_included() {
+    let view = View::new(ViewConfig {
+        id: "abc".into(),
+        include_all: Some(true),
+        ..Default::default()
     });
 
     assert!(!view.can_skip_remote("remote-a"));
@@ -600,6 +625,7 @@ fn can_skip_remote_with_no_remote_includes() {
             "resource/remote-a/guest/100".to_string(),
         ))],
         exclude: vec![],
+        ..Default::default()
     });
 
     assert!(!view.can_skip_remote("remote-a"));
@@ -614,6 +640,7 @@ fn explicitly_included_remote() {
             "remote-b".to_string(),
         ))],
         exclude: vec![],
+        ..Default::default()
     });
 
     assert!(view.is_remote_explicitly_included("remote-b"));
@@ -629,6 +656,7 @@ fn included_and_excluded_same_remote() {
         exclude: vec![FilterRule::Remote(StringMatcher::Exact(
             "remote-b".to_string(),
         ))],
+        ..Default::default()
     });
 
     assert!(!view.is_remote_explicitly_included("remote-b"));
@@ -640,8 +668,9 @@ fn not_explicitly_included_remote() {
         id: "abc".into(),
         include: vec![],
         exclude: vec![],
+        include_all: Some(true),
     });
 
     // Assert that is not *explicitly* included
-    assert!(!view.is_remote_explicitly_included("remote-b"));
+    assert!(view.is_remote_explicitly_included("remote-b"));
 }

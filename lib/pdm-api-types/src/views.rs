@@ -58,6 +58,11 @@ pub struct ViewConfig {
     #[updater(skip)]
     pub id: String,
 
+    /// Include all resources by default.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[updater(serde(skip_serializing_if = "Option::is_none"))]
+    pub include_all: Option<bool>,
+
     /// List of includes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
@@ -261,6 +266,7 @@ mod test {
     fn config_smoke_test() {
         let config = "
 view: some-view
+    include-all true
     include exact:remote=someremote
     include remote=someremote
     include resource-type=qemu
