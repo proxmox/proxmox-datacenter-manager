@@ -13,7 +13,7 @@ mod tests;
 /// Returns an error if the view configuration file could not be read, or
 /// if the view with the provided ID does not exist.
 pub fn get_view(view_id: &str) -> Result<View, Error> {
-    let config = pdm_config::views::config()?;
+    let (config, _) = pdm_config::views::config()?;
 
     let entry = config
         .get(view_id)
