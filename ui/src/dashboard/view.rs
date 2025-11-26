@@ -100,12 +100,7 @@ pub enum Msg {
 struct ViewComp {
     template: LoadResult<ViewTemplate, Error>,
 
-    // various api call results
-    status: SharedState<LoadResult<ResourcesStatus, Error>>,
-    top_entities: SharedState<LoadResult<TopEntities, proxmox_client::Error>>,
-    statistics: SharedState<LoadResult<TaskStatistics, Error>>,
-    subscriptions: SharedState<LoadResult<Vec<RemoteSubscriptions>, Error>>,
-
+    render_args: WidgetRenderArgs,
     refresh_config: PersistentState<RefreshConfig>,
 
     async_pool: AsyncPool,
@@ -119,15 +114,27 @@ struct ViewComp {
     update_result: LoadResult<(), Error>,
 }
 
-fn render_widget(
-    link: yew::html::Scope<ViewComp>,
-    item: &RowWidget,
+#[derive(Clone)]
+struct WidgetRenderArgs {
     status: SharedState<LoadResult<ResourcesStatus, Error>>,
     subscriptions: SharedState<LoadResult<Vec<RemoteSubscriptions>, Error>>,
     top_entities: SharedState<LoadResult<TopEntities, proxmox_client::Error>>,
     statistics: SharedState<LoadResult<TaskStatistics, Error>>,
+}
+
+fn render_widget(
+    link: yew::html::Scope<ViewComp>,
+    item: &RowWidget,
+    render_args: WidgetRenderArgs,
     refresh_config: RefreshConfig,
 ) -> Html {
+    let WidgetRenderArgs {
+        status,
+        subscriptions,
+        top_entities,
+        statistics,
+    } = render_args;
+
     let mut widget = match &item.r#type {
         WidgetType::Nodes { remote_type } => create_node_panel(*remote_type, status),
         WidgetType::Guests { guest_type } => {
@@ -321,11 +328,6 @@ impl Component for ViewComp {
             template: LoadResult::new(),
             async_pool,
 
-            status: SharedState::new(LoadResult::new()),
-            top_entities: SharedState::new(LoadResult::new()),
-            statistics: SharedState::new(LoadResult::new()),
-            subscriptions: SharedState::new(LoadResult::new()),
-
             refresh_config,
             load_finished_time: None,
             loading: true,
@@ -335,6 +337,13 @@ impl Component for ViewComp {
 
             editing_state: SharedState::new(Vec::new()),
             update_result: LoadResult::new(),
+
+            render_args: WidgetRenderArgs {
+                status: SharedState::new(LoadResult::new()),
+                top_entities: SharedState::new(LoadResult::new()),
+                statistics: SharedState::new(LoadResult::new()),
+                subscriptions: SharedState::new(LoadResult::new()),
+            },
         }
     }
 
@@ -345,15 +354,15 @@ impl Component for ViewComp {
                 self.reload(ctx);
             }
             Msg::LoadingResult(loading_result) => match loading_result {
-                LoadingResult::Resources(status) => self.status.write().update(status),
+                LoadingResult::Resources(status) => self.render_args.status.write().update(status),
                 LoadingResult::TopEntities(top_entities) => {
-                    self.top_entities.write().update(top_entities)
+                    self.render_args.top_entities.write().update(top_entities)
                 }
                 LoadingResult::TaskStatistics(task_statistics) => {
-                    self.statistics.write().update(task_statistics)
+                    self.render_args.statistics.write().update(task_statistics)
                 }
                 LoadingResult::SubscriptionInfo(subscriptions) => {
-                    self.subscriptions.write().update(subscriptions);
+                    self.render_args.subscriptions.write().update(subscriptions);
                 }
                 LoadingResult::All => {
                     self.loading = false;
@@ -455,7 +464,7 @@ impl Component for ViewComp {
         );
 
         if !has_sub_panel(self.template.data.as_ref()) {
-            let subs = self.subscriptions.clone();
+            let subs = self.render_args.subscriptions.clone();
             let link = ctx.link().clone();
             view.add_child(
                 Row::new()
@@ -483,19 +492,13 @@ impl Component for ViewComp {
                 view.add_child(
                     RowView::new(rows.clone(), {
                         let link = ctx.link().clone();
-                        let status = self.status.clone();
-                        let subscriptions = self.subscriptions.clone();
-                        let top_entities = self.top_entities.clone();
-                        let statistics = self.statistics.clone();
+                        let args = self.render_args.clone();
                         let refresh_config = self.refresh_config.clone();
                         move |widget: &RowWidget| {
                             render_widget(
                                 link.clone(),
                                 widget,
-                                status.clone(),
-                                subscriptions.clone(),
-                                top_entities.clone(),
-                                statistics.clone(),
+                                args.clone(),
                                 refresh_config.clone(),
                             )
                         }
