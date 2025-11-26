@@ -4,7 +4,7 @@ use anyhow::Error;
 use futures::join;
 use js_sys::Date;
 use pwt::widget::Dialog;
-use serde_json::json;
+use serde_json::{json, Value};
 use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_yew_comp::http_get;
@@ -176,11 +176,20 @@ impl ViewComp {
             let (status, top_entities, tasks) = required_api_calls(&data.layout);
 
             self.loading = true;
+            let view = ctx.props().view.clone();
             self.async_pool.spawn(async move {
+                let add_view_filter = |params: &mut Value| {
+                    if let Some(view) = &view {
+                        params["view"] = view.to_string().into();
+                    }
+                };
                 let status_future = async {
                     if status {
-                        let res =
-                            http_get("/resources/status", Some(json!({"max-age": max_age}))).await;
+                        let mut params = json!({
+                            "max-age": max_age,
+                        });
+                        add_view_filter(&mut params);
+                        let res = http_get("/resources/status", Some(params)).await;
                         link.send_message(Msg::LoadingResult(LoadingResult::Resources(res)));
                     }
                 };
@@ -189,24 +198,31 @@ impl ViewComp {
                     if top_entities {
                         let client: pdm_client::PdmClient<Rc<proxmox_yew_comp::HttpClientWasm>> =
                             pdm_client();
-                        let res = client.get_top_entities(None).await;
+                        let res = client
+                            .get_top_entities(view.as_ref().map(|view| view.as_str()))
+                            .await;
                         link.send_message(Msg::LoadingResult(LoadingResult::TopEntities(res)));
                     }
                 };
 
                 let tasks_future = async {
                     if tasks {
-                        let params = Some(json!({
+                        let mut params = json!({
                             "since": since,
                             "limit": 0,
-                        }));
-                        let res = http_get("/remote-tasks/statistics", params).await;
+                        });
+                        add_view_filter(&mut params);
+                        let res = http_get("/remote-tasks/statistics", Some(params)).await;
                         link.send_message(Msg::LoadingResult(LoadingResult::TaskStatistics(res)));
                     }
                 };
 
                 let subs_future = async {
-                    let res = http_get("/resources/subscription?verbose=true", None).await;
+                    let mut params = json!({
+                        "verbose": true,
+                    });
+                    add_view_filter(&mut params);
+                    let res = http_get("/resources/subscription", Some(params)).await;
                     link.send_message(Msg::LoadingResult(LoadingResult::SubscriptionInfo(res)));
                 };
 
