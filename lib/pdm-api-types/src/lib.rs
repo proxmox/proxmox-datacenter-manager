@@ -148,7 +148,7 @@ pub const OPENSSL_CIPHERS_TLS_1_3_SCHEMA: Schema =
 
 pub const PDM_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .format(&PASSWORD_FORMAT)
-    .min_length(5)
+    .min_length(8)
     .max_length(64)
     .schema();
 
