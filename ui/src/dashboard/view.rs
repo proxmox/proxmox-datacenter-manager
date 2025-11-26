@@ -54,7 +54,7 @@ pub enum EditingMessage {
 
 #[derive(Properties, PartialEq)]
 pub struct View {
-    view: AttrValue,
+    view: Option<AttrValue>,
 }
 
 impl From<View> for VNode {
@@ -65,7 +65,7 @@ impl From<View> for VNode {
 }
 
 impl View {
-    pub fn new(view: impl Into<AttrValue>) -> Self {
+    pub fn new(view: impl Into<Option<AttrValue>>) -> Self {
         Self { view: view.into() }
     }
 }
@@ -273,14 +273,17 @@ impl Component for ViewComp {
     type Properties = View;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
-        let refresh_config: PersistentState<RefreshConfig> = PersistentState::new(
-            StorageLocation::local(refresh_config_id(ctx.props().view.as_str())),
-        );
+        let view = ctx.props().view.clone();
+        let refresh_id = match view.as_ref() {
+            Some(view) => format!("view-{view}"),
+            None => "dashboard".to_string(),
+        };
+        let refresh_config: PersistentState<RefreshConfig> =
+            PersistentState::new(StorageLocation::local(refresh_config_id(&refresh_id)));
 
         let async_pool = AsyncPool::new();
-        let view = ctx.props().view.clone();
         async_pool.send_future(ctx.link().clone(), async move {
-            Msg::ViewTemplateLoaded(load_template(Some(view)).await)
+            Msg::ViewTemplateLoaded(load_template(view).await)
         });
 
         Self {
@@ -373,7 +376,7 @@ impl Component for ViewComp {
         self.load_finished_time = None;
         let view = ctx.props().view.clone();
         self.async_pool.send_future(ctx.link().clone(), async move {
-            Msg::ViewTemplateLoaded(load_template(Some(view)).await)
+            Msg::ViewTemplateLoaded(load_template(view).await)
         });
         true
     }
@@ -397,9 +400,7 @@ impl Component for ViewComp {
                         ctx.link().callback(Msg::Reload),
                         ctx.link().callback(|_| Msg::ConfigWindow(true)),
                     )
-                    .editing_state(
-                        (props.view != "dashboard").then_some(self.editing_state.clone()),
-                    ),
+                    .editing_state(props.view.is_some().then_some(self.editing_state.clone())),
                 ),
         );
 
@@ -467,24 +468,26 @@ impl Component for ViewComp {
                 .as_ref()
                 .map(|err| error_message(&err.to_string())),
         );
-        view.add_optional_child(
-            self.show_config_window.then_some(
-                create_refresh_config_edit_window(&ctx.props().view)
-                    .on_close(ctx.link().callback(|_| Msg::ConfigWindow(false)))
-                    .on_submit({
-                        let link = ctx.link().clone();
-                        move |ctx: FormContext| {
-                            let link = link.clone();
-                            async move {
-                                let data: RefreshConfig =
-                                    serde_json::from_value(ctx.get_submit_data())?;
-                                link.send_message(Msg::UpdateConfig(data));
-                                Ok(())
-                            }
+        view.add_optional_child(self.show_config_window.then_some({
+            let refresh_config_id = match &props.view {
+                Some(view) => format!("view-{view}"),
+                None => "dashboard".to_string(),
+            };
+            create_refresh_config_edit_window(&refresh_config_id)
+                .on_close(ctx.link().callback(|_| Msg::ConfigWindow(false)))
+                .on_submit({
+                    let link = ctx.link().clone();
+                    move |ctx: FormContext| {
+                        let link = link.clone();
+                        async move {
+                            let data: RefreshConfig =
+                                serde_json::from_value(ctx.get_submit_data())?;
+                            link.send_message(Msg::UpdateConfig(data));
+                            Ok(())
                         }
-                    }),
-            ),
-        );
+                    }
+                })
+        }));
         view.add_optional_child(self.show_create_wizard.map(|remote_type| {
             AddWizard::new(remote_type)
                 .on_close(ctx.link().callback(|_| Msg::CreateWizard(None)))

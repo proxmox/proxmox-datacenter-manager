@@ -157,7 +157,7 @@ impl Component for PdmMainMenu {
             tr!("Dashboard"),
             "dashboard",
             Some("fa fa-tachometer"),
-            move |_| View::new("dashboard").into(),
+            move |_| View::new(None).into(),
         );
 
         if self.acl_context.check_privs(&["system"], PRIV_SYS_AUDIT) {
