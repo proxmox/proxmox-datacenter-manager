@@ -5,7 +5,7 @@ use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::{self, Display, FlexFit};
 use pwt::prelude::*;
-use pwt::state::Selection;
+use pwt::state::{NavigationContextExt, Selection};
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
 use pwt::widget::{Container, Row, SelectionView, SelectionViewRenderInfo};
 
@@ -14,6 +14,7 @@ use proxmox_yew_comp::{AclContext, NotesView, XTermJs};
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
+use crate::configuration::views::ViewGrid;
 use crate::dashboard::view::View;
 use crate::remotes::RemotesPanel;
 use crate::sdn::evpn::EvpnPanel;
@@ -54,6 +55,10 @@ pub struct MainMenu {
     #[builder]
     #[prop_or_default]
     pub remote_list: Vec<RemoteListCacheEntry>,
+
+    #[builder]
+    #[prop_or_default]
+    pub view_list: Vec<String>,
 }
 
 impl MainMenu {
@@ -145,6 +150,14 @@ impl Component for PdmMainMenu {
         let scope = ctx.link().clone();
         let props = ctx.props();
 
+        let route_view = match ctx.link().nav_context() {
+            Some(nav) => match nav.path().split_once("-") {
+                Some(("view", view)) => Some(view.to_string()),
+                _ => None,
+            },
+            None => None,
+        };
+
         let mut content = SelectionView::new()
             .class(FlexFit)
             .selection(self.menu_selection.clone());
@@ -158,6 +171,46 @@ impl Component for PdmMainMenu {
             "dashboard",
             Some("fa fa-tachometer"),
             move |_| View::new(None).into(),
+        );
+
+        let mut views = Menu::new();
+
+        let mut found = false;
+
+        for view in &props.view_list {
+            let view = view.to_string();
+            if route_view.as_ref() == Some(&view) {
+                found = true;
+            }
+            register_view(
+                &mut views,
+                &mut content,
+                view.clone(),
+                &format!("view-{view}"),
+                Some("fa fa-eye"),
+                move |_| View::new(Some(view.clone().into())).into(),
+            );
+        }
+
+        if let (false, Some(view)) = (found, route_view) {
+            register_view(
+                &mut views,
+                &mut content,
+                view.clone(),
+                &format!("view-{view}"),
+                Some("fa fa-tachometer"),
+                move |_| View::new(Some(view.clone().into())).into(),
+            );
+        }
+
+        register_submenu(
+            &mut menu,
+            &mut content,
+            tr!("Views"),
+            "views",
+            Some("fa fa-tachometer"),
+            move |_| ViewGrid::new().into(),
+            views,
         );
 
         if self.acl_context.check_privs(&["system"], PRIV_SYS_AUDIT) {
