@@ -1,6 +1,6 @@
-use std::{fmt::Display, str::FromStr, sync::OnceLock};
+use std::{fmt::Debug, fmt::Display, str::FromStr, sync::OnceLock};
 
-use anyhow::bail;
+use anyhow::{bail, Error};
 use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
@@ -23,11 +23,11 @@ const_regex! {
 pub const FILTER_RULE_SCHEMA: Schema = StringSchema::new("Filter rule for resources.")
     .format(&ApiStringFormat::VerifyFn(verify_filter_rule))
     .type_text(
-        "resource-type:<storage|qemu|lxc|sdn-zone|datastore|node>\
-            |resource-pool:<pool-name>\
-            |tag:<tag-name>\
-            |remote:<remote-name>\
-            |resource-id:<resource-id>",
+        "[exact:]resource-type=<storage|qemu|lxc|sdn-zone|datastore|node>\
+            |[exact:]resource-pool=<pool-name>\
+            |[exact:]tag=<tag-name>\
+            |[exact:]remote=<remote-name>\
+            |[exact:]resource=id:<resource-id>",
     )
     .schema();
 
@@ -103,64 +103,111 @@ impl ApiSectionDataEntry for ViewConfigEntry {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+/// Matcher for string-based values.
+pub enum StringMatcher {
+    Exact(String),
+}
+
+impl StringMatcher {
+    /// Check if a given string matches.
+    pub fn matches(&self, value: &str) -> bool {
+        match self {
+            StringMatcher::Exact(matched_value) => value == matched_value,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+/// Matcher for enum-based values.
+pub struct EnumMatcher<T: PartialEq + Clone + Debug>(pub T);
+
+impl<T: PartialEq + Debug + Clone> EnumMatcher<T> {
+    /// Check if a given value matches.
+    pub fn matches(&self, value: &T) -> bool {
+        self.0 == *value
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 /// Filter rule for includes/excludes.
 pub enum FilterRule {
     /// Match a resource type.
-    ResourceType(ResourceType),
+    ResourceType(EnumMatcher<ResourceType>),
     /// Match a resource pools (for PVE guests).
-    ResourcePool(String),
+    ResourcePool(StringMatcher),
     /// Match a (global) resource ID, e.g. 'remote/<remote>/guest/<vmid>'.
-    ResourceId(String),
+    ResourceId(StringMatcher),
     /// Match a tag (for PVE guests).
-    Tag(String),
+    Tag(StringMatcher),
     /// Match a remote.
-    Remote(String),
+    Remote(StringMatcher),
 }
 
 impl FromStr for FilterRule {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s.split_once(':') {
-            Some(("resource-type", value)) => FilterRule::ResourceType(value.parse()?),
-            Some(("resource-pool", value)) => {
-                if !PROXMOX_SAFE_ID_REGEX.is_match(value) {
-                    bail!("invalid resource-pool value: {value}");
-                }
-                FilterRule::ResourcePool(value.to_string())
-            }
-            Some(("resource-id", value)) => {
-                if !GLOBAL_RESOURCE_ID_REGEX.is_match(value) {
-                    bail!("invalid resource-id value: {value}");
-                }
-
-                FilterRule::ResourceId(value.to_string())
-            }
-            Some(("tag", value)) => {
-                if !PROXMOX_SAFE_ID_REGEX.is_match(value) {
-                    bail!("invalid tag value: {value}");
-                }
-                FilterRule::Tag(value.to_string())
-            }
-            Some(("remote", value)) => {
-                let _ = REMOTE_ID_SCHEMA.parse_simple_value(value)?;
-                FilterRule::Remote(value.to_string())
-            }
-            Some((ty, _)) => bail!("invalid type: {ty}"),
-            None => bail!("invalid filter rule: {s}"),
-        })
+        if let Some(s) = s.strip_prefix("exact:") {
+            parse_filter_rule(s)
+        } else {
+            parse_filter_rule(s)
+        }
     }
+}
+
+fn parse_filter_rule(s: &str) -> Result<FilterRule, Error> {
+    Ok(match s.split_once('=') {
+        Some(("resource-type", value)) => FilterRule::ResourceType(EnumMatcher(value.parse()?)),
+        Some(("resource-pool", value)) => {
+            if !PROXMOX_SAFE_ID_REGEX.is_match(value) {
+                bail!("invalid resource-pool value: {value}");
+            }
+
+            let val = StringMatcher::Exact(value.into());
+            FilterRule::ResourcePool(val)
+        }
+        Some(("resource-id", value)) => {
+            if !GLOBAL_RESOURCE_ID_REGEX.is_match(value) {
+                bail!("invalid resource-id value: {value}");
+            }
+
+            let val = StringMatcher::Exact(value.into());
+            FilterRule::ResourceId(val)
+        }
+        Some(("tag", value)) => {
+            if !PROXMOX_SAFE_ID_REGEX.is_match(value) {
+                bail!("invalid tag value: {value}");
+            }
+            let val = StringMatcher::Exact(value.into());
+            FilterRule::Tag(val)
+        }
+        Some(("remote", value)) => {
+            if !PROXMOX_SAFE_ID_REGEX.is_match(value) {
+                let _ = REMOTE_ID_SCHEMA.parse_simple_value(value)?;
+            }
+            let val = StringMatcher::Exact(value.into());
+            FilterRule::Remote(val)
+        }
+        Some((ty, _)) => bail!("invalid type: {ty}"),
+        None => bail!("invalid filter rule: {s}"),
+    })
 }
 
 // used for serializing below, caution!
 impl Display for FilterRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FilterRule::ResourceType(resource_type) => write!(f, "resource-type:{resource_type}"),
-            FilterRule::ResourcePool(pool) => write!(f, "resource-pool:{pool}"),
-            FilterRule::ResourceId(id) => write!(f, "resource-id:{id}"),
-            FilterRule::Tag(tag) => write!(f, "tag:{tag}"),
-            FilterRule::Remote(remote) => write!(f, "remote:{remote}"),
+            FilterRule::ResourceType(EnumMatcher(resource_type)) => {
+                write!(f, "exact:resource-type={resource_type}")
+            }
+            FilterRule::ResourceId(StringMatcher::Exact(value)) => {
+                write!(f, "exact:resource-id={value}")
+            }
+            FilterRule::Tag(StringMatcher::Exact(value)) => write!(f, "exact:tag={value}"),
+            FilterRule::Remote(StringMatcher::Exact(value)) => write!(f, "exact:remote={value}"),
+            FilterRule::ResourcePool(StringMatcher::Exact(value)) => {
+                write!(f, "exact:resource-pool={value}")
+            }
         }
     }
 }
@@ -176,7 +223,9 @@ fn verify_filter_rule(input: &str) -> Result<(), anyhow::Error> {
 mod test {
     use anyhow::Error;
 
-    use crate::views::FilterRule;
+    use proxmox_section_config::typed::ApiSectionDataEntry;
+
+    use super::*;
 
     fn parse_and_check_display(input: &str) -> Result<bool, Error> {
         let rule: FilterRule = input.parse()?;
@@ -190,21 +239,49 @@ mod test {
         assert!(parse_and_check_display("abc:").is_err());
 
         assert!(parse_and_check_display("resource-type:").is_err());
-        assert!(parse_and_check_display("resource-type:lxc").unwrap());
-        assert!(parse_and_check_display("resource-type:qemu").unwrap());
-        assert!(parse_and_check_display("resource-type:abc").is_err());
+        assert!(parse_and_check_display("exact:resource-type=lxc").unwrap());
+        assert!(parse_and_check_display("exact:resource-type=qemu").unwrap());
+        assert!(parse_and_check_display("exact:resource-type=abc").is_err());
 
         assert!(parse_and_check_display("resource-pool:").is_err());
-        assert!(parse_and_check_display("resource-pool:somepool").unwrap());
+        assert!(parse_and_check_display("exact:resource-pool=somepool").unwrap());
 
         assert!(parse_and_check_display("resource-id:").is_err());
-        assert!(parse_and_check_display("resource-id:remote/someremote/guest/100").unwrap());
-        assert!(parse_and_check_display("resource-id:remote").is_err());
+        assert!(parse_and_check_display("exact:resource-id=remote/someremote/guest/100").unwrap());
+        assert!(parse_and_check_display("exact:resource-id=remote").is_err());
 
         assert!(parse_and_check_display("tag:").is_err());
-        assert!(parse_and_check_display("tag:sometag").unwrap());
+        assert!(parse_and_check_display("exact:tag=sometag").unwrap());
 
-        assert!(parse_and_check_display("remote:someremote").unwrap());
+        assert!(parse_and_check_display("exact:remote=someremote").unwrap());
         assert!(parse_and_check_display("remote:a").is_err());
+    }
+
+    #[test]
+    fn config_smoke_test() {
+        let config = "
+view: some-view
+    include exact:remote=someremote
+    include remote=someremote
+    include resource-type=qemu
+    include exact:resource-type=qemu
+    include resource-id=remote/someremote/guest/100
+    include exact:resource-id=remote/someremote/guest/100
+    include tag=sometag
+    include exact:tag=sometag
+    include resource-pool=somepool
+    include exact:resource-pool=somepool
+    exclude remote=someremote
+    exclude exact:remote=someremote
+    exclude resource-type=qemu
+    exclude exact:resource-type=qemu
+    exclude resource-id=remote/someremote/guest/100
+    exclude exact:resource-id=remote/someremote/guest/100
+    exclude tag=sometag
+    exclude exact:tag=sometag
+    exclude resource-pool=somepool
+    exclude exact:resource-pool=somepool
+";
+        ViewConfigEntry::parse_section_config("views.cfg", config).unwrap();
     }
 }

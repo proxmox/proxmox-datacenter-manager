@@ -72,7 +72,7 @@ impl View {
         for include in &self.config.include {
             if let FilterRule::Remote(r) = include {
                 has_any_include_remote = true;
-                if r == remote {
+                if r.matches(remote) {
                     matches_any_include_remote = true;
                     break;
                 }
@@ -145,7 +145,7 @@ impl View {
 
     fn matches_remote_rule(remote: &str, rule: &FilterRule) -> bool {
         if let FilterRule::Remote(r) = rule {
-            r == remote
+            r.matches(remote)
         } else {
             false
         }
@@ -154,17 +154,23 @@ impl View {
 
 fn check_rules(rules: &[FilterRule], remote: &str, resource: &ResourceData) -> bool {
     rules.iter().any(|rule| match rule {
-        FilterRule::ResourceType(resource_type) => resource.resource_type == *resource_type,
-        FilterRule::ResourcePool(pool) => resource.resource_pool == Some(pool),
-        FilterRule::ResourceId(resource_id) => resource.resource_id == resource_id,
-        FilterRule::Tag(tag) => {
-            if let Some(resource_tags) = resource.tags {
-                resource_tags.contains(tag)
+        FilterRule::ResourceType(resource_type) => resource_type.matches(&resource.resource_type),
+        FilterRule::ResourcePool(pool) => {
+            if let Some(resource_pool) = resource.resource_pool {
+                pool.matches(resource_pool)
             } else {
                 false
             }
         }
-        FilterRule::Remote(included_remote) => included_remote == remote,
+        FilterRule::ResourceId(resource_id) => resource_id.matches(resource.resource_id),
+        FilterRule::Tag(tag) => {
+            if let Some(resource_tags) = resource.tags {
+                resource_tags.iter().any(|t| tag.matches(t))
+            } else {
+                false
+            }
+        }
+        FilterRule::Remote(included_remote) => included_remote.matches(remote),
     })
 }
 
