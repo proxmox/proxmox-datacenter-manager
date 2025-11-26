@@ -8,6 +8,7 @@ use serde_json::json;
 use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_yew_comp::http_get;
+use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use pwt::css;
 use pwt::prelude::*;
 use pwt::props::StorageLocation;
@@ -35,6 +36,7 @@ use crate::{pdm_client, LoadResult};
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::resource::ResourcesStatus;
 use pdm_api_types::subscription::RemoteSubscriptions;
+use pdm_api_types::views::ViewConfig;
 use pdm_api_types::TaskStatistics;
 use pdm_client::types::TopEntities;
 
@@ -276,8 +278,9 @@ impl Component for ViewComp {
         );
 
         let async_pool = AsyncPool::new();
+        let view = ctx.props().view.clone();
         async_pool.send_future(ctx.link().clone(), async move {
-            Msg::ViewTemplateLoaded(load_template().await)
+            Msg::ViewTemplateLoaded(load_template(Some(view)).await)
         });
 
         Self {
@@ -368,8 +371,9 @@ impl Component for ViewComp {
     fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
         self.async_pool = AsyncPool::new();
         self.load_finished_time = None;
+        let view = ctx.props().view.clone();
         self.async_pool.send_future(ctx.link().clone(), async move {
-            Msg::ViewTemplateLoaded(load_template().await)
+            Msg::ViewTemplateLoaded(load_template(Some(view)).await)
         });
         true
     }
@@ -493,87 +497,98 @@ impl Component for ViewComp {
     }
 }
 
-async fn load_template() -> Result<ViewTemplate, Error> {
-    // FIXME: load template from api
+const DEFAULT_DASHBOARD: &str = "
+    {
+      \"layout\": {
+        \"layout-type\": \"rows\",
+        \"rows\": [
+          [
+            {
+              \"flex\": 3.0,
+              \"widget-type\": \"remotes\",
+              \"show-wizard\": true
+            },
+            {
+              \"flex\": 3.0,
+              \"widget-type\": \"nodes\",
+              \"remote-type\": \"pve\"
+            },
+            {
+              \"flex\": 3.0,
+              \"widget-type\": \"guests\",
+              \"guest-type\": \"qemu\"
+            },
+            {
+              \"flex\": 3.0,
+              \"widget-type\": \"nodes\",
+              \"remote-type\": \"pbs\"
+            },
+            {
+              \"flex\": 3.0,
+              \"widget-type\": \"guests\",
+              \"guest-type\": \"lxc\"
+            },
+            {
+              \"flex\": 3.0,
+              \"widget-type\": \"pbs-datastores\"
+            },
+            {
+              \"flex\": 5.0,
+              \"widget-type\": \"subscription\"
+            }
+          ],
+          [
+            {
+              \"widget-type\": \"leaderboard\",
+              \"leaderboard-type\": \"guest-cpu\"
+            },
+            {
+              \"widget-type\": \"leaderboard\",
+              \"leaderboard-type\": \"node-cpu\"
+            },
+            {
+              \"widget-type\": \"leaderboard\",
+              \"leaderboard-type\": \"node-memory\"
+            }
+          ],
+          [
+            {
+              \"flex\": 5.0,
+              \"widget-type\": \"task-summary\",
+              \"grouping\": \"category\",
+              \"sorting\": \"default\"
+            },
+            {
+              \"flex\": 5.0,
+              \"widget-type\": \"task-summary\",
+              \"grouping\": \"remote\",
+              \"sorting\": \"failed-tasks\"
+            },
+            {
+              \"flex\": 2.0,
+              \"widget-type\": \"sdn\"
+            }
+          ]
+        ]
+      }
+    }
+";
 
-    let view_str = "
-        {
-          \"description\": \"some description\",
-          \"layout\": {
-            \"layout-type\": \"rows\",
-            \"rows\": [
-              [
-                {
-                  \"flex\": 3.0,
-                  \"widget-type\": \"remotes\",
-                  \"show-wizard\": true
-                },
-                {
-                  \"flex\": 3.0,
-                  \"widget-type\": \"nodes\",
-                  \"remote-type\": \"pve\"
-                },
-                {
-                  \"flex\": 3.0,
-                  \"widget-type\": \"guests\",
-                  \"guest-type\": \"qemu\"
-                },
-                {
-                  \"flex\": 3.0,
-                  \"widget-type\": \"nodes\",
-                  \"remote-type\": \"pbs\"
-                },
-                {
-                  \"flex\": 3.0,
-                  \"widget-type\": \"guests\",
-                  \"guest-type\": \"lxc\"
-                },
-                {
-                  \"flex\": 3.0,
-                  \"widget-type\": \"pbs-datastores\"
-                },
-                {
-                  \"flex\": 5.0,
-                  \"widget-type\": \"subscription\"
-                }
-              ],
-              [
-                {
-                  \"widget-type\": \"leaderboard\",
-                  \"leaderboard-type\": \"guest-cpu\"
-                },
-                {
-                  \"widget-type\": \"leaderboard\",
-                  \"leaderboard-type\": \"node-cpu\"
-                },
-                {
-                  \"widget-type\": \"leaderboard\",
-                  \"leaderboard-type\": \"node-memory\"
-                }
-              ],
-              [
-                {
-                  \"flex\": 5.0,
-                  \"widget-type\": \"task-summary\",
-                  \"grouping\": \"category\",
-                  \"sorting\": \"default\"
-                },
-                {
-                  \"flex\": 5.0,
-                  \"widget-type\": \"task-summary\",
-                  \"grouping\": \"remote\",
-                  \"sorting\": \"failed-tasks\"
-                },
-                {
-                  \"flex\": 2.0,
-                  \"widget-type\": \"sdn\"
-                }
-              ]
-            ]
-          }
+async fn load_template(view: Option<AttrValue>) -> Result<ViewTemplate, Error> {
+    let view_str = match view {
+        Some(view) => {
+            let view = percent_encode_component(view.as_str());
+            let config: ViewConfig = http_get(&format!("/config/views/{view}"), None).await?;
+            config.layout
         }
-    ";
+        None => String::new(),
+    };
 
-    let template: ViewTemplate = serde_json::from_str(view_str)?;
+    let template: ViewTemplate = if view_str.is_empty() {
+        serde_json::from_str(DEFAULT_DASHBOARD)?
+    } else {
+        serde_json::from_str(&view_str)?
+    };
+
     Ok(template)
 }
