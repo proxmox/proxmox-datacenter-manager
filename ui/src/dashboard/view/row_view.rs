@@ -625,4 +625,8 @@ fn create_menu(ctx: &yew::Context<RowViewComp>, new_coords: Position) -> Menu {
             ),
         )
         .with_item(MenuItem::new(tr!("SDN Panel")).on_select(create_callback(WidgetType::Sdn)))
+        .with_item(
+            MenuItem::new(tr!("Resource Tree"))
+                .on_select(create_callback(WidgetType::ResourceTree)),
+        )
 }

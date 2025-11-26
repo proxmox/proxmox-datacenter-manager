@@ -293,6 +293,7 @@ pub enum WidgetType {
     TaskSummary {
         grouping: TaskSummaryGrouping,
     },
+    ResourceTree,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]

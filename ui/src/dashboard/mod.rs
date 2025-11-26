@@ -39,6 +39,9 @@ pub mod view;
 mod refresh_config_edit;
 pub use refresh_config_edit::create_refresh_config_edit_window;
 
+mod resource_tree;
+pub use resource_tree::create_resource_tree;
+
 fn loading_column() -> Column {
     Column::new()
         .padding(4)

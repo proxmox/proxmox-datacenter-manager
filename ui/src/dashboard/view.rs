@@ -24,7 +24,7 @@ use crate::dashboard::subscription_info::create_subscriptions_dialog;
 use crate::dashboard::tasks::get_task_options;
 use crate::dashboard::{
     create_guest_panel, create_node_panel, create_pbs_datastores_panel,
-    create_refresh_config_edit_window, create_remote_panel, create_sdn_panel,
+    create_refresh_config_edit_window, create_remote_panel, create_resource_tree, create_sdn_panel,
     create_subscription_panel, create_task_summary_panel, create_top_entities_panel,
     DashboardStatusRow,
 };
@@ -161,6 +161,7 @@ fn render_widget(
             let (hours, since) = get_task_options(refresh_config.task_last_hours);
             create_task_summary_panel(statistics, remotes, hours, since)
         }
+        WidgetType::ResourceTree => create_resource_tree(),
     };
 
     if let Some(title) = &item.title {
@@ -269,6 +270,9 @@ fn required_api_calls(layout: &ViewLayout) -> (bool, bool, bool) {
                         }
                         WidgetType::Leaderboard { .. } => top_entities = true,
                         WidgetType::TaskSummary { .. } => task_statistics = true,
+                        WidgetType::ResourceTree => {
+                            // each list must do it itself
+                        }
                     }
                 }
             }
