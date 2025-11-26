@@ -1,17 +1,23 @@
 use gloo_timers::callback::Interval;
+use yew::html::IntoPropValue;
 use yew::{Component, Properties};
 
+use pwt::css;
 use pwt::prelude::*;
+use pwt::state::SharedState;
 use pwt::{
     css::AlignItems,
     widget::{ActionIcon, Container, Row, Tooltip},
 };
-use pwt_macros::widget;
+use pwt_macros::{builder, widget};
 
 use proxmox_yew_comp::utils::render_epoch;
 
+use crate::dashboard::view::EditingMessage;
+
 #[widget(comp=PdmDashboardStatusRow)]
 #[derive(Properties, PartialEq, Clone)]
+#[builder]
 pub struct DashboardStatusRow {
     last_refresh: Option<f64>,
     reload_interval_s: u32,
@@ -19,6 +25,11 @@ pub struct DashboardStatusRow {
     on_reload: Callback<bool>,
 
     on_settings_click: Callback<()>,
+
+    #[builder(IntoPropValue, into_prop_value)]
+    #[prop_or_default]
+    /// If added, shows a edit/finish/cancel button
+    editing_state: Option<SharedState<Vec<EditingMessage>>>,
 }
 
 impl DashboardStatusRow {
@@ -40,12 +51,14 @@ impl DashboardStatusRow {
 pub enum Msg {
     /// The bool denotes if the reload comes from the click or the timer.
     Reload(bool),
+    Edit(EditingMessage),
 }
 
 #[doc(hidden)]
 pub struct PdmDashboardStatusRow {
     _interval: Interval,
     loading: bool,
+    edit: bool,
 }
 
 impl PdmDashboardStatusRow {
@@ -70,6 +83,7 @@ impl Component for PdmDashboardStatusRow {
         Self {
             _interval: Self::create_interval(ctx),
             loading: false,
+            edit: false,
         }
     }
 
@@ -79,6 +93,13 @@ impl Component for PdmDashboardStatusRow {
             Msg::Reload(clicked) => {
                 props.on_reload.emit(clicked);
                 self.loading = true;
+                true
+            }
+            Msg::Edit(editing) => {
+                self.edit = matches!(editing, EditingMessage::Start);
+                if let Some(state) = props.editing_state.as_ref() {
+                    state.write().push(editing);
+                }
                 true
             }
         }
@@ -121,6 +142,43 @@ impl Component for PdmDashboardStatusRow {
                 None => tr!("Now refreshing"),
             }))
             .with_flex_spacer()
+            .with_optional_child(props.editing_state.clone().and_then(|_| {
+                (!self.edit).then_some({
+                    Tooltip::new(ActionIcon::new("fa fa-pencil").tabindex(0).on_activate({
+                        ctx.link()
+                            .callback(move |_| Msg::Edit(EditingMessage::Start))
+                    }))
+                    .tip(tr!("Edit"))
+                })
+            }))
+            .with_optional_child(props.editing_state.clone().and_then(|_| {
+                self.edit.then_some({
+                    Tooltip::new(
+                        ActionIcon::new("fa fa-check")
+                            .class(css::ColorScheme::Success)
+                            .tabindex(0)
+                            .on_activate({
+                                ctx.link()
+                                    .callback(move |_| Msg::Edit(EditingMessage::Finish))
+                            }),
+                    )
+                    .tip(tr!("Finish Editing"))
+                })
+            }))
+            .with_optional_child(props.editing_state.clone().and_then(|_| {
+                self.edit.then_some({
+                    Tooltip::new(
+                        ActionIcon::new("fa fa-times")
+                            .class(css::ColorScheme::Error)
+                            .tabindex(0)
+                            .on_activate({
+                                ctx.link()
+                                    .callback(move |_| Msg::Edit(EditingMessage::Cancel))
+                            }),
+                    )
+                    .tip(tr!("Cancel Editing"))
+                })
+            }))
             .with_child(
                 Tooltip::new(
                     ActionIcon::new("fa fa-cogs")

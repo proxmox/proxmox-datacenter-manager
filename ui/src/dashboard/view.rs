@@ -41,6 +41,13 @@ use pdm_client::types::TopEntities;
 mod row_view;
 pub use row_view::RowView;
 
+#[derive(Debug, Clone, PartialEq, Copy)]
+pub enum EditingMessage {
+    Start,
+    Cancel,
+    Finish,
+}
+
 #[derive(Properties, PartialEq)]
 pub struct View {
     view: AttrValue,
