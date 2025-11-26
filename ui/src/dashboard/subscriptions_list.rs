@@ -3,8 +3,7 @@ use std::rc::Rc;
 use yew::{
     html,
     virtual_dom::{Key, VComp, VNode},
-    Html,
-    Component, Properties
+    Component, Html, Properties,
 };
 
 use pdm_api_types::subscription::{
@@ -196,7 +195,6 @@ fn sort_subscriptions(subs: &[RemoteSubscriptions]) -> Vec<RemoteSubscriptions> 
     });
     subscriptions
 }
-
 
 impl From<SubscriptionsList> for VNode {
     fn from(val: SubscriptionsList) -> Self {
