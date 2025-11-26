@@ -19,6 +19,11 @@ use crate::RemoteList;
 #[derive(Clone, Properties, PartialEq)]
 #[builder]
 pub struct RemoteSelector {
+    /// Forced value
+    #[builder(IntoPropValue, into_prop_value)]
+    #[prop_or_default]
+    pub value: Option<AttrValue>,
+
     /// The default value
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
@@ -105,6 +110,7 @@ impl Component for PdmRemoteSelector {
             .with_input_props(&props.input_props)
             .on_change(props.on_change.clone())
             .default(props.default.clone())
+            .value(props.value.clone())
             .items(self.remotes.clone())
             .into()
     }
