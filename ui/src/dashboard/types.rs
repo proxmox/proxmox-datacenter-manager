@@ -7,7 +7,7 @@ use crate::pve::GuestType;
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct ViewTemplate {
-    #[serde(skip_serializing_if = "String::is_empty")]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub description: String,
     pub layout: ViewLayout,
 }
@@ -17,7 +17,7 @@ pub struct ViewTemplate {
 #[serde(tag = "layout-type")]
 pub enum ViewLayout {
     Rows {
-        #[serde(skip_serializing_if = "Vec::is_empty")]
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         rows: Vec<Vec<RowWidget>>,
     },
 }
