@@ -7,8 +7,8 @@ use pwt::widget::Dialog;
 use serde_json::{json, Value};
 use yew::virtual_dom::{VComp, VNode};
 
-use proxmox_yew_comp::http_get;
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
+use proxmox_yew_comp::{http_get, http_put};
 use pwt::css;
 use pwt::prelude::*;
 use pwt::props::StorageLocation;
@@ -87,6 +87,7 @@ pub enum Msg {
     UpdateConfig(RefreshConfig),
     ShowSubscriptionsDialog(Option<Dialog>),
     LayoutUpdate(ViewLayout),
+    UpdateResult(Result<(), Error>),
 }
 
 struct ViewComp {
@@ -108,6 +109,7 @@ struct ViewComp {
     subscriptions_dialog: Option<Dialog>,
 
     editing_state: SharedState<Vec<EditingMessage>>,
+    update_result: LoadResult<(), Error>,
 }
 
 fn render_widget(
@@ -319,6 +321,7 @@ impl Component for ViewComp {
             subscriptions_dialog: None,
 
             editing_state: SharedState::new(Vec::new()),
+            update_result: LoadResult::new(),
         }
     }
 
@@ -378,10 +381,28 @@ impl Component for ViewComp {
                 self.subscriptions_dialog = dialog;
             }
             Msg::LayoutUpdate(view_layout) => {
-                // FIXME: update backend layout
+                let link = ctx.link().clone();
                 if let Some(template) = &mut self.template.data {
                     template.layout = view_layout;
+                    if let Some(view) = &ctx.props().view {
+                        let view = view.to_string();
+                        match serde_json::to_string(&template) {
+                            Ok(layout_str) => self.async_pool.spawn(async move {
+                                let params = json!({
+                                    "layout": layout_str,
+                                });
+
+                                let res =
+                                    http_put(format!("/config/views/{view}"), Some(params)).await;
+                                link.send_message(Msg::UpdateResult(res));
+                            }),
+                            Err(err) => self.template.update(Err(err.into())),
+                        };
+                    }
                 }
+            }
+            Msg::UpdateResult(res) => {
+                self.update_result.update(res);
             }
         }
         true
@@ -480,6 +501,12 @@ impl Component for ViewComp {
         );
         view.add_optional_child(
             self.template
+                .error
+                .as_ref()
+                .map(|err| error_message(&err.to_string())),
+        );
+        view.add_optional_child(
+            self.update_result
                 .error
                 .as_ref()
                 .map(|err| error_message(&err.to_string())),
