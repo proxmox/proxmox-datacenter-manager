@@ -1,7 +1,8 @@
 use pdm_api_types::{
-    resource::{PveLxcResource, PveQemuResource, PveStorageResource, Resource, ResourceType},
-    views::{EnumMatcher, FilterRule, StringMatcher, ViewConfig},
+    resource::{PveLxcResource, PveQemuResource, PveStorageResource, Resource},
+    views::{ViewConfig, ViewConfigEntry},
 };
+use proxmox_section_config::typed::ApiSectionDataEntry;
 
 use super::View;
 
@@ -79,20 +80,26 @@ fn run_test(config: ViewConfig, tests: &[((&str, &Resource), bool)]) {
     }
 }
 
+fn parse_config(config: &str) -> ViewConfig {
+    let config = ViewConfigEntry::parse_section_config("views.cfg", config).unwrap();
+    let ViewConfigEntry::View(config) = config.get("test").unwrap();
+    config.clone()
+}
+
 const NODE: &str = "somenode";
 const STORAGE: &str = "somestorage";
 const REMOTE: &str = "someremote";
 
 #[test]
 fn include_remotes() {
-    let config = ViewConfig {
-        id: "only-includes".into(),
-        include: vec![
-            FilterRule::Remote(StringMatcher::Exact("remote-a".into())),
-            FilterRule::Remote(StringMatcher::Exact("remote-b".into())),
-        ],
-        ..Default::default()
-    };
+    let config = parse_config(
+        "
+view: test
+    include remote=remote-a
+    include remote=remote-b
+",
+    );
+
     run_test(
         config.clone(),
         &[
@@ -129,15 +136,14 @@ fn include_remotes() {
 
 #[test]
 fn exclude_remotes() {
-    let config = ViewConfig {
-        id: "only-excludes".into(),
-        exclude: vec![
-            FilterRule::Remote(StringMatcher::Exact("remote-a".into())),
-            FilterRule::Remote(StringMatcher::Exact("remote-b".into())),
-        ],
-        include_all: Some(true),
-        ..Default::default()
-    };
+    let config = parse_config(
+        "
+view: test
+    include-all true
+    exclude remote=remote-a
+    exclude remote=remote-b
+",
+    );
 
     run_test(
         config.clone(),
@@ -175,19 +181,16 @@ fn exclude_remotes() {
 
 #[test]
 fn include_exclude_remotes() {
-    let config = ViewConfig {
-        id: "both".into(),
-        include: vec![
-            FilterRule::Remote(StringMatcher::Exact("remote-a".into())),
-            FilterRule::Remote(StringMatcher::Exact("remote-b".into())),
-        ],
-        exclude: vec![
-            FilterRule::Remote(StringMatcher::Exact("remote-b".into())),
-            FilterRule::Remote(StringMatcher::Exact("remote-c".into())),
-        ],
+    let config = parse_config(
+        "
+view: test
+    include remote=remote-a
+    include remote=remote-b
+    exclude remote=remote-b
+    exclude remote=remote-c
+",
+    );
 
-        ..Default::default()
-    };
     run_test(
         config.clone(),
         &[
@@ -225,11 +228,12 @@ fn include_exclude_remotes() {
 
 #[test]
 fn empty_config() {
-    let config = ViewConfig {
-        id: "empty".into(),
-        include_all: Some(true),
-        ..Default::default()
-    };
+    let config = parse_config(
+        "
+view: test
+    include-all true
+",
+    );
     run_test(
         config.clone(),
         &[
@@ -270,15 +274,15 @@ fn empty_config() {
 
 #[test]
 fn include_type() {
+    let config = parse_config(
+        "
+view: test
+    include resource-type=storage
+    include resource-type=qemu
+",
+    );
     run_test(
-        ViewConfig {
-            id: "include-resource-type".into(),
-            include: vec![
-                FilterRule::ResourceType(EnumMatcher(ResourceType::PveStorage)),
-                FilterRule::ResourceType(EnumMatcher(ResourceType::PveQemu)),
-            ],
-            ..Default::default()
-        },
+        config,
         &[
             (
                 (REMOTE, &make_storage_resource(REMOTE, NODE, STORAGE)),
@@ -298,16 +302,16 @@ fn include_type() {
 
 #[test]
 fn exclude_type() {
+    let config = parse_config(
+        "
+view: test
+    include-all true
+    exclude resource-type=storage
+    exclude resource-type=qemu
+",
+    );
     run_test(
-        ViewConfig {
-            id: "exclude-resource-type".into(),
-            exclude: vec![
-                FilterRule::ResourceType(EnumMatcher(ResourceType::PveStorage)),
-                FilterRule::ResourceType(EnumMatcher(ResourceType::PveQemu)),
-            ],
-            include_all: Some(true),
-            ..Default::default()
-        },
+        config,
         &[
             (
                 (REMOTE, &make_storage_resource(REMOTE, NODE, STORAGE)),
@@ -327,15 +331,16 @@ fn exclude_type() {
 
 #[test]
 fn include_exclude_type() {
+    let config = parse_config(
+        "
+view: test
+    include resource-type=qemu
+    exclude resource-type=storage
+",
+    );
+
     run_test(
-        ViewConfig {
-            id: "exclude-resource-type".into(),
-            include: vec![FilterRule::ResourceType(EnumMatcher(ResourceType::PveQemu))],
-            exclude: vec![FilterRule::ResourceType(EnumMatcher(
-                ResourceType::PveStorage,
-            ))],
-            ..Default::default()
-        },
+        config,
         &[
             (
                 (REMOTE, &make_storage_resource(REMOTE, NODE, STORAGE)),
@@ -355,16 +360,16 @@ fn include_exclude_type() {
 
 #[test]
 fn include_exclude_tags() {
+    let config = parse_config(
+        "
+view: test
+    include tag=tag1
+    include tag=tag2
+    exclude tag=tag3
+",
+    );
     run_test(
-        ViewConfig {
-            id: "include-tags".into(),
-            include: vec![
-                FilterRule::Tag(StringMatcher::Exact("tag1".to_string())),
-                FilterRule::Tag(StringMatcher::Exact("tag2".to_string())),
-            ],
-            exclude: vec![FilterRule::Tag(StringMatcher::Exact("tag3".to_string()))],
-            ..Default::default()
-        },
+        config,
         &[
             (
                 (REMOTE, &make_storage_resource(REMOTE, NODE, STORAGE)),
@@ -401,18 +406,16 @@ fn include_exclude_tags() {
 
 #[test]
 fn include_exclude_resource_pool() {
+    let config = parse_config(
+        "
+view: test
+    include resource-pool=pool1
+    include resource-pool=pool2
+    exclude resource-pool=pool2
+",
+    );
     run_test(
-        ViewConfig {
-            id: "pools".into(),
-            include: vec![
-                FilterRule::ResourcePool(StringMatcher::Exact("pool1".to_string())),
-                FilterRule::ResourcePool(StringMatcher::Exact("pool2".to_string())),
-            ],
-            exclude: vec![FilterRule::ResourcePool(StringMatcher::Exact(
-                "pool2".to_string(),
-            ))],
-            ..Default::default()
-        },
+        config,
         &[
             (
                 (REMOTE, &make_storage_resource(REMOTE, NODE, STORAGE)),
@@ -449,26 +452,18 @@ fn include_exclude_resource_pool() {
 
 #[test]
 fn include_exclude_resource_id() {
+    let config = parse_config(
+        "
+view: test
+    include resource-id=remote/someremote/guest/100
+    include resource-id=remote/someremote/storage/somenode/somestorage
+    exclude resource-id=remote/someremote/guest/101
+    exclude resource-id=remote/otherremote/guest/101
+    exclude resource-id=remote/someremote/storage/somenode/otherstorage
+",
+    );
     run_test(
-        ViewConfig {
-            id: "resource-id".into(),
-            include: vec![
-                FilterRule::ResourceId(StringMatcher::Exact(format!("remote/{REMOTE}/guest/100"))),
-                FilterRule::ResourceId(StringMatcher::Exact(format!(
-                    "remote/{REMOTE}/storage/{NODE}/{STORAGE}"
-                ))),
-            ],
-            exclude: vec![
-                FilterRule::ResourceId(StringMatcher::Exact(format!("remote/{REMOTE}/guest/101"))),
-                FilterRule::ResourceId(StringMatcher::Exact(
-                    "remote/otherremote/guest/101".to_string(),
-                )),
-                FilterRule::ResourceId(StringMatcher::Exact(format!(
-                    "remote/{REMOTE}/storage/{NODE}/otherstorage"
-                ))),
-            ],
-            ..Default::default()
-        },
+        config,
         &[
             (
                 (REMOTE, &make_storage_resource(REMOTE, NODE, STORAGE)),
@@ -506,20 +501,16 @@ fn include_exclude_resource_id() {
 
 #[test]
 fn node_included() {
-    let view = View::new(ViewConfig {
-        id: "both".into(),
+    let config = parse_config(
+        "
+view: test
+    include remote=remote-a
+    include resource-id=remote/someremote/node/test
+    exclude remote=remote-b
+",
+    );
 
-        include: vec![
-            FilterRule::Remote(StringMatcher::Exact("remote-a".to_string())),
-            FilterRule::ResourceId(StringMatcher::Exact(
-                "remote/someremote/node/test".to_string(),
-            )),
-        ],
-        exclude: vec![FilterRule::Remote(StringMatcher::Exact(
-            "remote-b".to_string(),
-        ))],
-        ..Default::default()
-    });
+    let view = View::new(config);
 
     assert!(view.is_node_included("remote-a", "somenode"));
     assert!(view.is_node_included("remote-a", "somenode2"));
@@ -527,19 +518,19 @@ fn node_included() {
     assert!(!view.is_node_included("remote-b", "somenode2"));
     assert!(view.is_node_included("someremote", "test"));
 
-    assert_eq!(view.name(), "both");
+    assert_eq!(view.name(), "test");
 }
 
 #[test]
 fn can_skip_remote_if_excluded() {
-    let view = View::new(ViewConfig {
-        id: "abc".into(),
-        include: vec![],
-        exclude: vec![FilterRule::Remote(StringMatcher::Exact(
-            "remote-b".to_string(),
-        ))],
-        include_all: Some(true),
-    });
+    let config = parse_config(
+        "
+view: test
+    include-all true
+    exclude remote=remote-b
+",
+    );
+    let view = View::new(config);
 
     assert!(!view.can_skip_remote("remote-a"));
     assert!(view.can_skip_remote("remote-b"));
@@ -547,14 +538,14 @@ fn can_skip_remote_if_excluded() {
 
 #[test]
 fn can_skip_remote_if_included() {
-    let view = View::new(ViewConfig {
-        id: "abc".into(),
-        include: vec![FilterRule::Remote(StringMatcher::Exact(
-            "remote-b".to_string(),
-        ))],
-        exclude: vec![],
-        ..Default::default()
-    });
+    let config = parse_config(
+        "
+view: test
+    include remote=remote-b
+",
+    );
+
+    let view = View::new(config);
 
     assert!(!view.can_skip_remote("remote-b"));
     assert!(view.can_skip_remote("remote-a"));
@@ -562,17 +553,15 @@ fn can_skip_remote_if_included() {
 
 #[test]
 fn can_skip_remote_cannot_skip_if_any_other_include() {
-    let view = View::new(ViewConfig {
-        id: "abc".into(),
-        include: vec![
-            FilterRule::Remote(StringMatcher::Exact("remote-b".to_string())),
-            FilterRule::ResourceId(StringMatcher::Exact(
-                "resource/remote-a/guest/100".to_string(),
-            )),
-        ],
-        exclude: vec![],
-        ..Default::default()
-    });
+    let config = parse_config(
+        "
+view: test
+    include remote=remote-b
+    include resource-id=remote/remote-a/guest/100
+",
+    );
+
+    let view = View::new(config);
 
     assert!(!view.can_skip_remote("remote-b"));
     assert!(!view.can_skip_remote("remote-a"));
@@ -580,26 +569,28 @@ fn can_skip_remote_cannot_skip_if_any_other_include() {
 
 #[test]
 fn can_skip_remote_explicit_remote_exclude() {
-    let view = View::new(ViewConfig {
-        id: "abc".into(),
-        include: vec![FilterRule::ResourceId(StringMatcher::Exact(
-            "resource/remote-a/guest/100".to_string(),
-        ))],
-        exclude: vec![FilterRule::Remote(StringMatcher::Exact(
-            "remote-a".to_string(),
-        ))],
-        ..Default::default()
-    });
+    let config = parse_config(
+        "
+view: test
+    exclude remote=remote-a
+    include resource-id=remote/remote-a/guest/100
+",
+    );
+
+    let view = View::new(config);
 
     assert!(view.can_skip_remote("remote-a"));
 }
 
 #[test]
 fn can_skip_remote_with_empty_config() {
-    let view = View::new(ViewConfig {
-        id: "abc".into(),
-        ..Default::default()
-    });
+    let config = parse_config(
+        "
+view: test
+",
+    );
+
+    let view = View::new(config);
 
     assert!(view.can_skip_remote("remote-a"));
     assert!(view.can_skip_remote("remote-b"));
@@ -607,11 +598,14 @@ fn can_skip_remote_with_empty_config() {
 
 #[test]
 fn can_skip_remote_cannot_skip_if_all_included() {
-    let view = View::new(ViewConfig {
-        id: "abc".into(),
-        include_all: Some(true),
-        ..Default::default()
-    });
+    let config = parse_config(
+        "
+view: test
+    include-all true
+",
+    );
+
+    let view = View::new(config);
 
     assert!(!view.can_skip_remote("remote-a"));
     assert!(!view.can_skip_remote("remote-b"));
@@ -619,14 +613,14 @@ fn can_skip_remote_cannot_skip_if_all_included() {
 
 #[test]
 fn can_skip_remote_with_no_remote_includes() {
-    let view = View::new(ViewConfig {
-        id: "abc".into(),
-        include: vec![FilterRule::ResourceId(StringMatcher::Exact(
-            "resource/remote-a/guest/100".to_string(),
-        ))],
-        exclude: vec![],
-        ..Default::default()
-    });
+    let config = parse_config(
+        "
+view: test
+    include resource-id=remote/remote-a/guest/100
+",
+    );
+
+    let view = View::new(config);
 
     assert!(!view.can_skip_remote("remote-a"));
     assert!(!view.can_skip_remote("remote-b"));
@@ -634,42 +628,42 @@ fn can_skip_remote_with_no_remote_includes() {
 
 #[test]
 fn explicitly_included_remote() {
-    let view = View::new(ViewConfig {
-        id: "abc".into(),
-        include: vec![FilterRule::Remote(StringMatcher::Exact(
-            "remote-b".to_string(),
-        ))],
-        exclude: vec![],
-        ..Default::default()
-    });
+    let config = parse_config(
+        "
+view: test
+    include remote=remote-b
+",
+    );
+
+    let view = View::new(config);
 
     assert!(view.is_remote_explicitly_included("remote-b"));
 }
 
 #[test]
 fn included_and_excluded_same_remote() {
-    let view = View::new(ViewConfig {
-        id: "abc".into(),
-        include: vec![FilterRule::Remote(StringMatcher::Exact(
-            "remote-b".to_string(),
-        ))],
-        exclude: vec![FilterRule::Remote(StringMatcher::Exact(
-            "remote-b".to_string(),
-        ))],
-        ..Default::default()
-    });
+    let config = parse_config(
+        "
+view: test
+    include remote=remote-b
+    exclude remote=remote-b
+",
+    );
+
+    let view = View::new(config);
 
     assert!(!view.is_remote_explicitly_included("remote-b"));
 }
 
 #[test]
 fn not_explicitly_included_remote() {
-    let view = View::new(ViewConfig {
-        id: "abc".into(),
-        include: vec![],
-        exclude: vec![],
-        include_all: Some(true),
-    });
+    let config = parse_config(
+        "
+view: test
+    include-all true
+",
+    );
+    let view = View::new(config);
 
     // Assert that is not *explicitly* included
     assert!(view.is_remote_explicitly_included("remote-b"));
