@@ -47,7 +47,10 @@ pub const FILTER_RULE_LIST_SCHEMA: Schema =
         "exclude": {
             schema: FILTER_RULE_LIST_SCHEMA,
             optional: true,
-        }
+        },
+        layout: {
+            optional: true,
+        },
     }
 )]
 #[derive(Clone, Debug, Default, Deserialize, Serialize, Updater, PartialEq)]
@@ -72,6 +75,13 @@ pub struct ViewConfig {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
     pub exclude: Vec<FilterRule>,
+
+    // we can't currently describe this with the 'api' macro so save
+    // it simply as a string and check it in the add/update call
+    /// The configured layout, encoded as json
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    #[updater(serde(skip_serializing_if = "Option::is_none"))]
+    pub layout: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
