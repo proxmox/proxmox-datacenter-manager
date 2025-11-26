@@ -26,6 +26,7 @@ use proxmox_yew_comp::{http_get, Status};
 use pdm_api_types::resource::{RemoteResources, Resource};
 
 use crate::{
+    dashboard::view::ViewContext,
     get_deep_url, get_resource_node,
     renderer::{render_resource_name, render_status_icon},
     RemoteList,
@@ -84,10 +85,16 @@ impl ExtractPrimaryKey for PdmTreeEntry {
     }
 }
 
-async fn load_resources(search_term: String) -> Result<Vec<RemoteResources>, Error> {
+async fn load_resources(
+    search_term: String,
+    view: Option<AttrValue>,
+) -> Result<Vec<RemoteResources>, Error> {
     let mut params = json!({ "max-age": REFRESH_TIME_S });
     if !search_term.is_empty() {
         params["search"] = search_term.into();
+    }
+    if let Some(view) = view {
+        params["view"] = view.to_string().into();
     }
     http_get("/resources/list", Some(params)).await
 }
@@ -146,10 +153,16 @@ impl Component for PdmResourceTree {
                 let props = ctx.props();
                 let link = ctx.link().clone();
                 let search_term = props.search_term.clone();
+
+                let view = ctx
+                    .link()
+                    .context::<ViewContext>(Callback::from(|_| {}))
+                    .and_then(|(context, _)| context.name);
+
                 if !props.search_only || !search_term.is_empty() {
                     self._load_timeout = Some(Timeout::new(INPUT_BUFFER_MS, move || {
                         link.send_future(async move {
-                            Msg::LoadResult(load_resources(search_term).await)
+                            Msg::LoadResult(load_resources(search_term, view).await)
                         });
                     }));
                     self.loading = true;
