@@ -12,6 +12,7 @@ use pwt::state::SharedState;
 use pwt::widget::{Container, Fa, List, ListTile, Panel};
 
 use crate::dashboard::create_title_with_icon;
+use crate::dashboard::view::add_current_view_to_search;
 use crate::search_provider::get_search_provider;
 use crate::LoadResult;
 
@@ -55,8 +56,9 @@ impl yew::Component for PbsDatastoresPanelComponent {
         Self {}
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, mut msg: Self::Message) -> bool {
         if let Some(provider) = get_search_provider(ctx) {
+            add_current_view_to_search(ctx, &mut msg);
             provider.search(msg);
         }
 

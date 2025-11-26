@@ -68,6 +68,15 @@ impl Search {
 
         true
     }
+
+    /// Add a term to the search
+    pub fn add_term(&mut self, term: SearchTerm) {
+        if term.is_optional() {
+            self.optional_terms.push(term);
+        } else {
+            self.required_terms.push(term);
+        }
+    }
 }
 
 impl fmt::Display for Search {

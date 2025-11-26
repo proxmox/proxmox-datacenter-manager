@@ -39,6 +39,7 @@ use pdm_api_types::views::{
 };
 use pdm_api_types::TaskStatistics;
 use pdm_client::types::TopEntities;
+use pdm_search::{Search, SearchTerm};
 
 mod row_view;
 pub use row_view::RowView;
@@ -68,6 +69,12 @@ impl View {
     pub fn new(view: impl Into<Option<AttrValue>>) -> Self {
         Self { view: view.into() }
     }
+}
+
+#[derive(PartialEq, Clone)]
+/// Used to provide the current view name via a [`ContextProvider`]
+pub struct ViewContext {
+    pub name: Option<AttrValue>,
 }
 
 pub enum LoadingResult {
@@ -541,7 +548,15 @@ impl Component for ViewComp {
 
         view.add_optional_child(self.subscriptions_dialog.clone());
 
-        view.into()
+        let view_context = ViewContext {
+            name: props.view.clone(),
+        };
+
+        html! {
+            <ContextProvider<ViewContext> context={view_context}>
+                {view}
+            </ContextProvider<ViewContext>>
+        }
     }
 }
 
@@ -639,4 +654,17 @@ async fn load_template(view: Option<AttrValue>) -> Result<ViewTemplate, Error> {
     };
 
     Ok(template)
+}
+
+/// This adds the current view from the context to the given [`Search`] if any
+pub fn add_current_view_to_search<T: yew::Component>(ctx: &yew::Context<T>, search: &mut Search) {
+    if let Some((context, _)) = ctx.link().context::<ViewContext>(Callback::from(|_| {})) {
+        if let Some(name) = context.name {
+            search.add_term(
+                SearchTerm::new(name.to_string())
+                    .category(Some("view"))
+                    .optional(false),
+            );
+        }
+    }
 }

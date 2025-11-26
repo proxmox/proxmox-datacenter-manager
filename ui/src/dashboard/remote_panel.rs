@@ -15,6 +15,7 @@ use pwt::widget::{error_message, Column, Container, Fa, Panel};
 
 use pdm_api_types::resource::ResourcesStatus;
 
+use crate::dashboard::view::add_current_view_to_search;
 use crate::LoadResult;
 use crate::{dashboard::create_title_with_icon, search_provider::get_search_provider};
 
@@ -49,8 +50,9 @@ impl Component for PdmRemotePanel {
         Self {}
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, mut msg: Self::Message) -> bool {
         if let Some(search) = get_search_provider(ctx) {
+            add_current_view_to_search(ctx, &mut msg);
             search.search(msg);
         }
         false
