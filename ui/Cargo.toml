@@ -23,7 +23,7 @@ serde_json = "1.0"
 wasm-bindgen = "0.2.92"
 wasm-bindgen-futures = "0.4"
 wasm-logger = "0.2"
-web-sys = { version = "0.3", features = ["Location"] }
+web-sys = { version = "0.3", features = ["Location", "DataTransfer"] }
 yew = { version = "0.21",  features = ["csr"] }
 yew-router = { version = "0.18" }
 

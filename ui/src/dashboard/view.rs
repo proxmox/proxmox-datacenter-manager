@@ -41,6 +41,8 @@ use pdm_client::types::TopEntities;
 mod row_view;
 pub use row_view::RowView;
 
+mod row_element;
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum EditingMessage {
     Start,
@@ -82,6 +84,7 @@ pub enum Msg {
     ConfigWindow(bool), // show
     UpdateConfig(RefreshConfig),
     ShowSubscriptionsDialog(Option<Dialog>),
+    LayoutUpdate(ViewLayout),
 }
 
 struct ViewComp {
@@ -101,6 +104,8 @@ struct ViewComp {
     show_config_window: bool,
     show_create_wizard: Option<RemoteType>,
     subscriptions_dialog: Option<Dialog>,
+
+    editing_state: SharedState<Vec<EditingMessage>>,
 }
 
 fn render_widget(
@@ -290,6 +295,8 @@ impl Component for ViewComp {
             show_config_window: false,
             show_create_wizard: None,
             subscriptions_dialog: None,
+
+            editing_state: SharedState::new(Vec::new()),
         }
     }
 
@@ -348,6 +355,12 @@ impl Component for ViewComp {
             Msg::ShowSubscriptionsDialog(dialog) => {
                 self.subscriptions_dialog = dialog;
             }
+            Msg::LayoutUpdate(view_layout) => {
+                // FIXME: update backend layout
+                if let Some(template) = &mut self.template.data {
+                    template.layout = view_layout;
+                }
+            }
         }
         true
     }
@@ -362,58 +375,79 @@ impl Component for ViewComp {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
+        let props = ctx.props();
         if !self.template.has_data() {
             return Progress::new().into();
         }
         let mut view = Column::new().class(css::FlexFit).with_child(
             Container::new()
-                .class("pwt-content-spacer-padding")
+                .padding(4)
                 .class("pwt-content-spacer-colors")
                 .class("pwt-default-colors")
-                .with_child(DashboardStatusRow::new(
-                    self.load_finished_time,
-                    self.refresh_config
-                        .refresh_interval
-                        .unwrap_or(DEFAULT_REFRESH_INTERVAL_S),
-                    ctx.link().callback(Msg::Reload),
-                    ctx.link().callback(|_| Msg::ConfigWindow(true)),
-                )),
+                .with_child(
+                    DashboardStatusRow::new(
+                        self.load_finished_time,
+                        self.refresh_config
+                            .refresh_interval
+                            .unwrap_or(DEFAULT_REFRESH_INTERVAL_S),
+                        ctx.link().callback(Msg::Reload),
+                        ctx.link().callback(|_| Msg::ConfigWindow(true)),
+                    )
+                    .editing_state(
+                        (props.view != "dashboard").then_some(self.editing_state.clone()),
+                    ),
+                ),
         );
+
         if !has_sub_panel(self.template.data.as_ref()) {
             let subs = self.subscriptions.clone();
             let link = ctx.link().clone();
-            view.add_child(Row::new().class("pwt-content-spacer").with_child(
-                create_subscription_panel(
-                    subs.clone(),
-                    link.clone().callback(move |_| {
-                        let on_dialog_close = link.callback(|_| Msg::ShowSubscriptionsDialog(None));
-                        let dialog = create_subscriptions_dialog(subs.clone(), on_dialog_close);
-                        Msg::ShowSubscriptionsDialog(dialog)
-                    }),
-                ),
-            ));
+            view.add_child(
+                Row::new()
+                    .padding_x(4)
+                    .padding_bottom(4)
+                    .padding_top(0)
+                    .class("pwt-content-spacer-colors")
+                    .with_child(
+                        create_subscription_panel(
+                            subs.clone(),
+                            link.clone().callback(move |_| {
+                                let on_dialog_close =
+                                    link.callback(|_| Msg::ShowSubscriptionsDialog(None));
+                                let dialog =
+                                    create_subscriptions_dialog(subs.clone(), on_dialog_close);
+                                Msg::ShowSubscriptionsDialog(dialog)
+                            }),
+                        )
+                        .flex(1.0),
+                    ),
+            );
         }
         match self.template.data.as_ref().map(|template| &template.layout) {
             Some(ViewLayout::Rows { rows }) => {
-                view.add_child(RowView::new(rows.clone(), {
-                    let link = ctx.link().clone();
-                    let status = self.status.clone();
-                    let subscriptions = self.subscriptions.clone();
-                    let top_entities = self.top_entities.clone();
-                    let statistics = self.statistics.clone();
-                    let refresh_config = self.refresh_config.clone();
-                    move |widget: &RowWidget| {
-                        render_widget(
-                            link.clone(),
-                            widget,
-                            status.clone(),
-                            subscriptions.clone(),
-                            top_entities.clone(),
-                            statistics.clone(),
-                            refresh_config.clone(),
-                        )
-                    }
-                }));
+                view.add_child(
+                    RowView::new(rows.clone(), {
+                        let link = ctx.link().clone();
+                        let status = self.status.clone();
+                        let subscriptions = self.subscriptions.clone();
+                        let top_entities = self.top_entities.clone();
+                        let statistics = self.statistics.clone();
+                        let refresh_config = self.refresh_config.clone();
+                        move |widget: &RowWidget| {
+                            render_widget(
+                                link.clone(),
+                                widget,
+                                status.clone(),
+                                subscriptions.clone(),
+                                top_entities.clone(),
+                                statistics.clone(),
+                                refresh_config.clone(),
+                            )
+                        }
+                    })
+                    .editing_state(self.editing_state.clone())
+                    .on_update_layout(ctx.link().callback(Msg::LayoutUpdate)),
+                );
             }
             None => {}
         }
