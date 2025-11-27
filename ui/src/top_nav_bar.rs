@@ -7,6 +7,7 @@ use wasm_bindgen::UnwrapThrowExt;
 
 use pwt::prelude::*;
 use pwt::widget::menu::{Menu, MenuButton, MenuEntry, MenuEvent, MenuItem};
+use pwt::AsyncAbortGuard;
 use yew::html::{IntoEventCallback, IntoPropValue};
 use yew::virtual_dom::{VComp, VNode};
 
@@ -74,6 +75,7 @@ pub struct PdmTopNavBar {
     dark_mode: bool,
     version_info: Option<VersionInfo>,
     view_state: Option<ViewState>,
+    abort_guard: Option<AsyncAbortGuard>,
 }
 
 impl Component for PdmTopNavBar {
@@ -95,6 +97,7 @@ impl Component for PdmTopNavBar {
             dark_mode,
             version_info: None,
             view_state: None,
+            abort_guard: None,
         }
     }
 
@@ -121,8 +124,10 @@ impl Component for PdmTopNavBar {
                 true
             }
             Msg::Load => {
-                ctx.link()
-                    .send_future(async move { Msg::LoadResult(load_version().await) });
+                let link = ctx.link().clone();
+                self.abort_guard.replace(AsyncAbortGuard::spawn(async move {
+                    link.send_message(Msg::LoadResult(load_version().await))
+                }));
                 true
             }
             Msg::LoadResult(result) => {
