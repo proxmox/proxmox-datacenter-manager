@@ -2,10 +2,11 @@
 
 use anyhow::Error;
 
-use pdm_api_types::remotes::Remote;
+use pdm_api_types::remotes::{Remote, RemoteType};
+use pdm_api_types::PRIV_RESOURCE_AUDIT;
 use pdm_api_types::{
-    remote_updates::UpdateSummary, remotes::REMOTE_ID_SCHEMA, RemoteUpid, NODE_SCHEMA,
-    PRIV_RESOURCE_MODIFY, UPID,
+    remote_updates::UpdateSummary, remotes::REMOTE_ID_SCHEMA, APTRepositoriesResult, RemoteUpid,
+    NODE_SCHEMA, PRIV_RESOURCE_MODIFY, UPID,
 };
 use proxmox_access_control::CachedUserInfo;
 use proxmox_apt_api_types::{APTGetChangelogOptions, APTUpdateInfo};
@@ -16,7 +17,7 @@ use proxmox_router::{
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use crate::remote_updates;
+use crate::{connection, remote_updates};
 
 use super::remotes::get_remote;
 
@@ -207,10 +208,50 @@ async fn apt_get_changelog(
     remote_updates::get_changelog(remote, &node, options.name).await
 }
 
-const APT_SUBDIRS: SubdirMap = &[
+#[api(
+    input: {
+        properties: {
+            remote: {
+                schema: REMOTE_ID_SCHEMA,
+            },
+            node: {
+                schema: NODE_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}", "system"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get configured APT repositories.
+async fn get_apt_repositories(
+    remote: String,
+    node: String,
+) -> Result<APTRepositoriesResult, Error> {
+    let (config, _digest) = pdm_config::remotes::config()?;
+    let remote = get_remote(&config, &remote)?;
+
+    Ok(match remote.ty {
+        RemoteType::Pve => {
+            let client = connection::make_pve_client(remote)?;
+            client.get_apt_repositories(&node).await?
+        }
+        RemoteType::Pbs => {
+            let client = connection::make_pbs_client(remote)?;
+            client.get_apt_repositories().await?
+        }
+    })
+}
+
+#[sortable]
+const APT_SUBDIRS: SubdirMap = &sorted!([
     (
         "changelog",
         &Router::new().get(&API_METHOD_APT_GET_CHANGELOG),
+    ),
+    (
+        "repositories",
+        &Router::new().get(&API_METHOD_GET_APT_REPOSITORIES),
     ),
     (
         "update",
@@ -218,7 +259,7 @@ const APT_SUBDIRS: SubdirMap = &[
             .get(&API_METHOD_APT_UPDATE_AVAILABLE)
             .post(&API_METHOD_APT_UPDATE_DATABASE),
     ),
-];
+]);
 
 pub const APT_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(APT_SUBDIRS))

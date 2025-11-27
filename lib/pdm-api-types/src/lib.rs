@@ -32,6 +32,7 @@ pub use proxy::HTTP_PROXY_SCHEMA;
 mod translation;
 pub use translation::Translation;
 
+pub use proxmox_apt_api_types::APTRepositoriesResult;
 pub use proxmox_apt_api_types::APTUpdateInfo;
 
 pub use proxmox_auth_api::types::{Authid, Userid};
