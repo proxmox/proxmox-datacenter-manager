@@ -5,6 +5,7 @@ pub mod api;
 pub mod auth;
 pub mod context;
 pub mod env;
+pub mod jobstate;
 pub mod metric_collection;
 pub mod parallel_fetcher;
 pub mod remote_cache;
