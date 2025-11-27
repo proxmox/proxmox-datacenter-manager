@@ -57,6 +57,17 @@
     display: inline-block;
 }
 
+.fa-cdrom::before {
+    content: " ";
+    background-image: url(./images/icon-cd-drive.svg);
+    background-size: 16px 16px;
+    background-repeat: no-repeat;
+    width: 16px;
+    height: 16px;
+    vertical-align: bottom;
+    display: inline-block;
+}
+
 .fa-sdn-vnet::before {
     content: " ";
     mask-image: url(./images/icon-sdn-vnet.svg);
@@ -96,6 +107,7 @@
 }
 
 :root.pwt-dark-mode {
+    .fa-cdrom,
     .fa-memory,
     .fa-cpu {
         filter: invert(90%);
