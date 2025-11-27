@@ -162,7 +162,7 @@ impl ViewGridComp {
         let props = ctx.props();
         let store = self.store.clone();
         EditWindow::new(tr!("Add") + ": " + &tr!("View"))
-            .renderer(move |form_ctx: &FormContext| add_view_input_panel(form_ctx, store.clone()))
+            .renderer(move |form_ctx| input_panel(form_ctx, InputPanelMode::Create(store.clone())))
             .on_submit({
                 let base_url = props.base_url.clone();
                 let store = self.store.clone();
@@ -176,7 +176,7 @@ impl ViewGridComp {
         let props = ctx.props();
         let id = selection.to_string();
         EditWindow::new(tr!("Edit") + ": " + &tr!("View"))
-            .renderer(move |form_ctx| edit_view_input_panel(form_ctx, id.clone()))
+            .renderer(move |form_ctx| input_panel(form_ctx, InputPanelMode::Edit(id.clone())))
             .on_submit({
                 let base_url = props.base_url.clone();
                 move |form| update_view(base_url.clone(), form)
@@ -322,43 +322,40 @@ impl LoadableComponent for ViewGridComp {
     }
 }
 
-fn add_view_input_panel(form_ctx: &FormContext, store: Store<ViewConfig>) -> Html {
+enum InputPanelMode {
+    Create(Store<ViewConfig>),
+    Edit(String), // id
+}
+
+fn input_panel(form_ctx: &FormContext, mode: InputPanelMode) -> Html {
     let include_all = form_ctx.read().get_field_checked("include-all");
-    InputPanel::new()
-        .padding(4)
-        .with_field(tr!("Name"), Field::new().name("id").required(true))
-        .with_right_field(
-            tr!("Copy Layout from"),
-            ViewSelector::new(store)
-                .placeholder(tr!("None"))
-                .name("copy-from"),
-        )
+    let is_create = matches!(mode, InputPanelMode::Create(_));
+    let mut input_panel = InputPanel::new().padding(4);
+
+    match mode {
+        InputPanelMode::Create(store) => {
+            input_panel.add_field(tr!("Name"), Field::new().name("id").required(true));
+            input_panel.add_right_field(
+                tr!("Copy Layout from"),
+                ViewSelector::new(store)
+                    .placeholder(tr!("None"))
+                    .name("copy-from"),
+            );
+        }
+        InputPanelMode::Edit(id) => input_panel.add_field(
+            tr!("Name"),
+            DisplayField::new().name("id").value(id.clone()),
+        ),
+    }
+
+    input_panel
         .with_field(
             tr!("Include All"),
             Checkbox::new()
                 .name("include-all")
                 .box_label(tr!("Include all remotes and their resources."))
-                .default(true),
+                .default(is_create),
         )
-        .with_field_and_options(
-            pwt::widget::FieldPosition::Large,
-            false,
-            include_all,
-            tr!("Include"),
-            ViewFilterSelector::new()
-                .name("include")
-                .disabled(include_all),
-        )
-        .with_large_field(tr!("Exclude"), ViewFilterSelector::new().name("exclude"))
-        .into()
-}
-
-fn edit_view_input_panel(form_ctx: &FormContext, id: String) -> Html {
-    let include_all = form_ctx.read().get_field_checked("include-all");
-    InputPanel::new()
-        .padding(4)
-        .with_field(tr!("Name"), DisplayField::new().name("id").value(id))
-        .with_field(tr!("Include All"), Checkbox::new().name("include-all"))
         .with_field_and_options(
             pwt::widget::FieldPosition::Large,
             false,
