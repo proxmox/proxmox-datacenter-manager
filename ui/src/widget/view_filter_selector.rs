@@ -313,7 +313,9 @@ fn columns(
                                     Ok(ResourceType::PveLxc) => tr!("Container"),
                                     Ok(ResourceType::PveStorage) => tr!("Storage (Proxmox VE)"),
                                     Ok(ResourceType::PveNetwork) => tr!("Network (Proxmox VE)"),
-                                    Ok(ResourceType::PbsDatastore) => tr!("Datastore (Proxmox Backup Server)"),
+                                    Ok(ResourceType::PbsDatastore) => {
+                                        tr!("Datastore (Proxmox Backup Server)")
+                                    }
                                     Err(err) => tr!("invalid type: {0}", err.to_string()),
                                 }
                                 .into()

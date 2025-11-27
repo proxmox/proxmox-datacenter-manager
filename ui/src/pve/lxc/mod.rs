@@ -8,8 +8,9 @@ use std::rc::Rc;
 
 use yew::virtual_dom::{VComp, VNode};
 
-use pwt::css::FlexFit;
 use pwt::prelude::*;
+
+use pwt::css::FlexFit;
 use pwt::widget::{Column, Container, Fa, Row, TabBarItem, TabPanel};
 
 use pdm_api_types::resource::PveLxcResource;
