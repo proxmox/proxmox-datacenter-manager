@@ -353,6 +353,16 @@ impl PbsClient {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
+    /// Return a list of the most important package versions.
+    pub async fn get_package_versions(&self) -> Result<Vec<pbs_api_types::APTUpdateInfo>, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/nodes/localhost/apt/versions")
+            .await?
+            .expect_json()?
+            .data)
+    }
+
     /// Get list of tasks.
     ///
     /// `params`: Filters specifying which tasks to get.
