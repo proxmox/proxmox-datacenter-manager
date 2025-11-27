@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::rc::Rc;
@@ -53,6 +54,8 @@ impl From<UpdateTree> for VNode {
 struct RemoteEntry {
     remote: String,
     ty: RemoteType,
+    product_version: Option<String>,
+    mixed_versions: bool,
     number_of_failed_nodes: u32,
     number_of_nodes: u32,
     number_of_updatable_nodes: u32,
@@ -125,7 +128,7 @@ impl UpdateTreeComponent {
         Rc::new(vec![
             DataTableColumn::new(tr!("Name"))
                 .tree_column(store)
-                .flex(1)
+                .flex(2)
                 .render(|entry: &UpdateTreeEntry| {
                     let icon = match entry {
                         UpdateTreeEntry::Remote(_) => Some("server"),
@@ -142,8 +145,16 @@ impl UpdateTreeComponent {
                 })
                 .sorter(default_sorter)
                 .into(),
+            DataTableColumn::new(tr!("Version"))
+                .flex(1)
+                .render_cell(DataTableCellRenderer::new(
+                    move |args: &mut DataTableCellRenderArgs<UpdateTreeEntry>| {
+                        render_version_column(args.record(), args.is_expanded())
+                    },
+                ))
+                .into(),
             DataTableColumn::new(tr!("Status"))
-                .flex(3)
+                .flex(6)
                 .render_cell(DataTableCellRenderer::new(
                     move |args: &mut DataTableCellRenderArgs<UpdateTreeEntry>| match args.record() {
                         UpdateTreeEntry::Root => {
@@ -184,6 +195,8 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
         let mut remote_entry = root.append(UpdateTreeEntry::Remote(RemoteEntry {
             remote: remote_name.clone(),
             ty: remote_summary.remote_type,
+            product_version: None,
+            mixed_versions: false,
             number_of_nodes: 0,
             number_of_updatable_nodes: 0,
             number_of_failed_nodes: 0,
@@ -191,11 +204,17 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
         }));
         remote_entry.set_expanded(false);
 
+        let mut product_version = None;
+        let mut mixed_versions = false;
         let number_of_nodes = remote_summary.nodes.len();
         let mut number_of_updatable_nodes = 0;
         let mut number_of_failed_nodes = 0;
 
-        for (node_name, node_summary) in remote_summary.nodes.deref() {
+        // use a BTreeMap to get a stable order. Can be removed once there is proper version
+        // comparison in place.
+        let nodes = BTreeMap::from_iter(remote_summary.nodes.deref());
+
+        for (node_name, node_summary) in nodes {
             match node_summary.status {
                 NodeUpdateStatus::Success => {
                     if node_summary.number_of_updates > 0 {
@@ -207,19 +226,35 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
                 }
             }
 
-            remote_entry.append(UpdateTreeEntry::Node(NodeEntry {
+            let entry = NodeEntry {
                 remote: remote_name.clone(),
                 node: node_name.clone(),
                 ty: remote_summary.remote_type,
                 summary: node_summary.clone(),
                 flat: false,
-            }));
+            };
+
+            if let Some(version) = get_product_version(&entry) {
+                if let Some(product_version) = &product_version {
+                    if version != *product_version {
+                        mixed_versions = true;
+                    }
+                    // TODO: Compare versions and report the highest (or lowest). For now we just
+                    // report the one of the first node.
+                } else {
+                    product_version = Some(version);
+                }
+            }
+
+            remote_entry.append(UpdateTreeEntry::Node(entry));
         }
 
         if let UpdateTreeEntry::Remote(info) = remote_entry.record_mut() {
             info.number_of_updatable_nodes = number_of_updatable_nodes;
             info.number_of_nodes = number_of_nodes as u32;
             info.number_of_failed_nodes = number_of_failed_nodes as u32;
+            info.product_version = product_version;
+            info.mixed_versions = mixed_versions;
         }
     }
 
@@ -509,6 +544,40 @@ fn render_node_info(entry: &NodeEntry) -> Row {
         .gap(2)
         .with_child(icon)
         .with_child(text)
+}
+
+fn render_version_column(tree_entry: &UpdateTreeEntry, expanded: bool) -> Html {
+    let text = match tree_entry {
+        UpdateTreeEntry::Node(node_entry) => {
+            get_product_version(node_entry).unwrap_or_default().into()
+        }
+        UpdateTreeEntry::Remote(remote_entry) => {
+            if !expanded {
+                let version_string = remote_entry.product_version.clone().unwrap_or_default();
+                // TRANSLATORS: The first parameter is a version string (e.g. '9.1.0')
+                tr!("{0} (mixed versions)", version_string)
+            } else {
+                "".to_string()
+            }
+        }
+        _ => "".to_string(),
+    };
+
+    text.into()
+}
+
+fn get_product_version(node_entry: &NodeEntry) -> Option<String> {
+    let package = match node_entry.ty {
+        RemoteType::Pve => "pve-manager",
+        RemoteType::Pbs => "proxmox-backup-server",
+    };
+
+    node_entry
+        .summary
+        .versions
+        .iter()
+        .find(|p| p.package == package)
+        .map(|p| p.version.to_string())
 }
 
 enum RemoteSummaryIcon {
