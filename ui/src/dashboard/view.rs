@@ -3,7 +3,6 @@ use std::rc::Rc;
 use anyhow::Error;
 use futures::join;
 use js_sys::Date;
-use pwt::widget::Dialog;
 use serde_json::{json, Value};
 use yew::virtual_dom::{VComp, VNode};
 
@@ -93,7 +92,7 @@ pub enum Msg {
     Reload(bool),       // force
     ConfigWindow(bool), // show
     UpdateConfig(RefreshConfig),
-    ShowSubscriptionsDialog(Option<Dialog>),
+    ShowSubscriptionsDialog(bool),
     LayoutUpdate(ViewLayout),
     UpdateResult(Result<(), Error>),
 }
@@ -109,7 +108,7 @@ struct ViewComp {
     load_finished_time: Option<f64>,
     show_config_window: bool,
     show_create_wizard: Option<RemoteType>,
-    subscriptions_dialog: Option<Dialog>,
+    subscriptions_dialog: bool,
 
     editing_state: SharedState<Vec<EditingMessage>>,
     update_result: LoadResult<(), Error>,
@@ -151,13 +150,8 @@ fn render_widget(
         WidgetType::PbsDatastores => create_pbs_datastores_panel(status),
         WidgetType::Subscription => create_subscription_panel(
             subscriptions.clone(),
-            link.clone().callback(move |_| {
-                let dialog = create_subscriptions_dialog(
-                    subscriptions.clone(),
-                    link.callback(|_| Msg::ShowSubscriptionsDialog(None)),
-                );
-                Msg::ShowSubscriptionsDialog(dialog)
-            }),
+            link.clone()
+                .callback(move |_| Msg::ShowSubscriptionsDialog(true)),
         ),
         WidgetType::Sdn => create_sdn_panel(status),
         WidgetType::Leaderboard { leaderboard_type } => {
@@ -337,7 +331,7 @@ impl Component for ViewComp {
             loading: true,
             show_config_window: false,
             show_create_wizard: None,
-            subscriptions_dialog: None,
+            subscriptions_dialog: false,
 
             editing_state: SharedState::new(Vec::new()),
             update_result: LoadResult::new(),
@@ -480,13 +474,8 @@ impl Component for ViewComp {
                     .with_child(
                         create_subscription_panel(
                             subs.clone(),
-                            link.clone().callback(move |_| {
-                                let on_dialog_close =
-                                    link.callback(|_| Msg::ShowSubscriptionsDialog(None));
-                                let dialog =
-                                    create_subscriptions_dialog(subs.clone(), on_dialog_close);
-                                Msg::ShowSubscriptionsDialog(dialog)
-                            }),
+                            link.clone()
+                                .callback(move |_| Msg::ShowSubscriptionsDialog(true)),
                         )
                         .flex(1.0),
                     ),
@@ -558,7 +547,14 @@ impl Component for ViewComp {
                 .on_submit(move |ctx| crate::remotes::create_remote(ctx, remote_type))
         }));
 
-        view.add_optional_child(self.subscriptions_dialog.clone());
+        view.add_optional_child(if self.subscriptions_dialog {
+            create_subscriptions_dialog(
+                self.render_args.subscriptions.clone(),
+                ctx.link().callback(|_| Msg::ShowSubscriptionsDialog(false)),
+            )
+        } else {
+            None
+        });
 
         let view_context = ViewContext {
             name: props.view.clone(),
