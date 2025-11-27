@@ -30,9 +30,9 @@ fn main() -> Result<(), Error> {
         .tasklog_pbs()
         .init()?;
 
-    create_directories()?;
-
     proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
+
+    create_directories()?;
 
     let mut args = std::env::args();
     args.next();
@@ -63,6 +63,7 @@ fn create_directories() -> Result<(), Error> {
     let api_user = pdm_config::api_user()?;
 
     pdm_config::setup::create_configdir()?;
+    server::jobstate::create_jobstate_dir()?;
 
     pdm_config::setup::mkdir_perms(
         pdm_buildcfg::PDM_RUN_DIR,

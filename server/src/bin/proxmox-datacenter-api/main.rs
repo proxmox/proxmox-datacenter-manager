@@ -426,9 +426,9 @@ async fn run_task_scheduler() {
 
 async fn schedule_tasks() -> Result<(), Error> {
     // TODO: move out to own module, refactor PBS stuff for reuse & then add:
-    // - task log rotation
     // - stats (rrd) collection
     // - ...?
+    tasks::logrotate::schedule_task_log_rotate().await;
 
     Ok(())
 }
