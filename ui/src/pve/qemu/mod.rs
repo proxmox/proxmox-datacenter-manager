@@ -8,6 +8,8 @@ use yew::virtual_dom::{VComp, VNode};
 use pwt::prelude::*;
 use pwt::widget::{Fa, Row, TabBarItem, TabPanel};
 
+use proxmox_yew_comp::configuration::pve::{QemuHardwarePanel, QemuOptionsPanel};
+
 use pdm_api_types::resource::PveQemuResource;
 
 use crate::pve::utils::render_qemu_name;
@@ -67,6 +69,40 @@ impl yew::Component for QemuPanelComp {
                     let info = props.info.clone();
                     move |_| {
                         QemuOverviewPanel::new(remote.clone(), node.clone(), info.clone()).into()
+                    }
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("hardware")
+                    .label(tr!("Hardware"))
+                    .icon_class("fa fa-desktop"),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    let vmid = props.info.vmid;
+                    move |_| {
+                        QemuHardwarePanel::new(node.clone(), vmid)
+                            .readonly(true)
+                            .remote(remote.clone())
+                            .into()
+                    }
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("options")
+                    .label(tr!("Options"))
+                    .icon_class("fa fa-gear"),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    let vmid = props.info.vmid;
+                    move |_| {
+                        QemuOptionsPanel::new(node.clone(), vmid)
+                            .readonly(true)
+                            .remote(remote.clone())
+                            .into()
                     }
                 },
             )
