@@ -5,7 +5,7 @@ use yew::virtual_dom::{VComp, VNode};
 
 use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::Status;
-use pwt::css::{AlignItems, FlexFit, JustifyContent};
+use pwt::css::{AlignItems, FlexFit, JustifyContent, TextAlign};
 use pwt::prelude::*;
 use pwt::state::SharedState;
 use pwt::widget::{error_message, Column, Fa, Panel};
@@ -83,6 +83,7 @@ impl yew::Component for NodeStatusPanelComponent {
             .class(FlexFit)
             .class(AlignItems::Center)
             .class(JustifyContent::Center)
+            .class(TextAlign::Center)
             .gap(2)
             .onclick(ctx.link().callback({
                 let search_terms = search_terms.clone();
