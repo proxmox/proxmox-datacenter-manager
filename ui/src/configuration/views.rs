@@ -349,7 +349,7 @@ fn input_panel(form_ctx: &FormContext, mode: InputPanelMode) -> Html {
     }
 
     input_panel
-        .with_field(
+        .with_large_field(
             tr!("Include All"),
             Checkbox::new()
                 .name("include-all")
