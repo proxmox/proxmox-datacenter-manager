@@ -6,13 +6,16 @@ use std::rc::Rc;
 use yew::virtual_dom::{VComp, VNode};
 
 use pwt::prelude::*;
-use pwt::widget::{Fa, Row, TabBarItem, TabPanel};
+
+use pwt::css::FlexFit;
+use pwt::widget::{Column, Container, Fa, Row, TabBarItem, TabPanel};
 
 use proxmox_yew_comp::configuration::pve::{QemuHardwarePanel, QemuOptionsPanel};
 
 use pdm_api_types::resource::PveQemuResource;
 
 use crate::pve::utils::render_qemu_name;
+use crate::renderer::render_title_row;
 
 #[derive(Clone, Debug, Properties, PartialEq)]
 pub struct QemuPanel {
@@ -75,33 +78,36 @@ impl yew::Component for QemuPanelComp {
             .with_item_builder(
                 TabBarItem::new()
                     .key("hardware")
-                    .label(tr!("Hardware"))
-                    .icon_class("fa fa-desktop"),
+                    .label(tr!("Config"))
+                    .icon_class("fa fa-file-text-o"),
                 {
                     let remote = props.remote.clone();
                     let node = props.node.clone();
                     let vmid = props.info.vmid;
                     move |_| {
-                        QemuHardwarePanel::new(node.clone(), vmid)
-                            .readonly(true)
-                            .remote(remote.clone())
-                            .into()
-                    }
-                },
-            )
-            .with_item_builder(
-                TabBarItem::new()
-                    .key("options")
-                    .label(tr!("Options"))
-                    .icon_class("fa fa-gear"),
-                {
-                    let remote = props.remote.clone();
-                    let node = props.node.clone();
-                    let vmid = props.info.vmid;
-                    move |_| {
-                        QemuOptionsPanel::new(node.clone(), vmid)
-                            .readonly(true)
-                            .remote(remote.clone())
+                        Container::new()
+                            .class(FlexFit)
+                            .with_child(
+                                Column::new()
+                                    .padding(4)
+                                    .gap(2)
+                                    .with_child(render_title_row(tr!("Hardware"), "desktop"))
+                                    .with_child(html! {<hr/>})
+                                    .with_child(
+                                        QemuHardwarePanel::new(node.clone(), vmid)
+                                            .readonly(true)
+                                            .remote(remote.clone()),
+                                    )
+                                    .with_child(
+                                        render_title_row(tr!("Options"), "gear").margin_top(6),
+                                    )
+                                    .with_child(html! {<hr/>})
+                                    .with_child(
+                                        QemuOptionsPanel::new(node.clone(), vmid)
+                                            .readonly(true)
+                                            .remote(remote.clone()),
+                                    ),
+                            )
                             .into()
                     }
                 },
