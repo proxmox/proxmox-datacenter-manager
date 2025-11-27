@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use proxmox_apt_api_types::APTUpdateInfo;
 
 use pdm_api_types::remote_updates::{
-    NodeUpdateStatus, NodeUpdateSummary, NodeUpdateSummaryWrapper, RemoteUpdateStatus,
-    RemoteUpdateSummary, UpdateSummary,
+    NodeUpdateStatus, NodeUpdateSummary, NodeUpdateSummaryWrapper, PackageVersion,
+    RemoteUpdateStatus, RemoteUpdateSummary, UpdateSummary,
 };
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::RemoteUpid;
@@ -24,6 +24,7 @@ pub const UPDATE_CACHE: &str = concat!(PDM_CACHE_DIR_M!(), "/remote-updates.json
 struct NodeUpdateInfo {
     updates: Vec<APTUpdateInfo>,
     last_refresh: i64,
+    versions: Vec<PackageVersion>,
 }
 
 impl From<NodeUpdateInfo> for NodeUpdateSummary {
@@ -33,6 +34,7 @@ impl From<NodeUpdateInfo> for NodeUpdateSummary {
             last_refresh: value.last_refresh,
             status: NodeUpdateStatus::Success,
             status_message: None,
+            versions: value.versions,
         }
     }
 }
@@ -224,6 +226,7 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
                                     last_refresh: 0,
                                     status: NodeUpdateStatus::Error,
                                     status_message: Some(format!("{err:#}")),
+                                    versions: Vec::new(),
                                 },
                             );
                             log::error!(
@@ -263,18 +266,34 @@ async fn fetch_available_updates(
                 .map(map_pve_update_info)
                 .collect();
 
+            let versions = client.get_package_versions(&node).await?;
+            let versions = versions
+                .into_iter()
+                .filter(|v| v.package == "pve-manager")
+                .map(map_pve_package_version)
+                .collect();
+
             Ok(NodeUpdateInfo {
                 last_refresh: proxmox_time::epoch_i64(),
                 updates,
+                versions,
             })
         }
         RemoteType::Pbs => {
             let client = connection::make_pbs_client(&remote)?;
             let updates = client.list_available_updates().await?;
 
+            let versions = client.get_package_versions().await?;
+            let versions = versions
+                .into_iter()
+                .filter(|v| v.package == "proxmox-backup-server")
+                .map(map_pbs_package_version)
+                .collect();
+
             Ok(NodeUpdateInfo {
                 last_refresh: proxmox_time::epoch_i64(),
                 updates,
+                versions,
             })
         }
     }
@@ -292,5 +311,19 @@ fn map_pve_update_info(info: pve_api_types::AptUpdateInfo) -> APTUpdateInfo {
         priority: info.priority,
         section: info.section,
         extra_info: None,
+    }
+}
+
+fn map_pve_package_version(info: pve_api_types::InstalledPackage) -> PackageVersion {
+    PackageVersion {
+        package: info.package,
+        version: info.old_version.unwrap_or_default(),
+    }
+}
+
+fn map_pbs_package_version(info: pbs_api_types::APTUpdateInfo) -> PackageVersion {
+    PackageVersion {
+        package: info.package,
+        version: info.old_version.unwrap_or_default(),
     }
 }

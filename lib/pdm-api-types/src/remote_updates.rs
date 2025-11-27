@@ -106,6 +106,26 @@ pub enum NodeUpdateStatus {
 #[api]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
+/// Package version information.
+pub struct PackageVersion {
+    /// Name of the package.
+    pub package: String,
+    /// Version of the package.
+    pub version: String,
+}
+
+#[api(
+    properties: {
+        versions: {
+            type: Array,
+            items: {
+                type: PackageVersion,
+            }
+        }
+    }
+)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
 /// Per-node update summary.
 pub struct NodeUpdateSummary {
     /// Number of available updates.
@@ -115,5 +135,9 @@ pub struct NodeUpdateSummary {
     /// Status
     pub status: NodeUpdateStatus,
     /// Status message (e.g. error message)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status_message: Option<String>,
+    /// Versions of the most important packages.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub versions: Vec<PackageVersion>,
 }
