@@ -101,3 +101,13 @@ pub(crate) fn render_tree_column(icon: Html, text: String) -> Row {
                 .style("overflow", "hidden"),
         )
 }
+
+/// Returns a simple row with a title and an icon that can be used to separate sections.
+pub(crate) fn render_title_row(title: String, icon: &str) -> Row {
+    Row::new()
+        .class(pwt::css::AlignItems::Baseline)
+        .class(pwt::css::FontStyle::TitleMedium)
+        .gap(2)
+        .with_child(Fa::new(icon))
+        .with_child(title)
+}
