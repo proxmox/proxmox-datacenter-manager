@@ -114,6 +114,25 @@ pub struct PackageVersion {
     pub version: String,
 }
 
+#[api]
+#[derive(Default, Clone, Copy, Debug, Deserialize, Serialize, PartialEq, PartialOrd)]
+#[serde(rename_all = "kebab-case")]
+/// Product repository status.
+pub enum ProductRepositoryStatus {
+    // NOTE: These are sorted in ascending severity.
+    /// Enterprise repository with a valid subscription.
+    Ok,
+    /// Non-production-ready (no-subscription, test) repository is enabled.
+    NonProductionReady,
+    /// Enterprise-repository is enabled, but there is no valid subscription.
+    MissingSubscriptionForEnterprise,
+    /// No product-specific repository is enabled.
+    NoProductRepository,
+    /// Other kind of error.
+    #[default]
+    Error,
+}
+
 #[api(
     properties: {
         versions: {
@@ -140,4 +159,7 @@ pub struct NodeUpdateSummary {
     /// Versions of the most important packages.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub versions: Vec<PackageVersion>,
+    /// Repository status.
+    #[serde(default)]
+    pub repository_status: ProductRepositoryStatus,
 }

@@ -4,11 +4,11 @@ use std::io::ErrorKind;
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-use proxmox_apt_api_types::APTUpdateInfo;
+use proxmox_apt_api_types::{APTRepositoriesResult, APTRepositoryHandle, APTUpdateInfo};
 
 use pdm_api_types::remote_updates::{
     NodeUpdateStatus, NodeUpdateSummary, NodeUpdateSummaryWrapper, PackageVersion,
-    RemoteUpdateStatus, RemoteUpdateSummary, UpdateSummary,
+    ProductRepositoryStatus, RemoteUpdateStatus, RemoteUpdateSummary, UpdateSummary,
 };
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::RemoteUpid;
@@ -25,6 +25,7 @@ struct NodeUpdateInfo {
     updates: Vec<APTUpdateInfo>,
     last_refresh: i64,
     versions: Vec<PackageVersion>,
+    repository_status: ProductRepositoryStatus,
 }
 
 impl From<NodeUpdateInfo> for NodeUpdateSummary {
@@ -35,6 +36,7 @@ impl From<NodeUpdateInfo> for NodeUpdateSummary {
             status: NodeUpdateStatus::Success,
             status_message: None,
             versions: value.versions,
+            repository_status: value.repository_status,
         }
     }
 }
@@ -227,6 +229,7 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
                                     status: NodeUpdateStatus::Error,
                                     status_message: Some(format!("{err:#}")),
                                     versions: Vec::new(),
+                                    repository_status: ProductRepositoryStatus::Error,
                                 },
                             );
                             log::error!(
@@ -273,10 +276,19 @@ async fn fetch_available_updates(
                 .map(map_pve_package_version)
                 .collect();
 
+            let repos = client.get_apt_repositories(&node).await?;
+            let subscription_info = client.get_subscription(&node).await?;
+
+            let has_active_subscription =
+                subscription_info.status == pve_api_types::NodeSubscriptionInfoStatus::Active;
+
+            let repository_status = check_repository_status(&repos, has_active_subscription);
+
             Ok(NodeUpdateInfo {
                 last_refresh: proxmox_time::epoch_i64(),
                 updates,
                 versions,
+                repository_status,
             })
         }
         RemoteType::Pbs => {
@@ -290,10 +302,19 @@ async fn fetch_available_updates(
                 .map(map_pbs_package_version)
                 .collect();
 
+            let repos = client.get_apt_repositories().await?;
+            let subscription_info = client.get_subscription().await?;
+
+            let has_active_subscription =
+                subscription_info.status == proxmox_subscription::SubscriptionStatus::Active;
+
+            let repository_status = check_repository_status(&repos, has_active_subscription);
+
             Ok(NodeUpdateInfo {
                 last_refresh: proxmox_time::epoch_i64(),
                 updates,
                 versions,
+                repository_status,
             })
         }
     }
@@ -326,4 +347,56 @@ fn map_pbs_package_version(info: pbs_api_types::APTUpdateInfo) -> PackageVersion
         package: info.package,
         version: info.old_version.unwrap_or_default(),
     }
+}
+
+fn check_repository_status(
+    config: &APTRepositoriesResult,
+    active_subscription: bool,
+) -> ProductRepositoryStatus {
+    if !config.errors.is_empty() {
+        return ProductRepositoryStatus::Error;
+    }
+
+    let mut has_enterprise = false;
+    let mut has_no_subscription = false;
+    let mut has_test = false;
+    let mut has_ceph_enterprise = false;
+    let mut has_ceph_no_subscription = false;
+    let mut has_ceph_test = false;
+
+    for repo in &config.standard_repos {
+        if repo.status != Some(true) {
+            continue;
+        }
+        match repo.handle {
+            APTRepositoryHandle::CephSquidEnterprise => has_ceph_enterprise = true,
+            APTRepositoryHandle::CephSquidNoSubscription => has_ceph_no_subscription = true,
+            APTRepositoryHandle::CephSquidTest => has_ceph_test = true,
+            APTRepositoryHandle::Enterprise => has_enterprise = true,
+            APTRepositoryHandle::NoSubscription => has_no_subscription = true,
+            APTRepositoryHandle::Test => has_test = true,
+        }
+    }
+
+    if !(has_enterprise | has_no_subscription | has_test) {
+        return ProductRepositoryStatus::NoProductRepository;
+    }
+
+    if has_enterprise && !active_subscription {
+        return ProductRepositoryStatus::MissingSubscriptionForEnterprise;
+    }
+
+    if has_ceph_enterprise && !active_subscription {
+        return ProductRepositoryStatus::MissingSubscriptionForEnterprise;
+    }
+
+    if has_test || has_no_subscription {
+        return ProductRepositoryStatus::NonProductionReady;
+    }
+
+    if has_ceph_no_subscription || has_ceph_test {
+        return ProductRepositoryStatus::NonProductionReady;
+    }
+
+    ProductRepositoryStatus::Ok
 }
