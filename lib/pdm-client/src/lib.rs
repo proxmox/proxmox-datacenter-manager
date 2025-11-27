@@ -395,6 +395,139 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
+    pub async fn pve_get_firewall_status(
+        &self,
+    ) -> Result<Vec<pdm_api_types::firewall::RemoteFirewallStatus>, Error> {
+        let path = "/api2/extjs/pve/firewall/status";
+        Ok(self.0.get(path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_cluster_firewall_status(
+        &self,
+        remote: &str,
+    ) -> Result<pdm_api_types::firewall::RemoteFirewallStatus, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/firewall/status");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_node_firewall_status(
+        &self,
+        remote: &str,
+        node: &str,
+    ) -> Result<pdm_api_types::firewall::NodeFirewallStatus, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/firewall/status");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_get_cluster_firewall_options(
+        &self,
+        remote: &str,
+    ) -> Result<pve_api_types::ClusterFirewallOptions, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/firewall/options");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_get_node_firewall_options(
+        &self,
+        remote: &str,
+        node: &str,
+    ) -> Result<pve_api_types::NodeFirewallOptions, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/firewall/options");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_get_lxc_firewall_options(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+    ) -> Result<pve_api_types::GuestFirewallOptions, Error> {
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/firewall/options"
+        ))
+        .maybe_arg("node", &node)
+        .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_get_qemu_firewall_options(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+    ) -> Result<pve_api_types::GuestFirewallOptions, Error> {
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/firewall/options"
+        ))
+        .maybe_arg("node", &node)
+        .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_get_cluster_firewall_rules(
+        &self,
+        remote: &str,
+    ) -> Result<Vec<pve_api_types::ListFirewallRules>, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/firewall/rules");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_get_node_firewall_rules(
+        &self,
+        remote: &str,
+        node: &str,
+    ) -> Result<Vec<pve_api_types::ListFirewallRules>, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/firewall/rules");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_get_lxc_firewall_rules(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+    ) -> Result<Vec<pve_api_types::ListFirewallRules>, Error> {
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/firewall/rules"
+        ))
+        .maybe_arg("node", &node)
+        .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_get_qemu_firewall_rules(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+    ) -> Result<Vec<pve_api_types::ListFirewallRules>, Error> {
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/firewall/rules"
+        ))
+        .maybe_arg("node", &node)
+        .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_set_cluster_firewall_options(
+        &self,
+        remote: &str,
+        update: pve_api_types::UpdateClusterFirewallOptions,
+    ) -> Result<(), Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/firewall/options");
+        self.0.put(&path, &update).await?.nodata()
+    }
+
+    pub async fn pve_set_node_firewall_options(
+        &self,
+        remote: &str,
+        node: &str,
+        update: pve_api_types::UpdateNodeFirewallOptions,
+    ) -> Result<(), Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/firewall/options");
+        self.0.put(&path, &update).await?.nodata()
+    }
+
     pub async fn pve_node_rrddata(
         &self,
         remote: &str,
