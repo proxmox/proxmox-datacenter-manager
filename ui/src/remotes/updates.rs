@@ -134,7 +134,13 @@ impl UpdateTreeComponent {
                 .render(|entry: &UpdateTreeEntry| {
                     let icon = match entry {
                         UpdateTreeEntry::Remote(_) => Some("server"),
-                        UpdateTreeEntry::Node(_) => Some("building"),
+                        UpdateTreeEntry::Node(node_entry) => {
+                            if node_entry.ty == RemoteType::Pbs {
+                                Some("building-o")
+                            } else {
+                                Some("building")
+                            }
+                        }
                         _ => None,
                     };
 
