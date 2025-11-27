@@ -249,6 +249,7 @@ impl Component for DatacenterManagerApp {
             }
             Msg::Logout => {
                 //log::info!("CLEAR COOKIE");
+                self.running_tasks.abort();
                 self.remote_list_timeout = None;
                 proxmox_yew_comp::http_clear_auth();
                 self.login_info = None;
