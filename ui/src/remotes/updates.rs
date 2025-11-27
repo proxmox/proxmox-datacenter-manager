@@ -16,7 +16,8 @@ use pwt::css::{AlignItems, FlexFit, TextAlign};
 use pwt::widget::data_table::{DataTableCellRenderArgs, DataTableCellRenderer};
 
 use proxmox_yew_comp::{
-    AptPackageManager, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    AptPackageManager, AptRepositories, ExistingProduct, LoadableComponent,
+    LoadableComponentContext, LoadableComponentMaster,
 };
 use pwt::props::{CssBorderBuilder, CssPaddingBuilder, WidgetStyleBuilder};
 use pwt::widget::{Button, Container, Panel, Tooltip};
@@ -411,7 +412,7 @@ impl UpdateTreeComponent {
                 let task_base_url = format!("/{ty}/remotes/{remote}/tasks");
 
                 let apt = AptPackageManager::new()
-                    .base_url(base_url)
+                    .base_url(base_url.clone())
                     .task_base_url(task_base_url)
                     .enable_upgrade(true)
                     .on_upgrade({
@@ -440,11 +441,27 @@ impl UpdateTreeComponent {
                         }
                     });
 
+                let product = match ty {
+                    RemoteType::Pve => ExistingProduct::PVE,
+                    RemoteType::Pbs => ExistingProduct::PBS,
+                };
+
+                let repo_status = Container::new().min_height(150).with_child(
+                    AptRepositories::new()
+                        .product(product)
+                        .status_only(true)
+                        .base_url(base_url),
+                );
+
                 Panel::new()
                     .class(FlexFit)
                     .title(title)
                     .border(true)
                     .min_width(500)
+                    .with_child(repo_status)
+                    .with_child(
+                        html! {<div role="separator" class="pwt-w-100 pwt-horizontal-rule"/>},
+                    )
                     .with_child(apt)
                     .style("flex", "1 1 0")
             }
