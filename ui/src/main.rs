@@ -7,6 +7,7 @@ use web_sys::HtmlElement;
 //use pbs::utils::init_task_descr_table_pbs;
 //use pbs_api_types::NodeStatus;
 use yew::prelude::*;
+use yew::virtual_dom::VNode;
 
 use pwt::prelude::*;
 use pwt::props::TextRenderFn;
@@ -319,7 +320,7 @@ impl Component for DatacenterManagerApp {
         });
 
         let username = self.login_info.as_ref().map(|info| info.userid.to_owned());
-        let body = Column::new()
+        let mut body: Html = Column::new()
             .class("pwt-viewport")
             .with_child(
                 TopNavBar::new(self.running_tasks.clone())
@@ -343,7 +344,12 @@ impl Component for DatacenterManagerApp {
                 };
                 main_view
             })
-            .with_optional_child(subscription_alert);
+            .with_optional_child(subscription_alert)
+            .into();
+
+        if self.login_info.is_some() && !loading {
+            body = html! { <AclContextProvider>{body}</AclContextProvider> };
+        }
 
         let context = self.remote_list.clone();
         let search_context = self.search_provider.clone();
@@ -352,11 +358,9 @@ impl Component for DatacenterManagerApp {
         DesktopApp::new(html! {
             <ContextProvider<SearchProvider> context={search_context}>
                 <ContextProvider<RemoteList> {context}>
-                    <AclContextProvider>
-                        <ContextProvider<ViewListContext> context={view_list_context}>
-                            {body}
-                        </ContextProvider<ViewListContext>>
-                    </AclContextProvider>
+                    <ContextProvider<ViewListContext> context={view_list_context}>
+                        {body}
+                    </ContextProvider<ViewListContext>>
                 </ContextProvider<RemoteList>>
             </ContextProvider<SearchProvider>>
         })
