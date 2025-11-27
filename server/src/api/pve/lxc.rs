@@ -35,6 +35,7 @@ const LXC_VM_ROUTER: Router = Router::new()
 const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_LXC_GET_CONFIG)),
     ("pending", &Router::new().get(&API_METHOD_LXC_GET_PENDING)),
+    ("firewall", &super::firewall::LXC_FW_ROUTER),
     ("rrddata", &super::rrddata::LXC_RRD_ROUTER),
     ("start", &Router::new().post(&API_METHOD_LXC_START)),
     ("status", &Router::new().get(&API_METHOD_LXC_GET_STATUS)),

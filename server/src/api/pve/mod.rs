@@ -33,6 +33,7 @@ use crate::connection::PveClient;
 use crate::connection::{self, probe_tls_connection};
 use crate::remote_tasks;
 
+mod firewall;
 mod lxc;
 mod node;
 mod qemu;
@@ -47,6 +48,7 @@ pub const ROUTER: Router = Router::new()
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("remotes", &REMOTES_ROUTER),
+    ("firewall", &firewall::PVE_FW_ROUTER),
     ("probe-tls", &Router::new().post(&API_METHOD_PROBE_TLS)),
     ("scan", &Router::new().post(&API_METHOD_SCAN_REMOTE_PVE)),
     (
@@ -66,6 +68,7 @@ const MAIN_ROUTER: Router = Router::new()
 #[sortable]
 const REMOTE_SUBDIRS: SubdirMap = &sorted!([
     ("lxc", &lxc::ROUTER),
+    ("firewall", &firewall::CLUSTER_FW_ROUTER),
     ("nodes", &NODES_ROUTER),
     ("qemu", &qemu::ROUTER),
     ("resources", &RESOURCES_ROUTER),

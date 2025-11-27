@@ -34,6 +34,7 @@ const QEMU_VM_ROUTER: Router = Router::new()
 const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_QEMU_GET_CONFIG)),
     ("pending", &Router::new().get(&API_METHOD_QEMU_GET_PENDING)),
+    ("firewall", &super::firewall::QEMU_FW_ROUTER),
     ("rrddata", &super::rrddata::QEMU_RRD_ROUTER),
     ("start", &Router::new().post(&API_METHOD_QEMU_START)),
     ("status", &Router::new().get(&API_METHOD_QEMU_GET_STATUS)),
