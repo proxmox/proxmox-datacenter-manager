@@ -17,7 +17,7 @@ use pwt::{
     tr,
     widget::{
         data_table::{DataTable, DataTableColumn, DataTableHeader},
-        Fa, Row,
+        Container, Fa, Row,
     },
 };
 
@@ -48,6 +48,7 @@ struct NodeEntry {
     remote: String,
     name: String,
     level: SubscriptionLevel,
+    standalone: bool,
 }
 
 #[derive(Clone, PartialEq)]
@@ -88,24 +89,41 @@ impl PdmSubscriptionsList {
         let subscriptions = sort_subscriptions(&ctx.props().subscriptions);
 
         for remote in subscriptions {
-            let mut remote_node = root.append(SubscriptionTreeEntry::Remote(RemoteEntry {
-                name: remote.remote.clone(),
-                state: remote.state.clone(),
-                error: remote.error.clone(),
-            }));
-
-            if let Some(node_status) = remote.node_status.as_ref() {
-                if node_status.is_empty() {
-                    continue;
-                }
-
-                for (node_name, info) in node_status {
+            match remote.node_status {
+                Some(node_status) if node_status.len() == 1 => {
+                    let (node_name, info) = node_status.into_iter().next().unwrap();
                     if let Some(info) = info {
-                        remote_node.append(SubscriptionTreeEntry::Node(NodeEntry {
+                        root.append(SubscriptionTreeEntry::Node(NodeEntry {
                             remote: remote.remote.clone(),
                             name: node_name.clone(),
-                            level: info.level.clone(),
+                            level: info.level,
+                            standalone: true,
                         }));
+                    }
+                    continue;
+                }
+                _ => {
+                    let mut remote_node = root.append(SubscriptionTreeEntry::Remote(RemoteEntry {
+                        name: remote.remote.clone(),
+                        state: remote.state.clone(),
+                        error: remote.error.clone(),
+                    }));
+
+                    if let Some(node_status) = remote.node_status.as_ref() {
+                        if node_status.is_empty() {
+                            continue;
+                        }
+
+                        for (node_name, info) in node_status {
+                            if let Some(info) = info {
+                                remote_node.append(SubscriptionTreeEntry::Node(NodeEntry {
+                                    remote: remote.remote.clone(),
+                                    name: node_name.clone(),
+                                    level: info.level,
+                                    standalone: false,
+                                }));
+                            }
+                        }
                     }
                 }
             }
@@ -146,10 +164,17 @@ fn columns(
         .render(|entry: &SubscriptionTreeEntry| {
             let row = Row::new().class(AlignItems::Center).gap(2);
             match entry {
-                SubscriptionTreeEntry::Remote(remote) => row.with_child(remote.name.clone()).into(),
+                SubscriptionTreeEntry::Remote(remote) => row
+                    .with_child(Fa::new("server").fixed_width())
+                    .with_child(remote.name.clone())
+                    .into(),
                 SubscriptionTreeEntry::Node(node) => row
-                    .with_child(Fa::new("server"))
-                    .with_child(node.name.clone())
+                    .with_child(Fa::new("building").fixed_width())
+                    .with_child(if node.standalone {
+                        format!("{} - {}", node.remote, node.name)
+                    } else {
+                        node.name.clone()
+                    })
                     .into(),
                 SubscriptionTreeEntry::Root => row.into(),
             }
@@ -157,37 +182,63 @@ fn columns(
         .sorter(|a: &SubscriptionTreeEntry, b: &SubscriptionTreeEntry| a.name().cmp(b.name()))
         .into();
 
+    fn render_subscription_state(state: &RemoteSubscriptionState) -> Row {
+        let icon = match state {
+            RemoteSubscriptionState::Mixed => Fa::from(Status::Warning),
+            RemoteSubscriptionState::Active => Fa::from(Status::Success),
+            RemoteSubscriptionState::None => Fa::from(Status::Error),
+            _ => Fa::from(Status::Unknown),
+        };
+
+        let text = match state {
+            RemoteSubscriptionState::None => "None",
+            RemoteSubscriptionState::Unknown => "Unknown",
+            RemoteSubscriptionState::Mixed => "Mixed",
+            RemoteSubscriptionState::Active => "Active",
+        };
+
+        Row::new()
+            .class(AlignItems::Center)
+            .gap(2)
+            .with_child(icon)
+            .with_child(Container::from_tag("span").with_child(text))
+    }
+
+    fn render_subscription_level(level: SubscriptionLevel) -> &'static str {
+        match level {
+            SubscriptionLevel::None => "None",
+            SubscriptionLevel::Basic => "Basic",
+            SubscriptionLevel::Community => "Community",
+            SubscriptionLevel::Premium => "Premium",
+            SubscriptionLevel::Standard => "Standard",
+            SubscriptionLevel::Unknown => "Unknown",
+        }
+    }
+
     let subscription_column = DataTableColumn::new(tr!("Subscription"))
         .render(|entry: &SubscriptionTreeEntry| match entry {
             SubscriptionTreeEntry::Node(node) => {
-                let text = match node.level {
-                    SubscriptionLevel::None => "None",
-                    SubscriptionLevel::Basic => "Basic",
-                    SubscriptionLevel::Community => "Community",
-                    SubscriptionLevel::Premium => "Premium",
-                    SubscriptionLevel::Standard => "Standard",
-                    SubscriptionLevel::Unknown => "Unknown",
-                };
-                text.into()
+                if node.standalone {
+                    let (sub_state, text) = match node.level {
+                        SubscriptionLevel::None => (RemoteSubscriptionState::None, None),
+                        SubscriptionLevel::Unknown => (RemoteSubscriptionState::Unknown, None),
+                        other => (
+                            RemoteSubscriptionState::Active,
+                            Some(render_subscription_level(other)),
+                        ),
+                    };
+                    render_subscription_state(&sub_state)
+                        .with_optional_child(text)
+                        .into()
+                } else {
+                    render_subscription_level(node.level).into()
+                }
             }
             SubscriptionTreeEntry::Remote(remote) => {
                 if let Some(error) = &remote.error {
-                    html! { <span class="pwt-font-label-small">{error}</span> }.into()
+                    html! { <span class="pwt-font-label-small">{error}</span> }
                 } else {
-                    let icon = match remote.state {
-                        RemoteSubscriptionState::Mixed => Fa::from(Status::Warning),
-                        RemoteSubscriptionState::Active => Fa::from(Status::Success),
-                        _ => Fa::from(Status::Unknown),
-                    };
-
-                    let text = match remote.state {
-                        RemoteSubscriptionState::None => "None",
-                        RemoteSubscriptionState::Unknown => "Unknown",
-                        RemoteSubscriptionState::Mixed => "Mixed",
-                        RemoteSubscriptionState::Active => "Active",
-                    };
-
-                    Row::new().gap(2).with_child(icon).with_child(text).into()
+                    render_subscription_state(&remote.state).into()
                 }
             }
             SubscriptionTreeEntry::Root => "".into(),
