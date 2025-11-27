@@ -27,6 +27,9 @@ pub use tasks::RemoteTaskList;
 mod updates;
 pub use updates::UpdateTree;
 
+mod firewall;
+pub use firewall::FirewallTree;
+
 use yew::{function_component, Html};
 
 use pwt::prelude::*;
@@ -63,6 +66,13 @@ pub fn system_configuration() -> Html {
                 .label(tr!("Updates"))
                 .icon_class("fa fa-refresh"),
             |_| UpdateTree::new().into(),
+        )
+        .with_item_builder(
+            TabBarItem::new()
+                .key("firewall")
+                .label(tr!("Firewall"))
+                .icon_class("fa fa-shield"),
+            |_| FirewallTree::new().into(),
         );
 
     NavigationContainer::new().with_child(panel).into()
