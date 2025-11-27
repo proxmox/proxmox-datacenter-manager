@@ -1,5 +1,8 @@
 mod overview;
 use overview::LxcOverviewPanel;
+use proxmox_yew_comp::configuration::pve::{
+    LxcDnsPanel, LxcNetworkPanel, LxcOptionsPanel, LxcResourcesPanel,
+};
 
 use std::rc::Rc;
 
@@ -67,6 +70,74 @@ impl yew::Component for LxcPanelComp {
                     let info = props.info.clone();
                     move |_| {
                         LxcOverviewPanel::new(remote.clone(), node.clone(), info.clone()).into()
+                    }
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("resources")
+                    .label(tr!("Resources"))
+                    .icon_class("fa fa-cube"),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    let vmid = props.info.vmid;
+                    move |_| {
+                        LxcResourcesPanel::new(node.clone(), vmid)
+                            .readonly(true)
+                            .remote(remote.clone())
+                            .into()
+                    }
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("network")
+                    .label(tr!("Network"))
+                    .icon_class("fa fa-exchange"),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    let vmid = props.info.vmid;
+                    move |_| {
+                        LxcNetworkPanel::new(node.clone(), vmid)
+                            .readonly(true)
+                            .remote(remote.clone())
+                            .into()
+                    }
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("dns")
+                    .label(tr!("DNS"))
+                    .icon_class("fa fa-globe"),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    let vmid = props.info.vmid;
+                    move |_| {
+                        LxcDnsPanel::new(node.clone(), vmid)
+                            .readonly(true)
+                            .remote(remote.clone())
+                            .into()
+                    }
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("options")
+                    .label(tr!("Options"))
+                    .icon_class("fa fa-gear"),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    let vmid = props.info.vmid;
+                    move |_| {
+                        LxcOptionsPanel::new(node.clone(), vmid)
+                            .readonly(true)
+                            .remote(remote.clone())
+                            .into()
                     }
                 },
             )
