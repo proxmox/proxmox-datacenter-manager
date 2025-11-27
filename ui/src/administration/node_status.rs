@@ -7,6 +7,7 @@ use proxmox_node_status::NodePowerCommand;
 use proxmox_yew_comp::{http_post, ConfirmButton, NodeStatusPanel};
 use pwt::prelude::*;
 use pwt::widget::{Column, Container, Row};
+use pwt::AsyncAbortGuard;
 
 #[derive(Properties, Clone, PartialEq)]
 pub(crate) struct NodeStatus {}
@@ -31,18 +32,22 @@ enum Msg {
 
 struct PdmNodeStatus {
     error: Option<Error>,
+    abort_guard: Option<AsyncAbortGuard>,
 }
 
 impl PdmNodeStatus {
-    fn change_power_state(&self, ctx: &yew::Context<Self>, command: NodePowerCommand) {
-        ctx.link().send_future(async move {
+    fn change_power_state(&mut self, ctx: &yew::Context<Self>, command: NodePowerCommand) {
+        let link = ctx.link().clone();
+        self.abort_guard.replace(AsyncAbortGuard::spawn(async move {
             let data = Some(serde_json::json!({"command": command}));
 
-            match http_post("/nodes/localhost/status", data).await {
+            let res = match http_post("/nodes/localhost/status", data).await {
                 Ok(()) => Msg::Reload,
                 Err(e) => Msg::Error(e),
-            }
-        });
+            };
+
+            link.send_message(res);
+        }));
     }
 }
 
@@ -51,7 +56,10 @@ impl Component for PdmNodeStatus {
     type Properties = NodeStatus;
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
-        Self { error: None }
+        Self {
+            error: None,
+            abort_guard: None,
+        }
     }
 
     fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
