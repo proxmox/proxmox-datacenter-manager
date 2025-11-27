@@ -14,7 +14,7 @@ use pdm_api_types::{
     PRIV_RESOURCE_MANAGE, PRIV_RESOURCE_MIGRATE, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
 
-use pve_api_types::{QemuMigratePreconditions, StartQemuMigrationType};
+use pve_api_types::{PendingConfigValue, QemuMigratePreconditions, StartQemuMigrationType};
 
 use crate::api::pve::get_remote;
 
@@ -33,6 +33,7 @@ const QEMU_VM_ROUTER: Router = Router::new()
 #[sortable]
 const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_QEMU_GET_CONFIG)),
+    ("pending", &Router::new().get(&API_METHOD_QEMU_GET_PENDING)),
     ("rrddata", &super::rrddata::QEMU_RRD_ROUTER),
     ("start", &Router::new().post(&API_METHOD_QEMU_START)),
     ("status", &Router::new().get(&API_METHOD_QEMU_GET_STATUS)),
@@ -150,6 +151,39 @@ pub async fn qemu_get_config(
     Ok(pve
         .qemu_get_config(&node, vmid, state.current(), snapshot)
         .await?)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    // Note: the trait `ApiType` is not implemented for `PendingConfigValue` because it contains Value
+    // returns: { description: "Configuration property with pending changes.", type: Array, items: { type: PendingConfigValue, }},
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get the pending configuration of a qemu VM from a remote. If a node is provided, the VM must be on that
+/// node, otherwise the node is determined automatically.
+pub async fn qemu_get_pending(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+) -> Result<Vec<PendingConfigValue>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = connect_to_remote(&remotes, &remote)?;
+
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+
+    Ok(pve.qemu_get_pending(&node, vmid).await?)
 }
 
 #[api(
