@@ -4,10 +4,7 @@ use serde_json::json;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 
-//use pbs::utils::init_task_descr_table_pbs;
-//use pbs_api_types::NodeStatus;
 use yew::prelude::*;
-use yew::virtual_dom::VNode;
 
 use pwt::prelude::*;
 use pwt::props::TextRenderFn;
