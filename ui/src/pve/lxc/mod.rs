@@ -8,12 +8,14 @@ use std::rc::Rc;
 
 use yew::virtual_dom::{VComp, VNode};
 
+use pwt::css::FlexFit;
 use pwt::prelude::*;
-use pwt::widget::{Fa, Row, TabBarItem, TabPanel};
+use pwt::widget::{Column, Container, Fa, Row, TabBarItem, TabPanel};
 
 use pdm_api_types::resource::PveLxcResource;
 
 use crate::pve::utils::render_lxc_name;
+use crate::renderer::render_title_row;
 
 #[derive(Clone, Debug, Properties, PartialEq)]
 pub struct LxcPanel {
@@ -76,67 +78,52 @@ impl yew::Component for LxcPanelComp {
             .with_item_builder(
                 TabBarItem::new()
                     .key("resources")
-                    .label(tr!("Resources"))
-                    .icon_class("fa fa-cube"),
+                    .label(tr!("Config"))
+                    .icon_class("fa fa-file-text-o"),
                 {
                     let remote = props.remote.clone();
                     let node = props.node.clone();
                     let vmid = props.info.vmid;
                     move |_| {
-                        LxcResourcesPanel::new(node.clone(), vmid)
-                            .readonly(true)
-                            .remote(remote.clone())
-                            .into()
-                    }
-                },
-            )
-            .with_item_builder(
-                TabBarItem::new()
-                    .key("network")
-                    .label(tr!("Network"))
-                    .icon_class("fa fa-exchange"),
-                {
-                    let remote = props.remote.clone();
-                    let node = props.node.clone();
-                    let vmid = props.info.vmid;
-                    move |_| {
-                        LxcNetworkPanel::new(node.clone(), vmid)
-                            .readonly(true)
-                            .remote(remote.clone())
-                            .into()
-                    }
-                },
-            )
-            .with_item_builder(
-                TabBarItem::new()
-                    .key("dns")
-                    .label(tr!("DNS"))
-                    .icon_class("fa fa-globe"),
-                {
-                    let remote = props.remote.clone();
-                    let node = props.node.clone();
-                    let vmid = props.info.vmid;
-                    move |_| {
-                        LxcDnsPanel::new(node.clone(), vmid)
-                            .readonly(true)
-                            .remote(remote.clone())
-                            .into()
-                    }
-                },
-            )
-            .with_item_builder(
-                TabBarItem::new()
-                    .key("options")
-                    .label(tr!("Options"))
-                    .icon_class("fa fa-gear"),
-                {
-                    let remote = props.remote.clone();
-                    let node = props.node.clone();
-                    let vmid = props.info.vmid;
-                    move |_| {
-                        LxcOptionsPanel::new(node.clone(), vmid)
-                            .readonly(true)
-                            .remote(remote.clone())
+                        Container::new()
+                            .class(FlexFit)
+                            .with_child(
+                                Column::new()
+                                    .padding(4)
+                                    .gap(2)
+                                    .with_child(render_title_row(tr!("Resources"), "cube"))
+                                    .with_child(html! {<hr/>})
+                                    .with_child(
+                                        LxcResourcesPanel::new(node.clone(), vmid)
+                                            .readonly(true)
+                                            .remote(remote.clone()),
+                                    )
+                                    .with_child(
+                                        render_title_row(tr!("Network"), "exchange").margin_top(6),
+                                    )
+                                    .with_child(html! {<hr/>})
+                                    .with_child(
+                                        LxcNetworkPanel::new(node.clone(), vmid)
+                                            .readonly(true)
+                                            .remote(remote.clone()),
+                                    )
+                                    .with_child(render_title_row(tr!("DNS"), "globe").margin_top(6))
+                                    .with_child(html! {<hr/>})
+                                    .with_child(
+                                        LxcDnsPanel::new(node.clone(), vmid)
+                                            .readonly(true)
+                                            .remote(remote.clone()),
+                                    )
+                                    .with_child(
+                                        render_title_row(tr!("Options"), "gear").margin_top(6),
+                                    )
+                                    .with_child(html! {<hr/>})
+                                    .with_child(
+                                        LxcOptionsPanel::new(node.clone(), vmid)
+                                            .readonly(true)
+                                            .remote(remote.clone()),
+                                    ),
+                            )
                             .into()
                     }
                 },
