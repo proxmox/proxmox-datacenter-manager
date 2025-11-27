@@ -144,10 +144,10 @@ pub fn create_subscriptions_dialog(
     Dialog::new(tr!("Your Subscriptions"))
         .with_tool(Button::refresh(loading).on_activate(on_refresh))
         .resizable(true)
-        .width(500)
-        .height(400)
+        .width(600)
+        .height(600)
         .min_width(200)
-        .min_height(50)
+        .min_height(200)
         .with_child(SubscriptionsList::new(subs))
         .on_close(on_dialog_close)
 }
