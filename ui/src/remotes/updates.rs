@@ -9,7 +9,7 @@ use yew::virtual_dom::{Key, VComp, VNode};
 use yew::{html, Html, Properties};
 
 use pdm_api_types::remote_updates::{
-    NodeUpdateStatus, NodeUpdateSummary, RemoteUpdateStatus, UpdateSummary,
+    NodeUpdateStatus, NodeUpdateSummary, ProductRepositoryStatus, RemoteUpdateStatus, UpdateSummary,
 };
 use pdm_api_types::remotes::RemoteType;
 use pwt::css::{AlignItems, FlexFit, TextAlign};
@@ -19,7 +19,7 @@ use proxmox_yew_comp::{
     AptPackageManager, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
 };
 use pwt::props::{CssBorderBuilder, CssPaddingBuilder, WidgetStyleBuilder};
-use pwt::widget::{Button, Container, Panel};
+use pwt::widget::{Button, Container, Panel, Tooltip};
 use pwt::{
     css,
     css::FontColor,
@@ -59,6 +59,7 @@ struct RemoteEntry {
     number_of_failed_nodes: u32,
     number_of_nodes: u32,
     number_of_updatable_nodes: u32,
+    repo_status: ProductRepositoryStatus,
     poll_status: RemoteUpdateStatus,
 }
 
@@ -153,17 +154,19 @@ impl UpdateTreeComponent {
                     },
                 ))
                 .into(),
-            DataTableColumn::new(tr!("Status"))
-                .flex(6)
+            DataTableColumn::new(tr!("Update Status"))
+                .flex(1)
                 .render_cell(DataTableCellRenderer::new(
-                    move |args: &mut DataTableCellRenderArgs<UpdateTreeEntry>| match args.record() {
-                        UpdateTreeEntry::Root => {
-                            html!()
-                        }
-                        UpdateTreeEntry::Remote(remote_info) => {
-                            render_remote_summary(remote_info, args.is_expanded()).into()
-                        }
-                        UpdateTreeEntry::Node(info) => render_node_info(info).into(),
+                    move |args: &mut DataTableCellRenderArgs<UpdateTreeEntry>| {
+                        render_update_status_column(args.record(), args.is_expanded())
+                    },
+                ))
+                .into(),
+            DataTableColumn::new(tr!("Repository Status"))
+                .flex(1)
+                .render_cell(DataTableCellRenderer::new(
+                    move |args: &mut DataTableCellRenderArgs<UpdateTreeEntry>| {
+                        render_repo_status_column(args.record(), args.is_expanded())
                     },
                 ))
                 .into(),
@@ -200,6 +203,7 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
             number_of_nodes: 0,
             number_of_updatable_nodes: 0,
             number_of_failed_nodes: 0,
+            repo_status: ProductRepositoryStatus::Ok,
             poll_status: remote_summary.status.clone(),
         }));
         remote_entry.set_expanded(false);
@@ -209,6 +213,7 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
         let number_of_nodes = remote_summary.nodes.len();
         let mut number_of_updatable_nodes = 0;
         let mut number_of_failed_nodes = 0;
+        let mut repo_status = ProductRepositoryStatus::Ok;
 
         // use a BTreeMap to get a stable order. Can be removed once there is proper version
         // comparison in place.
@@ -226,6 +231,9 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
                 }
             }
 
+            if node_summary.repository_status > repo_status {
+                repo_status = node_summary.repository_status;
+            }
             let entry = NodeEntry {
                 remote: remote_name.clone(),
                 node: node_name.clone(),
@@ -255,6 +263,7 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
             info.number_of_failed_nodes = number_of_failed_nodes as u32;
             info.product_version = product_version;
             info.mixed_versions = mixed_versions;
+            info.repo_status = repo_status;
         }
     }
 
@@ -470,7 +479,19 @@ impl UpdateTreeComponent {
     }
 }
 
-fn render_remote_summary(entry: &RemoteEntry, expanded: bool) -> Row {
+fn render_update_status_column(tree_entry: &UpdateTreeEntry, expanded: bool) -> Html {
+    match tree_entry {
+        UpdateTreeEntry::Root => {
+            html!()
+        }
+        UpdateTreeEntry::Remote(remote_info) => {
+            render_remote_update_status(remote_info, expanded).into()
+        }
+        UpdateTreeEntry::Node(node_info) => render_node_update_status(node_info).into(),
+    }
+}
+
+fn render_remote_update_status(entry: &RemoteEntry, expanded: bool) -> Row {
     let mut row = Row::new().class(css::AlignItems::Baseline).gap(2);
     match entry.poll_status {
         RemoteUpdateStatus::Success => {
@@ -479,71 +500,98 @@ fn render_remote_summary(entry: &RemoteEntry, expanded: bool) -> Row {
                     - entry.number_of_updatable_nodes
                     - entry.number_of_failed_nodes;
 
-                let text = if entry.number_of_nodes == up_to_date_nodes {
-                    row = row.with_child(render_remote_summary_icon(RemoteSummaryIcon::UpToDate));
-                    tr!("All nodes up-to-date")
+                if entry.number_of_nodes == up_to_date_nodes {
+                    row = row.with_child(render_status_icon(StatusIcon::Ok));
                 } else if entry.number_of_updatable_nodes > 0 {
-                    row = row.with_child(render_remote_summary_icon(RemoteSummaryIcon::Updatable));
+                    row = row.with_child(render_status_icon(StatusIcon::Updatable));
 
                     if entry.number_of_failed_nodes > 0 {
-                        row = row.with_child(render_remote_summary_icon(RemoteSummaryIcon::Error));
-                        // NOTE: This 'summary' line is only shown for remotes with multiple nodes,
-                        // so we don't really have to consider the singular form of 'x out of y
-                        // nodes'
-                        tr!("Some nodes have pending updates, some nodes unavailable")
-                    } else {
-                        tr!("Some nodes have pending updates")
+                        row = row.with_child(render_status_icon(StatusIcon::Error));
                     }
                 } else if entry.number_of_failed_nodes > 0 {
-                    row = row.with_child(render_remote_summary_icon(RemoteSummaryIcon::Error));
-                    tr!("Some nodes unavailable")
-                } else {
-                    String::new()
-                };
-
-                row = row.with_child(text);
+                    row = row.with_child(render_status_icon(StatusIcon::Error));
+                }
             }
         }
         RemoteUpdateStatus::Error => {
-            row = row.with_child(render_remote_summary_icon(RemoteSummaryIcon::Error));
-            row = row.with_child(tr!("Could not connect to remote"));
+            row = row.with_child(render_status_icon(StatusIcon::Error));
         }
         RemoteUpdateStatus::Unknown => {
-            row = row.with_child(render_remote_summary_icon(RemoteSummaryIcon::Unknown));
-            row = row.with_child(tr!("Update status unknown"));
+            row = row.with_child(render_status_icon(StatusIcon::Unknown));
         }
     }
 
     row
 }
 
-fn render_node_info(entry: &NodeEntry) -> Row {
-    let (icon, text) = if entry.summary.status == NodeUpdateStatus::Error {
-        let icon = render_remote_summary_icon(RemoteSummaryIcon::Error);
-        let text = if let Some(status) = &entry.summary.status_message {
-            tr!("Failed to retrieve update status: {}", status)
+fn render_node_update_status(entry: &NodeEntry) -> Html {
+    let mut row = Row::new().class(css::AlignItems::Baseline).gap(2);
+
+    let tooltip = if entry.summary.status == NodeUpdateStatus::Error {
+        row = row.with_child(render_status_icon(StatusIcon::Error));
+        if let Some(status) = &entry.summary.status_message {
+            tr!("Failed to retrieve update status: {0}", status)
         } else {
             tr!("Unknown error")
-        };
-
-        (icon, text)
+        }
     } else if entry.summary.number_of_updates > 0 {
-        (
-            render_remote_summary_icon(RemoteSummaryIcon::Updatable),
-            tr!("One update pending" | "{n} updates pending" % entry.summary.number_of_updates),
-        )
+        row = row.with_child(render_status_icon(StatusIcon::Updatable));
+        row = row.with_child(format!("{}", entry.summary.number_of_updates));
+        tr!("One update pending" | "{n} updates pending" % entry.summary.number_of_updates)
     } else {
-        (
-            render_remote_summary_icon(RemoteSummaryIcon::UpToDate),
-            tr!("Up-to-date"),
-        )
+        row = row.with_child(render_status_icon(StatusIcon::Ok));
+        tr!("Up-to-date")
     };
 
-    Row::new()
-        .class(css::AlignItems::Baseline)
-        .gap(2)
-        .with_child(icon)
-        .with_child(text)
+    Tooltip::new(row).tip(tooltip).into()
+}
+
+fn render_repo_status_column(tree_entry: &UpdateTreeEntry, expanded: bool) -> Html {
+    match tree_entry {
+        UpdateTreeEntry::Root => {
+            html!()
+        }
+        UpdateTreeEntry::Remote(remote_info) => {
+            if !expanded {
+                render_repo_status(remote_info.repo_status)
+            } else {
+                html!()
+            }
+        }
+        UpdateTreeEntry::Node(node_info) => {
+            render_repo_status(node_info.summary.repository_status).into()
+        }
+    }
+}
+
+fn render_repo_status(status: ProductRepositoryStatus) -> Html {
+    let mut row = Row::new().class(css::AlignItems::Baseline).gap(2);
+
+    let tooltip = match status {
+        ProductRepositoryStatus::Ok => {
+            row = row.with_child(render_status_icon(StatusIcon::Ok));
+            tr!("Production-ready enterprise repository enabled")
+        }
+        ProductRepositoryStatus::NoProductRepository => {
+            row = row.with_child(render_status_icon(StatusIcon::Error));
+            tr!("No product repository configured")
+        }
+        ProductRepositoryStatus::MissingSubscriptionForEnterprise => {
+            row = row.with_child(render_status_icon(StatusIcon::Warning));
+            tr!("Enterprise repository configured, but missing subscription")
+        }
+        ProductRepositoryStatus::NonProductionReady => {
+            row = row.with_child(render_status_icon(StatusIcon::Ok));
+            row = row.with_child(render_status_icon(StatusIcon::Warning));
+            tr!("Non-production-ready repositories enabled")
+        }
+        ProductRepositoryStatus::Error => {
+            row = row.with_child(render_status_icon(StatusIcon::Error));
+            tr!("Error")
+        }
+    };
+
+    Tooltip::new(row).tip(tooltip).into()
 }
 
 fn render_version_column(tree_entry: &UpdateTreeEntry, expanded: bool) -> Html {
@@ -580,19 +628,21 @@ fn get_product_version(node_entry: &NodeEntry) -> Option<String> {
         .map(|p| p.version.to_string())
 }
 
-enum RemoteSummaryIcon {
-    UpToDate,
+enum StatusIcon {
+    Ok,
     Updatable,
     Error,
+    Warning,
     Unknown,
 }
 
-fn render_remote_summary_icon(icon: RemoteSummaryIcon) -> Fa {
+fn render_status_icon(icon: StatusIcon) -> Fa {
     let (icon_class, icon_scheme) = match icon {
-        RemoteSummaryIcon::UpToDate => ("check", FontColor::Success),
-        RemoteSummaryIcon::Error => ("times-circle", FontColor::Error),
-        RemoteSummaryIcon::Updatable => ("refresh", FontColor::Primary),
-        RemoteSummaryIcon::Unknown => ("question-circle-o", FontColor::Primary),
+        StatusIcon::Ok => ("check", FontColor::Success),
+        StatusIcon::Error => ("times-circle", FontColor::Error),
+        StatusIcon::Warning => ("exclamation-triangle", FontColor::Warning),
+        StatusIcon::Updatable => ("refresh", FontColor::Primary),
+        StatusIcon::Unknown => ("question-circle-o", FontColor::Primary),
     };
 
     Fa::new(icon_class).class(icon_scheme)
