@@ -397,9 +397,19 @@ impl UpdateTreeComponent {
     }
 
     fn render_update_list_panel(&self, ctx: &LoadableComponentContext<Self>) -> Panel {
+        let mut panel = Panel::new()
+            .class(FlexFit)
+            .border(true)
+            .min_width(500)
+            .style("flex", "1 1 0");
+
         match &self.selected_entry {
             Some(UpdateTreeEntry::Node(NodeEntry {
-                remote, node, ty, ..
+                remote,
+                node,
+                ty,
+                summary,
+                ..
             })) => {
                 let title: Html = Row::new()
                     .gap(2)
@@ -408,62 +418,68 @@ impl UpdateTreeComponent {
                     .with_child(tr!("Update List - {} ({})", remote, node))
                     .into();
 
-                let base_url = format!("/{ty}/remotes/{remote}/nodes/{node}/apt",);
-                let task_base_url = format!("/{ty}/remotes/{remote}/tasks");
+                if summary.status == NodeUpdateStatus::Success {
+                    let base_url = format!("/{ty}/remotes/{remote}/nodes/{node}/apt",);
+                    let task_base_url = format!("/{ty}/remotes/{remote}/tasks");
 
-                let apt = AptPackageManager::new()
-                    .base_url(base_url.clone())
-                    .task_base_url(task_base_url)
-                    .enable_upgrade(true)
-                    .on_upgrade({
-                        let remote = remote.clone();
-                        let link = ctx.link().clone();
-                        let remote = remote.clone();
-                        let node = node.clone();
-                        let ty = *ty;
+                    let apt = AptPackageManager::new()
+                        .base_url(base_url.clone())
+                        .task_base_url(task_base_url)
+                        .enable_upgrade(true)
+                        .on_upgrade({
+                            let remote = remote.clone();
+                            let link = ctx.link().clone();
+                            let remote = remote.clone();
+                            let node = node.clone();
+                            let ty = *ty;
 
-                        move |_| match ty {
-                            RemoteType::Pve => {
-                                let id = format!("node/{node}::apt");
-                                if let Some(url) = get_deep_url(link.yew_link(), &remote, None, &id)
-                                {
-                                    let _ = gloo_utils::window().open_with_url(&url.href());
+                            move |_| match ty {
+                                RemoteType::Pve => {
+                                    let id = format!("node/{node}::apt");
+                                    if let Some(url) =
+                                        get_deep_url(link.yew_link(), &remote, None, &id)
+                                    {
+                                        let _ = gloo_utils::window().open_with_url(&url.href());
+                                    }
+                                }
+                                RemoteType::Pbs => {
+                                    let hash = "#pbsServerAdministration:updates";
+                                    if let Some(url) =
+                                        get_deep_url_low_level(link.yew_link(), &remote, None, hash)
+                                    {
+                                        let _ = gloo_utils::window().open_with_url(&url.href());
+                                    }
                                 }
                             }
-                            RemoteType::Pbs => {
-                                let hash = "#pbsServerAdministration:updates";
-                                if let Some(url) =
-                                    get_deep_url_low_level(link.yew_link(), &remote, None, hash)
-                                {
-                                    let _ = gloo_utils::window().open_with_url(&url.href());
-                                }
-                            }
-                        }
-                    });
+                        });
 
-                let product = match ty {
-                    RemoteType::Pve => ExistingProduct::PVE,
-                    RemoteType::Pbs => ExistingProduct::PBS,
-                };
+                    let product = match ty {
+                        RemoteType::Pve => ExistingProduct::PVE,
+                        RemoteType::Pbs => ExistingProduct::PBS,
+                    };
 
-                let repo_status = Container::new().min_height(150).with_child(
-                    AptRepositories::new()
-                        .product(product)
-                        .status_only(true)
-                        .base_url(base_url),
-                );
+                    let repo_status = Container::new().min_height(150).with_child(
+                        AptRepositories::new()
+                            .product(product)
+                            .status_only(true)
+                            .base_url(base_url),
+                    );
 
-                Panel::new()
-                    .class(FlexFit)
-                    .title(title)
-                    .border(true)
-                    .min_width(500)
-                    .with_child(repo_status)
-                    .with_child(
-                        html! {<div role="separator" class="pwt-w-100 pwt-horizontal-rule"/>},
-                    )
-                    .with_child(apt)
-                    .style("flex", "1 1 0")
+                    panel = panel
+                        .title(title)
+                        .with_child(repo_status)
+                        .with_child(
+                            html! {<div role="separator" class="pwt-w-100 pwt-horizontal-rule"/>},
+                        )
+                        .with_child(apt);
+                } else {
+                    let error_widget = pwt::widget::error_message(&tr!(
+                        "Could not fetch update status: {0}",
+                        summary.status_message.as_deref().unwrap_or_default()
+                    ));
+
+                    panel = panel.title(title).with_child(error_widget);
+                }
             }
             _ => {
                 let title: Html = Row::new()
@@ -484,15 +500,11 @@ impl UpdateTreeComponent {
                     .with_child(html! {<h1 class="pwt-font-headline-medium">{header}</h1>})
                     .with_child(Container::new().with_child(msg));
 
-                Panel::new()
-                    .class(FlexFit)
-                    .title(title)
-                    .border(true)
-                    .min_width(500)
-                    .with_child(select_node_msg)
-                    .style("flex", "1 1 0")
+                panel = panel.title(title).with_child(select_node_msg)
             }
         }
+
+        panel
     }
 }
 
