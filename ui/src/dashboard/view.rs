@@ -95,6 +95,7 @@ pub enum Msg {
     ShowSubscriptionsDialog(bool),
     LayoutUpdate(ViewLayout),
     UpdateResult(Result<(), Error>),
+    ForceSubscriptionUpdate,
 }
 
 struct ViewComp {
@@ -425,6 +426,22 @@ impl Component for ViewComp {
             Msg::UpdateResult(res) => {
                 self.update_result.update(res);
             }
+            Msg::ForceSubscriptionUpdate => {
+                let link = ctx.link().clone();
+                let view = ctx.props().view.clone();
+                self.render_args.subscriptions.write().clear();
+                self.async_pool.spawn(async move {
+                    let mut params = json!({
+                        "verbose": true,
+                        "max-age": 0,
+                    });
+                    if let Some(view) = view {
+                        params["view"] = view.to_string().into();
+                    }
+                    let res = http_get("/resources/subscription", Some(params)).await;
+                    link.send_message(Msg::LoadingResult(LoadingResult::SubscriptionInfo(res)));
+                });
+            }
         }
         true
     }
@@ -547,14 +564,14 @@ impl Component for ViewComp {
                 .on_submit(move |ctx| crate::remotes::create_remote(ctx, remote_type))
         }));
 
-        view.add_optional_child(if self.subscriptions_dialog {
-            create_subscriptions_dialog(
-                self.render_args.subscriptions.clone(),
-                ctx.link().callback(|_| Msg::ShowSubscriptionsDialog(false)),
-            )
-        } else {
-            None
-        });
+        view.add_optional_child(
+            self.subscriptions_dialog
+                .then_some(create_subscriptions_dialog(
+                    self.render_args.subscriptions.clone(),
+                    ctx.link().callback(|_| Msg::ShowSubscriptionsDialog(false)),
+                    ctx.link().callback(|_| Msg::ForceSubscriptionUpdate),
+                )),
+        );
 
         let view_context = ViewContext {
             name: props.view.clone(),

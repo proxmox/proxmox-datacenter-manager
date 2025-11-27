@@ -33,6 +33,12 @@ impl<T, E> LoadResult<T, E> {
     pub fn has_data(&self) -> bool {
         self.data.is_some() || self.error.is_some()
     }
+
+    /// Clears both data and the error from the result.
+    pub fn clear(&mut self) {
+        self.data = None;
+        self.error = None;
+    }
 }
 
 impl<T, E> Default for LoadResult<T, E> {

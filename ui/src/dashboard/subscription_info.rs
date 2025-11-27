@@ -136,19 +136,20 @@ impl From<SubscriptionInfo> for VNode {
 pub fn create_subscriptions_dialog(
     subs: SharedState<LoadResult<Vec<RemoteSubscriptions>, Error>>,
     on_dialog_close: Callback<()>,
-) -> Option<Dialog> {
-    if let Some(subs) = subs.read().data.clone() {
-        let dialog = Dialog::new(tr!("Your Subscriptions"))
-            .resizable(true)
-            .width(500)
-            .height(400)
-            .min_width(200)
-            .min_height(50)
-            .with_child(SubscriptionsList::new(subs.clone()))
-            .on_close(on_dialog_close);
-        return Some(dialog);
-    }
-    None
+    on_refresh: Callback<MouseEvent>,
+) -> Dialog {
+    let loading = !subs.read().has_data();
+    let subs = subs.read().data.clone();
+    let subs = subs.unwrap_or_default();
+    Dialog::new(tr!("Your Subscriptions"))
+        .with_tool(Button::refresh(loading).on_activate(on_refresh))
+        .resizable(true)
+        .width(500)
+        .height(400)
+        .min_width(200)
+        .min_height(50)
+        .with_child(SubscriptionsList::new(subs))
+        .on_close(on_dialog_close)
 }
 
 pub fn create_subscription_panel(
