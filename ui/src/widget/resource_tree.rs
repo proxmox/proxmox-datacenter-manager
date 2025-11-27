@@ -22,6 +22,7 @@ use pwt::{
         },
         ActionIcon, Column, Container, Fa, Panel, Progress, Row, Tooltip,
     },
+    AsyncPool,
 };
 use pwt_macros::{builder, widget};
 
@@ -143,6 +144,7 @@ pub struct PdmResourceTree {
     _context_listener: ContextHandle<RemoteList>,
     selection: Selection,
     _load_timeout: Option<Timeout>,
+    async_pool: AsyncPool,
 }
 
 impl PdmResourceTree {}
@@ -173,6 +175,7 @@ impl Component for PdmResourceTree {
             _context_listener,
             selection,
             _load_timeout: None,
+            async_pool: AsyncPool::new(),
         }
     }
 
@@ -189,8 +192,9 @@ impl Component for PdmResourceTree {
                     .and_then(|(context, _)| context.name);
 
                 if !props.search_only || !search_term.is_empty() {
+                    let async_pool = self.async_pool.clone();
                     self._load_timeout = Some(Timeout::new(INPUT_BUFFER_MS, move || {
-                        link.send_future(async move {
+                        async_pool.send_future(link, async move {
                             Msg::LoadResult(load_resources(search_term, view).await)
                         });
                     }));
