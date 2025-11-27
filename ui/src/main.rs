@@ -12,6 +12,7 @@ use pwt::prelude::*;
 use pwt::props::TextRenderFn;
 use pwt::state::{Loader, PersistentState, SharedStateObserver};
 use pwt::widget::{Column, DesktopApp, Dialog, Mask};
+use pwt::AsyncPool;
 
 use pbs_api_types::TaskListItem;
 use proxmox_login::Authentication;
@@ -60,6 +61,8 @@ struct DatacenterManagerApp {
     view_list: Vec<String>,
     view_list_context: ViewListContext,
     _view_list_observer: SharedStateObserver<usize>,
+
+    async_pool: AsyncPool,
 }
 
 async fn check_subscription() -> Msg {
@@ -95,7 +98,8 @@ impl DatacenterManagerApp {
                 if self.subscription_confirmed {
                     ctx.link().send_message(Msg::ConfirmSubscription);
                 } else {
-                    ctx.link().send_future(check_subscription());
+                    self.async_pool
+                        .send_future(ctx.link().clone(), check_subscription());
                 }
             } else {
                 ctx.link().send_message(Msg::ConfirmSubscription);
@@ -103,13 +107,13 @@ impl DatacenterManagerApp {
             }
             //ctx.link().send_future_batch(get_fingerprint());
             //
-            self.remote_list_timeout = Self::poll_remote_list(ctx, true);
+            self.remote_list_timeout = self.poll_remote_list(ctx, true);
             self.update_views(ctx);
         }
     }
 
     fn update_views(&mut self, ctx: &Context<Self>) {
-        ctx.link().send_future(async move {
+        self.async_pool.send_future(ctx.link().clone(), async move {
             let res = http_get("/config/views", None)
                 .await
                 .map(|list: Vec<ViewConfig>| {
@@ -123,7 +127,7 @@ impl DatacenterManagerApp {
     }
 
     fn update_remotes(&mut self, ctx: &Context<Self>, result: MsgRemoteList) -> bool {
-        self.remote_list_timeout = Self::poll_remote_list(ctx, false);
+        self.remote_list_timeout = self.poll_remote_list(ctx, false);
         let mut changed = false;
         match result {
             Err(err) => {
@@ -160,10 +164,13 @@ impl DatacenterManagerApp {
         changed
     }
 
-    fn poll_remote_list(ctx: &Context<Self>, first: bool) -> Option<Timeout> {
+    fn poll_remote_list(&self, ctx: &Context<Self>, first: bool) -> Option<Timeout> {
         let link = ctx.link().clone();
+        let async_pool = self.async_pool.clone();
         let timeout = Timeout::new(if first { 0 } else { 5_000 }, move || {
-            link.send_future(async move { Msg::RemoteList(Self::get_remote_list().await) })
+            async_pool.send_future(link, async move {
+                Msg::RemoteList(Self::get_remote_list().await)
+            })
         });
         Some(timeout)
     }
@@ -226,6 +233,7 @@ impl Component for DatacenterManagerApp {
             view_list: Vec::new(),
             view_list_context,
             _view_list_observer,
+            async_pool: AsyncPool::new(),
         };
 
         this.on_login(ctx, false);
@@ -249,6 +257,8 @@ impl Component for DatacenterManagerApp {
             }
             Msg::Logout => {
                 //log::info!("CLEAR COOKIE");
+                // this will drop the pool and abort all current requests
+                self.async_pool = AsyncPool::new();
                 self.running_tasks.abort();
                 self.remote_list_timeout = None;
                 proxmox_yew_comp::http_clear_auth();
