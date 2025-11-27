@@ -79,17 +79,13 @@ impl ExtractPrimaryKey for SubscriptionTreeEntry {
     }
 }
 
-impl Component for PdmSubscriptionsList {
-    type Message = ();
-    type Properties = SubscriptionsList;
-
-    fn create(ctx: &yew::Context<Self>) -> Self {
-        let subscriptions = sort_subscriptions(&ctx.props().subscriptions);
-
-        let store = TreeStore::new().view_root(false);
+impl PdmSubscriptionsList {
+    fn update_store_data(&self, ctx: &yew::Context<Self>) {
+        let mut store = self.store.write();
         let mut tree = KeyedSlabTree::new();
         let mut root = tree.set_root(SubscriptionTreeEntry::Root);
         root.set_expanded(true);
+        let subscriptions = sort_subscriptions(&ctx.props().subscriptions);
 
         for remote in subscriptions {
             let mut remote_node = root.append(SubscriptionTreeEntry::Remote(RemoteEntry {
@@ -114,9 +110,25 @@ impl Component for PdmSubscriptionsList {
                 }
             }
         }
+        store.update_root_tree(tree);
+    }
+}
 
-        store.write().update_root_tree(tree);
-        Self { store }
+impl Component for PdmSubscriptionsList {
+    type Message = ();
+    type Properties = SubscriptionsList;
+
+    fn create(ctx: &yew::Context<Self>) -> Self {
+        let this = Self {
+            store: TreeStore::new().view_root(false),
+        };
+        this.update_store_data(ctx);
+        this
+    }
+
+    fn changed(&mut self, ctx: &yew::Context<Self>, _old_props: &Self::Properties) -> bool {
+        self.update_store_data(ctx);
+        true
     }
 
     fn view(&self, _ctx: &yew::Context<Self>) -> Html {
