@@ -421,7 +421,9 @@ impl UpdateTreeComponent {
                     .gap(2)
                     .class(AlignItems::Baseline)
                     .with_child(Fa::new("list"))
-                    .with_child(tr!("Update List - {} ({})", remote, node))
+                    // TRANSLATORS: The first parameter is the name of the remote, the second one
+                    // the name of the node.
+                    .with_child(tr!("Update List - {0} ({1})", remote, node))
                     .into();
 
                 if summary.status == NodeUpdateStatus::Success {
