@@ -363,6 +363,14 @@ impl PbsClient {
             .data)
     }
 
+    /// Get APT repository information.
+    pub async fn get_apt_repositories(
+        &self,
+    ) -> Result<pbs_api_types::APTRepositoriesResult, Error> {
+        let url = "/api2/extjs/nodes/localhost/apt/repositories";
+        Ok(self.0.get(url).await?.expect_json()?.data)
+    }
+
     /// Get list of tasks.
     ///
     /// `params`: Filters specifying which tasks to get.
