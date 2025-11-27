@@ -187,7 +187,7 @@ impl Component for PdmMainMenu {
                 &mut content,
                 view.clone(),
                 &format!("view-{view}"),
-                Some("fa fa-eye"),
+                Some("fa fa-plus-square-o"),
                 move |_| View::new(Some(view.clone().into())).into(),
             );
         }
@@ -198,7 +198,7 @@ impl Component for PdmMainMenu {
                 &mut content,
                 view.clone(),
                 &format!("view-{view}"),
-                Some("fa fa-tachometer"),
+                Some("fa fa-plus-square-o"),
                 move |_| View::new(Some(view.clone().into())).into(),
             );
         }
@@ -208,7 +208,7 @@ impl Component for PdmMainMenu {
             &mut content,
             tr!("Views"),
             "views",
-            Some("fa fa-tachometer"),
+            Some("fa fa-th-large"),
             move |_| ViewGrid::new().into(),
             views,
         );
