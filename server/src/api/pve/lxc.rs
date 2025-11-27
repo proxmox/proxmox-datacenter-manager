@@ -7,6 +7,7 @@ use proxmox_router::{
 };
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
+use pve_api_types::PendingConfigValue;
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use pdm_api_types::{
@@ -33,6 +34,7 @@ const LXC_VM_ROUTER: Router = Router::new()
 #[sortable]
 const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_LXC_GET_CONFIG)),
+    ("pending", &Router::new().get(&API_METHOD_LXC_GET_PENDING)),
     ("rrddata", &super::rrddata::LXC_RRD_ROUTER),
     ("start", &Router::new().post(&API_METHOD_LXC_START)),
     ("status", &Router::new().get(&API_METHOD_LXC_GET_STATUS)),
@@ -145,6 +147,39 @@ pub async fn lxc_get_config(
     Ok(pve
         .lxc_get_config(&node, vmid, state.current(), snapshot)
         .await?)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    // Note: the trait `ApiType` is not implemented for `PendingConfigValue` because it contains Value
+    // returns: { description: "Configuration property with pending changes.", type: Array, items: { type: PendingConfigValue, }},
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get the pending configuration of a lxc container from a remote. If a node is provided, the container must be on that
+/// node, otherwise the node is determined automatically.
+pub async fn lxc_get_pending(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+) -> Result<Vec<PendingConfigValue>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let pve = connect_to_remote(&remotes, &remote)?;
+
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+
+    Ok(pve.lxc_get_pending(&node, vmid).await?)
 }
 
 #[api(
