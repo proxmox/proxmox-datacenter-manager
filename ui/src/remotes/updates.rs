@@ -324,7 +324,7 @@ impl UpdateTreeComponent {
             .selection(self.selection.clone())
             .striped(false)
             .borderless(true)
-            .show_header(false)
+            .show_header(true)
             .class(css::FlexFit);
 
         let refresh_all_button = Button::new(tr!("Refresh all")).on_activate({
