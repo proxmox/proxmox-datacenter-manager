@@ -97,6 +97,8 @@ pub use proxmox_schema::upid::*;
 mod openid;
 pub use openid::*;
 
+pub mod firewall;
+
 pub mod remotes;
 
 pub mod remote_updates;
