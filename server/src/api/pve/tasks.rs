@@ -43,7 +43,13 @@ const UPID_API_SUBDIRS: SubdirMap = &sorted!([
         // FIXME: fine-grained task filtering?
         permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
     },
-    returns: { type: pve_api_types::TaskStatus },
+    returns: {
+        type: Array,
+        description: "A list of tasks.",
+        items: {
+            type: pve_api_types::ListTasksResponse
+        }
+    },
 )]
 /// Get the list of tasks either for a specific node, or query all at once.
 async fn list_tasks(

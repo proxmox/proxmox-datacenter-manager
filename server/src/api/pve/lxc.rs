@@ -61,7 +61,7 @@ const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     returns: {
         type: Array,
         description: "Get a list of containers.",
-        items: { type: pve_api_types::VmEntry },
+        items: { type: pve_api_types::LxcEntry },
     },
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
@@ -194,7 +194,7 @@ pub async fn lxc_get_pending(
             vmid: { schema: VMID_SCHEMA },
         },
     },
-    returns: { type: pve_api_types::QemuStatus },
+    returns: { type: pve_api_types::LxcStatus },
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
     },

@@ -39,7 +39,11 @@ const UPID_API_SUBDIRS: SubdirMap = &sorted!([
         // FIXME: fine-grained task filtering?
         permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
     },
-    returns: { type: pve_api_types::TaskStatus },
+    returns: {
+        type: Array,
+        description:"A list of tasks.",
+        items: { type: pbs_api_types::TaskListItem },
+    },
 )]
 /// Get the list of tasks either for a specific node, or query all at once.
 async fn list_tasks(remote: String) -> Result<Vec<pbs_api_types::TaskListItem>, Error> {
@@ -89,7 +93,7 @@ async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
         // FIXME: fine-grained task filtering?
         permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
     },
-    returns: { type: pve_api_types::TaskStatus },
+    returns: { type: pdm_api_types::pbs::TaskStatus },
 )]
 /// Get the status of a task from a Proxmox VE instance.
 pub async fn get_task_status(

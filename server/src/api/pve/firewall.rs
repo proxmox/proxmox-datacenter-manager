@@ -337,11 +337,7 @@ pub async fn pve_firewall_status(
             remote: { schema: REMOTE_ID_SCHEMA },
         },
     },
-    returns: {
-        type: Array,
-        description: "Get firewall options.",
-        items: { type: pve_api_types::ClusterFirewallOptions },
-    },
+    returns: { type: pve_api_types::ClusterFirewallOptions },
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
     },
@@ -456,11 +452,7 @@ pub async fn cluster_firewall_status(
             },
         },
     },
-    returns: {
-        type: Array,
-        description: "Get firewall options.",
-        items: { type: pve_api_types::NodeFirewallOptions },
-    },
+    returns: { type: pve_api_types::NodeFirewallOptions },
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
     },
@@ -565,11 +557,7 @@ pub async fn cluster_firewall_rules(
             vmid: { schema: VMID_SCHEMA },
         },
     },
-    returns: {
-        type: Array,
-        description: "Get firewall options.",
-        items: { type: pve_api_types::GuestFirewallOptions },
-    },
+    returns: { type: pve_api_types::GuestFirewallOptions },
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
     },
@@ -687,11 +675,7 @@ pub async fn node_firewall_rules(
             vmid: { schema: VMID_SCHEMA },
         },
     },
-    returns: {
-        type: Array,
-        description: "Get firewall options.",
-        items: { type: pve_api_types::GuestFirewallOptions },
-    },
+    returns: { type: pve_api_types::GuestFirewallOptions },
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
     },

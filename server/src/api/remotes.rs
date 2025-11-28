@@ -67,9 +67,7 @@ pub fn get_remote<'a>(
         description: "The list of configured remotes.",
         type: Array,
         items: {
-            description: "Remote entry",
-            type: Object,
-            properties: {},
+            type: Remote,
         },
     },
 )]

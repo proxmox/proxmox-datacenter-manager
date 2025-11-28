@@ -149,7 +149,7 @@ async fn list_vnets(
             },
         },
     },
-    returns: { type: String, description: "Worker UPID" },
+    returns: { schema: pdm_api_types::UPID_SCHEMA },
 )]
 /// Create a VNet across multiple remotes
 async fn create_vnet(

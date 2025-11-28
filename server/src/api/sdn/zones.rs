@@ -158,7 +158,7 @@ pub async fn list_zones(
             },
         },
     },
-    returns: { type: String, description: "Worker UPID" },
+    returns: { schema: pdm_api_types::UPID_SCHEMA },
 )]
 /// Create a zone across multiple remotes
 async fn create_zone(

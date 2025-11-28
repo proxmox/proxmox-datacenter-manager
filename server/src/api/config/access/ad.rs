@@ -184,7 +184,6 @@ pub enum DeletableProperty {
             },
         },
     },
-    returns:  { type: AdRealmConfig },
     access: {
         permission: &Permission::Privilege(&["access", "domains"], PRIV_REALM_ALLOCATE, false),
     },

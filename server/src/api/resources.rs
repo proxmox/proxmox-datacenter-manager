@@ -458,13 +458,7 @@ pub(crate) async fn get_resources_impl(
             },
         }
     },
-    returns: {
-        description: "Array of resources, grouped by remote",
-        type: Array,
-        items: {
-            type: RemoteResources,
-        }
-    },
+    returns: { type: RemoteResources },
 )]
 /// Return the amount of configured/seen resources by type
 pub async fn get_status(

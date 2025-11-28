@@ -27,7 +27,7 @@ const STORAGE_SUBDIR: SubdirMap = &sorted!([
             storage: { schema: PVE_STORAGE_ID_SCHEMA, },
         },
     },
-    returns: { type: pve_api_types::QemuStatus },
+    returns: { type: pve_api_types::StorageStatus },
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "storage", "{storage}"], PRIV_RESOURCE_AUDIT, false),
     },

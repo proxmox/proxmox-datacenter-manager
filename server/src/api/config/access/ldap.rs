@@ -216,7 +216,6 @@ pub enum DeletableProperty {
             },
         },
     },
-    returns:  { type: LdapRealmConfig },
     access: {
         permission: &Permission::Privilege(&["access", "domains"], PRIV_REALM_ALLOCATE, false),
     },
