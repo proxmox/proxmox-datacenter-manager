@@ -25,7 +25,7 @@ use crate::{get_deep_url, remotes::RemoteTaskList};
 pub mod lxc;
 pub mod node;
 pub mod qemu;
-pub mod remote;
+pub mod remote_overview;
 pub mod storage;
 pub mod utils;
 
@@ -239,7 +239,7 @@ impl LoadableComponent for PveRemoteComp {
                             .padding(4)
                             .class(FlexFit)
                             .gap(4)
-                            .with_child(remote::RemotePanel::new(
+                            .with_child(remote_overview::RemotePanel::new(
                                 remote.clone(),
                                 self.resources.clone(),
                                 self.last_error.clone(),
