@@ -7,7 +7,7 @@ use proxmox_sortable_macro::sortable;
 use pdm_api_types::{remotes::REMOTE_ID_SCHEMA, NODE_SCHEMA, PRIV_RESOURCE_AUDIT};
 use pve_api_types::StorageContent;
 
-use crate::api::pve::storage;
+use crate::api::{nodes::sdn, pve::storage};
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -27,6 +27,7 @@ const SUBDIRS: SubdirMap = &sorted!([
         "vncwebsocket",
         &Router::new().upgrade(&crate::api::remote_shell::API_METHOD_SHELL_WEBSOCKET)
     ),
+    ("sdn", &sdn::ROUTER),
     ("storage", &STORAGE_ROUTER),
     ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
     (

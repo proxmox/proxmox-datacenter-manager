@@ -70,6 +70,8 @@ pub mod types {
     pub use pve_api_types::StorageStatus as PveStorageStatus;
 
     pub use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
+
+    pub use pve_api_types::SdnZoneIpVrf;
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -1231,6 +1233,16 @@ impl<T: HttpApiClient> PdmClient<T> {
         let path = "/api2/extjs/sdn/vnets";
 
         Ok(self.0.post(path, &params).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_sdn_zone_get_ip_vrf(
+        &self,
+        remote: &str,
+        node: &str,
+        zone: &str,
+    ) -> Result<Vec<SdnZoneIpVrf>, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/sdn/zones/{zone}/ip-vrf");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
     /// uses /pbs/probe-tls to probe the tls connection to the given host

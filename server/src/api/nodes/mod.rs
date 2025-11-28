@@ -11,6 +11,7 @@ pub mod journal;
 pub mod network;
 pub mod report;
 pub mod rrddata;
+pub mod sdn;
 pub mod status;
 pub mod subscription;
 pub mod syslog;
@@ -48,6 +49,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     ("network", &network::ROUTER),
     ("report", &report::ROUTER),
     ("rrdata", &rrddata::ROUTER),
+    ("sdn", &sdn::ROUTER),
     ("subscription", &subscription::ROUTER),
     ("status", &status::ROUTER),
     ("syslog", &syslog::ROUTER),
