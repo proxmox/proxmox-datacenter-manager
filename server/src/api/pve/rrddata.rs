@@ -289,8 +289,15 @@ async fn get_node_rrd_data(
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "storage", "{storage}"], PRIV_RESOURCE_AUDIT, false),
     },
+    returns: {
+        type: Array,
+        description:"A list of RRD data points on a PVE remote's storage.",
+        items: {
+            type: PveStorageDataPoint,
+        }
+    }
 )]
-/// Read node stats
+/// Read storage stats
 async fn get_storage_rrd_data(
     remote: String,
     node: String,
@@ -298,7 +305,7 @@ async fn get_storage_rrd_data(
     timeframe: RrdTimeframe,
     cf: RrdMode,
     _param: Value,
-) -> Result<Vec<NodeDataPoint>, Error> {
+) -> Result<Vec<PveStorageDataPoint>, Error> {
     let base = format!("pve/{remote}/storage/{node}/{storage}");
     rrd_common::get_rrd_datapoints(remote, base, timeframe, cf).await
 }
