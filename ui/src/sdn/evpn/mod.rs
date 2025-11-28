@@ -13,6 +13,9 @@ pub use add_vnet::AddVnetWindow;
 mod add_zone;
 pub use add_zone::AddZoneWindow;
 
+mod zone_status;
+pub use zone_status::ZoneStatusTable;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct EvpnRouteTarget {
     asn: u32,
@@ -37,5 +40,35 @@ impl std::str::FromStr for EvpnRouteTarget {
 impl std::fmt::Display for EvpnRouteTarget {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(f, "{}:{}", self.asn, self.vni)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[repr(transparent)]
+pub struct NodeList(Vec<String>);
+
+impl std::ops::Deref for NodeList {
+    type Target = Vec<String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::str::FromStr for NodeList {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        if value.is_empty() {
+            anyhow::bail!("node list cannot be an empty string");
+        }
+
+        Ok(Self(value.split(",").map(String::from).collect()))
+    }
+}
+
+impl FromIterator<String> for NodeList {
+    fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
+        Self(iter.into_iter().collect())
     }
 }
