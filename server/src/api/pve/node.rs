@@ -5,7 +5,7 @@ use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::{remotes::REMOTE_ID_SCHEMA, NODE_SCHEMA, PRIV_RESOURCE_AUDIT};
-use pve_api_types::StorageContent;
+use pve_api_types::{NodeConfig, StorageContent};
 
 use crate::api::{nodes::sdn, pve::storage};
 
@@ -16,6 +16,7 @@ pub const ROUTER: Router = Router::new()
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("apt", &crate::api::remote_updates::APT_ROUTER),
+    ("config", &Router::new().get(&API_METHOD_GET_CONFIG)),
     ("firewall", &super::firewall::NODE_FW_ROUTER),
     ("rrddata", &super::rrddata::NODE_RRD_ROUTER),
     ("network", &Router::new().get(&API_METHOD_GET_NETWORK)),
@@ -35,6 +36,25 @@ const SUBDIRS: SubdirMap = &sorted!([
         &Router::new().get(&API_METHOD_GET_SUBSCRIPTION)
     ),
 ]);
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get config for the node.
+async fn get_config(remote: String, node: String) -> Result<NodeConfig, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let client = super::connect_to_remote(&remotes, &remote)?;
+    let result = client.node_config(&node, None).await?;
+    Ok(result)
+}
 
 const STORAGE_ROUTER: Router = Router::new()
     .get(&API_METHOD_GET_STORAGES)
