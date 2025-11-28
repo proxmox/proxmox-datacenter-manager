@@ -180,6 +180,13 @@ impl DataPoint for PveStorageDataPoint {
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
     },
+    returns: {
+        type: Array,
+        description: "A list of RRD data points for a QEMU guest.",
+        items: {
+            type: QemuDataPoint
+        }
+    }
 )]
 /// Read qemu stats
 async fn get_qemu_rrd_data(
@@ -209,6 +216,13 @@ async fn get_qemu_rrd_data(
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
     },
+    returns: {
+        type: Array,
+        description: "A list of RRD data points for an LXC guest.",
+        items: {
+            type: LxcDataPoint
+        }
+    }
 )]
 /// Read lxc stats
 async fn get_lxc_rrd_data(
@@ -238,6 +252,13 @@ async fn get_lxc_rrd_data(
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
     },
+    returns: {
+        type: Array,
+        description: "A list of RRD data points for a PVE node.",
+        items: {
+            type: NodeDataPoint
+        }
+    }
 )]
 /// Read node stats
 async fn get_node_rrd_data(

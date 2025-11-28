@@ -440,6 +440,7 @@ pub async fn qemu_migrate(
             &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MIGRATE, false),
         ]),
     },
+    returns: { type: QemuMigratePreconditions }
 )]
 /// Qemu (local) migrate preconditions
 async fn qemu_migrate_preconditions(

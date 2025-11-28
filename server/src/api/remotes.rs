@@ -376,6 +376,13 @@ impl DataPoint for RemoteDatapoint {
             },
         },
     },
+    returns: {
+        type: Array,
+        description: "A list remote RRD data points.",
+        items: {
+            type: RemoteDatapoint,
+        }
+    }
 )]
 /// Read metric collection RRD data.
 fn get_per_remote_rrd_data(

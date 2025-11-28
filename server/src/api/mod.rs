@@ -48,6 +48,10 @@ pub const ROUTER: Router = Router::new()
     access: {
         description: "Anyone can access this, just a cheap check if the API daemon is online.",
         permission: &Permission::World,
+    },
+    returns: {
+        type: String,
+        description: "The string \"pong\"."
     }
 )]
 /// A simple ping method. returns "pong"
@@ -59,6 +63,24 @@ fn ping() -> Result<String, Error> {
     access: {
         description: "Any valid user can access this.",
         permission: &Permission::Anybody,
+    },
+    returns: {
+        type: Object,
+        description: "Version information.",
+        properties: {
+            version: {
+                type: String,
+                description: "The version string."
+            },
+            release: {
+                type: String,
+                description: "The package release.",
+            },
+            repoid: {
+                type: String,
+                description: "The repoid."
+            }
+        }
     }
 )]
 /// Return the program's version/release info

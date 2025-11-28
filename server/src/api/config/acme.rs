@@ -111,6 +111,9 @@ pub fn list_accounts() -> Result<Vec<AccountEntry>, Error> {
         permission: &Permission::Privilege(&["system", "certificates"], PRIV_SYS_MODIFY, false),
     },
     protected: true,
+    returns: {
+        schema: pdm_api_types::UPID_SCHEMA,
+    },
 )]
 /// Register an ACME account.
 fn register_account(
@@ -193,6 +196,9 @@ pub async fn get_account(name: AcmeAccountName) -> Result<AccountInfo, Error> {
         permission: &Permission::Privilege(&["system", "certificates"], PRIV_SYS_MODIFY, false),
     },
     protected: true,
+    returns: {
+        schema: pdm_api_types::UPID_SCHEMA,
+    },
 )]
 /// Update an ACME account.
 pub fn update_account(
@@ -236,6 +242,9 @@ pub fn update_account(
         permission: &Permission::Privilege(&["system", "certificates"], PRIV_SYS_MODIFY, false),
     },
     protected: true,
+    returns: {
+        schema: pdm_api_types::UPID_SCHEMA,
+    },
 )]
 /// Deactivate an ACME account.
 pub fn deactivate_account(

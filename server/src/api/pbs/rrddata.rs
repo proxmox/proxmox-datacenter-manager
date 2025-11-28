@@ -104,7 +104,12 @@ impl DataPoint for PbsDatastoreDataPoint {
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
         description: "The user needs to have at least the `Resource.Audit` privilege on `/resource/{remote}`."
-    }
+    },
+    returns: {
+        type: Array,
+        description: "A list of PBS node data points.",
+        items: { type: PbsNodeDataPoint },
+    },
 )]
 /// Read PBS node stats
 async fn get_pbs_node_rrd_data(
@@ -133,7 +138,12 @@ async fn get_pbs_node_rrd_data(
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "datastore", "{datastore}"], PRIV_RESOURCE_AUDIT, false),
         description: "The user needs to have at least the `Resource.Audit` privilege on `/resource/{remote}/datastore/{datastore}`."
-    }
+    },
+    returns: {
+        type: Array,
+        description: "A list of PBS datastore data points.",
+        items: { type: PbsDatastoreDataPoint },
+    },
 )]
 /// Read PBS datastore stats
 async fn get_pbs_datastore_rrd_data(

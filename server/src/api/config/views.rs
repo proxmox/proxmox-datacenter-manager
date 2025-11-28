@@ -257,6 +257,7 @@ pub fn remove_view(id: String, digest: Option<ConfigDigest>) -> Result<(), Error
     access: {
         permission: &Permission::Privilege(&["view", "{id}"], PRIV_RESOURCE_AUDIT, false),
     },
+    returns: { type: ViewConfig },
 )]
 /// Get the config of a single view.
 pub fn read_view(id: String) -> Result<ViewConfig, Error> {

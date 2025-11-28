@@ -38,6 +38,7 @@ const SUBDIRS: SubdirMap = &sorted!([
         permission: &Permission::Anybody,
         description: "Resource.Modify privileges are needed on /resource/{remote}",
     },
+    returns: { type: UpdateSummary }
 )]
 /// Return available update summary for managed remote nodes.
 pub fn update_summary(rpcenv: &mut dyn RpcEnvironment) -> Result<UpdateSummary, Error> {
@@ -69,6 +70,7 @@ pub fn update_summary(rpcenv: &mut dyn RpcEnvironment) -> Result<UpdateSummary, 
         permission: &Permission::Anybody,
         description: "Resource.Modify privileges are needed on /resource/{remote}",
     },
+    returns: { type: UPID }
 )]
 /// Refresh the update summary of all remotes.
 pub fn refresh_remote_update_summaries(rpcenv: &mut dyn RpcEnvironment) -> Result<UPID, Error> {
@@ -158,6 +160,7 @@ async fn apt_update_available(remote: String, node: String) -> Result<Vec<APTUpd
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}", "system"], PRIV_RESOURCE_MODIFY, false),
     },
+    returns: { type: RemoteUpid }
 )]
 /// Update the APT database of a remote PVE node.
 pub async fn apt_update_database(remote: String, node: String) -> Result<RemoteUpid, Error> {

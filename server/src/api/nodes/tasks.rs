@@ -312,6 +312,39 @@ const TEST_STATUS_PARAM_SCHEMA: Schema = proxmox_schema::BooleanSchema::new(
 .schema();
 
 #[sortable]
+const DATA_SCHEMA: Schema = proxmox_schema::ObjectSchema::new(
+    "A line of a task log.",
+    &sorted!([
+        (
+            "n",
+            false,
+            &proxmox_schema::IntegerSchema::new("Line number.")
+                .minimum(0)
+                .schema()
+        ),
+        (
+            "t",
+            false,
+            &proxmox_schema::StringSchema::new("The line of the log.").schema()
+        )
+    ]),
+)
+.schema();
+
+const TOTAL_SCHEMA: Schema = proxmox_schema::IntegerSchema::new("Total number of lines.")
+    .minimum(0)
+    .schema();
+
+const SUCCESS_SCHEMA: Schema =
+    proxmox_schema::IntegerSchema::new("Whether the request was successful.")
+        .minimum(0)
+        .maximum(1)
+        .schema();
+
+const ACTIVE_SCHEMA: Schema =
+    proxmox_schema::BooleanSchema::new("Whether the task is still active.").schema();
+
+#[sortable]
 pub const API_METHOD_READ_TASK_LOG: proxmox_router::ApiMethod = proxmox_router::ApiMethod::new(
     &proxmox_router::ApiHandler::AsyncHttp(&read_task_log),
     &proxmox_schema::ObjectSchema::new(
@@ -329,7 +362,22 @@ pub const API_METHOD_READ_TASK_LOG: proxmox_router::ApiMethod = proxmox_router::
 .access(
     Some("Users can access their own tasks, or need Sys.Audit on /system/tasks."),
     &Permission::Anybody,
-);
+)
+.returns(proxmox_schema::ReturnType::new(
+    true,
+    &proxmox_schema::ObjectSchema::new(
+        "Returns lines of a task log. If `download` is set to `true`, instead of providing a JSON\
+            response the log file will be downloaded.",
+        &sorted!([
+            ("data", false, &DATA_SCHEMA),
+            ("total", false, &TOTAL_SCHEMA),
+            ("success", false, &SUCCESS_SCHEMA),
+            ("active", false, &ACTIVE_SCHEMA)
+        ]),
+    )
+    .schema(),
+));
+
 fn read_task_log(
     _parts: Parts,
     _req_body: hyper::body::Incoming,

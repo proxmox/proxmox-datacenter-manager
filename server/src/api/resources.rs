@@ -706,6 +706,7 @@ pub async fn get_subscription_status(
         Only resources for which the user has `Resource.Audit` on `/resource/{remote_name}` will be
         considered when calculating the top entities."
     },
+    returns: { type: TopEntities }
 )]
 /// Returns the top X entities regarding the chosen type
 async fn get_top_entities(

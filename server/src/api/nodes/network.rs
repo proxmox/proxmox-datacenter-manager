@@ -206,6 +206,9 @@ pub fn delete_interface(iface: String, digest: Option<ConfigDigest>) -> Result<(
     access: {
         permission: &Permission::Privilege(&["system", "network", "interfaces"], PRIV_SYS_MODIFY, false),
     },
+    returns: {
+        schema: pdm_api_types::UPID_SCHEMA,
+    }
 )]
 /// Reload network configuration (requires ifupdown2).
 pub async fn reload_network_config(rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error> {

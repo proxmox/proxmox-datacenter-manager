@@ -201,6 +201,9 @@ pub async fn delete_custom_certificate() -> Result<(), Error> {
         permission: &Permission::Privilege(&["system", "certificates"], PRIV_SYS_MODIFY, false),
     },
     protected: true,
+    returns: {
+        schema: pdm_api_types::UPID_SCHEMA,
+    }
 )]
 /// Order a new ACME certificate.
 pub fn new_acme_cert(force: bool, rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error> {
@@ -223,6 +226,9 @@ pub fn new_acme_cert(force: bool, rpcenv: &mut dyn RpcEnvironment) -> Result<Str
         permission: &Permission::Privilege(&["system", "certificates"], PRIV_SYS_MODIFY, false),
     },
     protected: true,
+    returns: {
+        schema: pdm_api_types::UPID_SCHEMA,
+    }
 )]
 /// Renew the current ACME certificate if it expires within 30 days (or always if the `force`
 /// parameter is set).
@@ -304,6 +310,9 @@ fn spawn_certificate_worker(
         permission: &Permission::Privilege(&["system", "certificates"], PRIV_SYS_MODIFY, false),
     },
     protected: true,
+    returns: {
+        schema: pdm_api_types::UPID_SCHEMA,
+    }
 )]
 /// Renew the current ACME certificate if it expires within 30 days (or always if the `force`
 /// parameter is set).

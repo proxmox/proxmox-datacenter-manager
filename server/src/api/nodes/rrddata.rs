@@ -38,6 +38,13 @@ impl DataPoint for PdmNodeDatapoint {
             },
         },
     },
+    returns: {
+        type: Array,
+        description: "An array of RRD data points.",
+        items: {
+            type: PdmNodeDatapoint,
+        }
+    }
 )]
 /// Read RRD data for this PDM node.
 fn get_node_rrddata(timeframe: RrdTimeframe, cf: RrdMode) -> Result<Vec<PdmNodeDatapoint>, Error> {

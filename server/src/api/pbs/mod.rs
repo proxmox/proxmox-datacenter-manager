@@ -142,6 +142,11 @@ async fn list_datastores(remote: String) -> Result<Vec<pbs_api_types::DataStoreC
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "datastore", "{datastore}"], PRIV_RESOURCE_AUDIT, false),
     },
+    returns: {
+        type: Array,
+        description: "A list of namespaces of a PBS remote's datastore.",
+        items: { type: pbs_api_types::NamespaceListItem }
+    }
 )]
 /// List the PBS remote's datastores.
 async fn list_namespaces(
@@ -255,6 +260,7 @@ pub async fn connect_or_login(remote: &Remote) -> Result<Box<PbsClient>, Error> 
         permission:
             &Permission::Privilege(&["/"], PRIV_SYS_MODIFY, false),
     },
+    returns: { type: Remote }
 )]
 /// Scans the given connection info for pbs host information.
 ///
@@ -294,6 +300,7 @@ pub async fn scan_remote_pbs(
         permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
         description: "The user needs to have at least the `Resource.Audit` privilege on `/resource/{remote}`."
     },
+    returns: { type: pbs_api_types::NodeStatus }
 )]
 /// Get status for the PBS remote
 async fn get_status(remote: String) -> Result<pbs_api_types::NodeStatus, Error> {

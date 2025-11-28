@@ -48,6 +48,13 @@ const STORAGE_ROUTER: Router = Router::new()
     },
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
+    },
+    returns: {
+        type: Array,
+        description: "A list of network interfaces of a PVE remote.",
+        items: {
+            type: pve_api_types::NetworkInterface,
+        }
     }
 )]
 /// Get network interfaces from PVE node
@@ -100,6 +107,13 @@ async fn get_network(
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
         description: "if `target` is set, also requires PRIV_RESOURCE_AUDIT on /resource/{remote}/node/{target}"
+    },
+    returns: {
+        type: Array,
+        description: "A list of storages of a PVE remote.",
+        items: {
+            type: pve_api_types::StorageInfo
+        }
     }
 )]
 /// Get status for all datastores
@@ -130,6 +144,7 @@ async fn get_storages(
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
     },
+    returns: { type: pve_api_types::NodeStatus },
 )]
 /// Get status for the node
 async fn get_status(remote: String, node: String) -> Result<pve_api_types::NodeStatus, Error> {

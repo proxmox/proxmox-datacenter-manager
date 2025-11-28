@@ -49,6 +49,13 @@ const SUBDIRS: SubdirMap = &sorted!([
 
         },
     },
+    returns: {
+        type: Array,
+        description: "A list of tasks for all remotes.",
+        items: {
+            type: TaskListItem
+        }
+    },
 )]
 /// Get the list of tasks for all remotes.
 async fn list_tasks(
@@ -91,6 +98,7 @@ async fn list_tasks(
             },
         },
     },
+    returns: { type: TaskStatistics }
 )]
 /// Get task statistics for the specified filters.
 async fn task_statistics(

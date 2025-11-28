@@ -386,6 +386,7 @@ async fn probe_tls(
         permission:
             &Permission::Privilege(&["/"], PRIV_SYS_MODIFY, false),
     },
+    returns: { type: Remote },
 )]
 /// Scans the given connection info for pve cluster information
 ///
@@ -473,6 +474,13 @@ pub async fn scan_remote_pve(
     access: {
         permission:
             &Permission::Privilege(&["/"], PRIV_SYS_MODIFY, false),
+    },
+    returns: {
+        type: Array,
+        description: "A list of realms of a PVE remote.",
+        items: {
+            type: ListRealm,
+        }
     },
 )]
 /// Scans the given connection info for pve cluster information

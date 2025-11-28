@@ -39,7 +39,15 @@ pub async fn trigger_metric_collection(remote: Option<String>) -> Result<(), Err
     Ok(())
 }
 
-#[api]
+#[api(
+    returns: {
+        type: Array,
+        description: "A list of metric collection statuses.",
+        items: {
+            type: MetricCollectionStatus,
+        }
+    }
+)]
 /// Read metric collection status.
 fn get_metric_collection_status() -> Result<Vec<MetricCollectionStatus>, Error> {
     metric_collection::get_status()

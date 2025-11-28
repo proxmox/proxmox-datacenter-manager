@@ -103,6 +103,13 @@ fn list_tfa(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<methods::TfaUser>, Er
             &Permission::UserParam("userid"),
         ]),
     },
+    returns: {
+        type: Array,
+        description: "A list of TFA entries for a user.",
+        items: {
+            type: methods::TypedTfaInfo,
+        }
+    }
 )]
 /// Add a TOTP secret to the user.
 fn list_user_tfa(userid: Userid) -> Result<Vec<methods::TypedTfaInfo>, Error> {
@@ -125,6 +132,9 @@ fn list_user_tfa(userid: Userid) -> Result<Vec<methods::TypedTfaInfo>, Error> {
             &Permission::UserParam("userid"),
         ]),
     },
+    returns: {
+        type: methods::TypedTfaInfo,
+    }
 )]
 /// Get a single TFA entry.
 fn get_tfa_entry(userid: Userid, id: String) -> Result<methods::TypedTfaInfo, Error> {
