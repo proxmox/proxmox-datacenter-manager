@@ -2,10 +2,7 @@ use std::rc::Rc;
 
 use gloo_utils::window;
 use proxmox_yew_comp::{AptPackageManager, ConsoleType, XTermJs};
-use yew::{
-    virtual_dom::{VComp, VNode},
-    Context,
-};
+use yew::virtual_dom::{VComp, VNode};
 
 use pwt::{
     css::{AlignItems, ColorScheme},
@@ -49,12 +46,6 @@ impl yew::Component for PveNodePanelComp {
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
         Self
-    }
-
-    fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {
-        let props = ctx.props();
-
-        props.remote != old_props.remote || props.node != old_props.node
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
