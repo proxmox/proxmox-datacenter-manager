@@ -230,7 +230,11 @@ async fn do_tick(task_state: &mut TaskState) -> Result<(), Error> {
 
     let (all_tasks, update_state_for_remote) = fetch_remotes(remotes, Arc::new(cache_state)).await;
 
-    if !all_tasks.is_empty() {
+    if !all_tasks.is_empty()
+        || poll_results
+            .iter()
+            .any(|(_, result)| matches!(result, PollResult::RemoteGone | PollResult::RequestError))
+    {
         update_task_cache(cache, all_tasks, update_state_for_remote, poll_results).await?;
     }
 
