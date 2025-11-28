@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use gloo_utils::window;
-use proxmox_yew_comp::{AptPackageManager, ConsoleType, XTermJs};
+use proxmox_yew_comp::{AptPackageManager, ConsoleType, NotesView, XTermJs};
 use yew::virtual_dom::{VComp, VNode};
 
 use pwt::{
@@ -72,6 +72,24 @@ impl yew::Component for PveNodePanelComp {
                     let remote = props.remote.clone();
                     let node = props.node.clone();
                     move |_| PveNodeOverviewPanel::new(remote.clone(), node.clone()).into()
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("notes_view")
+                    .label(tr!("Notes"))
+                    .icon_class("fa fa-sticky-note-o"),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    move |_| {
+                        NotesView::edit_property(
+                            format!("/pve/remotes/{remote}/nodes/{node}/config"),
+                            "description",
+                        )
+                        .on_submit(None)
+                        .into()
+                    }
                 },
             )
             .with_item_builder(
