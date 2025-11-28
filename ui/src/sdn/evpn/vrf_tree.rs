@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use anyhow::{anyhow, Error};
 use yew::virtual_dom::{Key, VNode};
-use yew::{Component, Context, Html, Properties};
+use yew::{Callback, Component, Context, Html, Properties};
 
 use pdm_client::types::{ListController, ListVnet, ListZone};
 use pwt::css;
@@ -17,6 +17,7 @@ use pwt::widget::data_table::{
 use pwt::widget::{error_message, Column, Fa, Row};
 use pwt_macros::widget;
 
+use crate::sdn::evpn::evpn_panel::DetailPanel;
 use crate::sdn::evpn::EvpnRouteTarget;
 
 #[widget(comp=VrfTreeComponent)]
@@ -25,6 +26,7 @@ pub struct VrfTree {
     zones: Rc<Vec<ListZone>>,
     vnets: Rc<Vec<ListVnet>>,
     controllers: Rc<Vec<ListController>>,
+    on_select: Callback<Option<DetailPanel>>,
 }
 
 impl VrfTree {
@@ -32,11 +34,13 @@ impl VrfTree {
         zones: Rc<Vec<ListZone>>,
         vnets: Rc<Vec<ListVnet>>,
         controllers: Rc<Vec<ListController>>,
+        on_select: Callback<Option<DetailPanel>>,
     ) -> Self {
         yew::props!(Self {
             zones,
             vnets,
             controllers,
+            on_select,
         })
     }
 }
@@ -333,7 +337,28 @@ impl Component for VrfTreeComponent {
         let store = TreeStore::new().view_root(false);
         let columns = Self::columns(store.clone());
 
-        let selection = Selection::new();
+        let on_select = ctx.props().on_select.clone();
+        let selection_store = store.clone();
+        let selection = Selection::new().on_select(move |selection: Selection| {
+            if let Some(selected_key) = selection.selected_key() {
+                let read_guard = selection_store.read();
+
+                if let Some(node) = read_guard.lookup_node(&selected_key) {
+                    match node.record() {
+                        VrfTreeEntry::Remote(remote) => {
+                            on_select.emit(Some(DetailPanel::Vnet {
+                                remote: remote.remote.clone(),
+                                vnet: remote.vnet.clone(),
+                            }));
+                        }
+                        _ => on_select.emit(None),
+                    }
+                }
+            } else {
+                on_select.emit(None);
+            }
+        });
+
         let mut error_msg = None;
 
         match zones_to_vrf_view(

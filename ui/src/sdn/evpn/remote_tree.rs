@@ -6,7 +6,7 @@ use std::str::FromStr;
 use anyhow::{anyhow, Error};
 use pwt::widget::{error_message, Column};
 use yew::virtual_dom::{Key, VNode};
-use yew::{Component, Context, Html, Properties};
+use yew::{Callback, Component, Context, Html, Properties};
 
 use pdm_client::types::{ListController, ListVnet, ListZone, SdnObjectState};
 use pwt::css;
@@ -19,14 +19,16 @@ use pwt::widget::data_table::{
 use pwt::widget::{Fa, Row};
 use pwt_macros::widget;
 
+use crate::sdn::evpn::evpn_panel::DetailPanel;
 use crate::sdn::evpn::EvpnRouteTarget;
 
 #[widget(comp=RemoteTreeComponent)]
-#[derive(Clone, PartialEq, Properties, Default)]
+#[derive(Clone, PartialEq, Properties)]
 pub struct RemoteTree {
     zones: Rc<Vec<ListZone>>,
     vnets: Rc<Vec<ListVnet>>,
     controllers: Rc<Vec<ListController>>,
+    on_select: Callback<Option<DetailPanel>>,
 }
 
 impl RemoteTree {
@@ -34,11 +36,13 @@ impl RemoteTree {
         zones: Rc<Vec<ListZone>>,
         vnets: Rc<Vec<ListVnet>>,
         controllers: Rc<Vec<ListController>>,
+        on_select: Callback<Option<DetailPanel>>,
     ) -> Self {
         yew::props!(Self {
             zones,
             vnets,
             controllers,
+            on_select,
         })
     }
 }
@@ -416,7 +420,34 @@ impl Component for RemoteTreeComponent {
         let store = TreeStore::new().view_root(false);
         let columns = Self::columns(store.clone());
 
-        let selection = Selection::new();
+        let on_select = ctx.props().on_select.clone();
+        let selection_store = store.clone();
+        let selection = Selection::new().on_select(move |selection: Selection| {
+            if let Some(selected_key) = selection.selected_key() {
+                let read_guard = selection_store.read();
+
+                if let Some(node) = read_guard.lookup_node(&selected_key) {
+                    match node.record() {
+                        RemoteTreeEntry::Zone(zone) => {
+                            on_select.emit(Some(DetailPanel::Zone {
+                                remote: zone.remote.clone(),
+                                zone: zone.id.clone(),
+                            }));
+                        }
+                        RemoteTreeEntry::Vnet(vnet) => {
+                            on_select.emit(Some(DetailPanel::Vnet {
+                                remote: vnet.remote.clone(),
+                                vnet: vnet.id.clone(),
+                            }));
+                        }
+                        _ => on_select.emit(None),
+                    }
+                }
+            } else {
+                on_select.emit(None);
+            }
+        });
+
         let mut error_msg = None;
 
         match zones_to_remote_view(
@@ -442,27 +473,27 @@ impl Component for RemoteTreeComponent {
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
-        let table = DataTable::new(self.columns.clone(), self.store.clone())
-            .striped(false)
-            .selection(self.selection.clone())
-            .row_render_callback(|args: &mut DataTableRowRenderArgs<RemoteTreeEntry>| {
-                match args.record() {
-                    RemoteTreeEntry::Vnet(vnet) if vnet.external || vnet.imported => {
-                        args.add_class("pwt-opacity-50");
-                    }
-                    RemoteTreeEntry::Remote(_) => args.add_class("pwt-bg-color-surface"),
-                    _ => (),
-                };
-            })
-            .class(css::FlexFit);
-
-        let mut column = Column::new().class(pwt::css::FlexFit).with_child(table);
+        let mut table_column = Column::new().class(pwt::css::FlexFit).with_child(
+            DataTable::new(self.columns.clone(), self.store.clone())
+                .striped(false)
+                .selection(self.selection.clone())
+                .row_render_callback(|args: &mut DataTableRowRenderArgs<RemoteTreeEntry>| {
+                    match args.record() {
+                        RemoteTreeEntry::Vnet(vnet) if vnet.external || vnet.imported => {
+                            args.add_class("pwt-opacity-50");
+                        }
+                        RemoteTreeEntry::Remote(_) => args.add_class("pwt-bg-color-surface"),
+                        _ => (),
+                    };
+                })
+                .class(css::FlexFit),
+        );
 
         if let Some(msg) = &self.error_msg {
-            column.add_child(error_message(msg.as_ref()));
+            table_column.add_child(error_message(msg.as_ref()));
         }
 
-        column.into()
+        table_column.into()
     }
 
     fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {

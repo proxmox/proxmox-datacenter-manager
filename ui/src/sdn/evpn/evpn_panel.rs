@@ -1,5 +1,6 @@
 use futures::try_join;
 use std::rc::Rc;
+use std::str::FromStr;
 
 use anyhow::Error;
 use yew::virtual_dom::{VComp, VNode};
@@ -9,14 +10,20 @@ use pdm_client::types::{ListController, ListControllersType, ListVnet, ListZone,
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 
 use pwt::css::{AlignItems, FlexFit, JustifyContent};
-use pwt::props::{ContainerBuilder, EventSubscriber, StorageLocation, WidgetBuilder};
-use pwt::state::NavigationContainer;
+use pwt::props::{
+    ContainerBuilder, EventSubscriber, StorageLocation, WidgetBuilder, WidgetStyleBuilder,
+};
+use pwt::state::{NavigationContainer, Selection};
 use pwt::tr;
 use pwt::widget::menu::{Menu, MenuButton, MenuItem};
-use pwt::widget::{Button, Column, MiniScrollMode, TabBarItem, TabPanel, Toolbar};
+use pwt::widget::{
+    Button, Column, Container, MiniScrollMode, Panel, Row, TabBarItem, TabPanel, Toolbar,
+};
 
 use crate::pdm_client;
-use crate::sdn::evpn::{AddVnetWindow, AddZoneWindow, RemoteTree, VrfTree};
+use crate::sdn::evpn::{
+    AddVnetWindow, AddZoneWindow, NodeList, RemoteTree, VnetStatusTable, VrfTree, ZoneStatusTable,
+};
 
 #[derive(PartialEq, Properties)]
 pub struct EvpnPanel {}
@@ -40,6 +47,11 @@ impl From<EvpnPanel> for VNode {
     }
 }
 
+pub enum DetailPanel {
+    Zone { remote: String, zone: String },
+    Vnet { remote: String, vnet: String },
+}
+
 pub enum EvpnPanelMsg {
     Reload,
     LoadFinished {
@@ -47,6 +59,7 @@ pub enum EvpnPanelMsg {
         zones: Rc<Vec<ListZone>>,
         vnets: Rc<Vec<ListVnet>>,
     },
+    DetailSelection(Option<DetailPanel>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -82,6 +95,8 @@ pub struct EvpnPanelComponent {
     zones: Rc<Vec<ListZone>>,
     vnets: Rc<Vec<ListVnet>>,
     initial_load: bool,
+    selected_detail: Option<DetailPanel>,
+    selected_tab: Selection,
 }
 
 impl EvpnPanelComponent {
@@ -123,12 +138,19 @@ impl LoadableComponent for EvpnPanelComponent {
     type Message = EvpnPanelMsg;
     type ViewState = EvpnPanelViewState;
 
-    fn create(_ctx: &LoadableComponentContext<Self>) -> Self {
+    fn create(ctx: &LoadableComponentContext<Self>) -> Self {
+        let link = ctx.link().clone();
+
+        let selected_tab = Selection::new()
+            .on_select(move |_| link.send_message(Self::Message::DetailSelection(None)));
+
         Self {
             initial_load: true,
             controllers: Default::default(),
             zones: Default::default(),
             vnets: Default::default(),
+            selected_detail: None,
+            selected_tab,
         }
     }
 
@@ -166,6 +188,10 @@ impl LoadableComponent for EvpnPanelComponent {
 
                 return true;
             }
+            Self::Message::DetailSelection(data) => {
+                self.selected_detail = data;
+                return true;
+            }
             Self::Message::Reload => {
                 ctx.link().send_reload();
             }
@@ -175,11 +201,12 @@ impl LoadableComponent for EvpnPanelComponent {
     }
 
     fn main_view(&self, ctx: &LoadableComponentContext<Self>) -> Html {
-        let panel = TabPanel::new()
+        let tab_panel = TabPanel::new()
             .state_id(StorageLocation::session("EvpnPanelState"))
             .class(pwt::css::FlexFit)
             .router(true)
             .scroll_mode(MiniScrollMode::Arrow)
+            .selection(self.selected_tab.clone())
             .with_item(
                 TabBarItem::new()
                     .key("remotes")
@@ -201,6 +228,9 @@ impl LoadableComponent for EvpnPanelComponent {
                             self.zones.clone(),
                             self.vnets.clone(),
                             self.controllers.clone(),
+                            ctx.link().callback(|panel: Option<DetailPanel>| {
+                                Self::Message::DetailSelection(panel)
+                            }),
                         ))
                     }),
             )
@@ -225,16 +255,94 @@ impl LoadableComponent for EvpnPanelComponent {
                             self.zones.clone(),
                             self.vnets.clone(),
                             self.controllers.clone(),
+                            ctx.link().callback(|panel: Option<DetailPanel>| {
+                                Self::Message::DetailSelection(panel)
+                            }),
                         ))
                     }),
             );
 
-        let navigation_container = NavigationContainer::new().with_child(panel);
+        let navigation_container = NavigationContainer::new().with_child(tab_panel);
 
-        Column::new()
-            .class(pwt::css::FlexFit)
-            .with_child(navigation_container)
-            .into()
+        let mut container = Container::new()
+            .class("pwt-content-spacer")
+            .class(FlexFit)
+            .class("pwt-flex-direction-row")
+            .with_child(Panel::new().flex(1.0).with_child(navigation_container));
+
+        let (title, detail_html) = if let Some(detail) = &self.selected_detail {
+            match detail {
+                DetailPanel::Vnet {
+                    remote,
+                    vnet: vnet_id,
+                } => {
+                    let vnet = self.vnets.iter().find(|list_vnet| {
+                        list_vnet.vnet.vnet.as_str() == vnet_id.as_str()
+                            && list_vnet.remote.as_str() == remote
+                    });
+
+                    if let Some(vnet) = vnet {
+                        let zone = self.zones.iter().find(|list_zone| {
+                            list_zone.zone.zone.as_str()
+                                == vnet.vnet.zone.as_deref().unwrap_or_default()
+                                && list_zone.remote.as_str() == remote.as_str()
+                        });
+
+                        let node_list = zone.as_ref().and_then(|zone| {
+                            let nodes = zone.zone.nodes.as_ref()?;
+                            NodeList::from_str(nodes).ok()
+                        });
+
+                        (
+                            Some(format!("MAC-VRF for vnet '{vnet_id}' (Remote {remote})")),
+                            VnetStatusTable::new(remote.clone(), vnet_id.clone(), node_list).into(),
+                        )
+                    } else {
+                        (None, html! {"Could not find vnet {vnet_id}!"})
+                    }
+                }
+                DetailPanel::Zone {
+                    remote,
+                    zone: zone_id,
+                } => {
+                    let zone = self.zones.iter().find(|list_zone| {
+                        list_zone.zone.zone.as_str() == zone_id.as_str()
+                            && list_zone.remote.as_str() == remote.as_str()
+                    });
+
+                    let node_list = zone.as_ref().and_then(|zone| {
+                        let nodes = zone.zone.nodes.as_ref()?;
+                        NodeList::from_str(nodes).ok()
+                    });
+
+                    (
+                        Some(format!("IP-VRF for zone '{zone_id}' (Remote {remote})")),
+                        ZoneStatusTable::new(remote.clone(), zone_id.clone(), node_list).into(),
+                    )
+                }
+            }
+        } else {
+            (
+                None,
+                Row::new()
+                    .class(pwt::css::FlexFit)
+                    .class(pwt::css::JustifyContent::Center)
+                    .class(pwt::css::AlignItems::Center)
+                    .with_child(html! { tr!("Select a Zone or VNet for more details.") })
+                    .into(),
+            )
+        };
+
+        let mut panel = Panel::new().width(600);
+
+        if let Some(title) = title {
+            panel.set_title(title);
+        }
+
+        panel.add_child(detail_html);
+        container.add_child(panel);
+
+        container.into()
     }
 
     fn dialog_view(
