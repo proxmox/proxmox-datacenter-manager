@@ -78,7 +78,7 @@ impl yew::Component for QemuPanelComp {
             )
             .with_item_builder(
                 TabBarItem::new()
-                    .key("hardware")
+                    .key("config")
                     .label(tr!("Config"))
                     .icon_class("fa fa-file-text-o"),
                 {

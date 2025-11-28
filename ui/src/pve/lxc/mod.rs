@@ -79,7 +79,7 @@ impl yew::Component for LxcPanelComp {
             )
             .with_item_builder(
                 TabBarItem::new()
-                    .key("resources")
+                    .key("config")
                     .label(tr!("Config"))
                     .icon_class("fa fa-file-text-o"),
                 {
