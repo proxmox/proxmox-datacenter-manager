@@ -16,6 +16,9 @@ pub use add_zone::AddZoneWindow;
 mod zone_status;
 pub use zone_status::ZoneStatusTable;
 
+mod vnet_status;
+pub use vnet_status::VnetStatusTable;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct EvpnRouteTarget {
     asn: u32,
