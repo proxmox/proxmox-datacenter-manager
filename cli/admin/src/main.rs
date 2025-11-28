@@ -4,6 +4,7 @@ use proxmox_router::cli::{
     default_table_format_options, format_and_print_result_full, get_output_format, run_cli_command,
     CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
 };
+use proxmox_router::RpcEnvironment;
 
 use proxmox_schema::api;
 
@@ -27,7 +28,9 @@ fn main() {
         .insert("remote", remotes::cli())
         .insert("versions", CliCommand::new(&API_METHOD_GET_VERSIONS));
 
-    let rpcenv = CliEnvironment::new();
+    let mut rpcenv = CliEnvironment::new();
+    rpcenv.set_auth_id(Some("root@pam".into()));
+
     run_cli_command(
         cmd_def,
         rpcenv,
