@@ -70,6 +70,7 @@ const REMOTE_SUBDIRS: SubdirMap = &sorted!([
     ("lxc", &lxc::ROUTER),
     ("firewall", &firewall::CLUSTER_FW_ROUTER),
     ("nodes", &NODES_ROUTER),
+    ("options", &OPTIONS_ROUTER),
     ("qemu", &qemu::ROUTER),
     ("resources", &RESOURCES_ROUTER),
     ("cluster-status", &STATUS_ROUTER),
@@ -83,6 +84,8 @@ const NODES_ROUTER: Router = Router::new()
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
 
 const STATUS_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_STATUS);
+
+const OPTIONS_ROUTER: Router = Router::new().get(&API_METHOD_GET_OPTIONS);
 
 // converts a remote + PveUpid into a RemoteUpid and starts tracking it
 pub async fn new_remote_upid(remote: String, upid: PveUpid) -> Result<RemoteUpid, Error> {
@@ -505,4 +508,25 @@ pub async fn list_realm_remote_pve(
     let list = client.list_domains().await?;
 
     Ok(list)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Return the remote's cluster options.
+pub async fn get_options(remote: String) -> Result<serde_json::Value, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+
+    let options = connect_to_remote(&remotes, &remote)?
+        .cluster_options()
+        .await?;
+
+    Ok(options)
 }
