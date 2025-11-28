@@ -4,7 +4,7 @@ use http::StatusCode;
 use pdm_api_types::{remotes::REMOTE_ID_SCHEMA, sdn::SDN_ID_SCHEMA, NODE_SCHEMA};
 use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
 use proxmox_schema::api;
-use pve_api_types::SdnZoneIpVrf;
+use pve_api_types::{SdnVnetMacVrf, SdnZoneIpVrf};
 
 use crate::api::pve::{connect, get_remote};
 
@@ -51,7 +51,50 @@ mod zones {
     }
 }
 
-const SUBDIRS: SubdirMap = &[("zone", &zones::ROUTER)];
+mod vnets {
+    use super::*;
+
+    const VNET_SUBDIRS: SubdirMap = &[("mac-vrf", &Router::new().get(&API_METHOD_GET_MAC_VRF))];
+
+    const VNET_ROUTER: Router = Router::new()
+        .get(&list_subdirs_api_method!(VNET_SUBDIRS))
+        .subdirs(VNET_SUBDIRS);
+
+    pub const ROUTER: Router = Router::new().match_all("vnet", &VNET_ROUTER);
+
+    #[api(
+        input: {
+            properties: {
+                remote: { schema: REMOTE_ID_SCHEMA },
+                node: { schema: NODE_SCHEMA },
+                vnet: { schema: SDN_ID_SCHEMA },
+            },
+        },
+        returns: { type: SdnVnetMacVrf },
+    )]
+    /// Get the MAC-VRF for an EVPN vnet for a node on a given remote
+    async fn get_mac_vrf(
+        remote: String,
+        node: String,
+        vnet: String,
+    ) -> Result<Vec<SdnVnetMacVrf>, Error> {
+        let (remote_config, _) = pdm_config::remotes::config()?;
+        let remote = get_remote(&remote_config, &remote)?;
+        let client = connect(&remote)?;
+
+        client
+            .get_vnet_mac_vrf(&node, &vnet)
+            .await
+            .map_err(|err| match err {
+                proxmox_client::Error::Api(StatusCode::NOT_IMPLEMENTED, _msg) => {
+                    anyhow!("remote {} does not support the vnet mac-vrf API call, please upgrade to the newest version!", remote.id)
+                }
+                _ => err.into()
+            })
+    }
+}
+
+const SUBDIRS: SubdirMap = &[("vnets", &vnets::ROUTER), ("zones", &zones::ROUTER)];
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))

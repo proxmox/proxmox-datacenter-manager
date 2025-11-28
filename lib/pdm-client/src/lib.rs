@@ -71,7 +71,7 @@ pub mod types {
 
     pub use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 
-    pub use pve_api_types::SdnZoneIpVrf;
+    pub use pve_api_types::{SdnVnetMacVrf, SdnZoneIpVrf};
 }
 
 pub struct PdmClient<T: HttpApiClient>(pub T);
@@ -1242,6 +1242,17 @@ impl<T: HttpApiClient> PdmClient<T> {
         zone: &str,
     ) -> Result<Vec<SdnZoneIpVrf>, Error> {
         let path = format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/sdn/zones/{zone}/ip-vrf");
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_sdn_vnet_get_mac_vrf(
+        &self,
+        remote: &str,
+        node: &str,
+        vnet: &str,
+    ) -> Result<Vec<SdnVnetMacVrf>, Error> {
+        let path =
+            format!("/api2/extjs/pve/remotes/{remote}/nodes/{node}/sdn/vnets/{vnet}/mac-vrf");
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
