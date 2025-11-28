@@ -20,11 +20,12 @@ use proxmox_client::Error;
 
 use pdm_api_types::resource::{PveResource, ResourceType};
 
-use crate::{get_deep_url, remotes::RemoteTaskList};
+use crate::get_deep_url;
 
 pub mod lxc;
 pub mod node;
 pub mod qemu;
+pub mod remote;
 pub mod remote_overview;
 pub mod storage;
 pub mod utils;
@@ -179,10 +180,7 @@ impl LoadableComponent for PveRemoteComp {
         let remote = &props.remote;
 
         let content: Html = match &self.view {
-            PveTreeNode::Root => Panel::new()
-                .title(tr!("Remote Tasks"))
-                .with_child(RemoteTaskList::new().remote(remote.clone()))
-                .into(),
+            PveTreeNode::Root => remote::PveRemotePanel::new(remote.clone()).into(),
             PveTreeNode::Node(node) => {
                 node::PveNodePanel::new(remote.clone(), node.node.clone()).into()
             }
