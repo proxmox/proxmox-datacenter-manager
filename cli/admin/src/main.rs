@@ -17,6 +17,12 @@ fn main() {
     let priv_user = pdm_config::priv_user().expect("cannot get privileged user");
     proxmox_product_config::init(api_user, priv_user);
 
+    proxmox_access_control::init::init(
+        &pdm_api_types::AccessControlConfig,
+        pdm_buildcfg::configdir!("/access"),
+    )
+    .expect("failed to setup access control config");
+
     proxmox_log::Logger::from_env("PDM_LOG", proxmox_log::LevelFilter::INFO)
         .stderr()
         .init()

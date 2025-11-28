@@ -18,7 +18,9 @@ proxmox-log.workspace = true
 proxmox-product-config.workspace = true
 proxmox-router = { workspace = true, features = [ "cli" ], default-features = false }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
+proxmox-access-control.workspace = true
 
 pdm-api-types.workspace = true
 pdm-config.workspace = true
+pdm-buildcfg.workspace = true
 server.workspace = true
