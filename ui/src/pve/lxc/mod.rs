@@ -60,6 +60,7 @@ impl yew::Component for LxcPanelComp {
             .into();
 
         TabPanel::new()
+            .router(true)
             .class(pwt::css::FlexFit)
             .title(title)
             .with_item_builder(

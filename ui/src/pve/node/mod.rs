@@ -68,6 +68,7 @@ impl yew::Component for PveNodePanelComp {
             .into();
 
         TabPanel::new()
+            .router(true)
             .class(pwt::css::FlexFit)
             .title(title)
             .class(ColorScheme::Neutral)

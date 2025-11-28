@@ -64,6 +64,7 @@ impl yew::Component for PbsNodePanelComp {
             .into();
 
         TabPanel::new()
+            .router(true)
             .class(pwt::css::FlexFit)
             .title(title)
             .class(ColorScheme::Neutral)

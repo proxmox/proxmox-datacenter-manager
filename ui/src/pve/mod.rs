@@ -200,6 +200,7 @@ impl LoadableComponent for PveRemoteComp {
                     .into()
             }
         };
+        let content = NavigationContainer::new().with_child(content);
 
         let link = ctx.link();
 

@@ -46,10 +46,12 @@ impl Component for DatastorePanelComp {
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
         pwt::widget::TabPanel::new()
+            .router(true)
             .class(FlexFit)
             .title(tr!("Datastore {0}", props.config.name))
             .with_item_builder(
                 TabBarItem::new()
+                    .key("overview")
                     .label(tr!("Overview"))
                     .icon_class("fa fa-tachometer"),
                 {
@@ -60,6 +62,7 @@ impl Component for DatastorePanelComp {
             )
             .with_item_builder(
                 TabBarItem::new()
+                    .key("content")
                     .label(tr!("Content"))
                     .icon_class("fa fa-th"),
                 {

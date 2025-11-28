@@ -114,6 +114,8 @@ impl LoadableComponent for PbsRemoteComp {
             }
         };
 
+        let content = NavigationContainer::new().with_child(content);
+
         let title: Html = Row::new()
             .gap(2)
             .class(AlignItems::Center)
