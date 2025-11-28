@@ -148,7 +148,7 @@ async fn list_datastores(remote: String) -> Result<Vec<pbs_api_types::DataStoreC
         items: { type: pbs_api_types::NamespaceListItem }
     }
 )]
-/// List the PBS remote's datastores.
+/// List the namespaces of PBS remote's datastore.
 async fn list_namespaces(
     remote: String,
     params: pbs_client::DatstoreListNamespaces,
