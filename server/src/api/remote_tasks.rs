@@ -27,10 +27,9 @@ const SUBDIRS: SubdirMap = &sorted!([
 ]);
 
 #[api(
-    // FIXME:: see list-like API calls in resource routers, we probably want more fine-grained
-    // checks..
     access: {
         permission: &Permission::Anybody,
+        description: "Resource.Audit privileges on /resource/{remote} are needed to list tasks from a given remote."
     },
     input: {
         properties: {
@@ -71,16 +70,26 @@ async fn list_tasks(
         user_info.check_privs(&auth_id, &["view", view], PRIV_RESOURCE_AUDIT, false)?;
     }
 
-    let tasks = remote_tasks::get_tasks(filters, remote, view).await?;
+    let check_privs = move |remote_name: &str| {
+        user_info
+            .check_privs(
+                &auth_id,
+                &["resource", remote_name],
+                PRIV_RESOURCE_AUDIT,
+                false,
+            )
+            .is_ok()
+    };
+
+    let tasks = remote_tasks::get_tasks(filters, remote, check_privs, view).await?;
 
     Ok(tasks)
 }
 
 #[api(
-    // FIXME:: see list-like API calls in resource routers, we probably want more fine-grained
-    // checks..
     access: {
         permission: &Permission::Anybody,
+        description: "Resource.Audit privileges on /resource/{remote} are needed to list tasks from a given remote."
     },
     input: {
         properties: {
@@ -114,7 +123,18 @@ async fn task_statistics(
         user_info.check_privs(&auth_id, &["view", view], PRIV_RESOURCE_AUDIT, false)?;
     }
 
-    let tasks = remote_tasks::get_tasks(filters, remote, view).await?;
+    let check_privs = move |remote_name: &str| {
+        user_info
+            .check_privs(
+                &auth_id,
+                &["resource", remote_name],
+                PRIV_RESOURCE_AUDIT,
+                false,
+            )
+            .is_ok()
+    };
+
+    let tasks = remote_tasks::get_tasks(filters, remote, check_privs, view).await?;
 
     let mut by_type: HashMap<String, TaskCount> = HashMap::new();
     let mut by_remote: HashMap<String, TaskCount> = HashMap::new();

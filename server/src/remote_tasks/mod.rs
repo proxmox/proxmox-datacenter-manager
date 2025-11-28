@@ -31,6 +31,7 @@ const NUMBER_OF_UNCOMPRESSED_FILES: u32 = 2;
 pub async fn get_tasks(
     filters: TaskFilters,
     remote_filter: Option<String>,
+    check_privs: impl Fn(&str) -> bool + Send + 'static,
     view: Option<String>,
 ) -> Result<Vec<TaskListItem>, Error> {
     let view = views::get_optional_view(view.as_deref())?;
@@ -64,6 +65,8 @@ pub async fn get_tasks(
                             if !view.is_node_included(task.upid.remote(), &pve_upid.node) {
                                 return None;
                             }
+                        } else if !check_privs(task.upid.remote()) {
+                            return None;
                         }
                         Some(TaskListItem {
                             upid: task.upid.to_string(),
@@ -83,6 +86,8 @@ pub async fn get_tasks(
                             if !view.is_node_included(task.upid.remote(), &pbs_upid.node) {
                                 return None;
                             }
+                        } else if !check_privs(task.upid.remote()) {
+                            return None;
                         }
                         Some(TaskListItem {
                             upid: task.upid.to_string(),
