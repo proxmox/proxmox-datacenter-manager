@@ -1,27 +1,26 @@
 use std::{fmt::Display, rc::Rc};
 
 use gloo_utils::window;
-use proxmox_client::Error;
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 use serde::{Deserialize, Serialize};
 use yew::{
     prelude::Html,
     virtual_dom::{VComp, VNode},
 };
 
-use pwt::{
-    css::AlignItems,
-    state::NavigationContainer,
-    widget::{Button, Container, Fa},
-};
-use pwt::{
-    css::FlexFit,
-    prelude::*,
-    props::{ContainerBuilder, WidgetBuilder},
-    widget::{Column, Panel, Row},
-};
+use pwt::prelude::*;
+
+use pwt::css::{AlignItems, FlexFit};
+use pwt::props::{ContainerBuilder, WidgetBuilder};
+use pwt::state::NavigationContainer;
+use pwt::widget::{Button, Column, Container, Fa, Panel, Row};
+
+use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+
+use proxmox_client::Error;
 
 use pdm_api_types::resource::{PveResource, ResourceType};
+
+use crate::{get_deep_url, remotes::RemoteTaskList};
 
 pub mod lxc;
 pub mod node;
@@ -32,8 +31,6 @@ pub mod utils;
 
 mod tree;
 use tree::PveTreeNode;
-
-use crate::{get_deep_url, remotes::RemoteTaskList};
 
 #[derive(Debug, Eq, PartialEq, Properties)]
 pub struct PveRemote {
