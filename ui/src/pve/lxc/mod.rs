@@ -11,7 +11,7 @@ use yew::virtual_dom::{VComp, VNode};
 use pwt::prelude::*;
 
 use pwt::css::FlexFit;
-use pwt::widget::{Column, Container, Fa, Row, TabBarItem, TabPanel};
+use pwt::widget::{Button, Column, Container, Fa, Row, TabBarItem, TabPanel, Tooltip};
 
 use pdm_api_types::resource::PveLxcResource;
 
@@ -63,6 +63,28 @@ impl yew::Component for LxcPanelComp {
             .router(true)
             .class(pwt::css::FlexFit)
             .title(title)
+            .tool(
+                Tooltip::new(
+                    Button::new(tr!("Open Web UI"))
+                        .icon_class("fa fa-external-link")
+                        .aria_label(tr!("Open the web UI of container {0}.", props.info.vmid))
+                        .on_activate({
+                            let link = ctx.link().clone();
+                            let remote = props.remote.clone();
+                            let node = props.node.clone();
+                            let vmid = props.info.vmid;
+                            move |_| {
+                                let id = format!("lxc/{vmid}");
+                                if let Some(url) =
+                                    crate::get_deep_url(&link, &remote, Some(&node), &id)
+                                {
+                                    let _ = web_sys::window().unwrap().open_with_url(&url.href());
+                                }
+                            }
+                        }),
+                )
+                .tip(tr!("Open the web UI of container {0}.", props.info.vmid)),
+            )
             .with_item_builder(
                 TabBarItem::new()
                     .key("status_view")
