@@ -490,6 +490,7 @@ impl UpdateTreeComponent {
 
                 if summary.status == NodeUpdateStatus::Success {
                     let base_url = format!("/{ty}/remotes/{remote}/nodes/{node}/apt",);
+                    let subscription_url = format!("/{ty}/remotes/{remote}/nodes/{node}/subscription");
                     let task_base_url = format!("/{ty}/remotes/{remote}/tasks");
 
                     let apt = AptPackageManager::new()
@@ -532,6 +533,7 @@ impl UpdateTreeComponent {
                         AptRepositories::new()
                             .product(product)
                             .status_only(true)
+                            .subscription_url(subscription_url)
                             .base_url(base_url),
                     );
 
