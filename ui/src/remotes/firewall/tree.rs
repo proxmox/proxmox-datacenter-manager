@@ -1,4 +1,5 @@
 use futures::Future;
+use gloo_utils::window;
 use std::pin::Pin;
 use std::rc::Rc;
 use yew::{ContextHandle, Html};
@@ -139,6 +140,7 @@ pub enum Msg {
         nodes: Vec<String>,
     },
     SelectionChanged,
+    TabChanged,
     ToggleTreePanel,
     Error(FirewallError),
     NoOp,
@@ -147,6 +149,7 @@ pub enum Msg {
 pub struct FirewallTreeComponent {
     store: TreeStore<TreeEntry>,
     selection: Selection,
+    tab_selection: Selection,
     _context_listener: ContextHandle<RemoteList>,
     filter_text: String,
     scope: Scope,
@@ -167,6 +170,46 @@ impl FirewallTreeComponent {
 
     fn clear_selection(&mut self) {
         self.selected_entry = None;
+    }
+
+    fn get_pve_url(&self, ctx: &LoadableComponentContext<Self>, tab: &str) -> Option<String> {
+        let entry = self.selected_entry.as_ref()?;
+        let (remote, node, vmid, kind) = match entry {
+            TreeEntry::Remote(r) => (r.name.as_str(), None, None, None),
+            TreeEntry::Node(n) => (n.remote.as_str(), Some(n.name.as_str()), None, None),
+            TreeEntry::Guest(g, kind) => (
+                g.remote.as_str(),
+                Some(g.node.as_str()),
+                Some(g.guest.vmid),
+                Some(kind),
+            ),
+            _ => return None,
+        };
+
+        let is_options = tab == "options";
+        let index = if is_options { 36 } else { 32 };
+
+        match (node, vmid, kind) {
+            (None, None, _) => {
+                let id = format!("v1:0:18:4:::::::{index}");
+                let url = crate::get_deep_url_low_level(ctx.link().yew_link(), remote, None, &id)?;
+                Some(url.href())
+            }
+            (Some(node), None, _) => {
+                let id = format!("node/{node}:4:{index}");
+                let url = crate::get_deep_url(ctx.link().yew_link(), remote, Some(node), &id)?;
+                Some(url.href())
+            }
+            (Some(node), Some(vmid), Some(kind)) => {
+                let id = match kind {
+                    GuestKind::Lxc => format!("lxc/{vmid}:4::::::{index}"),
+                    GuestKind::Qemu => format!("qemu/{vmid}:4:::::{index}"),
+                };
+                let url = crate::get_deep_url(ctx.link().yew_link(), remote, Some(node), &id)?;
+                Some(url.href())
+            }
+            _ => None,
+        }
     }
 
     fn handle_scope_change(&mut self, ctx: &LoadableComponentContext<Self>, new_scope: Scope) {
@@ -301,10 +344,28 @@ impl FirewallTreeComponent {
             config.title
         };
 
+        let current_tab = self
+            .tab_selection
+            .selected_key()
+            .map(|k| k.to_string())
+            .unwrap_or_else(|| "rules".to_string());
+
+        let pve_url = self.get_pve_url(ctx, &current_tab);
+
         let mut tab_panel = TabPanel::new()
+            .selection(self.tab_selection.clone())
             .class(css::FlexFit)
             .class(css::ColorScheme::Neutral)
             .title(title)
+            .tool(
+                Button::new(tr!("Open Web UI"))
+                    .icon_class("fa fa-external-link")
+                    .on_activate(move |_| {
+                        if let Some(url) = &pve_url {
+                            let _ = window().open_with_url(url);
+                        }
+                    }),
+            )
             .with_item_builder(
                 TabBarItem::new()
                     .key("rules")
@@ -403,6 +464,8 @@ impl LoadableComponent for FirewallTreeComponent {
         let selection = Selection::new()
             .on_select(link.callback(|_selection: Selection| Msg::SelectionChanged));
 
+        let tab_selection = Selection::new().on_select(link.callback(|_| Msg::TabChanged));
+
         let (_, context_listener) = ctx
             .link()
             .yew_link()
@@ -413,6 +476,7 @@ impl LoadableComponent for FirewallTreeComponent {
         Self {
             store,
             selection,
+            tab_selection,
             _context_listener: context_listener,
             filter_text: String::new(),
             scope: Scope::default(),
@@ -533,6 +597,7 @@ impl LoadableComponent for FirewallTreeComponent {
                 }
                 true
             }
+            Msg::TabChanged => true,
             Msg::ToggleTreePanel => {
                 self.tree_collapsed = !self.tree_collapsed;
                 true
