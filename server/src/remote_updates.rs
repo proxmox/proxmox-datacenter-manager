@@ -377,7 +377,7 @@ fn check_repository_status(
             APTRepositoryHandle::Test => has_test = true,
             APTRepositoryHandle::UnknownEnumValue(s) => {
                 log::warn!("encountered unkown APT repository handle variant {s}");
-            },
+            }
         }
     }
 
