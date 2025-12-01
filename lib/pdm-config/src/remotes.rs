@@ -47,7 +47,7 @@ pub fn config() -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
 /// Replace the currently persisted remotes config
 ///
 /// Will panic if the the remote config instance has not been set before.
-pub fn save_config(config: &SectionConfigData<Remote>) -> Result<(), Error> {
+pub fn save_config(config: SectionConfigData<Remote>) -> Result<(), Error> {
     instance().save_config(config)
 }
 
@@ -57,7 +57,7 @@ pub trait RemoteConfig {
     /// Lock the remotes config
     fn lock_config(&self) -> Result<ApiLockGuard, Error>;
     /// Replace the currently persisted remotes config
-    fn save_config(&self, remotes: &SectionConfigData<Remote>) -> Result<(), Error>;
+    fn save_config(&self, remotes: SectionConfigData<Remote>) -> Result<(), Error>;
 }
 
 /// Default, production implementation for reading/writing the `remotes.cfg`
@@ -75,11 +75,12 @@ impl RemoteConfig for DefaultRemoteConfig {
 
         let digest = openssl::sha::sha256(content.as_bytes());
         let data = Remote::parse_section_config(REMOTES_CFG_FILENAME, &content)?;
+
         Ok((data, digest.into()))
     }
 
-    fn save_config(&self, config: &SectionConfigData<Remote>) -> Result<(), Error> {
-        let raw = Remote::write_section_config(REMOTES_CFG_FILENAME, config)?;
+    fn save_config(&self, config: SectionConfigData<Remote>) -> Result<(), Error> {
+        let raw = Remote::write_section_config(REMOTES_CFG_FILENAME, &config)?;
         replace_config(REMOTES_CFG_FILENAME, raw.as_bytes())
     }
 }

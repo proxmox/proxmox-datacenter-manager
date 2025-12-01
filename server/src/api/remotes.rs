@@ -184,7 +184,7 @@ pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Resu
     let name = entry.id.clone();
     remotes.insert(entry.id.to_owned(), entry);
 
-    pdm_config::remotes::save_config(&remotes)?;
+    pdm_config::remotes::save_config(remotes)?;
 
     if let Err(e) = metric_collection::trigger_metric_collection(Some(name), false).await {
         log::error!("could not trigger metric collection after adding remote: {e}");
@@ -268,7 +268,7 @@ pub fn update_remote(
         entry.web_url = updater.web_url;
     }
 
-    pdm_config::remotes::save_config(&remotes)?;
+    pdm_config::remotes::save_config(remotes)?;
 
     Ok(())
 }
@@ -291,7 +291,7 @@ pub fn remove_remote(id: String) -> Result<(), Error> {
         http_bail!(NOT_FOUND, "no such entry {id:?}");
     }
 
-    pdm_config::remotes::save_config(&remotes)?;
+    pdm_config::remotes::save_config(remotes)?;
 
     Ok(())
 }
