@@ -110,6 +110,10 @@ pub struct NodeSubscriptionInfo {
 
     /// The subscription level of the node
     pub level: SubscriptionLevel,
+
+    /// Serverid of the node, if accessible
+    #[serde(skip_serializing)]
+    pub serverid: Option<String>,
 }
 
 #[api(

@@ -891,6 +891,7 @@ async fn fetch_remote_subscription_info(
                             status,
                             sockets: info.sockets,
                             key: info.key,
+                            serverid: info.serverid,
                             level: info
                                 .level
                                 .and_then(|level| level.parse().ok())
@@ -910,6 +911,7 @@ async fn fetch_remote_subscription_info(
                     sockets: None,
                     key: info.key,
                     level,
+                    serverid: info.serverid,
                 }
             });
 
