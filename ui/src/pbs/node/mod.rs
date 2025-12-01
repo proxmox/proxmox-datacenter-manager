@@ -89,10 +89,12 @@ impl yew::Component for PbsNodePanelComp {
                     move |_| {
                         let base_url = format!("/pbs/remotes/{remote}/nodes/localhost/apt");
                         let task_base_url = format!("/pbs/remotes/{remote}/tasks");
+                        let sub_url = format!("/pbs/remotes/{remote}/nodes/localhost/subscription");
 
                         AptPackageManager::new()
                             .base_url(base_url)
                             .task_base_url(task_base_url)
+                            .subscription_url(sub_url)
                             .enable_upgrade(true)
                             .on_upgrade({
                                 let remote = remote.clone();

@@ -86,10 +86,12 @@ impl yew::Component for PveNodePanelComp {
                     move |_| {
                         let base_url = format!("/pve/remotes/{remote}/nodes/{node}/apt");
                         let task_base_url = format!("/pve/remotes/{remote}/tasks");
+                        let sub_url = format!("/pve/remotes/{remote}/nodes/{node}/subscription");
 
                         AptPackageManager::new()
                             .base_url(base_url)
                             .task_base_url(task_base_url)
+                            .subscription_url(sub_url)
                             .enable_upgrade(true)
                             .on_upgrade({
                                 let remote = remote.clone();
