@@ -32,6 +32,10 @@ fn main() {
 
     let cmd_def = CliCommandMap::new()
         .insert("remote", remotes::cli())
+        .insert(
+            "report",
+            CliCommand::new(&API_METHOD_GENERATE_SYSTEM_REPORT),
+        )
         .insert("versions", CliCommand::new(&API_METHOD_GET_VERSIONS));
 
     let mut rpcenv = CliEnvironment::new();
@@ -82,4 +86,13 @@ async fn get_versions(verbose: bool, param: Value) -> Result<Value, anyhow::Erro
     format_and_print_result_full(&mut packages, return_type, &output_format, &options);
 
     Ok(Value::Null)
+}
+
+#[api]
+/// Generate the system report.
+async fn generate_system_report() -> Result<(), anyhow::Error> {
+    let report = server::api::nodes::report::generate_system_report()?;
+    print!("{report}");
+
+    Ok(())
 }
