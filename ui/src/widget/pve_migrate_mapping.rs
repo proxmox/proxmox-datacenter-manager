@@ -147,7 +147,7 @@ impl PveMigrateMapComp {
                         let storage = captures.get(1).unwrap();
                         storages.insert(storage.as_str().to_string());
                     } else {
-                        log::error!("could not parse 'file' property of '{key}");
+                        log::error!("could not parse 'file' property of '{key}'");
                     }
                 });
 
@@ -196,7 +196,7 @@ impl PveMigrateMapComp {
                         let storage = captures.get(1).unwrap();
                         storages.insert(storage.as_str().to_string());
                     } else {
-                        log::error!("could not parse 'file' property of '{key}");
+                        log::error!("could not parse 'file' property of '{key}'");
                     }
                 });
 
