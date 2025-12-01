@@ -180,7 +180,7 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                                 })),
                         )
                         .with_item(
-                            MenuItem::new("Proxmox Backup Server (Experimental)")
+                            MenuItem::new("Proxmox Backup Server")
                                 .icon_class("fa fa-floppy-o")
                                 .on_select(link.change_view_callback(|_| {
                                     Some(ViewState::Add(RemoteType::Pbs))
