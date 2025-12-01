@@ -91,9 +91,9 @@ pub fn render_node_status_icon(node: &PveNodeResource) -> Container {
 
 /// Renders the status icon for a PveSdnZone
 pub fn render_sdn_status_icon(network: &PveNetworkResource) -> Container {
-    let sdn_status = match network {
-        PveNetworkResource::Zone(zone) => zone.status(),
-        PveNetworkResource::Fabric(fabric) => fabric.status(),
+    let (sdn_status, icon) = match network {
+        PveNetworkResource::Zone(zone) => (zone.status(), "th"),
+        PveNetworkResource::Fabric(fabric) => (fabric.status(), "road"),
     };
 
     let extra = match sdn_status {
@@ -104,7 +104,7 @@ pub fn render_sdn_status_icon(network: &PveNetworkResource) -> Container {
 
     Container::new()
         .class("pdm-type-icon")
-        .with_child(Fa::new("th").fixed_width())
+        .with_child(Fa::new(icon).fixed_width())
         .with_child(Fa::from(extra).fixed_width().class("status-icon"))
 }
 
