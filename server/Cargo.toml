@@ -40,6 +40,7 @@ proxmox-async.workspace = true
 proxmox-auth-api = { workspace = true, features = [ "api", "ticket", "pam-authenticator", "password-authenticator" ] }
 proxmox-base64.workspace = true
 proxmox-daemon.workspace = true
+proxmox-docgen.workspace = true
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
 proxmox-lang.workspace = true
 proxmox-ldap.workspace = true

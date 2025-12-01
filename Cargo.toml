@@ -39,6 +39,7 @@ proxmox-auth-api = "1.0.5"
 proxmox-base64 = "1"
 proxmox-client = "1"
 proxmox-daemon = "1"
+proxmox-docgen = "1"
 proxmox-http = { version = "1.0.4", features = [ "client", "http-helpers", "websocket" ] } # see below
 proxmox-human-byte = "1"
 proxmox-io = "1.0.1" # tools and client use "tokio" feature
@@ -153,6 +154,7 @@ zstd = { version = "0.13" }
 # proxmox-config-digest = { path = "../proxmox/proxmox-config-digest" }
 # proxmox-daemon = { path = "../proxmox/proxmox-daemon" }
 # proxmox-dns-api = { path = "../proxmox/proxmox-dns-api" }
+# proxmox-docgen = { path = "../proxmox/proxmox-docgen" }
 # proxmox-http-error = { path = "../proxmox/proxmox-http-error" }
 # proxmox-http = { path = "../proxmox/proxmox-http" }
 # proxmox-human-byte = { path = "../proxmox/proxmox-human-byte" }
