@@ -1,6 +1,6 @@
 use anyhow::Error;
 use gloo_timers::callback::Timeout;
-use serde_json::json;
+use serde_json::{json, Value};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 
@@ -21,7 +21,6 @@ use proxmox_yew_comp::{
 };
 
 //use pbs::MainMenu;
-use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 use pdm_api_types::views::ViewConfig;
 use pdm_ui::{
     register_pve_tasks, MainMenu, RemoteList, RemoteListCacheEntry, SearchProvider, TopNavBar,
@@ -64,16 +63,10 @@ struct DatacenterManagerApp {
 }
 
 async fn check_subscription() -> Msg {
-    let data: Result<Vec<RemoteSubscriptions>, _> = http_get("/resources/subscription", None).await;
+    let data: Result<Value, _> = http_get("/nodes/localhost/subscription", None).await;
 
-    let show_alert = match data {
-        Ok(list) => list
-            .into_iter()
-            .any(|info| info.state == RemoteSubscriptionState::None),
-        Err(_) => false,
-    };
-
-    if show_alert {
+    let is_active = proxmox_yew_comp::subscription_is_active(&Some(data));
+    if !is_active {
         Msg::ShowSubscriptionAlert
     } else {
         Msg::ConfirmSubscription
@@ -246,11 +239,8 @@ impl Component for DatacenterManagerApp {
                 true
             }
             Msg::ShowSubscriptionAlert => {
-                // Disable for alpha and rework for a beta or stable version to avoid friction if a
-                // few unsubscribed test instances are present in another subscribed (big) setup.
-                // self.show_subscription_alert = Some(true);
-                self.subscription_confirmed = true;
-                self.show_subscription_alert = Some(false);
+                self.subscription_confirmed = false;
+                self.show_subscription_alert = Some(true);
                 true
             }
             Msg::Logout => {
