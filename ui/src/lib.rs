@@ -1,6 +1,6 @@
 use js_sys::{Array, JsString, Object};
 use pdm_api_types::remotes::RemoteType;
-use pdm_api_types::resource::{PveLxcResource, PveNetworkResource, PveQemuResource};
+use pdm_api_types::resource::{PveLxcResource, PveQemuResource};
 use pdm_client::types::Resource;
 use serde::{Deserialize, Serialize};
 
@@ -185,9 +185,7 @@ pub(crate) fn navigate_to<C: yew::Component>(
                         true,
                         format!("storage+{}+{}", storage.node, storage.storage),
                     ),
-                    pdm_client::types::Resource::PveNetwork(PveNetworkResource::Zone(_)) => {
-                        (false, "sdn/zones".to_string())
-                    }
+                    pdm_client::types::Resource::PveNetwork(_) => (false, "sdn".to_string()),
                     pdm_client::types::Resource::PbsDatastore(store) => (true, store.name.clone()),
                     // FIXME: implement
                     _ => return None,
