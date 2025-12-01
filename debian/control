@@ -127,6 +127,7 @@ Build-Depends: cargo:native,
                librust-zstd-0.13+default-dev,
                libstd-rust-dev,
                libsystemd-dev,
+               proxmox-widget-toolkit-dev,
                rustc:native,
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.6.1
@@ -145,6 +146,7 @@ Depends: proxmox-mini-journalreader,
          ${misc:Depends},
          ${shlibs:Depends},
 Recommends: proxmox-datacenter-manager-client, proxmox-datacenter-manager-ui,
+Suggests: proxmox-datacenter-manager-api-viewer,
 Description: Manage multiple Proxmox VE cluster and other Proxmox projects
  This package provides the API daemons of the Proxmox Datacenter Manager (PDM)
  which allows one to add multiple Proxmox VE and Proxmox Backup Server
@@ -157,3 +159,14 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: CLI Client for the Proxmox Datacenter Manager
  This package provides the CLI client that can interface with a Proxmox
  Datacenter Manager (PDM) instance.
+
+Package: proxmox-datacenter-manager-api-viewer
+Architecture: any
+Multi-Arch: allowed
+Depends: fonts-font-awesome,
+         libjs-extjs (>= 7~),
+         proxmox-widget-toolkit,
+         ${misc:Depends},
+         ${shlibs:Depends},
+Recommends: proxmox-datacenter-manager,
+Description: API Viewer for the Proxmox Datacenter Manager.

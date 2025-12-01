@@ -82,6 +82,7 @@ install: $(COMPILED_BINS) $(SHELL_COMPLETION_FILES)
 	$(foreach i,$(ZSH_COMPLETIONS), \
 	    install -m644 $(COMPLETION_DIR)/$(i) $(DESTDIR)$(ZSHCOMPDIR)/ ;)
 	make -C services install
+	make -C docs/api-viewer install
 
 $(COMPILED_BINS): .do-cargo-build
 .do-cargo-build:
