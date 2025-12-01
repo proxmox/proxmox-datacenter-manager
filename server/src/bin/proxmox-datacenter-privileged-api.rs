@@ -62,6 +62,9 @@ fn main() -> Result<(), Error> {
 fn create_directories() -> Result<(), Error> {
     let api_user = pdm_config::api_user()?;
 
+    // NOTE: add new (deeper) directories at the bottom to avoid wrong permissions or owner on
+    // parent ones.
+
     pdm_config::setup::create_configdir()?;
 
     pdm_config::setup::mkdir_perms(
