@@ -15,6 +15,8 @@ use pdm_api_types::remotes::RemoteType;
 use pwt::css::{AlignItems, FlexFit, TextAlign};
 use pwt::widget::data_table::{DataTableCellRenderArgs, DataTableCellRenderer};
 
+use proxmox_deb_version;
+
 use proxmox_yew_comp::{
     AptPackageManager, AptRepositories, ExistingProduct, LoadableComponent,
     LoadableComponentContext, LoadableComponentMaster,
@@ -51,12 +53,20 @@ impl From<UpdateTree> for VNode {
     }
 }
 
+#[derive(Clone, PartialEq, Debug, PartialOrd)]
+enum MixedVersions {
+    None,
+    DifferentMajor,
+    DifferentMinor,
+    DifferentPatch,
+}
+
 #[derive(Clone, PartialEq, Debug)]
 struct RemoteEntry {
     remote: String,
     ty: RemoteType,
     product_version: Option<String>,
-    mixed_versions: bool,
+    mixed_versions: MixedVersions,
     number_of_failed_nodes: u32,
     number_of_nodes: u32,
     number_of_updatable_nodes: u32,
@@ -206,7 +216,7 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
             remote: remote_name.clone(),
             ty: remote_summary.remote_type,
             product_version: None,
-            mixed_versions: false,
+            mixed_versions: MixedVersions::None,
             number_of_nodes: 0,
             number_of_updatable_nodes: 0,
             number_of_failed_nodes: 0,
@@ -215,8 +225,8 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
         }));
         remote_entry.set_expanded(false);
 
-        let mut product_version = None;
-        let mut mixed_versions = false;
+        let mut product_versions: Vec<String> = vec![];
+        let mut mixed_versions = MixedVersions::None;
         let number_of_nodes = remote_summary.nodes.len();
         let mut number_of_updatable_nodes = 0;
         let mut number_of_failed_nodes = 0;
@@ -250,18 +260,34 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
             };
 
             if let Some(version) = get_product_version(&entry) {
-                if let Some(product_version) = &product_version {
-                    if version != *product_version {
-                        mixed_versions = true;
-                    }
-                    // TODO: Compare versions and report the highest (or lowest). For now we just
-                    // report the one of the first node.
-                } else {
-                    product_version = Some(version);
-                }
+                product_versions.push(version);
             }
 
             remote_entry.append(UpdateTreeEntry::Node(entry));
+        }
+
+        let mut product_version = None;
+        if product_versions.len() == 1 {
+            product_version = Some(product_versions[0].clone());
+        } else if product_versions.len() > 1 {
+            product_versions.sort_by(|a, b| {
+                proxmox_deb_version::cmp_versions(&a, &b).unwrap_or(Ordering::Less)
+            });
+            product_version = product_versions.last().cloned();
+
+            let lowest_version = product_versions.first().unwrap();
+            let highest_version = product_versions.last().unwrap();
+
+            let mut lowest = lowest_version.split('.');
+            let mut highest = highest_version.split('.');
+
+            if lowest.next().unwrap_or("~") != highest.next().unwrap_or("~") {
+                mixed_versions = MixedVersions::DifferentMajor;
+            } else if lowest.next().unwrap_or("~") != highest.next().unwrap_or("~") {
+                mixed_versions = MixedVersions::DifferentMinor;
+            } else if lowest.next().unwrap_or("~") != highest.next().unwrap_or("~") {
+                mixed_versions = MixedVersions::DifferentPatch;
+            }
         }
 
         if let UpdateTreeEntry::Remote(info) = remote_entry.record_mut() {
@@ -632,23 +658,42 @@ fn render_repo_status(status: ProductRepositoryStatus) -> Html {
 }
 
 fn render_version_column(tree_entry: &UpdateTreeEntry, expanded: bool) -> Html {
-    let text = match tree_entry {
+    match tree_entry {
         UpdateTreeEntry::Node(node_entry) => {
             get_product_version(node_entry).unwrap_or_default().into()
         }
         UpdateTreeEntry::Remote(remote_entry) => {
-            if !expanded {
-                let version_string = remote_entry.product_version.clone().unwrap_or_default();
-                // TRANSLATORS: The first parameter is a version string (e.g. '9.1.0')
-                tr!("{0} (mixed versions)", version_string)
+            // TODO: fix icons
+            let (icon, extra) = match remote_entry.mixed_versions {
+                MixedVersions::None => ("", "".to_string()),
+                MixedVersions::DifferentMajor => ("times-circle", tr!("major difference")),
+                MixedVersions::DifferentMinor => ("exclamation-triangle", tr!("substantial difference")),
+                MixedVersions::DifferentPatch => ("info-circle", tr!("small difference")),
+            };
+            let version_string = remote_entry.product_version.clone().unwrap_or_default();
+            let text = if !expanded {
+                if extra.len() > 0 {
+                    format!("{version_string} {extra}")
+                } else {
+                    version_string
+                }
             } else {
-                "".to_string()
+                extra
+            };
+            if icon.len() > 0 {
+                Row::new()
+                    .class(css::AlignItems::Baseline)
+                    .gap(2)
+                    .with_child(text)
+                    .with_child(Fa::new(icon))
+                    .into()
+            } else {
+                html! { text }
             }
         }
-        _ => "".to_string(),
-    };
-
-    text.into()
+        _ => "".to_string().into(),
+    }
+    .into()
 }
 
 fn get_product_version(node_entry: &NodeEntry) -> Option<String> {

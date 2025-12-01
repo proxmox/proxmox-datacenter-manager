@@ -34,6 +34,7 @@ proxmox-yew-comp = { version = "0.7.2", features = ["apt", "dns", "network", "rr
 
 proxmox-access-control = { version = "1.1", features = []}
 proxmox-acme-api = "1"
+proxmox-deb-version = "0.1"
 proxmox-client = "1"
 proxmox-human-byte = "1"
 proxmox-login = "1"
