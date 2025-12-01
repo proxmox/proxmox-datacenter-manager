@@ -29,6 +29,10 @@ const SUBDIRS: SubdirMap = &sorted!([
     ),
     ("storage", &STORAGE_ROUTER),
     ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
+    (
+        "subscription",
+        &Router::new().get(&API_METHOD_GET_SUBSCRIPTION)
+    ),
 ]);
 
 const STORAGE_ROUTER: Router = Router::new()
@@ -151,5 +155,28 @@ async fn get_status(remote: String, node: String) -> Result<pve_api_types::NodeS
     let (remotes, _) = pdm_config::remotes::config()?;
     let client = super::connect_to_remote(&remotes, &remote)?;
     let result = client.node_status(&node).await?;
+    Ok(result)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}"], PRIV_RESOURCE_AUDIT, false),
+    },
+    returns: { type: pve_api_types::NodeStatus },
+)]
+/// Get subscription for the node
+async fn get_subscription(
+    remote: String,
+    node: String,
+) -> Result<pve_api_types::NodeSubscriptionInfo, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let client = super::connect_to_remote(&remotes, &remote)?;
+    let result = client.get_subscription(&node).await?;
     Ok(result)
 }
