@@ -89,7 +89,7 @@ impl PanelConfig {
         let mut rules = proxmox_yew_comp::FirewallRules::node(remote.to_string(), node.to_string());
         rules.reload_token = reload_token;
         Self {
-            title: create_panel_title("list", tr!("Node Firewall Rules - {}/{}", remote, node)),
+            title: create_panel_title("list", tr!("Node Firewall Rules - {0}/{1}", remote, node)),
             key: format!("node-{}-{}", remote, node),
             content: rules.into(),
             title_prefix: None,
@@ -115,7 +115,7 @@ impl PanelConfig {
             title: create_panel_title(
                 "list",
                 tr!(
-                    "Guest Firewall Rules - {}/{}/{} {}",
+                    "Guest Firewall Rules - {0}/{1}/{2} {3}",
                     remote,
                     node,
                     vmtype.to_uppercase(),
