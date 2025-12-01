@@ -767,7 +767,7 @@ static SUBSCRIPTION_CACHE: LazyLock<RwLock<HashMap<String, CachedSubscriptionSta
 ///
 /// If recent enough cached data is available, it is returned
 /// instead of calling out to the remote.
-async fn get_subscription_info_for_remote(
+pub async fn get_subscription_info_for_remote(
     remote: &Remote,
     max_age: u64,
 ) -> Result<HashMap<String, Option<NodeSubscriptionInfo>>, Error> {
