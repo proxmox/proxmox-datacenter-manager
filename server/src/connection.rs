@@ -110,9 +110,11 @@ fn prepare_connect_client(
 /// authentication information and settings for the [`RemoteType`]
 fn connect(remote: &Remote, target_endpoint: Option<&str>) -> Result<Client, anyhow::Error> {
     let (client, info) = prepare_connect_client(remote, target_endpoint)?;
+    let token = pdm_config::remotes::get_secret_token(remote)?;
+
     client.set_authentication(proxmox_client::Token {
         userid: remote.authid.to_string(),
-        value: remote.token.to_string(),
+        value: token,
         prefix: info.prefix,
         perl_compat: info.perl_compat,
     });
@@ -148,10 +150,12 @@ fn prepare_connect_multi_client(remote: &Remote) -> Result<(MultiClient, Connect
 fn multi_connect(remote: &Remote) -> Result<MultiClient, anyhow::Error> {
     let (client, info) = prepare_connect_multi_client(remote)?;
 
+    let token = pdm_config::remotes::get_secret_token(remote)?;
+
     client.for_each_client(|client| {
         client.set_authentication(proxmox_client::Token {
             userid: remote.authid.to_string(),
-            value: remote.token.to_string(),
+            value: token.clone(),
             prefix: info.prefix.clone(),
             perl_compat: info.perl_compat,
         });

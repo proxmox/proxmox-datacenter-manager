@@ -5,17 +5,18 @@
 
 use std::sync::OnceLock;
 
-use anyhow::Error;
+use anyhow::{bail, Error};
 
 use proxmox_config_digest::ConfigDigest;
 use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard};
 use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
 
-use pdm_api_types::remotes::Remote;
+use pdm_api_types::remotes::{Remote, RemoteShadow};
 
 use pdm_buildcfg::configdir;
 
 pub const REMOTES_CFG_FILENAME: &str = configdir!("/remotes.cfg");
+const REMOTES_SHADOW_FILENAME: &str = configdir!("/remotes.shadow");
 pub const REMOTES_CFG_LOCKFILE: &str = configdir!("/.remotes.lock");
 
 static INSTANCE: OnceLock<Box<dyn RemoteConfig + Send + Sync>> = OnceLock::new();
@@ -44,6 +45,10 @@ pub fn config() -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
     instance().config()
 }
 
+pub fn get_secret_token(remote: &Remote) -> Result<String, Error> {
+    instance().get_secret_token(remote)
+}
+
 /// Replace the currently persisted remotes config
 ///
 /// Will panic if the the remote config instance has not been set before.
@@ -54,6 +59,8 @@ pub fn save_config(config: SectionConfigData<Remote>) -> Result<(), Error> {
 pub trait RemoteConfig {
     /// Return contents of the remotes config
     fn config(&self) -> Result<(SectionConfigData<Remote>, ConfigDigest), Error>;
+    /// Return contents of the remotes shadow config
+    fn get_secret_token(&self, remote: &Remote) -> Result<String, Error>;
     /// Lock the remotes config
     fn lock_config(&self) -> Result<ApiLockGuard, Error>;
     /// Replace the currently persisted remotes config
@@ -82,6 +89,25 @@ impl RemoteConfig for DefaultRemoteConfig {
     fn save_config(&self, config: SectionConfigData<Remote>) -> Result<(), Error> {
         let raw = Remote::write_section_config(REMOTES_CFG_FILENAME, &config)?;
         replace_config(REMOTES_CFG_FILENAME, raw.as_bytes())
+    }
+
+    fn get_secret_token(&self, remote: &Remote) -> Result<String, Error> {
+        // not yet rewritten into shadow config
+        if remote.token != "-" {
+            return Ok(remote.token.clone());
+        }
+
+        let shadow_content = proxmox_sys::fs::file_read_optional_string(REMOTES_SHADOW_FILENAME)?
+            .unwrap_or_default();
+
+        let shadow_config =
+            RemoteShadow::parse_section_config(REMOTES_SHADOW_FILENAME, &shadow_content)?;
+
+        if let Some(shadow_entry) = shadow_config.get(&remote.id) {
+            Ok(shadow_entry.token.clone())
+        } else {
+            bail!("No shadow entry found for remote {id}", id = remote.id);
+        }
     }
 }
 

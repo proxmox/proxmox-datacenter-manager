@@ -545,7 +545,7 @@ pub async fn lxc_remote_migrate(
         "host={host},port={port},apitoken=PVEAPIToken={authid}={secret}",
         host = target_host_port.host(),
         authid = target.authid,
-        secret = target.token,
+        secret = pdm_config::remotes::get_secret_token(target)?,
         port = target_host_port.port_u16().unwrap_or(8006),
     );
     if let Some(fp) = target_node.fingerprint.as_deref() {

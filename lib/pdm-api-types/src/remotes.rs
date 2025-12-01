@@ -149,6 +149,56 @@ impl ApiSectionDataEntry for Remote {
     }
 }
 
+#[api(
+    properties: {
+        "id": { schema: REMOTE_ID_SCHEMA },
+        "type": { type: RemoteType },
+    },
+)]
+/// The information required to connect to a remote instance.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct RemoteShadow {
+    #[serde(rename = "type")]
+    pub ty: RemoteType,
+
+    /// An id for this entry.
+    pub id: String,
+
+    /// The access token's secret.
+    pub token: String,
+}
+
+impl ApiSectionDataEntry for RemoteShadow {
+    const INTERNALLY_TAGGED: Option<&'static str> = Some("type");
+    const SECION_CONFIG_USES_TYPE_KEY: bool = true;
+
+    /// Get the `SectionConfig` configuration for this enum.
+    fn section_config() -> &'static SectionConfig {
+        static CONFIG: OnceLock<SectionConfig> = OnceLock::new();
+
+        CONFIG.get_or_init(|| {
+            let mut this = SectionConfig::new(&REMOTE_ID_SCHEMA).with_type_key("type");
+            for ty in ["pve", "pbs"] {
+                this.register_plugin(SectionConfigPlugin::new(
+                    ty.to_string(),
+                    Some("id".to_string()),
+                    RemoteShadow::API_SCHEMA.unwrap_object_schema(),
+                ));
+            }
+            this
+        })
+    }
+
+    /// Maps an enum value to its type name.
+    fn section_type(&self) -> &'static str {
+        match self.ty {
+            RemoteType::Pve => "pve",
+            RemoteType::Pbs => "pbs",
+        }
+    }
+}
+
 /// Since `Uri` does not directly support `serde`, we turn this into using FromStr/Display.
 ///
 /// If we want to turn this into a property string, we can use a default_key, but may need to work
