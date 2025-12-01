@@ -6,7 +6,7 @@ use yew::virtual_dom::{VComp, VNode};
 use proxmox_node_status::NodePowerCommand;
 use proxmox_yew_comp::{http_post, ConfirmButton, NodeStatusPanel};
 use pwt::prelude::*;
-use pwt::widget::{Column, Container, Row};
+use pwt::widget::{Button, Column, Container, Row};
 use pwt::AsyncAbortGuard;
 
 #[derive(Properties, Clone, PartialEq)]
@@ -28,11 +28,13 @@ enum Msg {
     Reload,
     Error(Error),
     RebootOrShutdown(NodePowerCommand),
+    ShowSystemReport(bool),
 }
 
 struct PdmNodeStatus {
     error: Option<Error>,
     abort_guard: Option<AsyncAbortGuard>,
+    show_system_report: bool,
 }
 
 impl PdmNodeStatus {
@@ -49,6 +51,25 @@ impl PdmNodeStatus {
             link.send_message(res);
         }));
     }
+
+    fn create_system_report_dialog(&self, ctx: &yew::Context<Self>) -> Html {
+        // copied over from subscription_panel in proxmox-yew-comp; TODO: create own component and
+        // provide download functionallity.
+        proxmox_yew_comp::DataViewWindow::new(tr!("System Report"))
+            .width(800)
+            .height(640)
+            .loader("/nodes/localhost/report")
+            .renderer(|report: &String| {
+                Container::from_tag("pre")
+                    .class("pwt-flex-fit pwt-font-monospace")
+                    .padding(2)
+                    .style("line-height", "normal")
+                    .with_child(report)
+                    .into()
+            })
+            .on_done(ctx.link().callback(|_| Msg::ShowSystemReport(false)))
+            .into()
+    }
 }
 
 impl Component for PdmNodeStatus {
@@ -59,6 +80,7 @@ impl Component for PdmNodeStatus {
         Self {
             error: None,
             abort_guard: None,
+            show_system_report: false,
         }
     }
 
@@ -73,6 +95,10 @@ impl Component for PdmNodeStatus {
                 true
             }
             Msg::Reload => true,
+            Msg::ShowSystemReport(show_system_report) => {
+                self.show_system_report = show_system_report;
+                true
+            }
         }
     }
 
@@ -109,6 +135,13 @@ impl Component for PdmNodeStatus {
                                     }))
                                     .class(pwt::css::ColorScheme::Neutral)
                                     .icon_class("fa fa-power-off"),
+                            )
+                            .with_flex_spacer()
+                            .with_child(
+                                Button::new(tr!("System Report"))
+                                    .class(pwt::css::ColorScheme::Neutral)
+                                    .icon_class("fa fa-stethoscope")
+                                    .onclick(ctx.link().callback(|_| Msg::ShowSystemReport(true))),
                             ),
                     ),
             )
@@ -119,6 +152,10 @@ impl Component for PdmNodeStatus {
                     .class("pwt-default-colors")
                     .class(pwt::css::FlexFit)
                     .with_child(NodeStatusPanel::new().status_base_url("/nodes/localhost/status")),
+            )
+            .with_optional_child(
+                self.show_system_report
+                    .then_some(self.create_system_report_dialog(ctx)),
             )
             .into()
     }
