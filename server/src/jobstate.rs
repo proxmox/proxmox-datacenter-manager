@@ -48,7 +48,7 @@ const JOB_STATE_BASEDIR: &str = concat!(pdm_buildcfg::PDM_STATE_DIR_M!(), "/jobs
 
 /// Create jobstate stat dir with correct permission
 pub fn create_jobstate_dir() -> Result<(), Error> {
-    let mode = Mode::from_bits_truncate(0o0755);
+    let mode = Mode::from_bits_truncate(0o0750);
     let opts = proxmox_product_config::default_create_options().perm(mode);
 
     create_path(JOB_STATE_BASEDIR, Some(opts), Some(opts))
