@@ -703,7 +703,6 @@ fn render_version_column(tree_entry: &UpdateTreeEntry, expanded: bool) -> Html {
             get_product_version(node_entry).unwrap_or_default().into()
         }
         UpdateTreeEntry::Remote(remote_entry) => {
-            // TODO: fix icons
             let (icon, extra) = match remote_entry.mixed_versions {
                 MixedVersions::None => ("", "".to_string()),
                 MixedVersions::DifferentMajor => ("times-circle", tr!("major difference")),
