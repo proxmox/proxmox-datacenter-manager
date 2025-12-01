@@ -3,7 +3,7 @@
 //! Make sure to call [`init`] to inject a concrete `RemoteConfig` instance
 //! before calling the [`lock_config`], [`config`] or [`save_config`] functions.
 
-use std::sync::OnceLock;
+use std::{collections::HashMap, sync::OnceLock};
 
 use anyhow::{bail, Error};
 
@@ -86,7 +86,42 @@ impl RemoteConfig for DefaultRemoteConfig {
         Ok((data, digest.into()))
     }
 
-    fn save_config(&self, config: SectionConfigData<Remote>) -> Result<(), Error> {
+    fn save_config(&self, mut config: SectionConfigData<Remote>) -> Result<(), Error> {
+        let mut new_shadow_entries = HashMap::new();
+        for (id, remote) in config.iter() {
+            if remote.token != "-" {
+                new_shadow_entries.insert(
+                    id.to_string(),
+                    RemoteShadow {
+                        ty: remote.ty,
+                        id: remote.id.clone(),
+                        token: remote.token.clone(),
+                    },
+                );
+            }
+        }
+
+        // only read and modify shadow config if needed
+        if !new_shadow_entries.is_empty() {
+            let shadow_content =
+                proxmox_sys::fs::file_read_optional_string(REMOTES_SHADOW_FILENAME)?
+                    .unwrap_or_default();
+
+            let mut shadow_config =
+                RemoteShadow::parse_section_config(REMOTES_SHADOW_FILENAME, &shadow_content)?;
+
+            for (id, shadow_entry) in new_shadow_entries.into_iter() {
+                if let Some(remote) = config.get_mut(&id) {
+                    remote.token = '-'.to_string();
+                }
+                shadow_config.insert(id, shadow_entry);
+            }
+            let raw = RemoteShadow::write_section_config(REMOTES_SHADOW_FILENAME, &shadow_config)?;
+            replace_config(REMOTES_SHADOW_FILENAME, raw.as_bytes())?;
+        }
+
+        // only write out remote.cfg with potentially new shadowed entries
+        // if shadow file was successfully written!
         let raw = Remote::write_section_config(REMOTES_CFG_FILENAME, &config)?;
         replace_config(REMOTES_CFG_FILENAME, raw.as_bytes())
     }
