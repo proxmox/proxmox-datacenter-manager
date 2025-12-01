@@ -4,6 +4,7 @@ use anyhow::Error;
 use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_node_status::NodePowerCommand;
+use proxmox_yew_comp::utils::copy_text_to_clipboard;
 use proxmox_yew_comp::{http_post, ConfirmButton, NodeStatusPanel};
 use pwt::prelude::*;
 use pwt::widget::{Button, Column, Container, Row};
@@ -60,11 +61,24 @@ impl PdmNodeStatus {
             .height(640)
             .loader("/nodes/localhost/report")
             .renderer(|report: &String| {
-                Container::from_tag("pre")
-                    .class("pwt-flex-fit pwt-font-monospace")
-                    .padding(2)
-                    .style("line-height", "normal")
-                    .with_child(report)
+                let report = report.to_owned();
+                Column::new()
+                    .class(pwt::css::FlexFit)
+                    .with_child(
+                        Container::from_tag("pre")
+                            .class("pwt-flex-fit pwt-font-monospace")
+                            .padding(2)
+                            .style("line-height", "normal")
+                            .with_child(&report),
+                    )
+                    .with_child(
+                        Row::new().padding(2).with_flex_spacer().with_child(
+                            Button::new(tr!("Copy to clipboard"))
+                                .icon_class("fa fa-clipboard")
+                                .class(pwt::css::ColorScheme::Primary)
+                                .on_activate(move |_| copy_text_to_clipboard(&report)),
+                        ),
+                    )
                     .into()
             })
             .on_done(ctx.link().callback(|_| Msg::ShowSystemReport(false)))
