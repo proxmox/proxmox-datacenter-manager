@@ -457,7 +457,9 @@ impl UpdateTreeComponent {
         Panel::new()
             .min_width(500)
             .title(title)
-            .with_tool(refresh_all_button)
+            .with_tool(Tooltip::new(refresh_all_button).tip(tr!(
+                "Refresh the status of the repository and pending updates for all remotes"
+            )))
             .style("flex", "1 1 0")
             .class(FlexFit)
             .border(true)
