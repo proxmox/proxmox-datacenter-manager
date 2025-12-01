@@ -11,6 +11,7 @@ pub mod parallel_fetcher;
 pub mod remote_cache;
 pub mod remote_tasks;
 pub mod remote_updates;
+pub mod report;
 pub mod resource_cache;
 pub mod task_utils;
 pub mod views;
