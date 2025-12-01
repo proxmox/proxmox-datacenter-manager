@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::rc::Rc;
 use yew::{ContextHandle, Html};
 
-use proxmox_yew_comp::{EditFirewallOptions, LoadableComponent, LoadableComponentContext};
+use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext};
 use pwt::css;
 use pwt::prelude::*;
 use pwt::props::{FieldBuilder, WidgetBuilder};
@@ -11,19 +11,24 @@ use pwt::state::{Selection, TreeStore};
 use pwt::tr;
 use pwt::widget::data_table::DataTable;
 use pwt::widget::form::{Combobox, Field};
-use pwt::widget::{Button, Container, Panel, Toolbar, Trigger};
+use pwt::widget::{Button, Container, Panel, TabBarItem, TabPanel, Toolbar, Trigger};
 
 use crate::RemoteList;
 
 use super::columns::create_columns;
 use super::types::{
-    FirewallError, GuestEntry, LoadState, NodeEntry, RemoteEntry, Scope, TreeEntry, ViewState,
+    FirewallError, GuestEntry, LoadState, NodeEntry, RemoteEntry, Scope, TreeEntry,
 };
 use super::ui_helpers::PanelConfig;
 
 use pdm_api_types::firewall::{GuestKind, NodeFirewallStatus, RemoteFirewallStatus};
 use pdm_api_types::remotes::RemoteType;
 use std::cmp::Ordering;
+
+use proxmox_yew_comp::configuration::pve::{
+    FirewallOptionsClusterPanel, FirewallOptionsGuestPanel, FirewallOptionsNodePanel,
+};
+use proxmox_yew_comp::form::pve::PveGuestType;
 
 fn create_loading_tree() -> pwt::state::SlabTree<TreeEntry> {
     let mut tree = pwt::state::SlabTree::new();
@@ -206,7 +211,7 @@ impl FirewallTreeComponent {
     }
 
     fn render_tree_panel(&self, ctx: &LoadableComponentContext<Self>) -> Panel {
-        let columns = create_columns(ctx, self.store.clone(), ctx.loading(), &self.scope);
+        let columns = create_columns(self.store.clone(), ctx.loading(), &self.scope);
         let table = DataTable::new(columns, self.store.clone())
             .selection(self.selection.clone())
             .striped(false)
@@ -272,29 +277,121 @@ impl FirewallTreeComponent {
         Panel::new().border(true).with_child(column)
     }
 
-    fn render_rules_panel(&self, ctx: &LoadableComponentContext<Self>) -> Panel {
-        let mut config = match &self.selected_entry {
-            Some(entry) => PanelConfig::from_entry(entry, self.load_state.data_generation),
-            None => PanelConfig::for_no_selection(),
+    fn render_content_panel(&self, ctx: &LoadableComponentContext<Self>) -> Html {
+        let entry = match &self.selected_entry {
+            Some(entry) => entry,
+            None => return PanelConfig::for_no_selection().content.into(),
         };
 
-        if self.tree_collapsed {
+        let config = PanelConfig::from_entry(entry, self.load_state.data_generation);
+
+        let title = if self.tree_collapsed {
             let expand_button: Html = Button::new_icon("fa fa-angle-double-right")
                 .onclick(ctx.link().callback(|_| Msg::ToggleTreePanel))
                 .aria_label(tr!("Show tree panel"))
                 .into();
 
-            config.title_prefix = Some(expand_button);
-        }
+            pwt::widget::Row::new()
+                .gap(2)
+                .class(pwt::css::AlignItems::Baseline)
+                .with_child(expand_button)
+                .with_child(config.title)
+                .into()
+        } else {
+            config.title
+        };
 
-        config.build()
+        let mut tab_panel = TabPanel::new()
+            .class(css::FlexFit)
+            .class(css::ColorScheme::Neutral)
+            .title(title)
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("rules")
+                    .label(tr!("Rules"))
+                    .icon_class("fa fa-list"),
+                {
+                    let content = config.content;
+                    let key = format!(
+                        "{}-{}-{}",
+                        entry.type_name(),
+                        entry.name(),
+                        self.load_state.data_generation
+                    );
+                    move |_| {
+                        Container::new()
+                            .key(key.clone())
+                            .class(css::FlexFit)
+                            .with_child(content.clone())
+                            .into()
+                    }
+                },
+            );
+
+        let add_options_tab = |panel: TabPanel, content: Html| {
+            panel.with_item_builder(
+                TabBarItem::new()
+                    .key("options")
+                    .label(tr!("Options"))
+                    .icon_class("fa fa-cog"),
+                move |_| content.clone(),
+            )
+        };
+
+        tab_panel = match entry {
+            TreeEntry::Remote(remote) => {
+                let remote_name = remote.name.clone();
+                add_options_tab(
+                    tab_panel,
+                    FirewallOptionsClusterPanel::new()
+                        .remote(remote_name.clone())
+                        .readonly(true)
+                        .into(),
+                )
+            }
+            TreeEntry::Node(node) => {
+                let remote_name = node.remote.clone();
+                let node_name = node.name.clone();
+                add_options_tab(
+                    tab_panel,
+                    FirewallOptionsNodePanel::new(yew::AttrValue::from(node_name.clone()))
+                        .remote(remote_name.clone())
+                        .readonly(true)
+                        .into(),
+                )
+            }
+            TreeEntry::Guest(guest, kind) => {
+                let remote_name = guest.remote.clone();
+                let node_name = guest.node.clone();
+                let vmid = guest.guest.vmid;
+                let guest_type = match kind {
+                    GuestKind::Lxc => PveGuestType::Lxc,
+                    GuestKind::Qemu => PveGuestType::Qemu,
+                };
+
+                add_options_tab(
+                    tab_panel,
+                    FirewallOptionsGuestPanel::new(
+                        guest_type,
+                        yew::AttrValue::from(node_name.clone()),
+                        vmid as u32,
+                    )
+                    .remote(remote_name.clone())
+                    .readonly(true)
+                    .into(),
+                )
+            }
+            _ => tab_panel,
+        };
+
+        tab_panel.into()
     }
 }
 
 impl LoadableComponent for FirewallTreeComponent {
     type Properties = super::FirewallTree;
     type Message = Msg;
-    type ViewState = ViewState;
+    type ViewState = ();
 
     fn create(ctx: &LoadableComponentContext<Self>) -> Self {
         let tree = create_loading_tree();
@@ -391,7 +488,7 @@ impl LoadableComponent for FirewallTreeComponent {
                 if self.filter_text.is_empty() {
                     self.store.set_filter(None);
                 } else {
-                    let filter_text = Rc::new(self.filter_text.clone());
+                    let filter_text = Rc::new(self.filter_text.to_lowercase());
                     self.store
                         .set_filter(move |entry: &TreeEntry| entry.matches_filter(&filter_text));
                 }
@@ -460,42 +557,7 @@ impl LoadableComponent for FirewallTreeComponent {
             container = container.with_child(self.render_tree_panel(ctx));
         }
 
-        container.with_child(self.render_rules_panel(ctx)).into()
-    }
-
-    fn dialog_view(
-        &self,
-        ctx: &LoadableComponentContext<Self>,
-        view_state: &Self::ViewState,
-    ) -> Option<Html> {
-        let dialog = match view_state {
-            ViewState::EditRemote { remote } => EditFirewallOptions::cluster(remote.to_string())
-                .on_close(ctx.link().change_view_callback(|_| None))
-                .into(),
-            ViewState::EditNode { remote, node } => {
-                EditFirewallOptions::node(remote.to_string(), node.to_string())
-                    .on_close(ctx.link().change_view_callback(|_| None))
-                    .into()
-            }
-            ViewState::EditGuest {
-                remote,
-                node,
-                vmid,
-                ty,
-            } => {
-                let vmtype: &str = ty.into();
-                EditFirewallOptions::guest(
-                    remote.to_string(),
-                    node.to_string(),
-                    *vmid as u64,
-                    vmtype,
-                )
-                .on_close(ctx.link().change_view_callback(|_| None))
-                .into()
-            }
-        };
-
-        Some(dialog)
+        container.with_child(self.render_content_panel(ctx)).into()
     }
 }
 

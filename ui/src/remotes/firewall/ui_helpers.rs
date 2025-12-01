@@ -2,7 +2,7 @@ use pdm_api_types::firewall::{FirewallStatus, GuestKind, RuleStat};
 use pwt::css::{AlignItems, FontColor};
 use pwt::prelude::*;
 use pwt::tr;
-use pwt::widget::{Container, Fa, Panel, Row};
+use pwt::widget::{Container, Fa, Row};
 use yew::{html, Html};
 
 use super::types::TreeEntry;
@@ -56,21 +56,9 @@ pub fn create_panel_title(icon_name: &str, title_text: String) -> Html {
         .into()
 }
 
-pub fn create_rules_panel(title: Html, key: String, content: Html) -> Panel {
-    Panel::new()
-        .class(pwt::css::FlexFit)
-        .title(title)
-        .border(true)
-        .min_width(500)
-        .with_child(Container::new().key(key).with_child(content))
-        .style("flex", "1 1 0")
-}
-
 pub struct PanelConfig {
     pub title: Html,
-    pub key: String,
     pub content: Html,
-    pub title_prefix: Option<Html>,
 }
 
 impl PanelConfig {
@@ -78,10 +66,8 @@ impl PanelConfig {
         let mut rules = proxmox_yew_comp::FirewallRules::cluster(remote.to_string());
         rules.reload_token = reload_token;
         Self {
-            title: create_panel_title("list", tr!("Cluster Firewall Rules - {}", remote)),
-            key: format!("cluster-{}", remote),
+            title: create_panel_title("server", tr!("Cluster Firewall - {}", remote)),
             content: rules.into(),
-            title_prefix: None,
         }
     }
 
@@ -89,10 +75,8 @@ impl PanelConfig {
         let mut rules = proxmox_yew_comp::FirewallRules::node(remote.to_string(), node.to_string());
         rules.reload_token = reload_token;
         Self {
-            title: create_panel_title("list", tr!("Node Firewall Rules - {0}/{1}", remote, node)),
-            key: format!("node-{}-{}", remote, node),
+            title: create_panel_title("building", tr!("Node Firewall - {0}/{1}", remote, node)),
             content: rules.into(),
-            title_prefix: None,
         }
     }
 
@@ -113,18 +97,16 @@ impl PanelConfig {
         rules.reload_token = reload_token;
         Self {
             title: create_panel_title(
-                "list",
+                if vmtype == "lxc" { "cube" } else { "desktop" },
                 tr!(
-                    "Guest Firewall Rules - {0}/{1}/{2} {3}",
+                    "Guest Firewall - {0}/{1}/{2} {3}",
                     remote,
                     node,
                     vmtype.to_uppercase(),
                     vmid
                 ),
             ),
-            key: format!("guest-{}-{}-{}-{}", remote, node, vmid, vmtype),
             content: rules.into(),
-            title_prefix: None,
         }
     }
 
@@ -142,10 +124,8 @@ impl PanelConfig {
             .into();
 
         Self {
-            title: create_panel_title("list", tr!("Firewall Rules")),
-            key: String::new(),
+            title: create_panel_title("shield", tr!("Firewall")),
             content,
-            title_prefix: None,
         }
     }
 
@@ -164,19 +144,5 @@ impl PanelConfig {
             ),
             TreeEntry::Root => Self::for_no_selection(),
         }
-    }
-
-    pub fn build(self) -> Panel {
-        let title = if let Some(prefix) = self.title_prefix {
-            Row::new()
-                .gap(2)
-                .class(AlignItems::Baseline)
-                .with_child(prefix)
-                .with_child(self.title)
-                .into()
-        } else {
-            self.title
-        };
-        create_rules_panel(title, self.key, self.content)
     }
 }

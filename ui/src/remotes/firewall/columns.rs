@@ -1,4 +1,3 @@
-use proxmox_yew_comp::LoadableComponentContext;
 use pwt::css::AlignItems;
 use pwt::prelude::*;
 use pwt::state::TreeStore;
@@ -8,15 +7,12 @@ use pwt::widget::{Container, Fa, Row};
 use std::rc::Rc;
 use yew::Html;
 
-use super::types::{Scope, TreeEntry, ViewState};
+use super::types::{Scope, TreeEntry};
 use super::ui_helpers::{
     render_firewall_status, render_load_error_message, render_rule_stats, render_warning_icon,
 };
 
-use crate::remotes::firewall::tree::FirewallTreeComponent;
-
 pub fn create_columns(
-    ctx: &LoadableComponentContext<FirewallTreeComponent>,
     store: TreeStore<TreeEntry>,
     loading: bool,
     scope: &Scope,
@@ -27,7 +23,6 @@ pub fn create_columns(
         create_name_column(store, loading, scope.clone()),
         create_enabled_column(scope.clone()),
         create_rules_column(scope),
-        create_actions_column(ctx),
     ])
 }
 
@@ -118,36 +113,6 @@ fn create_rules_column(scope: Rc<Scope>) -> DataTableHeader<TreeEntry> {
                     render_load_error_message()
                 }
             }
-        })
-        .into()
-}
-
-fn create_actions_column(
-    ctx: &LoadableComponentContext<FirewallTreeComponent>,
-) -> DataTableHeader<TreeEntry> {
-    let link = ctx.link().clone();
-
-    DataTableColumn::new(tr!("Actions"))
-        .width("50px")
-        .justify("right")
-        .render(move |entry: &TreeEntry| {
-            if !entry.is_editable() {
-                return Html::default();
-            }
-
-            let view_state = match ViewState::from_entry(entry) {
-                Some(state) => state,
-                None => return Html::default(),
-            };
-
-            let link_clone = link.clone();
-            pwt::widget::Tooltip::new(pwt::widget::ActionIcon::new("fa fa-fw fa-cog").on_activate(
-                move |_| {
-                    link_clone.change_view(Some(view_state.clone()));
-                },
-            ))
-            .tip(tr!("Edit Options"))
-            .into()
         })
         .into()
 }

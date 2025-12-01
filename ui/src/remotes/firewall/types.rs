@@ -148,17 +148,15 @@ impl TreeEntry {
     }
 
     pub fn matches_filter(&self, filter_text: &str) -> bool {
-        let text = filter_text.to_lowercase();
-
         match self {
             Self::Root | Self::Remote(..) | Self::Node(..) => true,
             Self::Guest(guest, kind) => {
                 let type_name = kind.as_str();
-                guest.guest.name.to_lowercase().contains(&text)
-                    || guest.guest.vmid.to_string().contains(&text)
-                    || type_name.contains(&text)
-                    || guest.node.to_lowercase().contains(&text)
-                    || guest.remote.to_lowercase().contains(&text)
+                guest.guest.name.to_lowercase().contains(filter_text)
+                    || guest.guest.vmid.to_string().contains(filter_text)
+                    || type_name.contains(filter_text)
+                    || guest.node.to_lowercase().contains(filter_text)
+                    || guest.remote.to_lowercase().contains(filter_text)
             }
         }
     }
@@ -171,10 +169,6 @@ impl TreeEntry {
             Self::Guest(_, GuestKind::Qemu) => Some("desktop"),
             Self::Root => None,
         }
-    }
-
-    pub fn is_editable(&self) -> bool {
-        !matches!(self, Self::Root)
     }
 
     pub fn firewall_status(&self) -> Option<(&FirewallStatus, bool)> {
@@ -199,6 +193,16 @@ impl TreeEntry {
             Self::Guest(_, GuestKind::Qemu) => 4,
         }
     }
+
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            Self::Root => "root",
+            Self::Remote(..) => "remote",
+            Self::Node(..) => "node",
+            Self::Guest(_, GuestKind::Lxc) => "lxc",
+            Self::Guest(_, GuestKind::Qemu) => "qemu",
+        }
+    }
 }
 
 impl ExtractPrimaryKey for TreeEntry {
@@ -212,44 +216,6 @@ impl ExtractPrimaryKey for TreeEntry {
                 "{}/{}/{}",
                 guest.remote, guest.node, guest.guest.vmid
             )),
-        }
-    }
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum ViewState {
-    EditRemote {
-        remote: String,
-    },
-    EditNode {
-        remote: String,
-        node: String,
-    },
-    EditGuest {
-        remote: String,
-        node: String,
-        vmid: u32,
-        ty: GuestKind,
-    },
-}
-
-impl ViewState {
-    pub fn from_entry(entry: &TreeEntry) -> Option<Self> {
-        match entry {
-            TreeEntry::Remote(e) => Some(Self::EditRemote {
-                remote: e.name.clone(),
-            }),
-            TreeEntry::Node(e) => Some(Self::EditNode {
-                remote: e.remote.clone(),
-                node: e.name.clone(),
-            }),
-            TreeEntry::Guest(guest, _) => Some(Self::EditGuest {
-                remote: guest.remote.clone(),
-                node: guest.node.clone(),
-                vmid: guest.guest.vmid,
-                ty: guest.guest.kind,
-            }),
-            TreeEntry::Root => None,
         }
     }
 }
