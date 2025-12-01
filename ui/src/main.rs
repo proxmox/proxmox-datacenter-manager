@@ -1,6 +1,6 @@
 use anyhow::Error;
 use gloo_timers::callback::Timeout;
-use serde_json::{json, Value};
+use serde_json::json;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 
@@ -23,8 +23,8 @@ use proxmox_yew_comp::{
 //use pbs::MainMenu;
 use pdm_api_types::views::ViewConfig;
 use pdm_ui::{
-    register_pve_tasks, MainMenu, RemoteList, RemoteListCacheEntry, SearchProvider, TopNavBar,
-    ViewListContext,
+    check_subscription, register_pve_tasks, MainMenu, RemoteList, RemoteListCacheEntry,
+    SearchProvider, TopNavBar, ViewListContext,
 };
 
 type MsgRemoteList = Result<RemoteList, Error>;
@@ -62,17 +62,6 @@ struct DatacenterManagerApp {
     async_pool: AsyncPool,
 }
 
-async fn check_subscription() -> Msg {
-    let data: Result<Value, _> = http_get("/nodes/localhost/subscription", None).await;
-
-    let is_active = proxmox_yew_comp::subscription_is_active(&Some(data));
-    if !is_active {
-        Msg::ShowSubscriptionAlert
-    } else {
-        Msg::ConfirmSubscription
-    }
-}
-
 /*
 async fn get_fingerprint() -> Option<Msg> {
     http_get("/nodes/localhost/status", None)
@@ -89,8 +78,15 @@ impl DatacenterManagerApp {
                 if self.subscription_confirmed {
                     ctx.link().send_message(Msg::ConfirmSubscription);
                 } else {
-                    self.async_pool
-                        .send_future(ctx.link().clone(), check_subscription());
+                    self.async_pool.send_future(ctx.link().clone(), async move {
+                        let is_active = check_subscription().await;
+
+                        if !is_active {
+                            Msg::ShowSubscriptionAlert
+                        } else {
+                            Msg::ConfirmSubscription
+                        }
+                    });
                 }
             } else {
                 ctx.link().send_message(Msg::ConfirmSubscription);

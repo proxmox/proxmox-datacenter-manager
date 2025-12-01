@@ -3,6 +3,9 @@ use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::resource::{PveLxcResource, PveQemuResource};
 use pdm_client::types::Resource;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use proxmox_yew_comp::http_get;
 
 mod administration;
 
@@ -231,4 +234,10 @@ pub(crate) fn locale_compare(first: String, second: &str, numeric: bool) -> std:
     first
         .locale_compare(second, &Array::new(), &options)
         .cmp(&0)
+}
+
+/// Returns true if the global subscription checks succeeded
+pub async fn check_subscription() -> bool {
+    let data: Result<Value, _> = http_get("/nodes/localhost/subscription", None).await;
+    proxmox_yew_comp::subscription_is_active(&Some(data))
 }
