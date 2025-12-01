@@ -1313,6 +1313,16 @@ impl<T: HttpApiClient> PdmClient<T> {
             .expect_json()?
             .data)
     }
+
+    /// Get remote update summary.
+    pub async fn generate_system_report(&self) -> Result<String, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/nodes/localhost/report")
+            .await?
+            .expect_json()?
+            .data)
+    }
 }
 
 /// Builder for migration parameters.
