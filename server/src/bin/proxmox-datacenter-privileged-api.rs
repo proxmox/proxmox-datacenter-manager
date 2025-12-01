@@ -63,7 +63,6 @@ fn create_directories() -> Result<(), Error> {
     let api_user = pdm_config::api_user()?;
 
     pdm_config::setup::create_configdir()?;
-    server::jobstate::create_jobstate_dir()?;
 
     pdm_config::setup::mkdir_perms(
         pdm_buildcfg::PDM_RUN_DIR,
@@ -99,6 +98,8 @@ fn create_directories() -> Result<(), Error> {
         api_user.gid,
         0o755,
     )?;
+
+    server::jobstate::create_jobstate_dir()?;
 
     Ok(())
 }
