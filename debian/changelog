@@ -1,3 +1,10 @@
+proxmox-datacenter-manager (0.9.6) trixie; urgency=medium
+
+  * server: fix-up jobstate directory permission mode to make state base dir
+    use mode  0755 again.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 01 Dec 2025 05:22:42 +0100
+
 proxmox-datacenter-manager (0.9.5) trixie; urgency=medium
 
   * views: add 'include-all' param; change semantics when there are no
