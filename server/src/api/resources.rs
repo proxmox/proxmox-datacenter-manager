@@ -616,7 +616,7 @@ pub async fn get_subscription_status(
                 PRIV_RESOURCE_AUDIT,
                 false,
             )
-            .is_err()
+            .is_ok()
     };
 
     for (remote_name, remote) in remotes_config {
