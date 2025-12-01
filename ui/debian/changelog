@@ -1,3 +1,37 @@
+proxmox-datacenter-manager-ui (0.9.5) trixie; urgency=medium
+
+  * pbs: move node overview to tab and add update tab.
+
+  * pbs node: use empty building-o icon to match icon style from dashboard.
+
+  * implement views. Views provide a customizable "dashboard" with a dedicated
+    resource selection and access control.
+
+  * configuration: add view CRUD panels.
+
+  * resource tree: show guest tags.
+
+  * pve remotes: show read-only config tab for VMs and CTs.
+
+  * main: abort running task load on log out to avoid unnecessary access log
+    entries.
+
+  * dashboard: subscriptions list window: improve display of subscription
+    state.
+
+  * dashboard: subscriptions details: add a 'force refresh' button in window.
+
+  * add firewall status tree to remote menu.
+
+  * pve: add button tool in header for selected VMs or CTs to link to remote
+    web UI.
+
+  * remote updates: show main product version in overview table.
+
+  * remote updates: show repository status column.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 01 Dec 2025 04:23:17 +0100
+
 proxmox-datacenter-manager-ui (0.9.4) trixie; urgency=medium
 
   * dashboard: add Details button to subscription overview card to make it
