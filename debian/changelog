@@ -1,3 +1,43 @@
+proxmox-datacenter-manager (0.9.5) trixie; urgency=medium
+
+  * views: add 'include-all' param; change semantics when there are no
+    includes.
+
+  * api-types: add 'layout' property to ViewConfig to prepare for UI
+    integration.
+
+  * api: implement CRUD endpoints for views.
+
+  * api: require a minimum password length of 8 characters, following NIST
+    recommendations.
+
+  * api: pve remote: integrate read-only endpoints to get VM and CT configs.
+
+  * api: firewall: add option, rules and status endpoints to prepare for
+    initial support to show remote firewall config.
+
+  * cli: restore functionality of the admin CLI tool.
+
+  * api: add missing `returns` definitions to api macro tree-wide so this
+    information shows up properly in a potential api viewer.
+
+  * api: remote tasks: add fine-grained permission check on the remote level.
+
+  * remote tasks: poll foreign, non-tracked active tasks with a low frequency
+    to avoid them getting stuck.
+
+  * remote tasks: make sure to update the task cache if there were errors when
+    polling.
+
+  * api: add endpoints to get remote apt system version and repository state.
+
+  * views config: preparations for future glob/regex support.
+
+  * server: add task log, auth log and access log rotation scheduled at
+    midnight.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 01 Dec 2025 04:13:31 +0100
+
 proxmox-datacenter-manager (0.9.4) trixie; urgency=medium
 
   * api: add new remote shell module with termproxy endpoints, which can be
