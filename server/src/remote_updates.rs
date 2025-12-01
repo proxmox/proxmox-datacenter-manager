@@ -375,6 +375,9 @@ fn check_repository_status(
             APTRepositoryHandle::Enterprise => has_enterprise = true,
             APTRepositoryHandle::NoSubscription => has_no_subscription = true,
             APTRepositoryHandle::Test => has_test = true,
+            APTRepositoryHandle::UnknownEnumValue(s) => {
+                log::warn!("encountered unkown APT repository handle variant {s}");
+            },
         }
     }
 
