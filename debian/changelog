@@ -1,3 +1,32 @@
+proxmox-datacenter-manager (0.9.7) trixie; urgency=medium
+
+  * remote config: use shadow config to safe token secrets to reduce the
+    likelihood that an user leaks theirs by accident when sharing the remote
+    config without knowing the full implications.
+
+  * add basic system-report API endpoint and admin CLI command.
+
+  * add an opt-in api-viewer package.
+
+  * api: add subscription endpoints for PDM itself. There is no dedicated
+    subscription, but existing customers with an active Basic or higher
+    subscription for their Proxmox remotes also gain access to the Proxmox
+    Datacenter Manager Enterprise-Repository and support.
+    For this to work 90% of the remotes need to have a subscription, and out
+    of those less than 40% can be community ones.
+
+  * api: sdn: add endpoints for ip-vrf and mac-vrf.
+
+  * priv daemon: create jobstate directory after the state dir.
+
+  * api: sdn: recognize pending status for networks to avoid that they are
+    shown as being in an unknown status.
+
+  * api: add endpoints for PVE node config and cluster options to be able to
+    render the remote notes.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 02 Dec 2025 01:38:32 +0100
+
 proxmox-datacenter-manager (0.9.6) trixie; urgency=medium
 
   * server: fix-up jobstate directory permission mode to make state base dir
