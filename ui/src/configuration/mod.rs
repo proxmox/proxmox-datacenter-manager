@@ -13,6 +13,8 @@ mod permission_path_selector;
 mod webauthn;
 pub use webauthn::WebauthnPanel;
 
+pub mod subscription_panel;
+
 pub mod views;
 
 #[function_component(SystemConfiguration)]

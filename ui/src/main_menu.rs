@@ -7,13 +7,14 @@ use pwt::css::{self, Display, FlexFit};
 use pwt::prelude::*;
 use pwt::state::{NavigationContextExt, Selection};
 use pwt::widget::nav::{Menu, MenuItem, NavigationDrawer};
-use pwt::widget::{Container, Row, SelectionView, SelectionViewRenderInfo};
+use pwt::widget::{Container, Panel, Row, SelectionView, SelectionViewRenderInfo};
 
 use proxmox_yew_comp::{AclContext, NotesView, XTermJs};
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
+use crate::configuration::subscription_panel::SubscriptionPanel;
 use crate::configuration::views::ViewGrid;
 use crate::dashboard::view::View;
 use crate::remotes::RemotesPanel;
@@ -264,6 +265,21 @@ impl Component for PdmMainMenu {
             "certificates",
             Some("fa fa-certificate"),
             |_| html! {<CertificatesPanel/>},
+        );
+
+        register_view(
+            &mut config_submenu,
+            &mut content,
+            tr!("Subscription"),
+            "subscription",
+            Some("fa fa-support"),
+            |_| {
+                Panel::new()
+                    .class(css::FlexFit)
+                    .title(tr!("Subscription"))
+                    .with_child(SubscriptionPanel::new())
+                    .into()
+            },
         );
 
         register_submenu(
