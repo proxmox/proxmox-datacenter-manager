@@ -344,7 +344,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         remote: Option<&str>,
     ) -> Result<(), proxmox_client::Error> {
-        let path = "/api2/extjs/metric-collection/trigger";
+        let path = "/api2/extjs/remotes/metric-collection/trigger";
 
         #[derive(Serialize)]
         struct TriggerParams<'a> {
@@ -364,7 +364,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     pub async fn get_metric_collection_status(
         &self,
     ) -> Result<Vec<pdm_api_types::MetricCollectionStatus>, Error> {
-        let path = "/api2/extjs/metric-collection/status";
+        let path = "/api2/extjs/remotes/metric-collection/status";
         Ok(self.0.get(path).await?.expect_json()?.data)
     }
 
@@ -1332,7 +1332,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     ) -> Result<pdm_api_types::remote_updates::UpdateSummary, Error> {
         Ok(self
             .0
-            .get("/api2/extjs/remote-updates/summary")
+            .get("/api2/extjs/remotes/updates/summary")
             .await?
             .expect_json()?
             .data)
@@ -1342,7 +1342,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     pub async fn refresh_remote_update_summary(&self) -> Result<pdm_api_types::UPID, Error> {
         Ok(self
             .0
-            .post_without_body("/api2/extjs/remote-updates/refresh")
+            .post_without_body("/api2/extjs/remotes/updates/refresh")
             .await?
             .expect_json()?
             .data)

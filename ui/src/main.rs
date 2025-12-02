@@ -191,7 +191,7 @@ impl Component for DatacenterManagerApp {
                     let mut res: Vec<TaskListItem> =
                         http_get(url.to_string(), params.clone()).await?;
 
-                    let res2: Vec<_> = http_get("/remote-tasks/list", params).await?;
+                    let res2: Vec<_> = http_get("/remotes/tasks/list", params).await?;
                     res.extend_from_slice(&res2);
 
                     Ok(res.into_iter().take(100).collect())

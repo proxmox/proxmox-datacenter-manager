@@ -139,7 +139,7 @@ impl Component for PbsRemoteTaskList {
             });
 
         let mut task_list = Tasks::new()
-            .base_url("/remote-tasks/list")
+            .base_url("/remotes/tasks/list")
             .on_show_task({
                 let link = ctx.link().clone();
                 move |(upid_str, endtime)| link.send_message(Some((upid_str, endtime)))

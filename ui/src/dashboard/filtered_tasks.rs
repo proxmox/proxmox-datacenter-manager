@@ -112,7 +112,7 @@ impl PdmFilteredTasks {
             params["remote"] = serde_json::Value::String(remote);
         }
 
-        http_get("/remote-tasks/list", Some(params)).await
+        http_get("/remotes/tasks/list", Some(params)).await
     }
 }
 

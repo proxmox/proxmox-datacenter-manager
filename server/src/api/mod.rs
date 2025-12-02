@@ -26,16 +26,12 @@ pub mod sdn;
 const SUBDIRS: SubdirMap = &sorted!([
     ("access", &access::ROUTER),
     ("config", &config::ROUTER),
-    ("metric-collection", &metric_collection::ROUTER),
     ("ping", &Router::new().get(&API_METHOD_PING)),
     ("pve", &pve::ROUTER),
     ("pbs", &pbs::ROUTER),
     ("remotes", &remotes::ROUTER),
     ("resources", &resources::ROUTER),
     ("nodes", &nodes::ROUTER),
-    ("remote-tasks", &remote_tasks::ROUTER),
-    // TODO: There might be a better place for this endpoint.
-    ("remote-updates", &remote_updates::ROUTER),
     ("sdn", &sdn::ROUTER),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
 ]);

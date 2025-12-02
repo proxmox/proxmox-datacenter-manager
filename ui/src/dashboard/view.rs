@@ -230,7 +230,7 @@ impl ViewComp {
                             "limit": 0,
                         });
                         add_view_filter(&mut params);
-                        let res = http_get("/remote-tasks/statistics", Some(params)).await;
+                        let res = http_get("/remotes/tasks/statistics", Some(params)).await;
                         link.send_message(Msg::LoadingResult(LoadingResult::TaskStatistics(res)));
                     }
                 };
