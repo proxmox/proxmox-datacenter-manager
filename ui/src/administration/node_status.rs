@@ -197,6 +197,21 @@ impl Component for PdmNodeStatus {
                         Row::new()
                             .gap(1)
                             .with_child(
+                                Button::new(tr!("Package Versions"))
+                                    .class(pwt::css::ColorScheme::Neutral)
+                                    .icon_class("fa fa-gift")
+                                    .onclick(
+                                        ctx.link().callback(|_| Msg::ShowPackageVersions(true)),
+                                    ),
+                            )
+                            .with_child(
+                                Button::new(tr!("System Report"))
+                                    .class(pwt::css::ColorScheme::Neutral)
+                                    .icon_class("fa fa-stethoscope")
+                                    .onclick(ctx.link().callback(|_| Msg::ShowSystemReport(true))),
+                            )
+                            .with_flex_spacer()
+                            .with_child(
                                 ConfirmButton::new(tr!("Reboot"))
                                     .confirm_message(tr!(
                                         "Are you sure you want to reboot the node?"
@@ -217,21 +232,6 @@ impl Component for PdmNodeStatus {
                                     }))
                                     .class(pwt::css::ColorScheme::Neutral)
                                     .icon_class("fa fa-power-off"),
-                            )
-                            .with_flex_spacer()
-                            .with_child(
-                                Button::new(tr!("Package Versions"))
-                                    .class(pwt::css::ColorScheme::Neutral)
-                                    .icon_class("fa fa-gift")
-                                    .onclick(
-                                        ctx.link().callback(|_| Msg::ShowPackageVersions(true)),
-                                    ),
-                            )
-                            .with_child(
-                                Button::new(tr!("System Report"))
-                                    .class(pwt::css::ColorScheme::Neutral)
-                                    .icon_class("fa fa-stethoscope")
-                                    .onclick(ctx.link().callback(|_| Msg::ShowSystemReport(true))),
                             ),
                     ),
             )
