@@ -23,6 +23,7 @@ in the section entitled "GNU Free Documentation License".
    introduction.rst
    installation.rst
    web-ui.rst
+   remotes.rst
 
 .. raw:: latex
 
