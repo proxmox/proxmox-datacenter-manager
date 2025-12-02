@@ -1,3 +1,25 @@
+proxmox-datacenter-manager-ui (0.9.8) trixie; urgency=medium
+
+  * migrate mapping: add missing single quote to error message.
+
+  * qemu, lxc: load and pass the pve-manager version to panels so that these
+    panels can hide fields that are not supported by the remotes PVE version.
+
+  * api structure: move /remotes/{id} to /remotes/remote/{id}
+
+  * api: move remote-tasks, remote-updates and metrics-collection under
+    /remotes, they do not warrant to be a top-level API route.
+
+  * permission path selector: add `/view` as a default path.
+
+  * only show PVE remotes in SDN tree.
+
+  * configuration: add subscription panel.
+
+  * task list: look up task description for PBS tasks.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 02 Dec 2025 19:22:59 +0100
+
 proxmox-datacenter-manager-ui (0.9.7) trixie; urgency=medium
 
   * top navigation bar: link to built-in docs.
