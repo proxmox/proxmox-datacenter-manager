@@ -592,14 +592,14 @@ fn create_menu(ctx: &yew::Context<RowViewComp>, new_coords: Position) -> Menu {
                         ),
                     )
                     .with_item(
-                        MenuItem::new(tr!("Nodes With the Hightest CPU Usagge)")).on_select(
+                        MenuItem::new(tr!("Nodes with Highest CPU Usage")).on_select(
                             create_callback(WidgetType::Leaderboard {
                                 leaderboard_type: LeaderboardType::NodeCpu,
                             }),
                         ),
                     )
                     .with_item(
-                        MenuItem::new(tr!("Nodes With the Highest Memory Usage")).on_select(
+                        MenuItem::new(tr!("Nodes with Highest Memory Usage")).on_select(
                             create_callback(WidgetType::Leaderboard {
                                 leaderboard_type: LeaderboardType::NodeMemory,
                             }),
