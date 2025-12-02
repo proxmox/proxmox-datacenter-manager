@@ -1,0 +1,62 @@
+FAQ
+===
+
+What distribution is Proxmox Datacenter Manager (PDM) based on?
+---------------------------------------------------------------
+
+Proxmox Datacenter Manager is based on `Debian GNU/Linux <https://www.debian.org/>`_.
+
+
+Will Proxmox Datacenter Manager run on a 32-bit processor?
+----------------------------------------------------------
+
+Proxmox Datacenter Manager only supports 64-bit CPUs (AMD or Intel). There are no future plans to
+support 32-bit processors.
+
+
+.. _faq-support-table:
+
+How long will my Proxmox Datacenter Manager version be supported?
+-----------------------------------------------------------------
+
+.. csv-table::
+   :file: faq-release-support-table.csv
+   :widths: 30 26 13 13 18
+   :header-rows: 1
+
+How can I upgrade Proxmox Datacenter Manager to the next point release?
+-----------------------------------------------------------------------
+
+Minor version upgrades, for example upgrading from Proxmox Datacenter Manager in rersion 1.0 to 1.1
+or 1.3, can be done just like any normal update.
+
+But, you should still check the `release notes <https://pdm.proxmox.com/Roadmap>`_ for any relevant
+notable, or breaking change.
+
+For the update itself use either the Web UI *Administration -> Updates* panel or through the CLI
+with:
+
+.. code-block:: console
+
+  apt update
+  apt full-upgrade
+
+.. note:: Always ensure you correctly setup the :ref:`package repositories
+   <sysadmin_package_repositories>` and only continue with the actual upgrade if `apt update` did
+   not hit any error.
+
+..
+ .. _faq-upgrade-major:
+ 
+ How can I upgrade Proxmox Datacenter Manager to the next major release?
+ -----------------------------------------------------------------------
+ 
+ Major version upgrades, for example going from Proxmox Datacenter Manager 1.3 to 2.1, are also
+ supported.
+ They must be carefully planned and tested and should **never** be started without having sucessfully
+ tested backups.
+ 
+ Although the specific upgrade steps depend on your respective setup, we provide general instructions
+ and advice of how a upgrade should be performed:
+ 
+ * `Upgrade from Proxmox Datacenter Manager 1 to 2 <https://pbs.proxmox.com/wiki/Upgrade_from_1.1_to_2.x>`_
