@@ -124,12 +124,10 @@ impl From<SubscriptionPanel> for VNode {
     }
 }
 
-// FIXME: ratios copied from backend
+// FIXME: ratios copied from backend, relay the result instead?
 
-// minimum ratio of nodes with active subscriptions
-const SUBSCRIPTION_THRESHOLD: f64 = 0.9;
-// max ratio of nodes with community subscriptions, among nodes with subscriptions
-const COMMUNITY_THRESHOLD: f64 = 0.4;
+// minimum ratio of nodes with active basic or higher subscriptions
+const SUBSCRIPTION_THRESHOLD: f64 = 0.8;
 
 fn rows() -> Vec<KVGridRow> {
     vec![
@@ -148,31 +146,19 @@ fn rows() -> Vec<KVGridRow> {
             let statistics = serde_json::from_value::<SubscriptionStatistics>(value.clone());
             match statistics {
                 Ok(stats) => {
-                    let subscribed_ratio =
-                        stats.active_subscriptions as f64 / stats.total_nodes as f64;
-                    let community_ratio =
-                        stats.community as f64 / stats.active_subscriptions as f64;
+                    let basic_or_higher = stats.active_subscriptions - stats.community;
+                    let basic_or_higher_ratio = basic_or_higher as f64 / stats.total_nodes as f64;
 
-                    fn operator(a: f64, b: f64) -> &'static str {
-                        if a >= b {
-                            ">="
-                        } else {
-                            "<"
-                        }
-                    }
+                    let op = (basic_or_higher_ratio >= SUBSCRIPTION_THRESHOLD)
+                        .then_some(">=")
+                        .unwrap_or("<");
 
                     Column::new()
                         .with_child(Row::new().with_child(tr!(
-                            "Subscribed Ratio: {0} ({1} {2})",
-                            format!("{:.0}%", subscribed_ratio * 100.0),
-                            operator(subscribed_ratio, SUBSCRIPTION_THRESHOLD),
+                            "Subscription Ratio (Basic or Higher): {0} ({1} {2})",
+                            format!("{:.0}%", basic_or_higher_ratio * 100.0),
+                            op,
                             format!("{:.0}%", SUBSCRIPTION_THRESHOLD * 100.0),
-                        )))
-                        .with_child(Row::new().with_child(tr!(
-                            "Community Ratio: {0} ({1} {2})",
-                            format!("{:.0}%", community_ratio * 100.0),
-                            operator(community_ratio, COMMUNITY_THRESHOLD),
-                            format!("{:.0}%", COMMUNITY_THRESHOLD * 100.0),
                         )))
                         .into()
                 }
