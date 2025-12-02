@@ -75,7 +75,7 @@ support at no extra cost.
 How can I get Enterprise Support for the Proxmox Datacenter Manager?
 --------------------------------------------------------------------
 
-Existing customers with an active Basic or higher subscription for their Proxmox remotes also gain
+Existing customers with active Basic or higher subscriptions for their Proxmox remotes also gain
 access to the Proxmox Datacenter Manager enterprise repository and support.
 
 .. _faq-enterprise-repository:
