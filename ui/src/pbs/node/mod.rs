@@ -70,7 +70,7 @@ impl yew::Component for PbsNodePanelComp {
             .class(ColorScheme::Neutral)
             .with_item_builder(
                 TabBarItem::new()
-                    .key("status_view")
+                    .key("overview")
                     .label(tr!("Overview"))
                     .icon_class("fa fa-tachometer"),
                 {
