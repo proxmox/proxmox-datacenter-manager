@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use pdm_api_types::remote_updates::RemoteUpdateSummary;
 use pdm_api_types::remotes::{RemoteType, TlsProbeOutcome};
 use pdm_api_types::resource::{PveResource, RemoteResources, ResourceType, TopEntities};
 use pdm_api_types::rrddata::{
@@ -552,6 +553,11 @@ impl<T: HttpApiClient> PdmClient<T> {
             .maybe_arg("kind", &kind)
             .build();
         Ok(self.0.get(&query).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_cluster_updates(&self, remote: &str) -> Result<RemoteUpdateSummary, Error> {
+        let url = format!("/api2/extjs/pve/remotes/{remote}/updates");
+        Ok(self.0.get(&url).await?.expect_json()?.data)
     }
 
     pub async fn pve_cluster_status(

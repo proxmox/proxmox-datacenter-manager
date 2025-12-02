@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::ErrorKind;
 
-use anyhow::Error;
+use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_apt_api_types::{APTRepositoriesResult, APTRepositoryHandle, APTUpdateInfo};
@@ -134,6 +134,26 @@ pub fn get_available_updates_summary() -> Result<UpdateSummary, Error> {
     }
 
     Ok(summary)
+}
+
+/// Return cached update information from specific remote
+pub fn get_available_updates_for_remote(remote: &str) -> Result<RemoteUpdateSummary, Error> {
+    let (config, _digest) = pdm_config::remotes::config()?;
+
+    if let Some(remote) = config.get(remote) {
+        let cache_content = get_cached_summary_or_default()?;
+        Ok(cache_content
+            .remotes
+            .get(&remote.id)
+            .cloned()
+            .unwrap_or_else(|| RemoteUpdateSummary {
+                nodes: NodeUpdateSummaryWrapper::default(),
+                remote_type: remote.ty,
+                status: RemoteUpdateStatus::Unknown,
+            }))
+    } else {
+        bail!("no such remote '{remote}'");
+    }
 }
 
 fn get_cached_summary_or_default() -> Result<UpdateSummary, Error> {

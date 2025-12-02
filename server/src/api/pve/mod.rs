@@ -13,6 +13,7 @@ use proxmox_schema::property_string::PropertyString;
 use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 
+use pdm_api_types::remote_updates::RemoteUpdateSummary;
 use pdm_api_types::remotes::{
     NodeUrl, Remote, RemoteListEntry, RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA,
 };
@@ -32,6 +33,7 @@ use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage}
 use crate::connection::PveClient;
 use crate::connection::{self, probe_tls_connection};
 use crate::remote_tasks;
+use crate::remote_updates::get_available_updates_for_remote;
 
 mod firewall;
 mod lxc;
@@ -75,6 +77,7 @@ const REMOTE_SUBDIRS: SubdirMap = &sorted!([
     ("resources", &RESOURCES_ROUTER),
     ("cluster-status", &STATUS_ROUTER),
     ("tasks", &tasks::ROUTER),
+    ("updates", &Router::new().get(&API_METHOD_GET_UPDATES)),
 ]);
 
 const NODES_ROUTER: Router = Router::new()
@@ -529,4 +532,22 @@ pub async fn get_options(remote: String) -> Result<serde_json::Value, Error> {
         .await?;
 
     Ok(options)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+        },
+    },
+    access: {
+        // correct permission?
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Return the cached update information about a remote.
+pub fn get_updates(remote: String) -> Result<RemoteUpdateSummary, Error> {
+    let update_summary = get_available_updates_for_remote(&remote)?;
+
+    Ok(update_summary)
 }
