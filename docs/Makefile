@@ -62,7 +62,7 @@ api-viewer/apidoc.js: $(API_VIEWER_FILES)
 	mv $@.tmp $@
 
 .PHONY: html
-html: $(GENERATED_SYNOPSIS) images/proxmox-logo.svg custom.css conf.py $(API_VIEWER_SOURCES)
+html: $(GENERATED_SYNOPSIS) images/proxmox-logo.svg _static/custom.css _static/custom.css conf.py $(API_VIEWER_SOURCES)
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	install -m 0644 _static/custom.js _static/custom.css images/proxmox-logo.svg $(BUILDDIR)/html/_static/
 	install -dm 0755 $(BUILDDIR)/html/api-viewer
