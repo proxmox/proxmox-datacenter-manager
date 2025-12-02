@@ -50,8 +50,8 @@ Proxmox Datacenter Manager 1.0
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 -  Based on Debian Trixie (13.2)
--  Latest 6.17.X-Y Kernel as stable default
--  ZFS 2.X.Y
+-  Latest 6.17.2-2 Kernel as stable default
+-  ZFS 2.3.4
 
 .. _features_highlights_1.0:
 
