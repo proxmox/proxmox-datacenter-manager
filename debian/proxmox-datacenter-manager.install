@@ -1,4 +1,3 @@
-debian/grub/proxmox-datacenter-manager.cfg etc/default/grub.d/
 debian/pdm-test.sources etc/apt/sources.list.d/
 usr/lib/systemd/system/proxmox-datacenter-api.service
 usr/lib/systemd/system/proxmox-datacenter-manager-banner.service
