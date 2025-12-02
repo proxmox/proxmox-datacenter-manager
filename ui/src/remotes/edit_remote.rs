@@ -56,7 +56,7 @@ impl Component for PdmEditRemote {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let props = ctx.props();
         let url = format!(
-            "/remotes/{}/config",
+            "/remotes/remote/{}/config",
             percent_encode_component(&props.remote_id)
         );
         EditWindow::new(tr!("Edit") + ": " + &tr!("Remote"))
@@ -69,7 +69,10 @@ impl Component for PdmEditRemote {
                 move |form_ctx| edit_remote_input_panel(form_ctx, &remote_id)
             })
             .on_submit({
-                let url = format!("/remotes/{}", percent_encode_component(&props.remote_id));
+                let url = format!(
+                    "/remotes/remote/{}",
+                    percent_encode_component(&props.remote_id)
+                );
                 move |form_ctx: FormContext| {
                     let url = url.clone();
                     async move {

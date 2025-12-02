@@ -29,6 +29,13 @@ use super::rrd_common;
 use super::rrd_common::DataPoint;
 
 pub const ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(SUBDIRS))
+    .subdirs(SUBDIRS);
+
+#[sortable]
+const SUBDIRS: SubdirMap = &sorted!([("remote", &REMOTE_ROUTER),]);
+
+pub const REMOTE_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_REMOTES)
     .post(&API_METHOD_ADD_REMOTE)
     .match_all("id", &ITEM_ROUTER);
@@ -36,11 +43,11 @@ pub const ROUTER: Router = Router::new()
 const ITEM_ROUTER: Router = Router::new()
     .put(&API_METHOD_UPDATE_REMOTE)
     .delete(&API_METHOD_REMOVE_REMOTE)
-    .get(&list_subdirs_api_method!(SUBDIRS))
-    .subdirs(SUBDIRS);
+    .get(&list_subdirs_api_method!(REMOTE_SUBDIRS))
+    .subdirs(REMOTE_SUBDIRS);
 
 #[sortable]
-const SUBDIRS: SubdirMap = &sorted!([
+const REMOTE_SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_REMOTE_CONFIG)),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
     (

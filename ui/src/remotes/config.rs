@@ -38,12 +38,12 @@ use proxmox_yew_comp::{
 use pdm_api_types::remotes::{NodeUrl, RemoteType};
 
 async fn load_remotes() -> Result<Vec<Remote>, Error> {
-    proxmox_yew_comp::http_get("/remotes", None).await
+    proxmox_yew_comp::http_get("/remotes/remote", None).await
 }
 
 async fn delete_item(key: Key) -> Result<(), Error> {
     let id = key.to_string();
-    let url = format!("/remotes/{}", percent_encode_component(&id));
+    let url = format!("/remotes/remote/{}", percent_encode_component(&id));
     proxmox_yew_comp::http_delete(&url, None).await?;
     Ok(())
 }
@@ -69,7 +69,7 @@ pub async fn create_remote(mut data: Value, remote_type: RemoteType) -> Result<(
         params["create-token"] = token.into();
     }
 
-    proxmox_yew_comp::http_post("/remotes", Some(params)).await
+    proxmox_yew_comp::http_post("/remotes/remote", Some(params)).await
 }
 
 /*

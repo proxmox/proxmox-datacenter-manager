@@ -93,7 +93,12 @@ impl<T: HttpApiClient> std::ops::DerefMut for PdmClient<T> {
 
 impl<T: HttpApiClient> PdmClient<T> {
     pub async fn list_remotes(&self) -> Result<Vec<Remote>, Error> {
-        Ok(self.0.get("/api2/extjs/remotes").await?.expect_json()?.data)
+        Ok(self
+            .0
+            .get("/api2/extjs/remotes/remote")
+            .await?
+            .expect_json()?
+            .data)
     }
 
     pub async fn add_remote(
@@ -111,7 +116,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         }
         self.0
             .post(
-                "/api2/extjs/remotes",
+                "/api2/extjs/remotes/remote",
                 &AddRemoteParams {
                     remote,
                     create_token,
@@ -126,13 +131,13 @@ impl<T: HttpApiClient> PdmClient<T> {
         remote: &str,
         updater: &pdm_api_types::remotes::RemoteUpdater,
     ) -> Result<(), Error> {
-        let path = format!("/api2/extjs/remotes/{remote}");
+        let path = format!("/api2/extjs/remotes/remote/{remote}");
         self.0.put(&path, updater).await?.nodata()?;
         Ok(())
     }
 
     pub async fn delete_remote(&self, remote: &str) -> Result<(), Error> {
-        let path = format!("/api2/extjs/remotes/{remote}");
+        let path = format!("/api2/extjs/remotes/remote/{remote}");
         self.0.delete(&path).await?.nodata()?;
         Ok(())
     }
@@ -141,7 +146,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         remote: &str,
     ) -> Result<pve_api_types::VersionResponse, proxmox_client::Error> {
-        let path = format!("/api2/extjs/remotes/{remote}/version");
+        let path = format!("/api2/extjs/remotes/remote/{remote}/version");
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
@@ -383,7 +388,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         mode: RrdMode,
         timeframe: RrdTimeframe,
     ) -> Result<pdm_api_types::rrddata::RemoteDatapoint, Error> {
-        let path = ApiPathBuilder::new(format!("/api2/extjs/remotes/{remote}/rrddata"))
+        let path = ApiPathBuilder::new(format!("/api2/extjs/remotes/remote/{remote}/rrddata"))
             .arg("cf", mode)
             .arg("timeframe", timeframe)
             .build();
