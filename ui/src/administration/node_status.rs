@@ -212,7 +212,7 @@ impl Component for PdmNodeStatus {
                             )
                             .with_flex_spacer()
                             .with_child(
-                                ConfirmButton::new(tr!("Reboot"))
+                                ConfirmButton::new(tr!("Reboot Datacenter Manager"))
                                     .confirm_message(tr!(
                                         "Are you sure you want to reboot the node?"
                                     ))
@@ -223,7 +223,7 @@ impl Component for PdmNodeStatus {
                                     .icon_class("fa fa-undo"),
                             )
                             .with_child(
-                                ConfirmButton::new(tr!("Shutdown"))
+                                ConfirmButton::new(tr!("Shutdown Datacenter Manager"))
                                     .confirm_message(tr!(
                                         "Are you sure you want to shut down the node?"
                                     ))
