@@ -11,7 +11,7 @@ use proxmox_sys::fs::CreateOptions;
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::subscription::{
-    NodeSubscriptionInfo, SubscriptionLevel, SubscriptionStatistics,
+    NodeSubscriptionInfo, PdmSubscriptionInfo, SubscriptionLevel, SubscriptionStatistics,
 };
 use pdm_api_types::PRIV_SYS_MODIFY;
 
@@ -78,7 +78,7 @@ fn count_subscriptions(
     stats
 }
 
-fn check_counts(stats: SubscriptionStatistics) -> Result<(), Error> {
+fn check_counts(stats: &SubscriptionStatistics) -> Result<(), Error> {
     let subscribed_ratio = stats.active_subscriptions as f64 / stats.total_nodes as f64;
     let community_ratio = stats.community as f64 / stats.active_subscriptions as f64;
 
@@ -107,26 +107,28 @@ fn check_counts(stats: SubscriptionStatistics) -> Result<(), Error> {
     }
 )]
 /// Return subscription status
-pub async fn get_subscription() -> Result<SubscriptionInfo, Error> {
+pub async fn get_subscription() -> Result<PdmSubscriptionInfo, Error> {
     let infos = get_all_subscription_infos().await?;
 
-    let stats = count_subscriptions(&infos);
+    let statistics = count_subscriptions(&infos);
 
-    if let Err(err) = check_counts(stats) {
-        Ok(SubscriptionInfo {
+    let info = if let Err(err) = check_counts(&statistics) {
+        SubscriptionInfo {
             status: SubscriptionStatus::Invalid,
             message: Some(format!("{err}")),
             serverid: None,
             url: Some(PRODUCT_URL.into()),
             ..Default::default()
-        })
+        }
     } else {
-        Ok(SubscriptionInfo {
+        SubscriptionInfo {
             status: SubscriptionStatus::Active,
             url: Some(PRODUCT_URL.into()),
             ..Default::default()
-        })
-    }
+        }
+    };
+
+    Ok(PdmSubscriptionInfo { info, statistics })
 }
 
 #[api(
@@ -147,7 +149,7 @@ pub async fn check_subscription() -> Result<(), Error> {
     let infos = get_all_subscription_infos().await?;
     let stats = count_subscriptions(&infos);
 
-    if let Err(err) = check_counts(stats) {
+    if let Err(err) = check_counts(&stats) {
         update_apt_auth(APT_AUTH_FN, apt_auth_file_opts(), APT_AUTH_URL, None, None)?;
         return Err(err);
     }

@@ -4,7 +4,7 @@ use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::api;
-use proxmox_subscription::SubscriptionStatus;
+use proxmox_subscription::{SubscriptionInfo, SubscriptionStatus};
 
 #[api]
 // order is important here, since we use that for determining if a node has a valid subscription
@@ -155,4 +155,22 @@ pub struct SubscriptionStatistics {
     pub active_subscriptions: usize,
     /// Total number of community level subscriptions across all remotes
     pub community: usize,
+}
+
+#[api(
+    properties: {
+        info: {
+            type: SubscriptionInfo,
+        }
+    }
+)]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+/// The PDM subscription info
+pub struct PdmSubscriptionInfo {
+    #[serde(flatten)]
+    pub info: SubscriptionInfo,
+
+    /// PDM subscription statistics
+    pub statistics: SubscriptionStatistics,
 }
