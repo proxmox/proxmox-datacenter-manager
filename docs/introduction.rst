@@ -81,8 +81,9 @@ Getting Help
 Enterprise Support
 ^^^^^^^^^^^^^^^^^^
 
-Customers with an active Basic, Standard, Premium, or Standard subscription for their Proxmox
-remotes gain access to the Proxmox Datacenter Manager Enterprise Repository and technical support.
+Customers with an active Basic, Standard, Premium, or Standard subscription for
+their Proxmox remotes gain access to the Proxmox Datacenter Manager Enterprise
+Repository and technical support.
 
 For more information, please visit https://www.proxmox.com or contact <mailto:sales@proxmox.com>.
 
