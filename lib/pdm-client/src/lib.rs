@@ -1048,11 +1048,13 @@ impl<T: HttpApiClient> PdmClient<T> {
         max_age: Option<u64>,
         resource_type: ResourceType,
         view: Option<&str>,
+        search: Option<&str>,
     ) -> Result<Vec<RemoteResources>, Error> {
         let path = ApiPathBuilder::new("/api2/extjs/resources/list")
             .maybe_arg("max-age", &max_age)
             .arg("resource-type", resource_type)
             .maybe_arg("view", &view)
+            .maybe_arg("search", &search)
             .build();
 
         Ok(self.0.get(&path).await?.expect_json()?.data)
