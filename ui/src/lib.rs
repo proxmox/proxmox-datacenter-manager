@@ -241,7 +241,7 @@ pub(crate) fn locale_compare(first: String, second: &str, numeric: bool) -> std:
 /// Returns true if the global subscription checks succeeded
 pub async fn check_subscription() -> bool {
     let data: Result<Value, _> = http_get("/nodes/localhost/subscription", None).await;
-    proxmox_yew_comp::subscription_is_active(&Some(data))
+    proxmox_yew_comp::subscription_is_active(Some(&data))
 }
 
 /// Extract the version of a specific package from `RemoteUpdateSummary` for a specific node
