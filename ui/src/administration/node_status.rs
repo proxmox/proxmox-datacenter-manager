@@ -220,7 +220,7 @@ impl Component for PdmNodeStatus {
                                         Msg::RebootOrShutdown(NodePowerCommand::Reboot)
                                     }))
                                     .class(pwt::css::ColorScheme::Neutral)
-                                    .icon_class("fa fa-undo"),
+                                    .icon_class("fa pwt-color-warning fa-undo"),
                             )
                             .with_child(
                                 ConfirmButton::new(tr!("Shutdown Datacenter Manager"))
@@ -231,7 +231,7 @@ impl Component for PdmNodeStatus {
                                         Msg::RebootOrShutdown(NodePowerCommand::Shutdown)
                                     }))
                                     .class(pwt::css::ColorScheme::Neutral)
-                                    .icon_class("fa fa-power-off"),
+                                    .icon_class("fa pwt-color-error fa-power-off"),
                             ),
                     ),
             )
