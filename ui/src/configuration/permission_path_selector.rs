@@ -25,6 +25,7 @@ static PREDEFINED_PATHS: &[&str] = &[
     "/system/status",
     "/system/tasks",
     "/system/time",
+    "/view"
 ];
 
 #[widget(comp=PdmPermissionPathSelector, @input, @element)]
