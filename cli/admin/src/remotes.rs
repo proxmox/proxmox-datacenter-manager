@@ -9,11 +9,13 @@ use proxmox_router::{ApiHandler, RpcEnvironment};
 use proxmox_schema::{api, property_string};
 
 use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
+use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 use server::api as dc_api;
 
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_REMOTES))
+        .insert("subscriptions", CliCommand::new(&API_METHOD_GET_REMOTE_SUBSCRIPTIONS))
         .insert("add", CliCommand::new(&API_METHOD_ADD_REMOTE))
         .insert(
             "remove",
@@ -72,6 +74,75 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Err
                 println!("    nodes:");
                 for node in &entry.nodes {
                     println!("        {}", property_string::print(&**node)?);
+                }
+            }
+        }
+    } else {
+        //format_and_print_result(&data, &output_format);
+        let mut data = data;
+        format_and_print_result_full(
+            &mut data,
+            &info.returns,
+            &output_format,
+            &Default::default(),
+        );
+    }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Get the status of all the remotes this instance is managing.
+async fn get_remote_subscriptions(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
+    let output_format = get_output_format(&param);
+
+    param["verbose"] = serde_json::Value::Bool(true);
+
+    let info = &dc_api::resources::API_METHOD_GET_SUBSCRIPTION_STATUS;
+    let data = match info.handler {
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
+        _ => unreachable!(),
+    };
+
+    if output_format == "text" {
+        let entries: Vec<RemoteSubscriptions> = serde_json::from_value(data)
+            .map_err(|err| format_err!("list_remotes api call returned invalid data - {err}"))?;
+
+        if entries.is_empty() {
+            println!("No remotes configured");
+            return Ok(());
+        }
+
+        let mut first = true;
+        for entry in entries {
+            let state = match entry.state {
+                RemoteSubscriptionState::None => "None",
+                RemoteSubscriptionState::Unknown => "Unknown",
+                RemoteSubscriptionState::Mixed => "Mixed",
+                RemoteSubscriptionState::Active => "Active",
+            };
+            let ln = first.then_some("").unwrap_or("\n");
+            first = false;
+            println!("{ln}Remote {} subscription status: {state}", entry.remote);
+            if let Some(error) = entry.error {
+                println!("    Errror: {error}");
+            }
+            if let Some(node_status) = entry.node_status {
+                for (node, status) in &node_status {
+                    let status = match status.as_ref().map(property_string::print) {
+                        Some(Ok(status)) => status,
+                        Some(Err(err)) => err.to_string(),
+                        None => "None".to_owned(),
+                    };
+                    println!("    node {node}: {status}");
                 }
             }
         }
