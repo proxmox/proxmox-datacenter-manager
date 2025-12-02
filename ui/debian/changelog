@@ -1,3 +1,45 @@
+proxmox-datacenter-manager-ui (0.9.6) trixie; urgency=medium
+
+  * use explicit parameter indices in tr macros to avoid warnings in developer
+    console.
+
+  * status: properly render icon for sdn resources.
+
+  * resource tree: fix navigating to network resources.
+
+  * start to enable subscription check in various places.
+
+  * ui: remote updates: add subscription check on 'Refresh all', similar to
+    how it works in the PVE and PBS native UIs,
+
+  * remote updates: add tooltip to refresh all button for clarification.
+
+  * pdm administration: add simple system report window.
+
+  * pdm administration: add simple package version window.
+
+  * pdm administration: move power buttons to the right for consistency with
+    PVE and PBS web UIs.
+
+  * pdm administration: clarify labels that power buttons are for the
+    Datacenter Manager itself and colorize the icons.
+
+  * sdn: evpn: add detail, zone and vnet status panel.
+
+  * firewall: use property view for options instead of dialog.
+
+  * add remote-link to PVE that opens the respective rules/options panel.
+
+  * do not mark PBS as experimental anymore; while it's not yet very
+    powerful, it can be already useful and the available feature set is
+    stable.
+
+  * sdn: recognize pending as valid status.
+
+  * ui: pve: add notes tab for nodes and the datacenter.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 02 Dec 2025 02:24:00 +0100
+
 proxmox-datacenter-manager-ui (0.9.5) trixie; urgency=medium
 
   * pbs: move node overview to tab and add update tab.
