@@ -190,10 +190,7 @@ impl Component for PdmTopNavBar {
                         .class(ColorScheme::Neutral)
                         .on_activate(|_| {
                             gloo_utils::window()
-                                .open_with_url_and_target(
-                                    "https://pve.proxmox.com/wiki/Proxmox_Datacenter_Manager_Beta_Documentation",
-                                    "_blank"
-                                )
+                                .open_with_url_and_target("docs/index.html", "_blank")
                                 .expect_throw("could not open documentation in a new window");
                         }),
                 )
