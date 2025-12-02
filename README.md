@@ -37,7 +37,7 @@ VE and Proxmox Backup Server in one central place.
 ## Technology Overview
 
 ### Backend
-- Implemented in Rust, reusing code from Proxmox Backup Server where possible
+- Implemented in the Rust programming language, reusing code from Proxmox Backup Server where possible
 - A for Proxmox projects standard dual-stack of API daemons. One as main API daemon running as
   unprivileged users and one privileged daemon running as root. Contrary to other projects the
   privileged daemon exclusively listens on a file based UNIX socket, thus restricting attack surface

@@ -5,7 +5,7 @@ What is Proxmox Datacenter Manager?
 -----------------------------------
 
 Proxmox Datacenter Manager is a centralized management platform designed to oversee Proxmox Virtual
-Environment (PVE) and Proxmox Backup Server (PBS) instances across disjointed locations.
+Environment and Proxmox Backup Server instances across disjointed locations.
 It provides a unified view of all registered resources, including nodes, virtual machines,
 containers, storages, and backup datastores, regardless of their geographic location.
 
@@ -47,8 +47,8 @@ Technology Stack
 
 Proxmox Datacenter Manager relies on a modern, secure, and performant technology stack:
 
-* **Core Language**: The project is primarily developed in **Rust**, ensuring memory safety and
-  high performance.
+* **Core Language**: The project is primarily developed in the **Rust** programming Language,
+  ensuring memory safety and high performance.
 * **Backend Architecture**:
 
  * The backend exposes a JSON-based REST API.
@@ -81,7 +81,7 @@ Getting Help
 Enterprise Support
 ^^^^^^^^^^^^^^^^^^
 
-Customers with an active Basic, Standard, Premium, or Standard subscription for
+Customers with an active Basic, Standard, or Premium subscription for
 their Proxmox remotes gain access to the Proxmox Datacenter Manager Enterprise
 Repository and technical support.
 
