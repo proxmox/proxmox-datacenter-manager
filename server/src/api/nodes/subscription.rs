@@ -22,9 +22,7 @@ const APT_AUTH_FN: &str = "/etc/apt/auth.conf.d/pdm.conf";
 const APT_AUTH_URL: &str = "enterprise.proxmox.com/debian/pdm";
 
 // minimum ratio of nodes with active subscriptions
-const SUBSCRIPTION_THRESHOLD: f64 = 0.9;
-// max ratio of nodes with community subscriptions, among nodes with subscriptions
-const COMMUNITY_THRESHOLD: f64 = 0.4;
+const SUBSCRIPTION_THRESHOLD: f64 = 0.8;
 
 fn apt_auth_file_opts() -> CreateOptions {
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
@@ -79,17 +77,13 @@ fn count_subscriptions(
 }
 
 fn check_counts(stats: &SubscriptionStatistics) -> Result<(), Error> {
-    let subscribed_ratio = stats.active_subscriptions as f64 / stats.total_nodes as f64;
-    let community_ratio = stats.community as f64 / stats.active_subscriptions as f64;
+    let basic_or_higher_ratio =
+        (stats.active_subscriptions - stats.community) as f64 / stats.total_nodes as f64;
 
-    if subscribed_ratio > SUBSCRIPTION_THRESHOLD {
-        if community_ratio < COMMUNITY_THRESHOLD {
-            return Ok(());
-        } else {
-            bail!("Too many remote nodes with community level subscription!");
-        }
+    if basic_or_higher_ratio >= SUBSCRIPTION_THRESHOLD {
+        return Ok(());
     } else {
-        bail!("Too many remote nodes without active subscription!");
+        bail!("Too many remote nodes without active basic or higher subscription!");
     }
 }
 
