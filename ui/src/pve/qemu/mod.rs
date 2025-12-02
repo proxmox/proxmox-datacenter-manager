@@ -5,10 +5,11 @@ use std::rc::Rc;
 
 use yew::virtual_dom::{VComp, VNode};
 
-use pwt::prelude::*;
-
+use proxmox_deb_version::Version;
 use pwt::css::FlexFit;
+use pwt::prelude::*;
 use pwt::widget::{Button, Column, Container, Fa, Row, TabBarItem, TabPanel, Tooltip};
+use pwt_macros::builder;
 
 use proxmox_yew_comp::configuration::pve::{QemuHardwarePanel, QemuOptionsPanel};
 
@@ -18,10 +19,16 @@ use crate::pve::utils::render_qemu_name;
 use crate::renderer::render_title_row;
 
 #[derive(Clone, Debug, Properties, PartialEq)]
+#[builder]
 pub struct QemuPanel {
     remote: String,
     node: String,
     info: PveQemuResource,
+
+    #[prop_or_default]
+    #[builder]
+    /// The nodes pve-manager version, used to feature gate some entries.
+    pve_manager_version: Option<Version>,
 
     #[prop_or(60_000)]
     /// The interval for refreshing the rrd data
@@ -107,6 +114,7 @@ impl yew::Component for QemuPanelComp {
                     let remote = props.remote.clone();
                     let node = props.node.clone();
                     let vmid = props.info.vmid;
+                    let pve_manager_version = props.pve_manager_version.clone();
                     move |_| {
                         Container::new()
                             .class(FlexFit)
@@ -127,6 +135,7 @@ impl yew::Component for QemuPanelComp {
                                     .with_child(html! {<hr/>})
                                     .with_child(
                                         QemuOptionsPanel::new(node.clone(), vmid)
+                                            .pve_manager_version(pve_manager_version.clone())
                                             .readonly(true)
                                             .remote(remote.clone()),
                                     ),

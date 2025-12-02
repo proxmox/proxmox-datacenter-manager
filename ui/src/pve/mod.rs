@@ -18,9 +18,12 @@ use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComp
 
 use proxmox_client::Error;
 
-use pdm_api_types::resource::{PveResource, ResourceType};
+use pdm_api_types::{
+    remote_updates::RemoteUpdateSummary,
+    resource::{PveResource, ResourceType},
+};
 
-use crate::get_deep_url;
+use crate::{extract_package_version, get_deep_url, LoadResult};
 
 pub mod lxc;
 pub mod node;
@@ -131,13 +134,17 @@ impl GuestInfo {
 
 pub enum Msg {
     SelectedView(tree::PveTreeNode),
-    ResourcesList(Result<Vec<PveResource>, Error>),
+    LoadFinished(
+        Result<Vec<PveResource>, Error>,
+        Result<RemoteUpdateSummary, Error>,
+    ),
 }
 
 pub struct PveRemoteComp {
     view: tree::PveTreeNode,
     resources: Rc<Vec<PveResource>>,
     last_error: Option<String>,
+    updates: LoadResult<RemoteUpdateSummary, Error>,
 }
 
 impl LoadableComponent for PveRemoteComp {
@@ -151,6 +158,7 @@ impl LoadableComponent for PveRemoteComp {
             view: PveTreeNode::Root,
             resources: Rc::new(Vec::new()),
             last_error: None,
+            updates: LoadResult::new(),
         }
     }
 
@@ -159,17 +167,20 @@ impl LoadableComponent for PveRemoteComp {
             Msg::SelectedView(node) => {
                 self.view = node;
             }
-            Msg::ResourcesList(res) => match res {
-                Ok(res) => {
-                    self.last_error = None;
-                    self.resources = Rc::new(res);
-                }
-                Err(err) => {
-                    self.last_error = Some(err.to_string());
-                    _ctx.link()
-                        .show_error(tr!("Load failed"), err.to_string(), false);
-                }
-            },
+            Msg::LoadFinished(resources, updates) => {
+                match resources {
+                    Ok(res) => {
+                        self.last_error = None;
+                        self.resources = Rc::new(res);
+                    }
+                    Err(err) => {
+                        self.last_error = Some(err.to_string());
+                        _ctx.link()
+                            .show_error(tr!("Load failed"), err.to_string(), false);
+                    }
+                };
+                self.updates.update(updates);
+            }
         }
         true
     }
@@ -185,7 +196,13 @@ impl LoadableComponent for PveRemoteComp {
                 node::PveNodePanel::new(remote.clone(), node.node.clone()).into()
             }
             PveTreeNode::Qemu(qemu) => {
-                qemu::QemuPanel::new(remote.clone(), qemu.node.clone(), qemu.clone()).into()
+                let pve_manager = match &self.updates.data {
+                    Some(updates) => extract_package_version(updates, &qemu.node, "pve-manager"),
+                    None => None,
+                };
+                qemu::QemuPanel::new(remote.clone(), qemu.node.clone(), qemu.clone())
+                    .pve_manager_version(pve_manager)
+                    .into()
             }
             PveTreeNode::Lxc(lxc) => {
                 lxc::LxcPanel::new(remote.clone(), lxc.node.clone(), lxc.clone()).into()
@@ -275,10 +292,10 @@ impl LoadableComponent for PveRemoteComp {
         let link = ctx.link();
         let remote = ctx.props().remote.clone();
         Box::pin(async move {
-            let res = crate::pdm_client()
-                .pve_cluster_resources(&remote, None)
-                .await;
-            link.send_message(Msg::ResourcesList(res));
+            let client = crate::pdm_client();
+            let resources = client.pve_cluster_resources(&remote, None).await;
+            let updates = client.pve_cluster_updates(&remote).await;
+            link.send_message(Msg::LoadFinished(resources, updates));
             Ok(())
         })
     }
