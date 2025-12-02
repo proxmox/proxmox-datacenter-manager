@@ -85,7 +85,11 @@ impl Component for PdmServerAdministration {
                     Container::new()
                         .class("pwt-content-spacer")
                         .class(pwt::css::FlexFit)
-                        .with_child(AptPackageManager::new().enable_upgrade(enable_upgrade))
+                        .with_child(
+                            AptPackageManager::new()
+                                .enable_upgrade(enable_upgrade)
+                                .subscription_url("/nodes/localhost/subscription"),
+                        )
                         .into()
                 },
             )
