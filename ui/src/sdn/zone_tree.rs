@@ -8,6 +8,7 @@ use yew::{html, ContextHandle, Html, Properties};
 
 use pdm_api_types::resource::{PveNetworkResource, RemoteResources, ResourceType, SdnStatus};
 use pdm_client::types::{ClusterResourceNetworkType, Resource};
+use pdm_search::{Search, SearchTerm};
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
 use pwt::props::EventSubscriber;
 use pwt::widget::{ActionIcon, Button, Toolbar};
@@ -317,9 +318,19 @@ impl LoadableComponent for ZoneTreeComponent {
 
         Box::pin(async move {
             let client = pdm_client();
+
+            let search = Search::with_terms([SearchTerm::new("pve").category(Some("remote-type"))])
+                .to_string();
+
             let remote_resources = client
-                .resources_by_type(None, ResourceType::PveNetwork, None)
+                .resources_by_type(
+                    None,
+                    ResourceType::PveNetwork,
+                    None,
+                    Some(&search.to_string()),
+                )
                 .await?;
+
             link.send_message(Self::Message::LoadFinished(remote_resources));
 
             Ok(())
