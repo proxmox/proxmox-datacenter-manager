@@ -158,6 +158,7 @@ Depends: libproxmox-acme-plugins,
          ${shlibs:Depends},
 Recommends: proxmox-datacenter-manager-client,
             proxmox-datacenter-manager-docs,
+            proxmox-datacenter-manager-meta,
             proxmox-datacenter-manager-ui,
 Description: Manage multiple Proxmox VE cluster and other Proxmox projects
  This package provides the API daemons of the Proxmox Datacenter Manager (PDM)
