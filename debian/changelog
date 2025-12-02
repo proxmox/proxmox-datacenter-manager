@@ -1,3 +1,16 @@
+proxmox-datacenter-manager (0.9.8) trixie; urgency=medium
+
+  * add initial built-in documentation.
+
+  * move grub snippet over to new proxmox-datacenter-manager-meta package.
+
+  * api: apt versions: track new proxmox-datacenter-manager-meta as virtual
+    package.
+
+  * remote.cfg: clean up shadow entries for non-existent remotes.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 02 Dec 2025 09:52:53 +0100
+
 proxmox-datacenter-manager (0.9.7) trixie; urgency=medium
 
   * remote config: use shadow config to safe token secrets to reduce the

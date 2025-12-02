@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.9.7"
+version = "0.9.8"
 authors = [
     "Thomas Lamprecht <t.lamprecht@proxmox.com>",
     "Proxmox Support Team <support@proxmox.com>",
