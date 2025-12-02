@@ -519,7 +519,7 @@ Known Issues & Breaking Changes
 .. _proxmox_datacenter_manager_0.9_beta:
 
 Proxmox Datacenter Manager 0.9 BETA
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 -  Based on Debian Trixie (13)
 -  Latest 6.14.11-1 Kernel as stable default
@@ -528,12 +528,14 @@ Proxmox Datacenter Manager 0.9 BETA
 .. _features_highlights:
 
 Features (Highlights)
-^^^^^^^^^^^^^^^^^^^^^
+'''''''''''''''''''''
 
 -  New release based on the great Debian Trixie.
+
 -  Seamless upgrade from Proxmox Datacenter Manager Alpha, see `Proxmox
    Datacenter Manager Upgrade from Alpha to
    Beta <Proxmox_Datacenter_Manager_Upgrade_from_Alpha_to_Beta>`__.
+
 -  EVPN configuration for Software-Defined Networking between clusters.
 
       A new panel provides an overview of the state of all EVPN zones
@@ -570,12 +572,12 @@ Features (Highlights)
 .. _changelog_overview:
 
 Changelog Overview
-^^^^^^^^^^^^^^^^^^
+''''''''''''''''''
 
 .. _enhancements_in_the_web_interface_gui:
 
 Enhancements in the Web Interface (GUI)
-'''''''''''''''''''''''''''''''''''''''
+
 
 -  Add a time frame selector for RRD graphs to allow users to select the
    displayed time frame.
@@ -697,7 +699,7 @@ Enhancements in the Web Interface (GUI)
 .. _remotes_management:
 
 Remotes Management
-''''''''''''''''''
+
 
 -  Enable Proxmox Backup Server Integration, CLI only for now.
 
@@ -720,7 +722,7 @@ Remotes Management
 .. _backend_improvements:
 
 Backend Improvements
-''''''''''''''''''''
+
 
 -  Improve robustness of incoming connection handling.
 
@@ -788,40 +790,34 @@ Backend Improvements
 .. _command_line_interface_enhancements:
 
 Command Line Interface Enhancements
-'''''''''''''''''''''''''''''''''''
+
 
 -  Allow query the status and RRD data from remotes via
    ``proxmox-datacenter-manager-client``.
-
 -  Add an upgrade checking script (``pdmAtoB``) to make upgrades more
    seamless.
-
 -  The utility ``proxmox-datacenter-manager-admin`` can now display the
    currently running version.
 
 .. _miscellaneous_improvements:
 
 Miscellaneous Improvements
-''''''''''''''''''''''''''
+
 
 -  Log an error when a task to query remote tasks fails instead of
    cancelling all tasks.
-
 -  Fix the order filters are applied when requesting a filtered task
    list.
-
 -  Use the new deb822 format for package repositories.
-
 -  Add a CLI command to allow querying the metric collection status and
    triggering a metric collection run.
-
 -  Handle a missing journal file error more gracefully when querying the
    task list.
 
 .. _known_issues_breaking_changes:
 
 Known Issues & Breaking Changes
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+'''''''''''''''''''''''''''''''
 
 -  The API endpoint for listing realms was changed from a ``POST`` to a
    ``GET`` request.
@@ -829,7 +825,7 @@ Known Issues & Breaking Changes
 .. _proxmox_datacenter_manager_0.1_alpha:
 
 Proxmox Datacenter Manager 0.1 ALPHA
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 -  Based on Debian Bookworm (12.8)
 -  Latest 6.8.12-5 Kernel as stable default
@@ -839,10 +835,11 @@ Proxmox Datacenter Manager 0.1 ALPHA
 .. _features_highlights:
 
 Features (Highlights)
-^^^^^^^^^^^^^^^^^^^^^
+'''''''''''''''''''''
 
 -  Connect to and view any number of independent nodes or clusters
    ("Datacenters")
+
 -  View the basic resource usage of all nodes and their guests.
 
       Saves and caches the list of resources (mainly guests and storage)
@@ -855,20 +852,21 @@ Features (Highlights)
       the full web interface of Proxmox VE/Proxmox Backup Server/…
 
 -  Remote migration of virtual guests between different datacenters.
+
 -  Support for the standard Proxmox feature set including complex
    Multi-Factor Authentication or ACME/Let's Encrypt from the beginning.
 
 .. _changelog_overview:
 
 Changelog Overview
-^^^^^^^^^^^^^^^^^^
+''''''''''''''''''
 
 Not applicable for the first alpha release.
 
 .. _known_issues_breaking_changes:
 
 Known Issues & Breaking Changes
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+'''''''''''''''''''''''''''''''
 
 This is an alpha release, there might be lots of stuff that is broken,
 gets reworked and fixed somewhat frequently.
