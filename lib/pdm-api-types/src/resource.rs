@@ -36,7 +36,7 @@ impl Resource {
     /// `qemu/<vmid>`
     pub fn id(&self) -> String {
         match self {
-            Resource::PveStorage(r) => format!("storage/{}", r.storage),
+            Resource::PveStorage(r) => format!("storage/{}/{}", r.node, r.storage),
             Resource::PveQemu(r) => format!("qemu/{}", r.vmid),
             Resource::PveLxc(r) => format!("lxc/{}", r.vmid),
             Resource::PveNode(r) => format!("node/{}", r.node),
