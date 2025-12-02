@@ -1,8 +1,7 @@
 use proxmox_yew_comp::utils::{format_task_description, format_upid, register_task_description};
 use pwt::tr;
 
-use pdm_api_types::RemoteUpid;
-use pdm_client::types::PveUpid;
+use pdm_api_types::{NativeUpid, RemoteUpid};
 use yew::virtual_dom::Key;
 
 pub fn register_pve_tasks() {
@@ -112,10 +111,16 @@ pub fn register_pve_tasks() {
 /// If it's a [`RemoteUpid`], prefixes it with the remote name
 pub fn format_optional_remote_upid(upid: &str, include_remote: bool) -> String {
     if let Ok(remote_upid) = upid.parse::<RemoteUpid>() {
-        let description = match remote_upid.upid().parse::<PveUpid>() {
-            Ok(upid) => format_task_description(&upid.worker_type, upid.worker_id.as_deref()),
+        let description = match remote_upid.native_upid() {
+            Ok(NativeUpid::PveUpid(upid)) => {
+                format_task_description(&upid.worker_type, upid.worker_id.as_deref())
+            }
+            Ok(NativeUpid::PbsUpid(upid)) => {
+                format_task_description(&upid.worker_type, upid.worker_id.as_deref())
+            }
             Err(_) => format_upid(&remote_upid.upid()),
         };
+
         if include_remote {
             format!("{} - {}", remote_upid.remote(), description)
         } else {
