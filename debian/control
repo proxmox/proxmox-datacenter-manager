@@ -181,5 +181,7 @@ Depends: fonts-font-awesome,
          ${misc:Depends},
          ${shlibs:Depends},
 Recommends: proxmox-datacenter-manager,
+Replaces: proxmox-datacenter-manager-api-viewer (<< 0.9.8~)
+Breaks: proxmox-datacenter-manager-api-viewer (<< 0.9.8~)
 Description: Documentation for the Proxmox Datacenter Manager.
  This package contains the Proxmox Datacenter Manager files.
