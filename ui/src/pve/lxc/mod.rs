@@ -8,10 +8,11 @@ use std::rc::Rc;
 
 use yew::virtual_dom::{VComp, VNode};
 
-use pwt::prelude::*;
-
+use proxmox_deb_version::Version;
 use pwt::css::FlexFit;
+use pwt::prelude::*;
 use pwt::widget::{Button, Column, Container, Fa, Row, TabBarItem, TabPanel, Tooltip};
+use pwt_macros::builder;
 
 use pdm_api_types::resource::PveLxcResource;
 
@@ -19,10 +20,16 @@ use crate::pve::utils::render_lxc_name;
 use crate::renderer::render_title_row;
 
 #[derive(Clone, Debug, Properties, PartialEq)]
+#[builder]
 pub struct LxcPanel {
     remote: String,
     node: String,
     info: PveLxcResource,
+
+    #[prop_or_default]
+    #[builder]
+    /// The nodes pve-manager version, used to feature gate some entries.
+    pve_manager_version: Option<Version>,
 
     #[prop_or(60_000)]
     /// The interval for refreshing the rrd data
@@ -108,6 +115,7 @@ impl yew::Component for LxcPanelComp {
                     let remote = props.remote.clone();
                     let node = props.node.clone();
                     let vmid = props.info.vmid;
+                    let pve_manager_version = props.pve_manager_version.clone();
                     move |_| {
                         Container::new()
                             .class(FlexFit)
@@ -119,6 +127,7 @@ impl yew::Component for LxcPanelComp {
                                     .with_child(html! {<hr/>})
                                     .with_child(
                                         LxcResourcesPanel::new(node.clone(), vmid)
+                                            .pve_manager_version(pve_manager_version.clone())
                                             .readonly(true)
                                             .remote(remote.clone()),
                                     )
@@ -128,6 +137,7 @@ impl yew::Component for LxcPanelComp {
                                     .with_child(html! {<hr/>})
                                     .with_child(
                                         LxcNetworkPanel::new(node.clone(), vmid)
+                                            .pve_manager_version(pve_manager_version.clone())
                                             .readonly(true)
                                             .remote(remote.clone()),
                                     )
@@ -135,6 +145,7 @@ impl yew::Component for LxcPanelComp {
                                     .with_child(html! {<hr/>})
                                     .with_child(
                                         LxcDnsPanel::new(node.clone(), vmid)
+                                            .pve_manager_version(pve_manager_version.clone())
                                             .readonly(true)
                                             .remote(remote.clone()),
                                     )
@@ -144,6 +155,7 @@ impl yew::Component for LxcPanelComp {
                                     .with_child(html! {<hr/>})
                                     .with_child(
                                         LxcOptionsPanel::new(node.clone(), vmid)
+                                            .pve_manager_version(pve_manager_version.clone())
                                             .readonly(true)
                                             .remote(remote.clone()),
                                     ),

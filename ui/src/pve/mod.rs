@@ -205,7 +205,13 @@ impl LoadableComponent for PveRemoteComp {
                     .into()
             }
             PveTreeNode::Lxc(lxc) => {
-                lxc::LxcPanel::new(remote.clone(), lxc.node.clone(), lxc.clone()).into()
+                let pve_manager = match &self.updates.data {
+                    Some(updates) => extract_package_version(updates, &lxc.node, "pve-manager"),
+                    None => None,
+                };
+                lxc::LxcPanel::new(remote.clone(), lxc.node.clone(), lxc.clone())
+                    .pve_manager_version(pve_manager)
+                    .into()
             }
             PveTreeNode::Storage(storage) => {
                 storage::StoragePanel::new(remote.clone(), storage.node.clone(), storage.clone())
