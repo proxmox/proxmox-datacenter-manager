@@ -83,7 +83,5 @@ access to the Proxmox Datacenter Manager enterprise repository and support.
 How can I get access to the Proxmox Datacenter Manager Enterprise Repository?
 -----------------------------------------------------------------------------
 
-The Proxmox Datacenter Manager can use the enterprise repository if:
-
-* At least 90% of the configured remote nodes have a valid subscription.
-* At least 60% of remote nodes with valid subscriptions are Basic or higher.
+The Proxmox Datacenter Manager can use the enterprise repository if at least 80% of the configured
+remote nodes have a valid Basic or higher subscription.
