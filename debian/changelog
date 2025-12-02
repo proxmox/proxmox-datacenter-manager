@@ -1,3 +1,24 @@
+proxmox-datacenter-manager (0.9.9) trixie; urgency=medium
+
+  * pve: add api call to get the cached version info from remotes.
+
+  * api structure: move /remotes/{id} to /remotes/remote/{id}
+
+  * api: move remote-tasks, remote-updates and metrics-collection under
+    /remotes, as these do not warrant to be a top-level API endpoint.
+
+  * admin cli: add command for getting all remote subscriptions status.
+
+  * system report: include subscriptions status of all remotes.
+
+  * resource: fix storage identifier.
+
+  * docs: fix various typos and wording issues all over the place.
+
+  * docs: add basic roadmap including release history.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 02 Dec 2025 19:25:57 +0100
+
 proxmox-datacenter-manager (0.9.8) trixie; urgency=medium
 
   * add initial built-in documentation.
