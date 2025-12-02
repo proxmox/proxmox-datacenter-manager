@@ -1,3 +1,11 @@
+proxmox-datacenter-manager-ui (0.9.7) trixie; urgency=medium
+
+  * top navigation bar: link to built-in docs.
+
+  * rename PBS node route-slug to overview as stop-gap for search routing.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 02 Dec 2025 09:50:22 +0100
+
 proxmox-datacenter-manager-ui (0.9.6) trixie; urgency=medium
 
   * use explicit parameter indices in tr macros to avoid warnings in developer
