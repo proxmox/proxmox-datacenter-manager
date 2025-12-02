@@ -3,7 +3,7 @@
 //! Make sure to call [`init`] to inject a concrete `RemoteConfig` instance
 //! before calling the [`lock_config`], [`config`] or [`save_config`] functions.
 
-use std::{collections::HashMap, sync::OnceLock};
+use std::{collections::HashSet, sync::OnceLock};
 
 use anyhow::{bail, Error};
 
@@ -87,41 +87,50 @@ impl RemoteConfig for DefaultRemoteConfig {
     }
 
     fn save_config(&self, mut config: SectionConfigData<Remote>) -> Result<(), Error> {
-        let mut new_shadow_entries = HashMap::new();
-        for (id, remote) in config.iter() {
+        let shadow_content = proxmox_sys::fs::file_read_optional_string(REMOTES_SHADOW_FILENAME)?
+            .unwrap_or_default();
+
+        let mut shadow_config =
+            RemoteShadow::parse_section_config(REMOTES_SHADOW_FILENAME, &shadow_content)?;
+
+        // collect valid remotes
+        let mut remote_ids = HashSet::new();
+
+        // collect any remotes which are not yet shadowed
+        let new_shadow_entries = config.iter().fold(Vec::new(), |mut entries, (id, remote)| {
             if remote.token != "-" {
-                new_shadow_entries.insert(
-                    id.to_string(),
-                    RemoteShadow {
-                        ty: remote.ty,
-                        id: remote.id.clone(),
-                        token: remote.token.clone(),
-                    },
-                );
+                entries.push(RemoteShadow {
+                    ty: remote.ty,
+                    id: remote.id.clone(),
+                    token: remote.token.clone(),
+                });
+            }
+            remote_ids.insert(id.to_string());
+            entries
+        });
+
+        // remove leftover shadow entries
+        let shadow_ids = shadow_config.keys().cloned().collect::<Vec<String>>();
+        for id in shadow_ids.iter() {
+            if !remote_ids.contains(id) {
+                shadow_config.remove(id);
             }
         }
 
-        // only read and modify shadow config if needed
-        if !new_shadow_entries.is_empty() {
-            let shadow_content =
-                proxmox_sys::fs::file_read_optional_string(REMOTES_SHADOW_FILENAME)?
-                    .unwrap_or_default();
-
-            let mut shadow_config =
-                RemoteShadow::parse_section_config(REMOTES_SHADOW_FILENAME, &shadow_content)?;
-
-            for (id, shadow_entry) in new_shadow_entries.into_iter() {
-                if let Some(remote) = config.get_mut(&id) {
-                    remote.token = '-'.to_string();
-                }
-                shadow_config.insert(id, shadow_entry);
+        // add new shadow entries
+        for entry in new_shadow_entries.into_iter() {
+            if let Some(remote) = config.get_mut(&entry.id) {
+                remote.token = "-".to_string();
             }
-            let raw = RemoteShadow::write_section_config(REMOTES_SHADOW_FILENAME, &shadow_config)?;
-            replace_config(REMOTES_SHADOW_FILENAME, raw.as_bytes())?;
+            shadow_config.insert(entry.id.clone(), entry);
         }
 
-        // only write out remote.cfg with potentially new shadowed entries
-        // if shadow file was successfully written!
+        // write out shadow config
+        let raw_shadow =
+            RemoteShadow::write_section_config(REMOTES_SHADOW_FILENAME, &shadow_config)?;
+        replace_config(REMOTES_SHADOW_FILENAME, raw_shadow.as_bytes())?;
+
+        // write out remotes.cfg *only after shadow config has been written*
         let raw = Remote::write_section_config(REMOTES_CFG_FILENAME, &config)?;
         replace_config(REMOTES_CFG_FILENAME, raw.as_bytes())
     }
