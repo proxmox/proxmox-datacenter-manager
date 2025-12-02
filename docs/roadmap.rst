@@ -43,6 +43,7 @@ specific needs.
 
 Release History
 ---------------
+
 .. _proxmox_datacenter_manager_1.0:
 
 Proxmox Datacenter Manager 1.0
@@ -52,7 +53,7 @@ Proxmox Datacenter Manager 1.0
 -  Latest 6.17.X-Y Kernel as stable default
 -  ZFS 2.X.Y
 
-.. _features_highlights:
+.. _features_highlights_1.0:
 
 Features (Highlights)
 ^^^^^^^^^^^^^^^^^^^^^
@@ -105,12 +106,12 @@ Features (Highlights)
       Tokens allow granting more fine-grained access to other
       applications that want to use the API.
 
-.. _changelog_overview:
+.. _changelog_overview_1.0:
 
 Changelog Overview
 ^^^^^^^^^^^^^^^^^^
 
-.. _enhancements_in_the_web_interface_gui:
+.. _enhancements_in_the_web_interface_gui_1.0:
 
 Enhancements in the Web Interface (GUI)
 '''''''''''''''''''''''''''''''''''''''
@@ -226,7 +227,7 @@ Enhancements in the Web Interface (GUI)
    -  Traditional Chinese
    -  Ukrainian
 
-.. _resource_management:
+.. _resource_management_1.0:
 
 Resource Management
 '''''''''''''''''''
@@ -265,7 +266,7 @@ Resource Management
 
 -  Show VMs and CTs overviews in a tab panel for Proxmox VE remotes.
 
-.. _remotes_management:
+.. _remotes_management_1.0:
 
 Remotes Management
 ''''''''''''''''''
@@ -312,7 +313,7 @@ Remotes Management
 -  Show more status information on Proxmox VE nodes in the node overview
    panel.
 
-.. _firewall_and_software_defined_network:
+.. _firewall_and_software_defined_network_1.0:
 
 Firewall and Software Defined Network
 '''''''''''''''''''''''''''''''''''''
@@ -338,7 +339,7 @@ Firewall and Software Defined Network
 -  Show SDN zones with pending changes as status “pending” instead of
    “unknown”.
 
-.. _backend_improvements:
+.. _backend_improvements_1.0:
 
 Backend Improvements
 ''''''''''''''''''''
@@ -447,7 +448,7 @@ Backend Improvements
 
 -  Add an API endpoint to get the cached version info of a remote.
 
-.. _command_line_interface_enhancements:
+.. _command_line_interface_enhancements_1.0:
 
 Command Line Interface Enhancements
 '''''''''''''''''''''''''''''''''''
@@ -467,7 +468,7 @@ Command Line Interface Enhancements
 -  Fix a bug that prevented the ``proxmox-datacenter-manager-admin`` to
    function as intended.
 
-.. _documentation_and_support_for_troubleshooting:
+.. _documentation_and_support_for_troubleshooting_1.0:
 
 Documentation and Support for Troubleshooting
 '''''''''''''''''''''''''''''''''''''''''''''
@@ -479,7 +480,7 @@ Documentation and Support for Troubleshooting
 
 -  Include an API viewer.
 
-.. _known_issues_breaking_changes:
+.. _known_issues_breaking_changes_1.0:
 
 Known Issues & Breaking Changes
 '''''''''''''''''''''''''''''''
@@ -525,7 +526,7 @@ Proxmox Datacenter Manager 0.9 BETA
 -  Latest 6.14.11-1 Kernel as stable default
 -  ZFS 2.3.4
 
-.. _features_highlights:
+.. _features_highlights_0.9_beta:
 
 Features (Highlights)
 '''''''''''''''''''''
@@ -569,12 +570,12 @@ Features (Highlights)
       Allow managing the permissions of Proxmox Datacenter Manager
       users.
 
-.. _changelog_overview:
+.. _changelog_overview_0.9_beta:
 
 Changelog Overview
 ''''''''''''''''''
 
-.. _enhancements_in_the_web_interface_gui:
+.. _enhancements_in_the_web_interface_gui_0.9_beta:
 
 Enhancements in the Web Interface (GUI)
 
@@ -696,7 +697,7 @@ Enhancements in the Web Interface (GUI)
    -  Turkish
    -  Ukrainian
 
-.. _remotes_management:
+.. _remotes_management_0.9_beta:
 
 Remotes Management
 
@@ -719,7 +720,7 @@ Remotes Management
 -  Add the API infrastructure for the initial Software Defined
    Networking integration.
 
-.. _backend_improvements:
+.. _backend_improvements_0.9_beta:
 
 Backend Improvements
 
@@ -787,7 +788,7 @@ Backend Improvements
 
       This makes the reported error messages more specific.
 
-.. _command_line_interface_enhancements:
+.. _command_line_interface_enhancements_0.9_beta:
 
 Command Line Interface Enhancements
 
@@ -799,7 +800,7 @@ Command Line Interface Enhancements
 -  The utility ``proxmox-datacenter-manager-admin`` can now display the
    currently running version.
 
-.. _miscellaneous_improvements:
+.. _miscellaneous_improvements_0.9_beta:
 
 Miscellaneous Improvements
 
@@ -814,7 +815,7 @@ Miscellaneous Improvements
 -  Handle a missing journal file error more gracefully when querying the
    task list.
 
-.. _known_issues_breaking_changes:
+.. _known_issues_breaking_changes_0.9_beta:
 
 Known Issues & Breaking Changes
 '''''''''''''''''''''''''''''''
@@ -832,7 +833,7 @@ Proxmox Datacenter Manager 0.1 ALPHA
 -  Newer 6.11 Kernel as opt-in
 -  ZFS: 2.2.6 (with compatibility patches for Kernel 6.11)
 
-.. _features_highlights:
+.. _features_highlights_0.1_alpha:
 
 Features (Highlights)
 '''''''''''''''''''''
@@ -856,14 +857,14 @@ Features (Highlights)
 -  Support for the standard Proxmox feature set including complex
    Multi-Factor Authentication or ACME/Let's Encrypt from the beginning.
 
-.. _changelog_overview:
+.. _changelog_overview_0.1_alpha:
 
 Changelog Overview
 ''''''''''''''''''
 
 Not applicable for the first alpha release.
 
-.. _known_issues_breaking_changes:
+.. _known_issues_breaking_changes_0.1_alpha:
 
 Known Issues & Breaking Changes
 '''''''''''''''''''''''''''''''
