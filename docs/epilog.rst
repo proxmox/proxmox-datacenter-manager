@@ -17,3 +17,7 @@
 
 .. _AGPL3: https://www.gnu.org/licenses/agpl-3.0.en.html
 .. _Debian: https://www.debian.org
+.. _Debian Administrator's Handbook: https://debian-handbook.info/
+
+.. _LVM: https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)
+.. _ZFS: https://en.wikipedia.org/wiki/ZFS

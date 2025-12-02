@@ -9,6 +9,8 @@ GENERATED_SYNOPSIS := \
 MAN1_PAGES := \
 	proxmox-datacenter-manager-admin.1 \
 	proxmox-datacenter-manager-client.1 \
+	proxmox-datacenter-api.1 \
+	proxmox-datacenter-privileged-api.1 \
 
 MAN5_PAGES := \
 	remotes.cfg.5 \

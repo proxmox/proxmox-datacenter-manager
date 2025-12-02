@@ -84,3 +84,5 @@ You can install the Proxmox default kernel with ZFS support by using:
 .. Note:: You can access the web interface of the Proxmox Datacenter Manager with
    your web browser, using HTTPS on port 8443. For example at
    ``https://<ip-or-dns-name>:8443``
+
+.. include:: package-repositories.rst

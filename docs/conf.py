@@ -91,6 +91,9 @@ rst_epilog += f"\n..  |VERSION| replace:: {version}"
 rst_epilog += f"\n..  |pdm-copyright| replace:: Copyright (C) {copyright}"
 
 man_pages = [
+    # daemons
+    ('proxmox-datacenter-api/man1', 'proxmox-datacenter-api', 'Proxmox Datacenter Manager Public API Server', [author], 1),
+    ('proxmox-datacenter-privileged-api/man1', 'proxmox-datacenter-privileged-api', 'Proxmox Datacenter Manager Privileged API Server', [author], 1),
     # CLI
     ('proxmox-datacenter-manager-admin/man1', 'proxmox-datacenter-manager-admin', 'Command line tool for managing Proxmox Datacenter Manager hosts.', [author], 1),
     ('proxmox-datacenter-manager-client/man1', 'proxmox-datacenter-manager-client', 'Command line tool for connecting and controlling the remotes and resources of a Proxmox Datacenter Manager hosts.', [author], 1),
@@ -120,8 +123,12 @@ suppress_warnings = [ 'toc.excluded' ]
 # This patterns also effect to html_static_path and html_extra_path
 exclude_patterns = [
     '_build', 'Thumbs.db', '.DS_Store',
+    'certificate-management.rst',
     'epilog.rst',
+    'local-zfs.rst',
+    'package-repositories.rst',
     'pdm-copyright.rst',
+    'system-booting.rst',
 ]
 
 # The reST default role (used for this markup: `text`) to use for all
