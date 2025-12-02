@@ -30,8 +30,8 @@ How can I upgrade Proxmox Datacenter Manager to the next point release?
 Minor version upgrades, for example upgrading from Proxmox Datacenter Manager in rersion 1.0 to 1.1
 or 1.3, can be done just like any normal update.
 
-But, you should still check the `release notes <https://pdm.proxmox.com/Roadmap>`_ for any relevant
-notable, or breaking change.
+But, you should still check the `release notes <https://pdm.proxmox.com/roadmap.html>`_ for any
+relevant notable, or breaking change.
 
 For the update itself use either the Web UI *Administration -> Updates* panel or through the CLI
 with:

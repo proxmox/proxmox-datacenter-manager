@@ -37,6 +37,7 @@ in the section entitled "GNU Free Documentation License".
 
    command-syntax.rst
    configuration-files.rst
+   roadmap.rst
    GFDL.rst
 
 .. only:: html and devbuild
