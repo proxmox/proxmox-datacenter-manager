@@ -17,7 +17,7 @@ use pdm_api_types::PRIV_SYS_MODIFY;
 
 use crate::api::resources::get_subscription_info_for_remote;
 
-const PRODUCT_URL: &str = "https://www.proxmox.com/en/proxmox-datacenter-manager/pricing";
+const PRODUCT_URL: &str = "https://pdm.proxmox.com/faq.html";
 const APT_AUTH_FN: &str = "/etc/apt/auth.conf.d/pdm.conf";
 const APT_AUTH_URL: &str = "enterprise.proxmox.com/debian/pdm";
 
