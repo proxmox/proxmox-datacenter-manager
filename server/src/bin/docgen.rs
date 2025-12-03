@@ -31,6 +31,7 @@ fn main() -> Result<(), Error> {
             //TODO: needs pub changes in proxmox-access-control
             //"user.cfg" => dump_section_config(&proxmox_access_control::user::CONFIG)
             "remotes.cfg" => dump_section_config(pdm_api_types::remotes::Remote::section_config()),
+            "views.cfg" => dump_section_config(pdm_api_types::views::ViewConfigEntry::section_config()),
             "config::acl::Role" => dump_enum_properties(&pdm_api_types::Role::API_SCHEMA)?,
             _ => bail!("docgen: got unknown type"),
         };
