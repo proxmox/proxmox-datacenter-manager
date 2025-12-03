@@ -69,7 +69,44 @@ Privileges
 Privileges are the building blocks of access roles. They are internally used to enforce the actual
 permission checks in the API.
 
-.. todo list all privileges.
+**System.Audit**
+  Allows knowing about the system and its status.
+
+**System.Modify**
+  Allows modifying system-level configuration.
+
+**Sys.Console**
+  Allows access to the system's console
+
+**Sys.PowerManagement**
+  Allows powering off or rebooting the system.
+
+**Resource.Audit**
+  Allows auditing guests, storages and other resources.
+
+**Resource.Manage**
+  Allows managing resources, like starting or stopping guests.
+
+**Resource.Modify**
+  Allows modifying resources, like making configuration changes.
+
+**Resource.Create**
+  Allows creating a guest.
+
+**Resource.Delete**
+  Allows deleting a guest.
+
+**Resource.Migrate**
+  Allows remote migration of a guest.
+
+**Access.Audit**
+  Allows auditing permissions and users.
+
+**Access.Modify**
+  Allows modifying permissions and users.
+
+**Realm.Allocate**
+  Allows viewing, creating, modifying and deleting realms
 
 .. _acl_roles:
 
@@ -83,7 +120,15 @@ Currently, there are only built-in roles, meaning you cannot create your own, cu
 
 The following roles exist:
 
-.. todo list all roles.
+**NoAccess**
+  Disable Access - nothing is allowed.
+
+**Administrator**
+  Can do anything, on the object path assigned.
+
+**Auditor**
+  Can view the status and configuration of things, but is not allowed to change
+  settings.
 
 
 .. _acl_object_paths:
@@ -103,18 +148,22 @@ the API call. These references are specified in curly brackets.
 
 Some examples are:
 
-.. todo add more examples below!
-
 .. table::
   :align: left
 
-  =========================== =========================================================
-  ``/system/network``         Access to configure the host network
-  ``/views/``                 Access to views.
-  ``/views/{id}``             Access to a specific view.
-  ``/access/users``           User administration
-  ``/access/openid/{id}``     Administrative access to a specific OpenID Connect realm
-  =========================== =========================================================
+  =============================== ==================================================================
+  ``/resource``                   Access to *all* resources managed by a Proxmox Datacenter Manager.
+  ``/resource/{id}``              Access to resources on a specific remote.
+  ``/resource/{id}/guest``        Access to *all* virtual guest resources on a specific remote.
+  ``/resource/{id}/guest/{vmid}`` Access to a specific virtual guest on a specific remote.
+  ``/resource/{id}/node``         Access to *all* nodes resources on a specific remote.
+  ``/resource/{id}/node/{name}``  Access to a specific node on a specific remote.
+  ``/views/``                     Access to views.
+  ``/views/{id}``                 Access to a specific view.
+  ``/system/network``             Access to configure the host network.
+  ``/access/users``               User administration.
+  ``/access/domains``             Administrative access to realms.
+  =============================== ==================================================================
 
 Inheritance
 ^^^^^^^^^^^
