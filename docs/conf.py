@@ -99,6 +99,7 @@ man_pages = [
     ('proxmox-datacenter-manager-client/man1', 'proxmox-datacenter-manager-client', 'Command line tool for connecting and controlling the remotes and resources of a Proxmox Datacenter Manager hosts.', [author], 1),
     # configs
     ('config/remotes/man5', 'remotes.cfg', 'Proxmox Datacenter Manager Remotes Configuration', [author], 5),
+    ('config/views/man5', 'views.cfg', 'Proxmox Datacenter Manager Views Configuration', [author], 5),
 ]
 
 
