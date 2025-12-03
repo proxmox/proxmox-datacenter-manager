@@ -206,6 +206,7 @@ impl LoadableComponent for VnetStatusComponent {
                 InputPanel::new().with_field(
                     tr!("Node"),
                     Combobox::new()
+                        .key("vnet-node-combobox")
                         .min_width(100)
                         .required(true)
                         .value(self.selected_node.clone())

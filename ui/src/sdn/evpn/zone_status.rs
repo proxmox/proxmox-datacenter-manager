@@ -214,6 +214,7 @@ impl LoadableComponent for ZoneStatusComponent {
                 InputPanel::new().with_field(
                     tr!("Node"),
                     Combobox::new()
+                        .key("zone-node-combobox")
                         .min_width(100)
                         .required(true)
                         .value(self.selected_node.clone())
