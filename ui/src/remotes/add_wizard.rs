@@ -88,7 +88,7 @@ impl Component for AddWizardState {
         let props = ctx.props();
         let remote_type = props.remote_type;
 
-        let mut wizard = Wizard::new("Add Remote")
+        let mut wizard = Wizard::new(tr!("Add Remote"))
             .width(800)
             .tab_bar_style(pwt::widget::TabBarStyle::MaterialPrimary)
             .on_done(props.on_close.clone())
