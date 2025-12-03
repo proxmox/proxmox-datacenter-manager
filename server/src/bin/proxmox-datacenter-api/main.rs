@@ -194,6 +194,8 @@ async fn run(debug: bool) -> Result<(), Error> {
     let redirector = proxmox_rest_server::Redirector::new();
     proxmox_rest_server::init_worker_tasks(pdm_buildcfg::PDM_LOG_DIR_M!().into(), file_opts)?;
 
+    proxmox_node_status::init_node_status_api(configdir!("/auth/api.pem"))?;
+
     //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/api.key -out /etc/proxmox-backup/api.pem -nodes
 
     // we build the initial acceptor here as we cannot start if this fails
@@ -390,8 +392,6 @@ async fn run(debug: bool) -> Result<(), Error> {
 fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
     let key_path = configdir!("/auth/api.key");
     let cert_path = configdir!("/auth/api.pem");
-
-    proxmox_node_status::init_node_status_api(cert_path)?;
 
     proxmox_rest_server::connection::TlsAcceptorBuilder::new()
         .certificate_paths_pem(key_path, cert_path)
