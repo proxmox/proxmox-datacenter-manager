@@ -71,7 +71,7 @@ In addition, you need a package repository from Proxmox to get Proxmox Datacente
 `Proxmox Datacenter Manager`_ Enterprise Repository
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This is the stable, recommended repository. It is available for all users fullfilling the Proxmox
+This is the stable, recommended repository. It is available for all users fulfilling the Proxmox
 Datacenter Manager :ref:`subscription requirements <faq-enterprise-repository>`. 
 It contains the most stable packages, and is suitable for production use. The ``pdm-enterprise``
 repository is enabled by default:

@@ -53,7 +53,7 @@ with:
  
  Major version upgrades, for example going from Proxmox Datacenter Manager 1.3 to 2.1, are also
  supported.
- They must be carefully planned and tested and should **never** be started without having sucessfully
+ They must be carefully planned and tested and should **never** be started without having successfully
  tested backups.
  
  Although the specific upgrade steps depend on your respective setup, we provide general instructions

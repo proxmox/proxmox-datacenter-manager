@@ -3,7 +3,7 @@ System Requirements
 
 We recommend using high quality server hardware when running Proxmox Datacenter Manager in
 production. While no managed remote or resource depends on Proxmox Datacenter Manager to run, you
-might find that Proxmox Datacenter Manager will become a convenient and ciritical tool in your
+might find that Proxmox Datacenter Manager will become a convenient and critical tool in your
 operations fast enough.
 
 .. _minimum_system_requirements:
