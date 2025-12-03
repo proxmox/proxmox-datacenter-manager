@@ -1,3 +1,21 @@
+proxmox-datacenter-manager (1.0.0) trixie; urgency=medium
+
+  * bump for first 1.0 stable version.
+
+  * server: move ldap passwords file inside the access folder. Automatically
+    migrate existing files on upgrade.
+
+  * daily update: wire up subscription handling.
+
+  * docs: include views.cfg options and add man-page.
+
+  * docs: add basic chapters for Views, Access Control, SDN and extend the one
+    for the web-based user interface.
+
+  * docs: add some basic screenshots from the web ui.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 03 Dec 2025 19:36:13 +0100
+
 proxmox-datacenter-manager (0.9.9) trixie; urgency=medium
 
   * pve: add api call to get the cached version info from remotes.
