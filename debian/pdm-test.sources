@@ -1,7 +1,0 @@
-# Other repositories will be made available with the first stable releases.
-# See https://forum.proxmox.com for announcements.
-Types: deb
-URIs: http://download.proxmox.com/debian/pdm/
-Suites: trixie
-Components: pdm-test
-Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
