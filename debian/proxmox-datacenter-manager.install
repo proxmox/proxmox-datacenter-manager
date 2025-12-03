@@ -18,6 +18,7 @@ usr/share/man/man1/proxmox-datacenter-api.1
 usr/share/man/man1/proxmox-datacenter-manager-admin.1
 usr/share/man/man1/proxmox-datacenter-privileged-api.1
 usr/share/man/man5/remotes.cfg.5
+usr/share/man/man5/views.cfg.5
 usr/share/zsh/vendor-completions/_pdmAtoB
 usr/share/zsh/vendor-completions/_proxmox-datacenter-api
 usr/share/zsh/vendor-completions/_proxmox-datacenter-manager-admin
