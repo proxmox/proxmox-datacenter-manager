@@ -154,12 +154,16 @@ Enhancements in the Web Interface (GUI)
 - Tabs for Proxmox VE and Proxmox Backup Server remotes now properly support history navigation.
 - Add a window to display and copy the system report.
 - A new panel show the Proxmox Datacenter Manager's subscription information.
+- When adding a remote via the setup wizard, the token will now include the Proxmox Datacenter
+  Manager host. This ensures multiple instances of Proxmox Datacenter Manager can be connected to
+  the same remote.
+- Mask remote shells if the remote version is too old to support the feature.
 - Fix an issue that prevented realms from being deleted (`issue 6885
   <https://bugzilla.proxmox.com/show_bug.cgi?id=6885>`__).
 - Fix various typos.
 - Fix an issue where updating a storage's status did not trigger correctly.
-- Fix an issue that prevented users in the PAM realm to be added as Proxmox Datacenter Manager
-  users (`issue 6787 <https://bugzilla.proxmox.com/show_bug.cgi?id=6787>`__).
+- Fix an issue that prevented users in the PAM realm to be added as Proxmox Datacenter Manager users
+  (`issue 6787 <https://bugzilla.proxmox.com/show_bug.cgi?id=6787>`__).
 - The UI now properly respects the text direction for Arabic, Persian (Farsi) and Hebrew.
 - Fix an issue where the resource tree for a search was not loaded correctly.
 - Make navigating to network resources work properly again.
@@ -377,6 +381,8 @@ Known Issues & Breaking Changes
      possible.
 
 - A minimum password length of eight characters is now enforced on users of the “pdm” realm.
+- Move the file storing LDAP password from ``/etc/proxmox-datacenter-manager/ldap_passwords.json``
+  to ``/etc/proxmox-datacenter-manager/access/ldap-passwords.json``
 
 .. _proxmox_datacenter_manager_0.9_beta:
 
