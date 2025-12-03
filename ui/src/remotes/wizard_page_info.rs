@@ -1,8 +1,10 @@
 use std::rc::Rc;
 
 use anyhow::Error;
+use gloo_utils::{format::JsValueSerdeExt, window};
 use html::IntoEventCallback;
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::JsValue;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use proxmox_schema::property_string::PropertyString;
@@ -341,7 +343,10 @@ impl Component for PdmWizardPageInfo {
                     .disabled(!self.user_mode)
                     .required(self.user_mode)
                     .submit(self.user_mode)
-                    .default("pdm-admin"),
+                    .default(match get_nodename() {
+                        Some(nodename) => format!("pdm-admin-{nodename}"),
+                        None => "pdm-admin".to_string(),
+                    }),
             )
             .with_right_custom_child(Container::new().key("spacer")) //spacer
             .with_right_custom_child(
@@ -408,4 +413,16 @@ impl From<WizardPageInfo> for VNode {
         let comp = VComp::new::<PdmWizardPageInfo>(Rc::new(val), None);
         VNode::from(comp)
     }
+}
+
+#[derive(Deserialize)]
+struct ProxmoxServerConfig {
+    #[serde(alias = "NodeName")]
+    pub node_name: String,
+}
+
+fn get_nodename() -> Option<String> {
+    let value = js_sys::Reflect::get(&window(), &JsValue::from_str("Proxmox")).ok()?;
+    let config: ProxmoxServerConfig = JsValueSerdeExt::into_serde(&value).ok()?;
+    Some(config.node_name)
 }
