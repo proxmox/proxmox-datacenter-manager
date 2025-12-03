@@ -15,7 +15,7 @@ you add a new user. Possible realms are:
 :pam: Linux PAM standard authentication. Use this if you want to authenticate as a Linux system
       user. The users needs to already exist on the host system.
 
-:pbs: Proxmox Datacenter Manager realm. This type stores hashed passwords in
+:pdm: Proxmox Datacenter Manager realm. This type stores hashed passwords in
       ``/etc/proxmox-datacenter-manager/access/shadow.json``.
 
 :openid: OpenID Connect server. Users can authenticate against an external OpenID Connect server.
