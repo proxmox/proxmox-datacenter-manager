@@ -33,6 +33,16 @@ Roadmap
   - Handling Multi-Factor Authentication (MFA) for the initial "Probe Remote" connection.
   - Evaluate a Pool View where hierarchical resource pools from all remotes are merged.
 
+* Improvements for customizable Views:
+
+  - Provide more card widgets that one can add, including ones that provide some direct control over
+    the included resources.
+  - Allow to add the pre-defined Updates, Firewall or Task tabs from the Remotes panel.
+  - Allow to create tabs to organize complex views.
+  - Evaluate other layouting options for rendering the card widgets.
+  - Extending the filter capabillity by providing more types and evaluate more flexible comparission
+    operators.
+
 
 Please note that this list outlines general goals and potential ideas rather than fixed promises.
 If you have a substantial use case you're willing to describe in detail, we encourage you to open
