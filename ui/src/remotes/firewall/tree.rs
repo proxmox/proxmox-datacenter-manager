@@ -290,7 +290,8 @@ impl FirewallTreeComponent {
             .with_child(
                 Button::new_icon("fa fa-angle-double-left")
                     .onclick(ctx.link().callback(|_| Msg::ToggleTreePanel))
-                    .aria_label(tr!("Hide tree panel")),
+                    .aria_label(tr!("Hide tree panel"))
+                    .disabled(self.selected_entry.is_none()),
             );
 
         let scope_toolbar = Toolbar::new()
