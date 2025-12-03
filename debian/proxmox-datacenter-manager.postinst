@@ -14,6 +14,21 @@ case "$1" in
       _dh_action=start
     fi
     deb-systemd-invoke $_dh_action 'proxmox-datacenter-api.service' 'proxmox-datacenter-privileged-api.service' >/dev/null || true
+
+    # For migrations or upgrade steps that can safely be automated.
+    # NOTE: check if '/proxmox_install_mode' exist to avoid doing something if in the ISO installer environment.
+
+    cfgdir="/etc/proxmox-datacenter-manager"
+
+    if test -n "$2" && dpkg --compare-versions "$2" 'lt' '1.0~'; then
+        if test -f "$cfgdir/ldap_passwords.json"; then
+            echo "migrating legacy 'ldap_passwords.json' location to 'access/ldap-passwords.json'"
+            mv "$cfgdir/ldap_passwords.json" "$cfgdir/access/ldap-passwords.json" || \
+                echo "moving '$cfgdir/ldap_passwords.json' to '$cfgdir/access/ldap-passwords.json' failed with code $?"
+        fi
+    fi
+
+
     ;;
 
   abort-upgrade|abort-remove|abort-deconfigure)
