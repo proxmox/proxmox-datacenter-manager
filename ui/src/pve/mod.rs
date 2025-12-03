@@ -193,7 +193,13 @@ impl LoadableComponent for PveRemoteComp {
         let content: Html = match &self.view {
             PveTreeNode::Root => remote::PveRemotePanel::new(remote.clone()).into(),
             PveTreeNode::Node(node) => {
-                node::PveNodePanel::new(remote.clone(), node.node.clone()).into()
+                let pve_manager = match &self.updates.data {
+                    Some(updates) => extract_package_version(updates, &node.node, "pve-manager"),
+                    None => None,
+                };
+                node::PveNodePanel::new(remote.clone(), node.node.clone())
+                    .pve_manager_version(pve_manager)
+                    .into()
             }
             PveTreeNode::Qemu(qemu) => {
                 let pve_manager = match &self.updates.data {

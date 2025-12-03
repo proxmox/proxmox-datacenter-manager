@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use gloo_utils::window;
+use proxmox_deb_version::Version;
 use proxmox_yew_comp::{AptPackageManager, ConsoleType, NotesView, XTermJs};
 use yew::virtual_dom::{VComp, VNode};
 
@@ -10,6 +11,7 @@ use pwt::{
     props::{ContainerBuilder, WidgetBuilder},
     widget::{Fa, Row, TabBarItem, TabPanel},
 };
+use pwt_macros::builder;
 
 mod overview;
 
@@ -18,12 +20,18 @@ use overview::PveNodeOverviewPanel;
 use crate::get_deep_url;
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
+#[builder]
 pub struct PveNodePanel {
     /// The remote to show
     pub remote: String,
 
     /// The node to show
     pub node: String,
+
+    #[prop_or_default]
+    #[builder]
+    /// The nodes pve-manager version, used to feature gate some entries.
+    pve_manager_version: Option<Version>,
 }
 
 impl PveNodePanel {
@@ -133,11 +141,26 @@ impl yew::Component for PveNodePanelComp {
                 {
                     let remote = props.remote.clone();
                     let node = props.node.clone();
+                    let supported = props
+                        .pve_manager_version
+                        .as_ref()
+                        .map(|ver| ver >= &Version::new("9.1.0", None))
+                        .unwrap_or(true);
                     move |_| {
-                        let mut xtermjs = XTermJs::new();
-                        xtermjs.set_node_name(node.clone());
-                        xtermjs.set_console_type(ConsoleType::RemotePveLoginShell(remote.clone()));
-                        xtermjs.into()
+                        if supported {
+                            let mut xtermjs = XTermJs::new();
+                            xtermjs.set_node_name(node.clone());
+                            xtermjs
+                                .set_console_type(ConsoleType::RemotePveLoginShell(remote.clone()));
+                            xtermjs.into()
+                        } else {
+                            Row::new()
+                                .class(pwt::css::FlexFit)
+                                .class(pwt::css::JustifyContent::Center)
+                                .class(pwt::css::AlignItems::Center)
+                                .with_child(html! { tr!("pve-manager version too old") })
+                                .into()
+                        }
                     }
                 },
             )
