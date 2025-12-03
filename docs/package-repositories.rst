@@ -85,13 +85,11 @@ repository is enabled by default:
   Components: pdm-enterprise
   Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
 
-  To never miss important security fixes, the superuser (``root@pam`` user) is notified via email
-  about new packages as soon as they are available. The change-log and details of each package can
-  be viewed in the GUI (if available).
+The change-log and details of each package can be viewed in the web UI.
 
-Please note that you need a valid subscription key to access this repository. More information
-regarding enterprise repository access can be found at
-https://www.proxmox.com/en/proxmox-datacenter-manager/pricing
+Please note that you need a valid subscription key to access this repository, and for that your
+remote nodes need Basic or higher subscriptions.
+See the :ref:`FAQ <faq-enterprise-repository>` for details.
 
 .. note:: You can disable this repository by adding the line ``Enabled: false`` to the stanza.
 
@@ -118,7 +116,7 @@ We recommend to configure this repository in ``/etc/apt/sources.list.d/proxmox.s
 
 This repository contains the latest packages and is heavily used by developers to test new features.
 
-.. .. warning:: the ``pdm-test`` repository should (as the name implies) only be used to test new
+.. warning:: the ``pdm-test`` repository should (as the name implies) only be used to test new
    features or bug fixes.
 
 You can access this repository by adding the following stanza to
