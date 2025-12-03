@@ -216,50 +216,6 @@ async fn run(debug: bool) -> Result<(), Error> {
     let connections = proxmox_rest_server::connection::AcceptBuilder::new().debug(debug);
     let server = proxmox_daemon::server::create_daemon(
         PDM_LISTEN_ADDR,
-        /*
-        move |listener| {
-            let (secure_connections, insecure_connections) =
-                connections.accept_tls_optional(listener, acceptor);
-
-            Ok(async {
-                log::info!("service ready and listening at {PDM_LISTEN_ADDR}");
-                proxmox_systemd::notify::SystemdNotify::Ready.notify()?;
-
-                let secure_server = hyper::Server::builder(secure_connections)
-                    .serve(rest_server)
-                    .with_graceful_shutdown(proxmox_daemon::shutdown_future())
-                    .map_err(Error::from);
-
-                let insecure_server = hyper::Server::builder(insecure_connections)
-                    .serve(redirector)
-                    .with_graceful_shutdown(proxmox_daemon::shutdown_future())
-                    .map_err(Error::from);
-
-                let (secure_res, insecure_res) =
-                    try_join!(tokio::spawn(secure_server), tokio::spawn(insecure_server))
-                        .context("failed to complete REST server task")?;
-
-                let mut err_msg = String::new();
-                let mut is_err = false;
-                for res in [secure_res, insecure_res] {
-                    if let Err(err) = res {
-                        use std::fmt::Write as _;
-
-                        is_err = true;
-
-                        if !err_msg.is_empty() {
-                            err_msg.push('\n');
-                        }
-                        let _ = write!(err_msg, "{err}");
-                    }
-                }
-                if is_err {
-                    bail!(err_msg);
-                }
-                Ok(())
-            })
-        },
-        */
         move |listener| {
             let (mut secure_connections, mut insecure_connections) =
                 connections.accept_tls_optional(listener, acceptor);
