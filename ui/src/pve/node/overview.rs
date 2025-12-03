@@ -247,7 +247,7 @@ impl yew::Component for PveNodeOverviewPanelComp {
                         )
                         .with_child(
                             RRDGraph::new(self.time_data.clone())
-                                .title(tr!("Server load"))
+                                .title(tr!("Server Load"))
                                 .render_value(|v: &f64| {
                                     if v.is_finite() {
                                         format!("{:.2}", v)
