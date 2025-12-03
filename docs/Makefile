@@ -4,7 +4,7 @@ GENERATED_SYNOPSIS := \
 	proxmox-datacenter-manager-admin/synopsis.rst \
 	proxmox-datacenter-manager-client/synopsis.rst \
 	config/remotes/config.rst \
-#	config/views/config.rst \
+	config/views/config.rst \
 
 MAN1_PAGES := \
 	proxmox-datacenter-manager-admin.1 \
@@ -14,7 +14,7 @@ MAN1_PAGES := \
 
 MAN5_PAGES := \
 	remotes.cfg.5 \
-#	views.cfg.5 \
+	views.cfg.5 \
 
 API_VIEWER_SOURCES=				\
 	api-viewer/index.html			\

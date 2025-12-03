@@ -24,6 +24,7 @@ in the section entitled "GNU Free Documentation License".
    installation.rst
    web-ui.rst
    remotes.rst
+   views.rst
    sysadmin.rst
    faq.rst
 

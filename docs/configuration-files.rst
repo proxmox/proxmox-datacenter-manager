@@ -13,3 +13,11 @@ Options
 ^^^^^^^
 
 .. include:: config/remotes/config.rst
+
+``views.cfg``
+~~~~~~~~~~~~~
+
+Options
+^^^^^^^
+
+.. include:: config/views/config.rst
