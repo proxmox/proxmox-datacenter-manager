@@ -163,15 +163,10 @@ async fn run(debug: bool) -> Result<(), Error> {
         .register_template("index", &indexpath)?
         .register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
         .aliases([
-            ("extjs", "/usr/share/javascript/extjs"),
             ("qrcodejs", "/usr/share/javascript/qrcodejs"),
             ("fontawesome", "/usr/share/fonts-font-awesome"),
             ("xtermjs", "/usr/share/pve-xtermjs"),
             ("locale", "/usr/share/pdm-i18n"),
-            (
-                "proxmox-extjs-widget-toolkit",
-                "/usr/share/javascript/proxmox-widget-toolkit",
-            ),
             ("docs", "/usr/share/doc/proxmox-datacenter-manager/html"),
         ])
         .formatted_router(&["api2"], &server::api::ROUTER)
