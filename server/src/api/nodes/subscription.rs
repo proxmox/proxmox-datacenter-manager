@@ -77,6 +77,9 @@ fn count_subscriptions(
 }
 
 fn check_counts(stats: &SubscriptionStatistics) -> Result<(), Error> {
+    if stats.total_nodes == 0 {
+        bail!("No remotes configured or could not fetch status.");
+    }
     let basic_or_higher_ratio =
         (stats.active_subscriptions - stats.community) as f64 / stats.total_nodes as f64;
 
