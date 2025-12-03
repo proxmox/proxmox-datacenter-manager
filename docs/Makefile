@@ -16,14 +16,6 @@ MAN5_PAGES := \
 	remotes.cfg.5 \
 	views.cfg.5 \
 
-API_VIEWER_SOURCES=				\
-	api-viewer/index.html			\
-	api-viewer/apidoc.js
-
-API_VIEWER_FILES :=							\
-	api-viewer/apidata.js						\
-	/usr/share/javascript/proxmox-widget-toolkit-dev/APIViewer.js	\
-
 # Sphinx documentation setup
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
@@ -54,19 +46,12 @@ $(MAN1_PAGES) $(MAN5_PAGES): man-pages
 man-pages: $(GENERATED_SYNOPSIS)
 	$(SPHINXBUILD) $(SPHINXOPTS) -b man ./ $(BUILDDIR)/man
 
-api-viewer/apidata.js: $(COMPILEDIR)/docgen
-	$(COMPILEDIR)/docgen apidata.js >$@
-
-api-viewer/apidoc.js: $(API_VIEWER_FILES)
-	cat $(API_VIEWER_FILES) >$@.tmp
-	mv $@.tmp $@
-
 .PHONY: html
-html: $(GENERATED_SYNOPSIS) images/proxmox-logo.svg _static/custom.css _static/custom.css conf.py $(API_VIEWER_SOURCES)
+html: $(GENERATED_SYNOPSIS) images/proxmox-logo.svg _static/custom.css _static/custom.css conf.py
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	install -m 0644 _static/custom.js _static/custom.css images/proxmox-logo.svg $(BUILDDIR)/html/_static/
 	install -dm 0755 $(BUILDDIR)/html/api-viewer
-	install -m 0644 ${API_VIEWER_SOURCES} $(BUILDDIR)/html/api-viewer
+	$(MAKE) -C api-viewer DESTDIR=../ DOCDIR=$(BUILDDIR) install
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
@@ -79,6 +64,7 @@ latexpdf: $(GENERATED_SYNOPSIS)
 	@echo "xelatex finished; the PDF files are in $(BUILDDIR)/latex."
 
 clean:
+	$(MAKE) -C api-viewer clean
 	rm -r -f *~ *.1 $(BUILDDIR) $(GENERATED_SYNOPSIS)
 
 install_manual_pages: man-pages
