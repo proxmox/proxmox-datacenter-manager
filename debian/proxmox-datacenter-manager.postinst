@@ -28,6 +28,11 @@ case "$1" in
         fi
     fi
 
+    BETA_SOURCES="/etc/apt/sources.list.d/pdm-test.sources"
+    if test -f "$BETA_SOURCES" && dpkg --compare-versions "$2" 'lt' '1.0.1' && dpkg --compare-versions "$2" 'gt' '0.0~~'; then
+        printf "\nNOTE: Remove the pdm-test repository, which was added during the beta phase.\nYou can (re-)add repositories on the web UI (Administration -> Repositories)\n\n"
+        rm -v "$BETA_SOURCES" || true
+    fi
 
     ;;
 
