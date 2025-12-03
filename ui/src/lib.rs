@@ -269,6 +269,14 @@ pub async fn check_pdm_subscription() -> bool {
 /// i.e., one that's not just relayed 1:1 to a specific remote node, as for that one should use the
 /// remote-specific alert.
 pub fn pdm_subscription_alert(on_close: impl IntoEventCallback<()>) -> AlertDialog {
+    let (title, msg) = pdm_subscription_title_and_message();
+    AlertDialog::new(Container::from_tag("p").with_child(msg))
+        .title(title)
+        .on_close(on_close)
+}
+
+/// returns the PDM specific title and message for the subscription alert
+pub fn pdm_subscription_title_and_message() -> (String, Html) {
     let dest =
         "<a target=\"_blank\" href=\"https://pdm.proxmox.com/docs/faq.html\">pdm.proxmox.com</a>"
             .to_string();
@@ -278,9 +286,7 @@ pub fn pdm_subscription_alert(on_close: impl IntoEventCallback<()>) -> AlertDial
         dest
     );
     let msg = Html::from_html_unchecked(msg.into());
-    AlertDialog::new(Container::from_tag("p").with_child(msg))
-        .title(tr!("No valid subscriptions"))
-        .on_close(on_close)
+    (tr!("No valid subscriptions"), msg)
 }
 
 /// Extract the version of a specific package from `RemoteUpdateSummary` for a specific node

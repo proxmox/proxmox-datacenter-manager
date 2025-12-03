@@ -20,6 +20,8 @@ mod node_status;
 
 use proxmox_yew_comp::{AptPackageManager, AptRepositories, ExistingProduct, Syslog, Tasks};
 
+use crate::pdm_subscription_title_and_message;
+
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
 pub struct ServerAdministration {
@@ -88,7 +90,8 @@ impl Component for PdmServerAdministration {
                         .with_child(
                             AptPackageManager::new()
                                 .enable_upgrade(enable_upgrade)
-                                .subscription_url("/nodes/localhost/subscription"),
+                                .subscription_url("/nodes/localhost/subscription")
+                                .subscription_message(pdm_subscription_title_and_message()),
                         )
                         .into()
                 },
