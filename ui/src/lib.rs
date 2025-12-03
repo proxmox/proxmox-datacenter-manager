@@ -2,6 +2,7 @@ use js_sys::{Array, JsString, Object};
 use pdm_api_types::remote_updates::RemoteUpdateSummary;
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::resource::{PveLxcResource, PveQemuResource};
+use pdm_api_types::subscription::PdmSubscriptionInfo;
 use pdm_client::types::Resource;
 use proxmox_deb_version::Version;
 use serde::{Deserialize, Serialize};
@@ -241,7 +242,15 @@ pub(crate) fn locale_compare(first: String, second: &str, numeric: bool) -> std:
 /// Returns true if the global subscription checks succeeded
 pub async fn check_subscription() -> bool {
     let data: Result<Value, _> = http_get("/nodes/localhost/subscription", None).await;
-    proxmox_yew_comp::subscription_is_active(Some(&data))
+    let mut is_active = proxmox_yew_comp::subscription_is_active(Some(&data));
+    if !is_active {
+        if let Ok(Ok(info)) = data.map(serde_json::from_value::<PdmSubscriptionInfo>) {
+            if info.statistics.total_nodes == 0 {
+                is_active = true;
+            }
+        }
+    }
+    is_active
 }
 
 /// Extract the version of a specific package from `RemoteUpdateSummary` for a specific node
