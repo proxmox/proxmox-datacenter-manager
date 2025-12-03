@@ -32,9 +32,8 @@ Features
 Login
 -----
 
-..
-  .. image:: images/screenshots/pdm-gui-login-window.png
-  :target: _images/pdm-gui-login-window.png
+.. image:: images/screenshots/login-window.png
+  :target: _images/login-window.png
   :align: right
   :alt: Proxmox Datacenter Manager login window
 
