@@ -160,7 +160,7 @@ pub fn create_subscription_panel(
         .class(AlignItems::Center)
         .gap(2)
         .with_child(Fa::new("ticket"))
-        .with_child(tr!("Subscription Status"))
+        .with_child(tr!("Remote Subscription Status"))
         .into();
 
     let mut panel = Panel::new()
