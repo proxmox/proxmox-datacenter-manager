@@ -7,8 +7,9 @@ use serde_json::Value;
 
 use yew::virtual_dom::{VComp, VNode};
 
+use pwt::css;
 use pwt::prelude::*;
-use pwt::widget::{error_message, Button, Column, Container, Row, Toolbar};
+use pwt::widget::{error_message, Button, Column, Container, Progress, Row, Toolbar};
 
 use proxmox_yew_comp::{http_get, http_post, KVGrid, KVGridRow};
 use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
@@ -31,6 +32,7 @@ pub enum Msg {
 pub struct ProxmoxSubscriptionPanel {
     rows: Rc<Vec<KVGridRow>>,
     data: Option<Rc<Value>>,
+    loaded: bool,
 }
 
 impl LoadableComponent for ProxmoxSubscriptionPanel {
@@ -42,6 +44,7 @@ impl LoadableComponent for ProxmoxSubscriptionPanel {
         Self {
             rows: Rc::new(rows()),
             data: None,
+            loaded: false,
         }
     }
 
@@ -49,6 +52,7 @@ impl LoadableComponent for ProxmoxSubscriptionPanel {
         match msg {
             Msg::LoadFinished(value) => {
                 self.data = Some(Rc::new(value));
+                self.loaded = true;
             }
         }
         true
@@ -108,10 +112,15 @@ impl LoadableComponent for ProxmoxSubscriptionPanel {
             None => Rc::new(Value::Null),
         };
 
-        KVGrid::new()
-            .class("pwt-flex-fit")
-            .data(data.clone())
-            .rows(Rc::clone(&self.rows))
+        Column::new()
+            .class(css::FlexFit)
+            .with_optional_child((!self.loaded).then_some(Progress::new()))
+            .with_child(
+                KVGrid::new()
+                    .class(css::FlexFit)
+                    .data(data.clone())
+                    .rows(Rc::clone(&self.rows)),
+            )
             .into()
     }
 }
