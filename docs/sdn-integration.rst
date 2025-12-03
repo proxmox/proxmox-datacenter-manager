@@ -82,3 +82,29 @@ It contains the following columns:
 *  VNI: The L3VNI (for zones) or L2VNI (for vnets)
 *  Zone: The name of the zone that contains the vnet
 *  Remote: The name of the remote that contains the zone (and therefore vnet).
+
+
+Status Panel
+''''''''''''
+
+Selecting a zone or vnet shows the current status of the IP-VRF / MAC-VRF for the selected zone /
+vnet on a given node. The node can be selected via the dropdown in the EVPN status panel.
+
+For zones it shows the contents of the IP-VRF, as seen by the kernel. This means that routes for
+guests located on the note do not show up in the IP-VRF status, since they are handled by the
+connected route for the subnet. For vnets it shows the type 2 routes, as learned via BGP, so all
+guests are included in this view.
+
+The following properties are shown for entries in the zone:
+
+*  Destination: The CIDR of the destination for this routing table entry
+*  Nexthops: The nexthops for this route, for vnets this is usually the local bridge - for
+   externally learned routes (e.g. default routes) the IP of the next hop
+*  Protocol: The protocol via which this routes was learned
+*  Metric: The metric (or cost) of a route, lower cost routes are preferred over higher cost routes
+
+The following properties are shown for entries in the vnet:
+
+*  IP Address: The IP-Address from the type-2 route
+*  MAC Address: The MAC-Address from the type-2 route
+*  via: The nexthop for the type-2 route
