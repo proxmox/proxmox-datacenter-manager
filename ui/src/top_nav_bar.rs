@@ -279,11 +279,6 @@ impl Component for PdmTopNavBar {
                     .padding_x(4)
                     .with_child(text)
             })
-            .with_child(html! {
-                <span class="pwt-font-title-medium">
-                    <a href="https://bugzilla.proxmox.com" target="_blank">{"BETA"}</a>
-                </span>
-            })
             .with_flex_spacer()
             .with_child(SearchBox::new())
             .with_flex_spacer()
