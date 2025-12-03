@@ -141,8 +141,11 @@ fn map_status(
                 tr!("{0} of an unknown number of nodes online", online),
             ),
             Some(RemoteType::Pbs) => (
-                Status::Error.into(),
-                tr!("{0} remotes failed", failed_remotes),
+                Status::Warning.into(),
+                tr!(
+                    "One of {0} nodes online" | "{n} of {0} nodes online" % *online,
+                    online + failed_remotes as u64
+                ),
             ),
         },
         NodeStatusCount { online, .. } => (Status::Success.into(), tr!("{0} nodes online", online)),
