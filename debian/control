@@ -153,13 +153,13 @@ Package: proxmox-datacenter-manager
 Architecture: any
 Multi-Arch: allowed
 Depends: libproxmox-acme-plugins,
+         proxmox-datacenter-manager-docs,
          proxmox-mini-journalreader,
          proxmox-termproxy,
          pve-xtermjs,
          ${misc:Depends},
          ${shlibs:Depends},
 Recommends: proxmox-datacenter-manager-client,
-            proxmox-datacenter-manager-docs,
             proxmox-datacenter-manager-meta,
             proxmox-datacenter-manager-ui,
 Description: Manage multiple Proxmox VE cluster and other Proxmox projects
