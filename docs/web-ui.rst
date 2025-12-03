@@ -48,12 +48,6 @@ selected here.
 User Interface Overview
 -----------------------
 
-..
-  .. image:: images/screenshots/pdm-gui-dashboard.png
-  :target: _images/pdm-gui-dashboard.png
-  :align: right
-  :alt: Proxmox Datacenter Manager GUI Dashboard
-
 The Proxmox Datacenter Manager graphical interface can be roughly split into three different section:
 
 * **Header**: On the left the header shows the current version information. In the middle a search
@@ -74,6 +68,11 @@ to specific management activities.
 Dashboard
 ^^^^^^^^^
 
+.. image:: images/screenshots/global-overview-dashboard.png
+  :target: _images/global-overview-dashboard.png
+  :align: right
+  :alt: Proxmox Datacenter Manager Dashboard
+
 The dashboard gives an overview of all configured remotes and resources. Including whether remotes
 and their resources are up and running. Allowing you to tell at a glimpse how many VMs and CTs are
 running or stopped across your data center and the state of all configured datastores. Information
@@ -82,6 +81,11 @@ status is shown as well.
 
 Views
 ^^^^^
+
+.. image:: images/screenshots/custom-view.png
+  :target: _images/custom-view.png
+  :align: right
+  :alt: A view with a custom selection of widgets and layout
 
 :ref:`views` essentially allow you to create a custom dashboard. You can create a new view by copying an
 existing view or creating it as an empty view. Then a set of filters can be applied to a view, so it
@@ -131,11 +135,21 @@ menu can be used to set up EVPN zones across multiple remotes via a single inter
 information on how to use Proxmox Datacenter Manager's SDN integration can be found in the
 :ref:`sdn-integration` section.
 
+.. image:: images/screenshots/all-remotes-updates.png
+  :target: _images/all-remotes-updates.png
+  :align: right
+  :alt: The Update tab shows all updates on all remotes
+
 Remotes
 ^^^^^^^
 
 Remotes allows you to configure new remotes as well as manage existing one. The "Remotes" menu
 itself provides different tabs to provide a unified view of your entire data center:
+
+.. image:: images/screenshots/all-remotes-firewall.png
+  :target: _images/all-remotes-firewall.png
+  :align: right
+  :alt: The Firewall tab shows all firewall rules and options across a data center
 
 * **Configuration**: Shows a list of configured remotes and some basic information on them. It also
   allows configuring new remotes.
@@ -147,8 +161,23 @@ itself provides different tabs to provide a unified view of your entire data cen
 All configured remotes are also listed here in the sidebar. Each menu entry provides a split panel
 that contains the most important information for each remote in an easy to navigate interface.
 
+.. image:: images/screenshots/remote-node-overview.png
+  :target: _images/remote-node-overview.png
+  :align: right
+  :alt: An overview of a Proxmox VE remote
 
+For Proxmox VE remotes this includes an overview of all nodes and guests in a cluster. By selecting
+a guest or a node in the tree on the right, you can access its more detailed tabs on the left. For
+nodes you can get an overview of their metrics, a read-only view of their notes and updates as well
+as access to a "Shell" tab. This last tabs gives you access to the nodes shell, making management
+easy.
 
+.. image:: images/screenshots/remote-node-shell.png
+  :target: _images/remote-node-shell.png
+  :align: right
+  :alt: A Proxmox VE remote with its shell tab open
 
-
-
+Proxmox Backup Server remotes show an overview of all their datastores on the left. If you select
+the node itself, you can see an overview of its most important metrics and a separate tab that shows
+available updates. When selecting a datastore its usage and disk I/O are shown first. A second tab
+provides a detailed view of its content by namespace.
