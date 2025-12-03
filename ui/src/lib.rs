@@ -260,7 +260,7 @@ pub async fn check_subscription() -> bool {
 
 /// Returns a an [`AlertDialog`] for the 'no valid subscription' popup.
 pub fn subscription_alert(on_close: impl IntoEventCallback<()>) -> AlertDialog {
-    let dest = "<a target=\"_blank\" href=\"https://pdm.proxmox.com/faq.html\">www.proxmox.com</a>"
+    let dest = "<a target=\"_blank\" href=\"https://pdm.proxmox.com/docs/faq.html\">pdm.proxmox.com</a>"
         .to_string();
 
     let msg = tr!(
