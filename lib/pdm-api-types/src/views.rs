@@ -89,7 +89,8 @@ pub struct ViewConfig {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Enum for the different sections in the 'views.cfg' file.
-pub enum ViewConfigEntry { // TODO: rename to just "View"?
+pub enum ViewConfigEntry {
+    // TODO: rename to just "View"?
     /// 'view' section
     View(ViewConfig),
 }

@@ -55,7 +55,10 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
             vec!["versions", "--verbose"],
         ),
         ("proxmox-datacenter-manager-admin", vec!["remote", "list"]),
-        ("proxmox-datacenter-manager-admin", vec!["remote", "subscriptions"]),
+        (
+            "proxmox-datacenter-manager-admin",
+            vec!["remote", "subscriptions"],
+        ),
         ("proxmox-boot-tool", vec!["status"]),
         ("df", vec!["-h", "-T"]),
         (

@@ -15,7 +15,10 @@ use server::api as dc_api;
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_REMOTES))
-        .insert("subscriptions", CliCommand::new(&API_METHOD_GET_REMOTE_SUBSCRIPTIONS))
+        .insert(
+            "subscriptions",
+            CliCommand::new(&API_METHOD_GET_REMOTE_SUBSCRIPTIONS),
+        )
         .insert("add", CliCommand::new(&API_METHOD_ADD_REMOTE))
         .insert(
             "remove",
@@ -101,7 +104,10 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Err
     }
 )]
 /// Get the status of all the remotes this instance is managing.
-async fn get_remote_subscriptions(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
+async fn get_remote_subscriptions(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
     param["verbose"] = serde_json::Value::Bool(true);
