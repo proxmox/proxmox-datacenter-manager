@@ -56,7 +56,7 @@ impl From<SdnZoneIpVrf> for IpVrfEntry {
 
 impl ExtractPrimaryKey for IpVrfEntry {
     fn extract_key(&self) -> Key {
-        Key::from(self.0.ip.as_str())
+        Key::from(format!("{}/{}", self.0.ip, self.0.metric))
     }
 }
 
