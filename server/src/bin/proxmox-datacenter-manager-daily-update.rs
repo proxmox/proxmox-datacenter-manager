@@ -103,13 +103,12 @@ async fn run(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
 }
 
 fn main() {
-    if let Err(err) = syslog::init(
-        syslog::Facility::LOG_DAEMON,
-        log::LevelFilter::Warn,
-        Some("proxmox-datacenter-manager-daily-update"),
-    ) {
-        eprintln!("unable to initialize syslog - {err}");
-    }
+    // We need to use the tasklog layer here because we call a workertask.
+    proxmox_log::Logger::from_env("PDM_LOG", proxmox_log::LevelFilter::INFO)
+        .journald_on_no_workertask()
+        .tasklog_pbs()
+        .init()
+        .expect("unable to initialize logger");
 
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
