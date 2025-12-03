@@ -3,7 +3,7 @@ use serde_json::json;
 
 //use proxmox_notify::context::pbs::PBS_CONTEXT;
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
-//use proxmox_subscription::SubscriptionStatus;
+use proxmox_subscription::SubscriptionStatus;
 use proxmox_sys::fs::CreateOptions;
 
 use server::api;
@@ -23,25 +23,21 @@ async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
 
 /// Daily update
 async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
-    /*
-    let param = json!({});
-    let method = &api::node::subscription::API_METHOD_CHECK_SUBSCRIPTION;
-    match method.handler {
-        ApiHandler::Sync(handler) => {
-            if let Err(err) = (handler)(param.clone(), method, rpcenv) {
-                log::error!("Error checking subscription - {err}");
-            }
-        }
-        _ => unreachable!(),
+    if let Err(err) = &api::nodes::subscription::check_subscription().await {
+        log::error!("Error checking subscription - {err}");
     }
-    let notify = match api::node::subscription::get_subscription(param, rpcenv) {
-        Ok(info) => info.status == SubscriptionStatus::Active,
+    match api::nodes::subscription::get_subscription().await {
+        Ok(info) if info.info.status == SubscriptionStatus::Active => {}
+        Ok(info) => {
+            log::warn!(
+                "Subscription not active: {status}",
+                status = info.info.status
+            )
+        }
         Err(err) => {
             log::error!("Error reading subscription - {err}");
-            false
         }
     };
-    */
 
     println!("updating apt package database");
     let param = json!({
@@ -102,6 +98,7 @@ async fn run(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
 
     //proxmox_notify::context::set_context(&PBS_CONTEXT);
 
+    server::context::init()?;
     do_update(rpcenv).await
 }
 
