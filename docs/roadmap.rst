@@ -141,16 +141,19 @@ Enhancements in the Web Interface (GUI)
 
 - Add a panel that allows managing tokens and allow configuring ACL entries for tokens.
 - Enable the documentation button in the top navigation bar.
+- Link to proper in-build documentation instead of Beta documentation.
 - A new tab under the “Administration” menu shows the status of the Proxmox Datacenter Manager host
   and allows shutting it off or rebooting it (`issue 6300
   <https://bugzilla.proxmox.com/show_bug.cgi?id=6300>`__).
-- The remote subscription status can now be refreshed manually.
-- Remote subscriptions can now be inspected by clicking on the subscription status panel in the
-  dashboard (`issue 6797 <https://bugzilla.proxmox.com/show_bug.cgi?id=6797>`__).
-- Add a “Details” button in the subscription panel to show the subscription status dialog.
+- Add presentation of subscription status of remotes:
+
+   - The remote subscription status can now be refreshed manually.
+   - Remote subscriptions can now be inspected by clicking on the subscription status panel in the
+     dashboard (`issue 6797 <https://bugzilla.proxmox.com/show_bug.cgi?id=6797>`__).
+   - Add a “Details” button in the subscription panel to show the subscription status dialog.
+
 - Tags of Proxmox VE guests are now shown in the resource tree.
 - Add a panel displaying the notes of Proxmox VE nodes and datacenters.
-- Link to proper in-build documentation instead of Beta documentation.
 - Feature-gate functionality for Proxmox VE guests depending on the version of the remote.
 - Allow the UI to render components base on the user's privileges.
 - Remove a duplicate entry from the permission path selector.
@@ -170,7 +173,6 @@ Enhancements in the Web Interface (GUI)
 - Mask remote shells if the remote version is too old to support the feature.
 - Fix an issue that prevented realms from being deleted (`issue 6885
   <https://bugzilla.proxmox.com/show_bug.cgi?id=6885>`__).
-- Fix various typos.
 - Fix an issue where updating a storage's status did not trigger correctly.
 - Fix an issue that prevented users in the PAM realm to be added as Proxmox Datacenter Manager users
   (`issue 6787 <https://bugzilla.proxmox.com/show_bug.cgi?id=6787>`__).
@@ -289,18 +291,24 @@ Backend Improvements
     subscription status of remotes and remote tasks.
 
 - Add endpoints that allow proxying a remote's shell via a web socket.
+- Backend support for Proxmox Backup Server remotes:
+
+   - Add TLS probing for Proxmox Backup Server remotes.
+   - Allow scanning Proxmox Backup Server remotes analogous to Proxmox VE remotes.
+   - Assign an ACL with admin role on “/” for newly created Proxmox Backup Server tokens when adding
+     them as a remote.
+   - Allow querying a Proxmox Backup Server's remote status.
+   - New endpoint that returns the namespaces of a remote datastore.
+   - Add API endpoints to query Proxmox Backup Server tasks.
+   - Improve information collection on Proxmox Backup Server datastores by including configuration
+     properties and more status types.
+   - Support Proxmox Backup Server remote update information collection.
+   - Request latest metrics for Proxmox Backup Server when using hourly timeframe.
+   - Fix an issue where some Proxmox Backup Server remotes wrongly signaled HttpOnly cookie support,
+     leading to an issue when querying them.
+
 - Add an endpoint for listing Proxmox VE and Proxmox Backup Server remotes under ``/pve/remotes``
   and ``/pbs/remotes`` respectively.
-- Add TLS probing for Proxmox Backup Server remotes.
-- Allow scanning Proxmox Backup Server remotes analogous to Proxmox VE remotes.
-- Assign an ACL with admin role on “/” for newly created Proxmox Backup Server tokens when adding
-  them as a remote.
-- Allow querying a Proxmox Backup Server's remote status.
-- New endpoint that returns the namespaces of a remote datastore.
-- Add API endpoints to query Proxmox Backup Server tasks.
-- Improve information collection on Proxmox Backup Server datastores by including configuration
-  properties and more status types.
-- Support Proxmox Backup Server remote update information collection.
 - Add an API endpoint for retrieving and refreshing the remote update summary.
 - Cache results for remote update availability.
 - Poll the remote update status via a periodic task.
@@ -321,10 +329,7 @@ Backend Improvements
 - Node update summary includes information for package version and repository status.
 - Add an endpoint that allows querying remote APT repository status.
 - Remove entries of a user in the ACL tree when the user is removed.
-- Request latest metrics for Proxmox Backup Server when using hourly timeframe.
 - Logs will now include the API path when an API call fails. Unknown errors will be logged too.
-- Fix an issue where some Proxmox Backup Server remotes wrongly signaled HttpOnly cookie support,
-  leading to an issue when querying them.
 - Add endpoints for querying the Proxmox Datacenter Host's status and shutting it down or rebooting
   it.
 - Fix an issue where only active tasks were included in the remote task list instead of all other
