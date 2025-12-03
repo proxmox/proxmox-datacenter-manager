@@ -17,6 +17,8 @@ export CARGO_HOME = $(CURDIR)/debian/cargo_home
 export DEB_CARGO_CRATE=proxmox-datacenter-manager_$(DEB_VERSION_UPSTREAM)
 export DEB_CARGO_PACKAGE=proxmox-datacenter-manager
 
+export DEB_VERSION DEB_VERSION_UPSTREAM
+
 %:
 	dh $@
 
