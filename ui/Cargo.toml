@@ -1,6 +1,6 @@
 [package]
 name = "pdm-ui"
-version = "0.9.8"
+version = "1.0.0"
 edition = "2021"
 license = "AGPL-3"
 repository = "https://git.proxmox.com/?p=proxmox-datacenter-manager.git"
@@ -44,10 +44,10 @@ proxmox-rrd-api-types = "1"
 proxmox-node-status = "1"
 pbs-api-types = { version = "1.0.3", features = [ "enum-fallback" ] }
 
-pdm-api-types = { version = "0.9", path = "../lib/pdm-api-types" }
-pdm-client = { version = "0.9", path = "../lib/pdm-client" }
+pdm-api-types = { version = "1.0", path = "../lib/pdm-api-types" }
+pdm-client = { version = "1.0", path = "../lib/pdm-client" }
 
-pdm-ui-shared = { version = "0.9", path = "../lib/pdm-ui-shared" }
+pdm-ui-shared = { version = "1.0", path = "../lib/pdm-ui-shared" }
 
 pdm-search = { version = "0.2", path = "../lib/pdm-search" }
 

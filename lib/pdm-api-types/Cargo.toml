@@ -1,6 +1,6 @@
 [package]
 name = "pdm-api-types"
-version = "0.9.0"
+version = "1.0.0"
 authors.workspace = true
 edition.workspace = true
 description = "general API type helpers for PDM"
