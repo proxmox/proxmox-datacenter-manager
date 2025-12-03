@@ -122,7 +122,11 @@ impl Component for PdmRemotePanel {
             .style("cursor", failure.then_some("pointer"))
             .gap(2)
             .with_child(remote_icon.large_4x())
-            .with_child(Container::new().with_child(remote_text))
+            .with_child(
+                Container::new()
+                    .class(css::TextAlign::Center)
+                    .with_child(remote_text),
+            )
             .into()
     }
 }
