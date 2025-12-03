@@ -23,7 +23,7 @@ use proxmox_yew_comp::{
 //use pbs::MainMenu;
 use pdm_api_types::views::ViewConfig;
 use pdm_ui::{
-    check_subscription, register_pve_tasks, subscription_alert, MainMenu, RemoteList,
+    check_pdm_subscription, pdm_subscription_alert, register_pve_tasks, MainMenu, RemoteList,
     RemoteListCacheEntry, SearchProvider, TopNavBar, ViewListContext,
 };
 
@@ -79,7 +79,7 @@ impl DatacenterManagerApp {
                     ctx.link().send_message(Msg::ConfirmSubscription);
                 } else {
                     self.async_pool.send_future(ctx.link().clone(), async move {
-                        let is_active = check_subscription().await;
+                        let is_active = check_pdm_subscription().await;
 
                         if !is_active {
                             Msg::ShowSubscriptionAlert
@@ -296,7 +296,7 @@ impl Component for DatacenterManagerApp {
         let on_login = ctx.link().callback(Msg::Login);
         let loading = self.login_info.is_some() && self.show_subscription_alert.is_none();
         let subscription_alert = self.show_subscription_alert.and_then(|show| {
-            (self.login_info.is_some() && show).then_some(subscription_alert(
+            (self.login_info.is_some() && show).then_some(pdm_subscription_alert(
                 ctx.link().callback(|_| Msg::ConfirmSubscription),
             ))
         });

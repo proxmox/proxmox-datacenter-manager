@@ -244,8 +244,12 @@ pub(crate) fn locale_compare(first: String, second: &str, numeric: bool) -> std:
         .cmp(&0)
 }
 
-/// Returns true if the global subscription checks succeeded
-pub async fn check_subscription() -> bool {
+/// Returns true if the global PDM subscription checks succeeded.
+///
+/// NOTE: This should be only used for PDM itself, or for when it's checked for a PDM specific
+/// feature, i.e., one that's not just relayed 1:1 to a specific remote node, as for that one should
+/// use the remote-specific check.
+pub async fn check_pdm_subscription() -> bool {
     let data: Result<Value, _> = http_get("/nodes/localhost/subscription", None).await;
     let mut is_active = proxmox_yew_comp::subscription_is_active(Some(&data));
     if !is_active {
@@ -258,8 +262,13 @@ pub async fn check_subscription() -> bool {
     is_active
 }
 
-/// Returns a an [`AlertDialog`] for the 'no valid subscription' popup.
-pub fn subscription_alert(on_close: impl IntoEventCallback<()>) -> AlertDialog {
+/// Returns an [`AlertDialog`] with a PDM specific 'no valid subscription' popup.
+///
+///
+/// NOTE: This should be only used for PDM itself, or for when it's used for a PDM specific feature,
+/// i.e., one that's not just relayed 1:1 to a specific remote node, as for that one should use the
+/// remote-specific alert.
+pub fn pdm_subscription_alert(on_close: impl IntoEventCallback<()>) -> AlertDialog {
     let dest = "<a target=\"_blank\" href=\"https://pdm.proxmox.com/docs/faq.html\">pdm.proxmox.com</a>"
         .to_string();
 

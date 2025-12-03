@@ -36,7 +36,8 @@ use pwt::{
 };
 
 use crate::{
-    check_subscription, get_deep_url, get_deep_url_low_level, pdm_client, subscription_alert,
+    check_pdm_subscription, get_deep_url, get_deep_url_low_level, pdm_client,
+    pdm_subscription_alert,
 };
 
 #[derive(PartialEq, Properties)]
@@ -359,7 +360,7 @@ impl LoadableComponent for UpdateTreeComponent {
         let link = ctx.link().clone();
         match view_state {
             ViewState::ShowSubscriptionAlert => Some(
-                subscription_alert(move |_| {
+                pdm_subscription_alert(move |_| {
                     link.change_view(None);
                     link.send_message(RemoteUpdateTreeMsg::RefreshAll);
                 })
@@ -392,7 +393,8 @@ impl LoadableComponent for UpdateTreeComponent {
                 let link = ctx.link();
 
                 link.clone().spawn(async move {
-                    let is_active = check_subscription().await;
+                    // Use the PDM subscription check for the global refresh all.
+                    let is_active = check_pdm_subscription().await;
                     if !is_active {
                         link.change_view(Some(ViewState::ShowSubscriptionAlert));
                     } else {
