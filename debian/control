@@ -171,6 +171,7 @@ Package: proxmox-datacenter-manager-client
 Architecture: any
 Multi-Arch: allowed
 Depends: ${misc:Depends}, ${shlibs:Depends},
+Suggests: proxmox-datacenter-manager-docs
 Description: CLI Client for the Proxmox Datacenter Manager
  This package provides the CLI client that can interface with a Proxmox
  Datacenter Manager (PDM) instance.
