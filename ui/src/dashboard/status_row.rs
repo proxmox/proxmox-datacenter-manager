@@ -176,6 +176,7 @@ impl Component for PdmDashboardStatusRow {
                 }
                 None => tr!("Now refreshing"),
             }))
+            .with_flex_spacer()
             .with_optional_child(if is_custom_view {
                 create_subscription_notice(&self.subscription_info).map(|element| {
                     element.class("pwt-pointer").onclick({
