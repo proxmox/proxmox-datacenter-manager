@@ -269,8 +269,9 @@ pub async fn check_pdm_subscription() -> bool {
 /// i.e., one that's not just relayed 1:1 to a specific remote node, as for that one should use the
 /// remote-specific alert.
 pub fn pdm_subscription_alert(on_close: impl IntoEventCallback<()>) -> AlertDialog {
-    let dest = "<a target=\"_blank\" href=\"https://pdm.proxmox.com/docs/faq.html\">pdm.proxmox.com</a>"
-        .to_string();
+    let dest =
+        "<a target=\"_blank\" href=\"https://pdm.proxmox.com/docs/faq.html\">pdm.proxmox.com</a>"
+            .to_string();
 
     let msg = tr!(
         "Too many remote nodes without active basic or higher subscription. Please visit {0} for more details.",
