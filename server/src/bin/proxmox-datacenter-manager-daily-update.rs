@@ -98,7 +98,11 @@ async fn run(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
 
     //proxmox_notify::context::set_context(&PBS_CONTEXT);
 
+    proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
+    proxmox_acme_api::init(pdm_buildcfg::configdir!("/acme"), false)?;
+
     server::context::init()?;
+
     do_update(rpcenv).await
 }
 
