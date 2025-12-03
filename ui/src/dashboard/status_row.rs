@@ -87,6 +87,10 @@ impl PdmDashboardStatusRow {
     }
 
     fn load_subscription(&self, ctx: &yew::Context<Self>) {
+        // only load the subscription info here in custom views
+        if ctx.props().editing_state.is_none() {
+            return;
+        }
         self.async_pool.send_future(ctx.link().clone(), async move {
             let res = proxmox_yew_comp::http_get("/nodes/localhost/subscription", None).await;
             Msg::SubscriptionInfoLoaded(res)
@@ -144,8 +148,10 @@ impl Component for PdmDashboardStatusRow {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
-        let is_loading =
-            props.last_refresh.is_none() || self.loading || !self.subscription_info.has_data();
+        let is_custom_view = props.editing_state.is_some();
+        let is_loading = props.last_refresh.is_none()
+            || self.loading
+            || (is_custom_view && !self.subscription_info.has_data());
         let on_settings_click = props.on_settings_click.clone();
         Row::new()
             .gap(1)
@@ -170,8 +176,8 @@ impl Component for PdmDashboardStatusRow {
                 }
                 None => tr!("Now refreshing"),
             }))
-            .with_optional_child(create_subscription_notice(&self.subscription_info).map(
-                |element| {
+            .with_optional_child(if is_custom_view {
+                create_subscription_notice(&self.subscription_info).map(|element| {
                     element.class("pwt-pointer").onclick({
                         let link = ctx.link().clone();
                         move |_| {
@@ -180,8 +186,10 @@ impl Component for PdmDashboardStatusRow {
                             }
                         }
                     })
-                },
-            ))
+                })
+            } else {
+                None
+            })
             .with_flex_spacer()
             .with_optional_child(props.editing_state.clone().and_then(|_| {
                 (!self.edit).then_some({
