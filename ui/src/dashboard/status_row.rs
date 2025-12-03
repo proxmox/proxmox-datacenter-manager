@@ -247,23 +247,19 @@ fn create_subscription_notice(
     if !subscriptions.has_data() {
         return None;
     }
-    let mut text = tr!("No valid subscriptions");
-    let mut icon = subscription_icon(&SubscriptionStatus::NotFound.to_string());
     let mut tooltip = None;
-
     if let Some(subscriptions) = &subscriptions.data {
         if subscriptions.statistics.total_nodes == 0 {
-            text = tr!("No remotes configured");
-            icon = subscription_icon("unknown");
+            return None;
         } else if let SubscriptionStatus::Active = subscriptions.info.status {
-            text = tr!("Valid subscriptions");
-            icon = subscription_icon(&subscriptions.info.status.to_string());
-        } else if let Some(msg) = &subscriptions.info.message {
-            tooltip = Some(msg.clone());
+            return None;
         }
     } else if let Some(err) = &subscriptions.error {
         tooltip = Some(err.to_string())
     }
+    // only get here if there are remotes and PDM-subscription failed.
+    let text = tr!("No valid subscriptions");
+    let icon = subscription_icon(&SubscriptionStatus::NotFound.to_string());
 
     Some(
         Tooltip::new(
