@@ -23,6 +23,7 @@ in the section entitled "GNU Free Documentation License".
    introduction.rst
    installation.rst
    web-ui.rst
+   sdn-integration.rst
    remotes.rst
    views.rst
    access-control.rst
@@ -40,6 +41,7 @@ in the section entitled "GNU Free Documentation License".
    command-syntax.rst
    configuration-files.rst
    roadmap.rst
+   markdown-primer.rst
    GFDL.rst
 
 .. only:: html and devbuild
