@@ -45,7 +45,7 @@ pub struct ConnectParams {
 }
 
 async fn connect(form_ctx: FormContext, remote_type: RemoteType) -> Result<TlsProbeOutcome, Error> {
-    let hostname = normalize_hostname(form_ctx.read().get_field_text("hostname"));
+    let hostname = form_ctx.read().get_field_text("hostname");
     let fingerprint = get_fingerprint(&form_ctx);
     let pdm_client = crate::pdm_client();
     match remote_type {
@@ -170,6 +170,14 @@ impl Component for PdmWizardPageConnect {
                 self.loading = true;
                 props.info.page_lock(true);
 
+                let form_ctx = props.info.form_ctx.clone();
+
+                let mut guard = form_ctx.write();
+                let hostname = guard.get_field_text("hostname");
+                let new_hostname = normalize_hostname(hostname);
+                guard.set_field_value("hostname", new_hostname.into());
+                drop(guard);
+
                 self.scan_guard = Some(AsyncAbortGuard::spawn({
                     let link = ctx.link().clone();
                     let form_ctx = props.info.form_ctx.clone();
@@ -270,7 +278,7 @@ fn call_on_connect_change(props: &WizardPageConnect, certificate_info: Option<Ce
     if let Some(on_connect_change) = &props.on_connect_change {
         let fingerprint = get_fingerprint(&props.info.form_ctx);
         on_connect_change.emit(Some(ConnectParams {
-            hostname: normalize_hostname(props.info.form_ctx.read().get_field_text("hostname")),
+            hostname: props.info.form_ctx.read().get_field_text("hostname"),
             fingerprint: certificate_info
                 .and_then(|cert| cert.fingerprint)
                 .or(fingerprint),
