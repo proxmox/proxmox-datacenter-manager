@@ -19,6 +19,12 @@ interfaces of individual remotes for granular configuration. This architecture e
 coupled system where the central manager does not become a bottleneck or a single point of failure
 for the operation of the underlying remotes.
 
+.. image:: images/screenshots/global-overview-dashboard.png
+  :target: _images/global-overview-dashboard.png
+  :align: center
+  :width: 640px
+  :alt: Proxmox Datacenter Manager Dashboard
+
 Feature Overview
 ----------------
 
