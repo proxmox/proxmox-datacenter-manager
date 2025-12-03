@@ -1,3 +1,39 @@
+proxmox-datacenter-manager-ui (1.0.0) trixie; urgency=medium
+
+  * bump for first 1.0 stable version.
+
+  * views: online node-card: improve wording for offline PBS nodes and avoid
+    overly alarming icon.
+
+  * views: online-remote card: use different severity for warning depending on
+    how many remotes are unreachable. For now show a critical error if more
+    than 50% of the nodes failed, otherwise display a warning.
+
+  * skip subscription check if no remotes are configured.
+
+  * views: show problematic subscription status in status row at  top to
+    inform users about their setup not being as fully production and
+    enterprise ready as it could be.
+
+  * improve wording of subscription related UI elements, especially to more
+    clearly differentiate between the Datacenter Manager's subscription state
+    and the subscription state of remotes.
+
+  * evpn: fix warnings when displaying vnet / zone status.
+
+  * zone status: correctly set primary key for ip-vrf table to avoid logging
+    warnings in the developer console.
+
+  * remote: make wizard title translatable.
+
+  * firewall: disable collapse tree button if nothing is selected.
+
+  * correctly install icon for CD/DVD-ROM drive.
+
+  * pve: mask node shell if pve-manager is too old.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 03 Dec 2025 19:36:04 +0100
+
 proxmox-datacenter-manager-ui (0.9.8) trixie; urgency=medium
 
   * migrate mapping: add missing single quote to error message.
