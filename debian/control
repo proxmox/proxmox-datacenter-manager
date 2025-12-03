@@ -183,7 +183,7 @@ Depends: fonts-font-awesome,
          libjs-mathjax,
          ${misc:Depends},
          ${shlibs:Depends},
-Recommends: proxmox-datacenter-manager,
+Suggests: proxmox-datacenter-manager, proxmox-datacenter-manager-client
 Replaces: proxmox-datacenter-manager-api-viewer (<< 0.9.8~)
 Breaks: proxmox-datacenter-manager-api-viewer (<< 0.9.8~)
 Description: Documentation for the Proxmox Datacenter Manager.
