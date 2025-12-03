@@ -4,7 +4,7 @@ API_VIEWER_SOURCES= \
 	index.html \
 	apidoc.js
 
-API_VIEWER_FILES := \
+API_VIEWER_JS_FILES := \
 	apidata.js \
 	/usr/share/javascript/proxmox-widget-toolkit-dev/APIViewer.js
 
@@ -15,13 +15,13 @@ COMPILEDIR := ../../target/debug
 endif
 
 .PHONY: install
-install: ${API_VIEWER_SOURCES}
+install: $(API_VIEWER_SOURCES)
 	install -dm 0755 $(DESTDIR)$(DOCDIR)/html/api-viewer
-	install -m 0644 ${API_VIEWER_SOURCES} $(DESTDIR)$(DOCDIR)/html/api-viewer
+	install -m 0644 $(API_VIEWER_SOURCES) $(DESTDIR)$(DOCDIR)/html/api-viewer
 
-apidata.js: ${COMPILEDIR}/docgen
-	${COMPILEDIR}/docgen apidata.js >$@
+apidata.js: $(COMPILEDIR)/docgen
+	$(COMPILEDIR)/docgen apidata.js >$@
 
-apidoc.js: ${API_VIEWER_FILES}
-	cat ${API_VIEWER_FILES} >$@.tmp
+apidoc.js: $(API_VIEWER_JS_FILES)
+	cat $(API_VIEWER_JS_FILES) >$@.tmp
 	mv $@.tmp $@
