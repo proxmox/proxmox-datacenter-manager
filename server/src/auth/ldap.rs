@@ -17,7 +17,7 @@ use serde_json::json;
 use pdm_api_types::{Authid, Realm, RealmType, UsernameRef};
 use pdm_config::domains;
 
-const LDAP_PASSWORDS_FILENAME: &str = configdir!("/ldap_passwords.json");
+const LDAP_PASSWORDS_FILENAME: &str = configdir!("/access/ldap-passwords.json");
 
 #[allow(clippy::upper_case_acronyms)]
 pub(crate) struct LdapAuthenticator {
