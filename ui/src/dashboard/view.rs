@@ -12,7 +12,7 @@ use pwt::css;
 use pwt::prelude::*;
 use pwt::props::StorageLocation;
 use pwt::state::{PersistentState, SharedState};
-use pwt::widget::{error_message, form::FormContext, Column, Container, Progress, Row};
+use pwt::widget::{error_message, form::FormContext, Column, Container, Progress};
 use pwt::AsyncPool;
 
 use crate::dashboard::refresh_config_edit::{
@@ -288,23 +288,6 @@ fn required_api_calls(layout: &ViewLayout) -> (bool, bool, bool) {
     (status, top_entities, task_statistics)
 }
 
-fn has_sub_panel(layout: Option<&ViewTemplate>) -> bool {
-    match layout.map(|template| &template.layout) {
-        Some(ViewLayout::Rows { rows }) => {
-            for row in rows {
-                for item in row {
-                    if item.r#type == WidgetType::Subscription {
-                        return true;
-                    }
-                }
-            }
-        }
-        None => {}
-    }
-
-    false
-}
-
 impl Component for ViewComp {
     type Message = Msg;
     type Properties = View;
@@ -479,25 +462,6 @@ impl Component for ViewComp {
                 ),
         );
 
-        if !has_sub_panel(self.template.data.as_ref()) {
-            let subs = self.render_args.subscriptions.clone();
-            let link = ctx.link().clone();
-            view.add_child(
-                Row::new()
-                    .padding_x(4)
-                    .padding_bottom(4)
-                    .padding_top(0)
-                    .class("pwt-content-spacer-colors")
-                    .with_child(
-                        create_subscription_panel(
-                            subs.clone(),
-                            link.clone()
-                                .callback(move |_| Msg::ShowSubscriptionsDialog(true)),
-                        )
-                        .flex(1.0),
-                    ),
-            );
-        }
         match self.template.data.as_ref().map(|template| &template.layout) {
             Some(ViewLayout::Rows { rows }) => {
                 view.add_child(
