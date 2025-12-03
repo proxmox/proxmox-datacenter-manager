@@ -258,7 +258,9 @@ fn create_subscription_notice(
         tooltip = Some(err.to_string())
     }
     // only get here if there are remotes and PDM-subscription failed.
-    let text = tr!("No valid subscriptions");
+    let text = tr!(
+        "To many remote nodes without basic or higher subscriptions! No access to Enterprise-Repository or Enterprise Support."
+    );
     let icon = subscription_icon(&SubscriptionStatus::NotFound.to_string());
 
     Some(
