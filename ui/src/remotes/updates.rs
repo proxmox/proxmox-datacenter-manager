@@ -19,7 +19,7 @@ use proxmox_deb_version;
 
 use proxmox_yew_comp::{
     AptPackageManager, AptRepositories, ExistingProduct, LoadableComponent,
-    LoadableComponentContext, LoadableComponentMaster, SubscriptionAlert,
+    LoadableComponentContext, LoadableComponentMaster,
 };
 use pwt::props::{CssBorderBuilder, CssPaddingBuilder, WidgetStyleBuilder};
 use pwt::widget::{Button, Container, Panel, Tooltip};
@@ -35,7 +35,9 @@ use pwt::{
     },
 };
 
-use crate::{check_subscription, get_deep_url, get_deep_url_low_level, pdm_client};
+use crate::{
+    check_subscription, get_deep_url, get_deep_url_low_level, pdm_client, subscription_alert,
+};
 
 #[derive(PartialEq, Properties)]
 pub struct UpdateTree {}
@@ -357,12 +359,11 @@ impl LoadableComponent for UpdateTreeComponent {
         let link = ctx.link().clone();
         match view_state {
             ViewState::ShowSubscriptionAlert => Some(
-                SubscriptionAlert::new("notfound")
-                    .on_close(move |_| {
-                        link.change_view(None);
-                        link.send_message(RemoteUpdateTreeMsg::RefreshAll);
-                    })
-                    .into(),
+                subscription_alert(move |_| {
+                    link.change_view(None);
+                    link.send_message(RemoteUpdateTreeMsg::RefreshAll);
+                })
+                .into(),
             ),
         }
     }

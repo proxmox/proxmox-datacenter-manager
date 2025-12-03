@@ -5,6 +5,9 @@ use pdm_api_types::resource::{PveLxcResource, PveQemuResource};
 use pdm_api_types::subscription::PdmSubscriptionInfo;
 use pdm_client::types::Resource;
 use proxmox_deb_version::Version;
+use pwt::props::ContainerBuilder;
+use pwt::tr;
+use pwt::widget::{AlertDialog, Container};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -34,6 +37,8 @@ pub use search_provider::SearchProvider;
 
 mod dashboard;
 
+use yew::html::IntoEventCallback;
+use yew::Html;
 use yew_router::prelude::RouterScopeExt;
 
 mod widget;
@@ -251,6 +256,21 @@ pub async fn check_subscription() -> bool {
         }
     }
     is_active
+}
+
+/// Returns a an [`AlertDialog`] for the 'no valid subscription' popup.
+pub fn subscription_alert(on_close: impl IntoEventCallback<()>) -> AlertDialog {
+    let dest = "<a target=\"_blank\" href=\"https://pdm.proxmox.com/faq.html\">www.proxmox.com</a>"
+        .to_string();
+
+    let msg = tr!(
+        "Too many remote nodes without active basic or higher subscription. Please visit {0} for more details.",
+        dest
+    );
+    let msg = Html::from_html_unchecked(msg.into());
+    AlertDialog::new(Container::from_tag("p").with_child(msg))
+        .title(tr!("No valid subscriptions"))
+        .on_close(on_close)
 }
 
 /// Extract the version of a specific package from `RemoteUpdateSummary` for a specific node

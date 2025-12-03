@@ -17,14 +17,14 @@ use proxmox_login::Authentication;
 use proxmox_yew_comp::utils::init_task_descr_table_base;
 use proxmox_yew_comp::{
     authentication_from_cookie, http_get, register_auth_observer, AclContextProvider, AuthObserver,
-    LoginPanel, SubscriptionAlert,
+    LoginPanel,
 };
 
 //use pbs::MainMenu;
 use pdm_api_types::views::ViewConfig;
 use pdm_ui::{
-    check_subscription, register_pve_tasks, MainMenu, RemoteList, RemoteListCacheEntry,
-    SearchProvider, TopNavBar, ViewListContext,
+    check_subscription, register_pve_tasks, subscription_alert, MainMenu, RemoteList,
+    RemoteListCacheEntry, SearchProvider, TopNavBar, ViewListContext,
 };
 
 type MsgRemoteList = Result<RemoteList, Error>;
@@ -296,10 +296,9 @@ impl Component for DatacenterManagerApp {
         let on_login = ctx.link().callback(Msg::Login);
         let loading = self.login_info.is_some() && self.show_subscription_alert.is_none();
         let subscription_alert = self.show_subscription_alert.and_then(|show| {
-            (self.login_info.is_some() && show).then_some(
-                SubscriptionAlert::new("notfound".to_string())
-                    .on_close(ctx.link().callback(|_| Msg::ConfirmSubscription)),
-            )
+            (self.login_info.is_some() && show).then_some(subscription_alert(
+                ctx.link().callback(|_| Msg::ConfirmSubscription),
+            ))
         });
 
         let username = self.login_info.as_ref().map(|info| info.userid.to_owned());
