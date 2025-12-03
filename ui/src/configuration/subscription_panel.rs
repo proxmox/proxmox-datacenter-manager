@@ -155,8 +155,12 @@ fn rows() -> Vec<KVGridRow> {
             let statistics = serde_json::from_value::<SubscriptionStatistics>(value.clone());
             match statistics {
                 Ok(stats) => {
-                    let basic_or_higher = stats.active_subscriptions - stats.community;
-                    let basic_or_higher_ratio = basic_or_higher as f64 / stats.total_nodes as f64;
+                    let basic_or_higher_ratio = if stats.total_nodes > 0 {
+                        (stats.active_subscriptions - stats.community) as f64
+                            / stats.total_nodes as f64
+                    } else {
+                        0.
+                    };
 
                     let op = (basic_or_higher_ratio >= SUBSCRIPTION_THRESHOLD)
                         .then_some(">=")
