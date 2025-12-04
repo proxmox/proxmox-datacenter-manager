@@ -90,7 +90,7 @@ Features (Highlights)
 
 -  Add support for accessing a remote's shell.
 
-      With the release of Proxmox VE 9.1 and Proxmox Backup Server 4.0.20, API tokens can now request
+      With the release of Proxmox VE 9.1 and Proxmox Backup Server 4.1, API tokens can now request
       shell access.
 
       Proxmox Datacenter Manager leverages this capability to allow accessing shells of supported
