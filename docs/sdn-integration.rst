@@ -3,8 +3,8 @@
 SDN Integration
 ---------------
 
-The Proxmox Datacenter allows managing SDN zones and vnets across multiple remotes and provides an
-overview of the current state of SDN entities.
+The Proxmox Datacenter Manager allows managing SDN zones and vnets across multiple remotes and
+provides an overview of the current state of SDN entities.
 
 .. _status_overview:
 

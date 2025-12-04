@@ -75,7 +75,7 @@ You can install the Proxmox default kernel with ZFS support by using:
 ..
   add meta package
 
-.. caution:: Installing Proxmox Datacenter on top of an existing Debian_
+.. caution:: Installing Proxmox Datacenter Manager on top of an existing Debian_
   installation looks easy, but it assumes that the base system and local
   storage have been set up correctly. In general this is not trivial, especially
   when LVM_ or ZFS_ is used. The network configuration is completely up to you
