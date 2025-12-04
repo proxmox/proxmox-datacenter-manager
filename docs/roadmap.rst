@@ -59,6 +59,8 @@ Release History
 Proxmox Datacenter Manager 1.0
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+**Released 04. December 2025**
+
 -  Based on Debian Trixie (13.2)
 -  Latest 6.17.2-2 Kernel as stable default
 -  ZFS 2.3.4
