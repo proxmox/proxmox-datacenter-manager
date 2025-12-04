@@ -26,6 +26,7 @@ impl SubscriptionPanel {
 }
 
 pub enum Msg {
+    Checking,
     LoadFinished(Value),
 }
 
@@ -33,6 +34,7 @@ pub struct ProxmoxSubscriptionPanel {
     rows: Rc<Vec<KVGridRow>>,
     data: Option<Rc<Value>>,
     loaded: bool,
+    checking: bool,
 }
 
 impl LoadableComponent for ProxmoxSubscriptionPanel {
@@ -45,14 +47,29 @@ impl LoadableComponent for ProxmoxSubscriptionPanel {
             rows: Rc::new(rows()),
             data: None,
             loaded: false,
+            checking: false,
         }
     }
 
-    fn update(&mut self, _ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::LoadFinished(value) => {
                 self.data = Some(Rc::new(value));
                 self.loaded = true;
+                self.checking = false;
+            }
+            Msg::Checking => {
+                self.checking = true;
+                let link = ctx.link();
+                link.spawn({
+                    let link = link.clone();
+                    async move {
+                        match http_post(SUBSCRIPTION_URL, None).await {
+                            Ok(()) => link.send_reload(),
+                            Err(err) => link.show_error(tr!("Error"), err.to_string(), true),
+                        }
+                    }
+                });
             }
         }
         true
@@ -71,36 +88,21 @@ impl LoadableComponent for ProxmoxSubscriptionPanel {
     }
 
     fn toolbar(&self, ctx: &LoadableComponentContext<Self>) -> Option<Html> {
+        let link = ctx.link();
         let toolbar = Toolbar::new()
             .class("pwt-overflow-hidden")
             .border_bottom(true)
             .with_child(
                 Button::new(tr!("Check"))
+                    .disabled(self.checking)
                     .icon_class("fa fa-check-square-o")
-                    .on_activate({
-                        let link = ctx.link();
-
-                        move |_| {
-                            link.spawn({
-                                let link = link.clone();
-                                async move {
-                                    match http_post(SUBSCRIPTION_URL, None).await {
-                                        Ok(()) => link.send_reload(),
-                                        Err(err) => {
-                                            link.show_error(tr!("Error"), err.to_string(), true)
-                                        }
-                                    }
-                                }
-                            })
-                        }
-                    }),
+                    .on_activate(link.callback(|_| Msg::Checking)),
             )
             .with_spacer()
             .with_flex_spacer()
             .with_child({
                 let loading = ctx.loading();
-                let link = ctx.link();
-                Button::refresh(loading).on_activate(move |_| link.send_reload())
+                Button::refresh(loading || self.checking).on_activate(move |_| link.send_reload())
             });
 
         Some(toolbar.into())
