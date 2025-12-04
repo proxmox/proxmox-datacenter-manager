@@ -22,7 +22,7 @@ use proxmox_yew_comp::{
     LoadableComponentContext, LoadableComponentMaster,
 };
 use pwt::props::{CssBorderBuilder, CssPaddingBuilder, WidgetStyleBuilder};
-use pwt::widget::{Button, Container, Panel, Tooltip};
+use pwt::widget::{Button, Container, Panel, Progress, Tooltip};
 use pwt::{
     css,
     css::FontColor,
@@ -123,6 +123,7 @@ enum RemoteUpdateTreeMsg {
     LoadFinished(UpdateSummary),
     KeySelected(Option<Key>),
     RefreshAll,
+    RefreshFinished,
     CheckSubscription,
 }
 
@@ -130,6 +131,7 @@ struct UpdateTreeComponent {
     store: TreeStore<UpdateTreeEntry>,
     selection: Selection,
     selected_entry: Option<UpdateTreeEntry>,
+    refreshing: bool,
 }
 
 fn default_sorter(a: &UpdateTreeEntry, b: &UpdateTreeEntry) -> Ordering {
@@ -333,6 +335,7 @@ impl LoadableComponent for UpdateTreeComponent {
             store: store.clone(),
             selection,
             selected_entry: None,
+            refreshing: false,
         }
     }
 
@@ -378,6 +381,10 @@ impl LoadableComponent for UpdateTreeComponent {
 
                 return true;
             }
+            Self::Message::RefreshFinished => {
+                self.refreshing = false;
+                return true;
+            }
             Self::Message::KeySelected(key) => {
                 if let Some(key) = key {
                     let read_guard = self.store.read();
@@ -392,6 +399,7 @@ impl LoadableComponent for UpdateTreeComponent {
             Self::Message::CheckSubscription => {
                 let link = ctx.link();
 
+                self.refreshing = true;
                 link.clone().spawn(async move {
                     // Use the PDM subscription check for the global refresh all.
                     let is_active = check_pdm_subscription().await;
@@ -400,6 +408,7 @@ impl LoadableComponent for UpdateTreeComponent {
                     } else {
                         link.send_message(RemoteUpdateTreeMsg::RefreshAll);
                     }
+                    link.send_message(RemoteUpdateTreeMsg::RefreshFinished);
                 });
             }
             Self::Message::RefreshAll => {
@@ -443,12 +452,14 @@ impl UpdateTreeComponent {
             .show_header(true)
             .class(css::FlexFit);
 
-        let refresh_all_button = Button::new(tr!("Refresh all")).on_activate({
-            let link = ctx.link().clone();
-            move |_| {
-                link.send_message(RemoteUpdateTreeMsg::CheckSubscription);
-            }
-        });
+        let refresh_all_button = Button::new(tr!("Refresh all"))
+            .disabled(self.refreshing)
+            .on_activate({
+                let link = ctx.link().clone();
+                move |_| {
+                    link.send_message(RemoteUpdateTreeMsg::CheckSubscription);
+                }
+            });
 
         let title: Html = Row::new()
             .gap(2)
@@ -466,6 +477,16 @@ impl UpdateTreeComponent {
             .style("flex", "1 1 0")
             .class(FlexFit)
             .border(true)
+            .with_optional_child(
+                self.refreshing.then_some(
+                    Container::new().style("position", "relative").with_child(
+                        Progress::new()
+                            .style("position", "absolute")
+                            .style("left", "0")
+                            .style("right", "0"),
+                    ),
+                ),
+            )
             .with_child(table)
     }
 
