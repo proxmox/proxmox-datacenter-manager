@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
-use proxmox_yew_comp::Status;
+use proxmox_yew_comp::{Status, StatusRow};
 use yew::Properties;
 
 use proxmox_human_byte::HumanByte;
 use pwt::{
-    css::{AlignItems, FontStyle},
+    css::{AlignItems, FontStyle, TextAlign, WhiteSpace},
     prelude::*,
     props::WidgetBuilder,
-    widget::{error_message, Column, Fa, Panel, Row},
+    widget::{error_message, Column, Container, Fa, Panel, Row},
 };
 use pwt_macros::widget;
 
@@ -253,26 +253,38 @@ impl yew::Component for RemotePanelComp {
                         .with_child(Fa::new("pie-chart"))
                         .with_child(tr!("Allocation")),
                 )
-                .with_child(status_row_right_icon(
-                    tr! {"CPU Cores assigned"},
-                    "fa-cpu",
-                    tr!(
-                        "{0} running / {1} physical ({2} total configured)",
-                        status.guest_cores_running,
-                        status.max_cores,
-                        status.guest_cores,
-                    ),
-                ))
-                .with_child(status_row_right_icon(
-                    tr! {"Memory assigned"},
-                    "fa-memory",
-                    tr!(
-                        "{0} running / {1} physical ({2} total configured)",
-                        HumanByte::from(status.guest_memory_running),
-                        HumanByte::from(status.max_memory),
-                        HumanByte::from(status.guest_memory),
-                    ),
-                )),
+                .with_child(
+                    StatusRow::new(tr! {"CPU Cores assigned"})
+                        .icon_right(true)
+                        .icon_class("fa fa-cpu")
+                        .status(
+                            Container::new()
+                                .with_child(tr!(
+                                    "{0} running / {1} physical ({2} total configured)",
+                                    status.guest_cores_running,
+                                    status.max_cores,
+                                    status.guest_cores,
+                                ))
+                                .class(WhiteSpace::Normal)
+                                .class(TextAlign::Right),
+                        ),
+                )
+                .with_child(
+                    StatusRow::new(tr! {"Memory assigned"})
+                        .icon_right(true)
+                        .icon_class("fa fa-memory")
+                        .status(
+                            Container::new()
+                                .with_child(tr!(
+                                    "{0} running / {1} physical ({2} total configured)",
+                                    HumanByte::from(status.guest_memory_running),
+                                    HumanByte::from(status.max_memory),
+                                    HumanByte::from(status.guest_memory),
+                                ))
+                                .class(WhiteSpace::Normal)
+                                .class(TextAlign::Right),
+                        ),
+                ),
         };
 
         Panel::new()
