@@ -153,7 +153,7 @@ pub async fn check_subscription() -> Result<(), Error> {
 
     let mut found = false;
     'outer: for (remote, (remote_type, remote_info)) in infos.iter() {
-        if *remote_type != RemoteType::Pve || *remote_type != RemoteType::Pbs {
+        if *remote_type != RemoteType::Pve && *remote_type != RemoteType::Pbs {
             continue;
         }
         for (node, node_info) in remote_info.iter() {
