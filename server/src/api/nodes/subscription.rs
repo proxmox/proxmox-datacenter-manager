@@ -148,12 +148,14 @@ pub async fn check_subscription() -> Result<(), Error> {
 
     if let Err(err) = check_counts(&stats) {
         update_apt_auth(APT_AUTH_FN, apt_auth_file_opts(), APT_AUTH_URL, None, None)?;
+        log::debug!("failed PDM subscription eligibility check - {err}");
         return Err(err);
     }
 
     let mut found = false;
     'outer: for (remote, (remote_type, remote_info)) in infos.iter() {
         if *remote_type != RemoteType::Pve && *remote_type != RemoteType::Pbs {
+            log::warn!("skipping unknown remote type {remote_type}");
             continue;
         }
         for (node, node_info) in remote_info.iter() {
@@ -174,6 +176,8 @@ pub async fn check_subscription() -> Result<(), Error> {
                     found = true;
                     break 'outer;
                 }
+            } else {
+                log::debug!("no subscription info found for {node}");
             }
         }
     }
