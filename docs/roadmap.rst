@@ -90,7 +90,7 @@ Features (Highlights)
 
 -  Add support for accessing a remote's shell.
 
-      With the release of Proxmox VE 9.1 and Proxmox Backup Server 4.0.20 API tokens can now request
+      With the release of Proxmox VE 9.1 and Proxmox Backup Server 4.0.20, API tokens can now request
       shell access.
 
       Proxmox Datacenter Manager leverages this capability to allow accessing shells of supported
@@ -131,19 +131,19 @@ Enhancements in the Web Interface (GUI)
 
 - Add a panel for adding and managing new realms.
 
-    LDAP, Active Directory and OpenID connect realms can be added to allow easy authentication
+    LDAP, Active Directory, and OpenID connect realms can be added to allow easy authentication
     management.
 
     LDAP and Active Directory realms can also be synced using this panel.
 
-    These realms can be configured as default realms. Default realms are used by the log in mask by
+    These realms can be configured as default realms. Default realms are used by the login mask by
     default instead of the PAM realm.
 
 - Add a panel that allows managing tokens and allow configuring ACL entries for tokens.
 - Enable the documentation button in the top navigation bar.
-- Link to proper in-build documentation instead of Beta documentation.
+- Link to proper builtin documentation instead of Beta documentation.
 - A new tab under the “Administration” menu shows the status of the Proxmox Datacenter Manager host
-  and allows shutting it off or rebooting it (`issue 6300
+  and allows shutting it down or rebooting it (`issue 6300
   <https://bugzilla.proxmox.com/show_bug.cgi?id=6300>`__).
 - Add presentation of subscription status of remotes:
 
@@ -154,8 +154,8 @@ Enhancements in the Web Interface (GUI)
 
 - Tags of Proxmox VE guests are now shown in the resource tree.
 - Add a panel displaying the notes of Proxmox VE nodes and datacenters.
-- Feature-gate functionality for Proxmox VE guests depending on the version of the remote.
-- Allow the UI to render components base on the user's privileges.
+- Align available functionality for Proxmox VE guests with the version of the remote.
+- Allow the UI to render components based on the user's privileges.
 - Remove a duplicate entry from the permission path selector.
 - Improve Proxmox Backup Server datastore panel by making the labels translatable.
 - Proxmox Backup Server remote tasks are handled correctly now.
@@ -166,16 +166,16 @@ Enhancements in the Web Interface (GUI)
 - Add a button to allow navigating to a Proxmox VE guest directly in their respective details views.
 - Tabs for Proxmox VE and Proxmox Backup Server remotes now properly support history navigation.
 - Add a window to display and copy the system report.
-- A new panel show the Proxmox Datacenter Manager's subscription information.
-- When adding a remote via the setup wizard, the token will now include the Proxmox Datacenter
+- A new panel shows the Proxmox Datacenter Manager's subscription information.
+- When adding a remote via the setup wizard, the token name will now include the Proxmox Datacenter
   Manager host. This ensures multiple instances of Proxmox Datacenter Manager can be connected to
   the same remote.
 - Mask remote shells if the remote version is too old to support the feature.
 - Fix an issue that prevented realms from being deleted (`issue 6885
   <https://bugzilla.proxmox.com/show_bug.cgi?id=6885>`__).
 - Fix an issue where updating a storage's status did not trigger correctly.
-- Fix an issue that prevented users in the PAM realm to be added as Proxmox Datacenter Manager users
-  (`issue 6787 <https://bugzilla.proxmox.com/show_bug.cgi?id=6787>`__).
+- Fix an issue that prevented users in the PAM realm from being added as Proxmox Datacenter Manager
+  users (`issue 6787 <https://bugzilla.proxmox.com/show_bug.cgi?id=6787>`__).
 - The UI now properly respects the text direction for Arabic, Persian (Farsi) and Hebrew.
 - Fix an issue where the resource tree for a search was not loaded correctly.
 - Make navigating to network resources work properly again.
@@ -203,7 +203,7 @@ Resource Management
 
     Proxmox VE remotes make this shell available through a new tab in a node's details panel.
 
-    For Proxmox Backup Server remotes a button was added in the top bar of the overview to open a
+    For Proxmox Backup Server remotes, a button was added in the top bar of the overview to open a
     new window with the shell.
 
 - A new panel shows hardware and options configuration for Proxmox VE remote's guests.
@@ -218,7 +218,7 @@ Resource Management
 - Allow searching for resources by network type.
 - Fix an issue that needlessly kept polling the API when users were logged out.
 
-    This could trigger a bug where users were instantly logged out again after a fresh log in.
+    This could trigger a bug where users were instantly logged out again after a fresh login.
 
 - Show VMs and CTs overviews in a tab panel for Proxmox VE remotes.
 
@@ -235,9 +235,10 @@ Remotes Management
    enabling trust-on-first-use.
 
    An overview panel shows the status of a datastore, such as usage and I/O information, and its
-   contents as a tree of snapshots.
+   contents as a tree of backup snapshots.
 
-   The content of datastores can be inspected, including namespaces and snapshots they contain.
+   The content of datastores can be inspected, including namespaces and backup snapshots they
+   contain.
 
    The dashboard has also been improved to include new functionality for Proxmox Backup Server
    remotes:
@@ -252,7 +253,7 @@ Remotes Management
 
 - Add an update panel for Proxmox Backup Server remotes.
 - The subscription status endpoint now marks clusters with nodes that all have an unknown
-  subscription status as unknown not mixed subscription status.
+  subscription status as "unknown" instead of "mixed" subscription status.
 - Top entities now include Proxmox Backup Server remotes.
 - Show more status information on Proxmox VE nodes in the node overview panel.
 
@@ -263,7 +264,7 @@ Firewall and Software Defined Network
 
 - Add basic support to gather information on a Proxmox VE remote's firewall setup.
 
-   An overview panel shows which remote nodes and remote guest have an active firewall and how many
+   An overview panel shows which remote nodes and remote guests have an active firewall and how many
    rules are enabled.
 
    Detailed rules can be inspected by selecting an entity from the overview panel.
@@ -288,7 +289,7 @@ Backend Improvements
     filter regardless of their own permissions.
 
     Currently, views can be used when listing resources, querying top entities, status of resources,
-    subscription status of remotes and remote tasks.
+    subscription status of remotes, and remote tasks.
 
 - Add endpoints that allow proxying a remote's shell via a web socket.
 - Backend support for Proxmox Backup Server remotes:
@@ -298,7 +299,7 @@ Backend Improvements
    - Assign an ACL with admin role on “/” for newly created Proxmox Backup Server tokens when adding
      them as a remote.
    - Allow querying a Proxmox Backup Server's remote status.
-   - New endpoint that returns the namespaces of a remote datastore.
+   - Add a new API endpoint that returns the namespaces of a remote datastore.
    - Add API endpoints to query Proxmox Backup Server tasks.
    - Improve information collection on Proxmox Backup Server datastores by including configuration
      properties and more status types.
@@ -326,22 +327,22 @@ Backend Improvements
      <https://bugzilla.proxmox.com/show_bug.cgi?id=6901>`__).
 
 - Improve permissions on the remote tasks endpoint.
-- Node update summary includes information for package version and repository status.
+- The node update summary now includes information for package version and repository status.
 - Add an endpoint that allows querying remote APT repository status.
 - Remove entries of a user in the ACL tree when the user is removed.
 - Logs will now include the API path when an API call fails. Unknown errors will be logged too.
-- Add endpoints for querying the Proxmox Datacenter Host's status and shutting it down or rebooting
-  it.
+- Add endpoints for querying the Proxmox Datacenter Manager host's status and shutting it down or
+  rebooting it.
 - Fix an issue where only active tasks were included in the remote task list instead of all other
   tasks.
 - Fix an issue that broke migration of remote guests.
 - Improve documentation of API endpoints and their return type.
 - Task, auth, and access logs will now be rotated.
 - Split remote configuration and token storage into separate files.
-- Add endpoints for querying the Proxmox Datacenter Manager's and connected Proxmox VE and Proxmox
-  Backup Server remotes.
+- Add endpoints for querying the subscription status of Proxmox Datacenter Manager and connected
+  Proxmox VE and Proxmox Backup Server remotes.
 - New endpoints allows querying the configuration of a Proxmox VE node and cluster options.
-- Add an API endpoint to get the cached version info of a remote.
+- Add an API endpoint to get the cached version information of a remote.
 
 .. _command_line_interface_enhancements_1.0:
 
@@ -375,8 +376,8 @@ Known Issues & Breaking Changes
    - API Endpoints for ``remote-tasks``, ``remote-update``, and ``metrics-collection`` were moved
      under ``/remotes``.
 
-- Some API endpoints will now correctly return 403 FORBIDDEN error codes when a user has
-  insufficient permissions instead of 401 UNAUTHORIZED.
+- Some API endpoints will now correctly return 403 Forbidden error codes when a user has
+  insufficient permissions instead of 401 Unauthorized.
 
      API users relying on the previous erroneous return code may break.  Affected are the following
      endpoints:
@@ -396,8 +397,9 @@ Known Issues & Breaking Changes
      possible.
 
 - A minimum password length of eight characters is now enforced on users of the “pdm” realm.
-- Move the file storing LDAP password from ``/etc/proxmox-datacenter-manager/ldap_passwords.json``
-  to ``/etc/proxmox-datacenter-manager/access/ldap-passwords.json``
+- Move the file storing the LDAP password from
+  ``/etc/proxmox-datacenter-manager/ldap_passwords.json`` to
+  ``/etc/proxmox-datacenter-manager/access/ldap-passwords.json``
 
 .. _proxmox_datacenter_manager_0.9_beta:
 
