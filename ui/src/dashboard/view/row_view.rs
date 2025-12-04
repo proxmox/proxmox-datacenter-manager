@@ -336,6 +336,19 @@ impl Component for RowViewComp {
             .class("pwt-content-spacer-colors")
             .class(css::FlexDirection::Row)
             .class(css::FlexWrap::Wrap);
+
+        if layout.is_empty() && !self.edit_mode {
+            let icon = "<i class=\"fa fa-pencil\"></i>";
+            let message = tr!("Layout is empty, you can add widgets in edit mode. You can enable editing with the '{0}' icon.", icon);
+            let message = Html::from_html_unchecked(message.into());
+            row.add_child(
+                Container::new()
+                    .flex(1.0)
+                    .padding(4)
+                    .class(css::TextAlign::Center)
+                    .with_child(message),
+            );
+        }
         for (row_idx, items) in layout.iter().enumerate() {
             let flex_sum: f32 = items
                 .iter()
