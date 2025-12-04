@@ -27,7 +27,7 @@ instances of all configured clusters.
 
 .. note:: Currently, the integration operates under the assumption that EVPN controllers with the
    same ASN are interconnected and part of the same overlay network. Zones and Vnets with the same
-   ASN:VNI tag will get automatically merged in the overview trees.}}
+   ASN:VNI tag will get automatically merged in the overview trees.
 
 The EVPN integration respects the ‘Route Target Import’ field of an EVPN zone and assumes any Zones
 / Vnets with that Route Target are imported as well.
