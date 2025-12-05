@@ -1,3 +1,9 @@
+proxmox-datacenter-manager-ui (0.1.12) bookworm; urgency=medium
+
+  * ui: notice that ALPHA is EOL and link to upgrade how-to
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 05 Dec 2025 17:26:58 +0100
+
 proxmox-datacenter-manager-ui (0.1.11) bookworm; urgency=medium
 
   * pve tree: ellipsize overly long resource name to avoid overflow.
