@@ -69,10 +69,7 @@ const DATASTORE_ITEM_SUBDIRS: SubdirMap = &sorted!([
         "namespaces",
         &Router::new().get(&API_METHOD_LIST_NAMESPACES)
     ),
-    (
-        "snapshots",
-        &Router::new().get(&API_METHOD_LIST_SNAPSHOTS_2)
-    ),
+    ("snapshots", &Router::new().get(&API_METHOD_LIST_SNAPSHOTS)),
 ]);
 
 // converts a remote + pbs_api_types::UPID into a RemoteUpid and starts tracking it
@@ -178,7 +175,7 @@ async fn list_namespaces(
     },
 )]
 /// List the PBS remote's datastores.
-async fn list_snapshots_2(
+async fn list_snapshots(
     remote: String,
     datastore: String,
     ns: Option<String>,
