@@ -284,7 +284,9 @@ impl Component for PdmTopNavBar {
             })
             .with_child(html! {
                 <span class="pwt-font-title-medium">
-                    <a href="https://bugzilla.proxmox.com" target="_blank">{"ALPHA"}</a>
+                    <a href="https://pve.proxmox.com/wiki/Proxmox_Datacenter_Manager_Upgrade_from_Alpha_to_1" target="_blank">
+                        {"ALPHA is End-of-Life. Upgrade to stable 1"}
+                    </a>
                 </span>
             })
             .with_flex_spacer()
