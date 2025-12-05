@@ -32,11 +32,11 @@ instances of all configured clusters.
 The EVPN integration respects the ‘Route Target Import’ field of an EVPN zone and assumes any Zones
 / Vnets with that Route Target are imported as well.
 
-Defintions
+Definitions
 ^^^^^^^^^^
 
 Currently, the SDN stack in Proxmox VE uses the terms Zones and VNets, which are specific to the
-Proxmox VE stack. The following defintions try to make the relationship of those entities to the
+Proxmox VE stack. The following definitions try to make the relationship of those entities to the
 more commonly used definitions in RFC 7432 and RFC 9136 clearer:
 
 A EVPN zone represents a routing table instance (identified by its ASN:VNI tag). This is also known

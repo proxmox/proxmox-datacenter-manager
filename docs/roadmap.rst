@@ -40,7 +40,7 @@ Roadmap
   - Allow to add the pre-defined Updates, Firewall or Task tabs from the Remotes panel.
   - Allow to create tabs to organize complex views.
   - Evaluate other layouting options for rendering the card widgets.
-  - Extending the filter capabillity by providing more types and evaluate more flexible comparission
+  - Extending the filter capability by providing more types and evaluate more flexible comparisons
     operators.
 
 
