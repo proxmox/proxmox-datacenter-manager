@@ -408,6 +408,8 @@ Known Issues & Breaking Changes
 Proxmox Datacenter Manager 0.9 BETA
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+**Released 11. September 2025**
+
 -  Based on Debian Trixie (13)
 -  Latest 6.14.11-1 Kernel as stable default
 -  ZFS 2.3.4
@@ -713,6 +715,8 @@ Known Issues & Breaking Changes
 
 Proxmox Datacenter Manager 0.1 ALPHA
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Released 19. December 2024**
 
 -  Based on Debian Bookworm (12.8)
 -  Latest 6.8.12-5 Kernel as stable default
