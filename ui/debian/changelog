@@ -1,3 +1,25 @@
+proxmox-datacenter-manager-ui (1.0.1) trixie; urgency=medium
+
+  * subscription panel: avoid potential division through zero and fix typo in
+    notice.
+
+  * pve: remote overview: allow line-breaks for long lines.
+
+  * remote updates: show progress on 'refresh all'.
+
+  * configuration: subscription: provide better feedback during a check.
+
+  * views: show informational message in empty layouts to nudge users towards
+    the edit icon.
+
+  * views: force reload after a layout change.
+
+  * remote wizard: fix "invalid uri character" when adding PBS remote by
+    normalizing the hostname in the form context directly when the user clicks
+    on "Next" in the remote addition wizard.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 09 Dec 2025 16:46:00 +0100
+
 proxmox-datacenter-manager-ui (1.0.0) trixie; urgency=medium
 
   * bump for first 1.0 stable version.

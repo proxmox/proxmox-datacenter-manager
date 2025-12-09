@@ -1,6 +1,6 @@
 [package]
 name = "pdm-ui"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 license = "AGPL-3"
 repository = "https://git.proxmox.com/?p=proxmox-datacenter-manager.git"
