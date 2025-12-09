@@ -408,6 +408,8 @@ impl Component for ViewComp {
             }
             Msg::UpdateResult(res) => {
                 self.update_result.update(res);
+                // force reload after layout changed to catch new panel types
+                ctx.link().send_message(Msg::Reload(true));
             }
             Msg::ForceSubscriptionUpdate => {
                 let link = ctx.link().clone();
