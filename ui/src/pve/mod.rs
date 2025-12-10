@@ -14,7 +14,10 @@ use pwt::props::{ContainerBuilder, WidgetBuilder};
 use pwt::state::NavigationContainer;
 use pwt::widget::{Button, Column, Container, Fa, Panel, Row};
 
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use proxmox_yew_comp::{
+    LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState,
+};
 
 use proxmox_client::Error;
 
@@ -141,11 +144,14 @@ pub enum Msg {
 }
 
 pub struct PveRemoteComp {
+    state: LoadableComponentState<()>,
     view: tree::PveTreeNode,
     resources: Rc<Vec<PveResource>>,
     last_error: Option<String>,
     updates: LoadResult<RemoteUpdateSummary, Error>,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(PveRemoteComp, state, LoadableComponentState<()>);
 
 impl LoadableComponent for PveRemoteComp {
     type Message = Msg;
@@ -155,6 +161,7 @@ impl LoadableComponent for PveRemoteComp {
     fn create(ctx: &LoadableComponentContext<PveRemoteComp>) -> Self {
         ctx.link().repeated_load(5000);
         Self {
+            state: LoadableComponentState::new(),
             view: PveTreeNode::Root,
             resources: Rc::new(Vec::new()),
             last_error: None,
@@ -253,9 +260,7 @@ impl LoadableComponent for PveRemoteComp {
                                 let link = ctx.link().clone();
                                 let remote = ctx.props().remote.clone();
                                 move |_| {
-                                    if let Some(url) =
-                                        get_deep_url(link.yew_link(), &remote, None, "")
-                                    {
+                                    if let Some(url) = get_deep_url(&link, &remote, None, "") {
                                         let _ = window().open_with_url(&url.href());
                                     }
                                 }
@@ -275,7 +280,7 @@ impl LoadableComponent for PveRemoteComp {
                             .with_child(tree::PveTree::new(
                                 remote.to_string(),
                                 self.resources.clone(),
-                                ctx.loading(),
+                                self.loading(),
                                 link.callback(Msg::SelectedView),
                                 {
                                     let link = link.clone();
@@ -301,7 +306,7 @@ impl LoadableComponent for PveRemoteComp {
         &self,
         ctx: &LoadableComponentContext<Self>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), anyhow::Error>>>> {
-        let link = ctx.link();
+        let link = ctx.link().clone();
         let remote = ctx.props().remote.clone();
         Box::pin(async move {
             let client = crate::pdm_client();

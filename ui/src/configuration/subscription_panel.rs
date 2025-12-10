@@ -12,7 +12,10 @@ use pwt::prelude::*;
 use pwt::widget::{error_message, Button, Column, Container, Progress, Row, Toolbar};
 
 use proxmox_yew_comp::{http_get, http_post, KVGrid, KVGridRow};
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use proxmox_yew_comp::{
+    LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState,
+};
 
 const SUBSCRIPTION_URL: &str = "/nodes/localhost/subscription";
 
@@ -31,11 +34,18 @@ pub enum Msg {
 }
 
 pub struct ProxmoxSubscriptionPanel {
+    state: LoadableComponentState<()>,
     rows: Rc<Vec<KVGridRow>>,
     data: Option<Rc<Value>>,
     loaded: bool,
     checking: bool,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(
+    ProxmoxSubscriptionPanel,
+    state,
+    LoadableComponentState<()>
+);
 
 impl LoadableComponent for ProxmoxSubscriptionPanel {
     type Message = Msg;
@@ -44,6 +54,7 @@ impl LoadableComponent for ProxmoxSubscriptionPanel {
 
     fn create(_ctx: &LoadableComponentContext<Self>) -> Self {
         Self {
+            state: LoadableComponentState::new(),
             rows: Rc::new(rows()),
             data: None,
             loaded: false,
@@ -88,7 +99,7 @@ impl LoadableComponent for ProxmoxSubscriptionPanel {
     }
 
     fn toolbar(&self, ctx: &LoadableComponentContext<Self>) -> Option<Html> {
-        let link = ctx.link();
+        let link = ctx.link().clone();
         let toolbar = Toolbar::new()
             .class("pwt-overflow-hidden")
             .border_bottom(true)
@@ -101,7 +112,7 @@ impl LoadableComponent for ProxmoxSubscriptionPanel {
             .with_spacer()
             .with_flex_spacer()
             .with_child({
-                let loading = ctx.loading();
+                let loading = self.loading();
                 Button::refresh(loading || self.checking).on_activate(move |_| link.send_reload())
             });
 

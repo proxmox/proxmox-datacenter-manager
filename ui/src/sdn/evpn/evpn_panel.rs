@@ -7,7 +7,10 @@ use yew::virtual_dom::{VComp, VNode};
 use yew::{html, Callback, Html, Properties};
 
 use pdm_client::types::{ListController, ListControllersType, ListVnet, ListZone, ListZonesType};
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use proxmox_yew_comp::{
+    LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState,
+};
 
 use pwt::css::{AlignItems, FlexFit, JustifyContent};
 use pwt::props::{
@@ -91,6 +94,7 @@ async fn load_vnets() -> Result<Vec<ListVnet>, Error> {
 }
 
 pub struct EvpnPanelComponent {
+    state: LoadableComponentState<EvpnPanelViewState>,
     controllers: Rc<Vec<ListController>>,
     zones: Rc<Vec<ListZone>>,
     vnets: Rc<Vec<ListVnet>>,
@@ -98,6 +102,12 @@ pub struct EvpnPanelComponent {
     selected_detail: Option<DetailPanel>,
     selected_tab: Selection,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(
+    EvpnPanelComponent,
+    state,
+    LoadableComponentState<EvpnPanelViewState>
+);
 
 impl EvpnPanelComponent {
     fn create_toolbar(&self, ctx: &LoadableComponentContext<Self>) -> Toolbar {
@@ -129,7 +139,7 @@ impl EvpnPanelComponent {
             .class("pwt-border-bottom")
             .with_child(MenuButton::new(tr!("Add")).show_arrow(true).menu(add_menu))
             .with_flex_spacer()
-            .with_child(Button::refresh(ctx.loading()).onclick(on_refresh))
+            .with_child(Button::refresh(self.loading()).onclick(on_refresh))
     }
 }
 
@@ -145,6 +155,7 @@ impl LoadableComponent for EvpnPanelComponent {
             .on_select(move |_| link.send_message(Self::Message::DetailSelection(None)));
 
         Self {
+            state: LoadableComponentState::new(),
             initial_load: true,
             controllers: Default::default(),
             zones: Default::default(),

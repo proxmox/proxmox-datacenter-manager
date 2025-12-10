@@ -1,10 +1,11 @@
 use futures::Future;
 use gloo_utils::window;
+use proxmox_yew_comp::LoadableComponentState;
 use std::pin::Pin;
 use std::rc::Rc;
 use yew::{ContextHandle, Html};
 
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext};
+use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentScopeExt};
 use pwt::css;
 use pwt::prelude::*;
 use pwt::props::{FieldBuilder, WidgetBuilder};
@@ -147,6 +148,7 @@ pub enum Msg {
 }
 
 pub struct FirewallTreeComponent {
+    state: LoadableComponentState<()>,
     store: TreeStore<TreeEntry>,
     selection: Selection,
     tab_selection: Selection,
@@ -160,6 +162,12 @@ pub struct FirewallTreeComponent {
     selected_entry: Option<TreeEntry>,
     tree_collapsed: bool,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(
+    FirewallTreeComponent,
+    state,
+    LoadableComponentState<()>
+);
 
 impl FirewallTreeComponent {
     fn reset_tree_for_loading(&mut self) {
@@ -192,12 +200,12 @@ impl FirewallTreeComponent {
         match (node, vmid, kind) {
             (None, None, _) => {
                 let id = format!("v1:0:18:4:::::::{index}");
-                let url = crate::get_deep_url_low_level(ctx.link().yew_link(), remote, None, &id)?;
+                let url = crate::get_deep_url_low_level(ctx.link(), remote, None, &id)?;
                 Some(url.href())
             }
             (Some(node), None, _) => {
                 let id = format!("node/{node}:4:{index}");
-                let url = crate::get_deep_url(ctx.link().yew_link(), remote, Some(node), &id)?;
+                let url = crate::get_deep_url(ctx.link(), remote, Some(node), &id)?;
                 Some(url.href())
             }
             (Some(node), Some(vmid), Some(kind)) => {
@@ -205,7 +213,7 @@ impl FirewallTreeComponent {
                     GuestKind::Lxc => format!("lxc/{vmid}:4::::::{index}"),
                     GuestKind::Qemu => format!("qemu/{vmid}:4:::::{index}"),
                 };
-                let url = crate::get_deep_url(ctx.link().yew_link(), remote, Some(node), &id)?;
+                let url = crate::get_deep_url(ctx.link(), remote, Some(node), &id)?;
                 Some(url.href())
             }
             _ => None,
@@ -254,7 +262,7 @@ impl FirewallTreeComponent {
     }
 
     fn render_tree_panel(&self, ctx: &LoadableComponentContext<Self>) -> Panel {
-        let columns = create_columns(self.store.clone(), ctx.loading(), &self.scope);
+        let columns = create_columns(self.store.clone(), self.loading(), &self.scope);
         let table = DataTable::new(columns, self.store.clone())
             .selection(self.selection.clone())
             .striped(false)
@@ -309,7 +317,7 @@ impl FirewallTreeComponent {
             ))
             .with_flex_spacer()
             .with_child(
-                Button::refresh(ctx.loading()).onclick(ctx.link().callback(|_| Msg::Reload)),
+                Button::refresh(self.loading()).onclick(ctx.link().callback(|_| Msg::Reload)),
             );
 
         let column = pwt::widget::Column::new()
@@ -469,12 +477,12 @@ impl LoadableComponent for FirewallTreeComponent {
 
         let (_, context_listener) = ctx
             .link()
-            .yew_link()
             .context(ctx.link().callback(|_: RemoteList| Msg::RemoteListChanged))
             .expect("No Remote list context provided");
 
         store.set_sorter(sort_entries);
         Self {
+            state: LoadableComponentState::new(),
             store,
             selection,
             tab_selection,

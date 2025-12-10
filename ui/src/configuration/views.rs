@@ -3,14 +3,17 @@ use std::pin::Pin;
 use std::rc::Rc;
 
 use anyhow::{bail, Error};
-use proxmox_yew_comp::form::delete_empty_values;
-use proxmox_yew_comp::percent_encoding::percent_encode_component;
+
 use yew::virtual_dom::{Key, VComp, VNode};
 
+use proxmox_yew_comp::form::delete_empty_values;
+use proxmox_yew_comp::percent_encoding::percent_encode_component;
+use proxmox_yew_comp::{http_delete, http_get, http_post, http_put, EditWindow};
 use proxmox_yew_comp::{
-    http_delete, http_get, http_post, http_put, EditWindow, LoadableComponent,
-    LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState,
 };
+
 use pwt::prelude::*;
 use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
@@ -88,7 +91,6 @@ impl From<ViewGrid> for VNode {
 }
 
 pub enum Msg {
-    SelectionChanged,
     LoadFinished(Vec<ViewConfig>),
     Remove(Key),
     Reload,
@@ -103,10 +105,13 @@ pub enum ViewState {
 
 #[doc(hidden)]
 pub struct ViewGridComp {
+    state: LoadableComponentState<ViewState>,
     store: Store<ViewConfig>,
     columns: Rc<Vec<DataTableHeader<ViewConfig>>>,
     selection: Selection,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(ViewGridComp, state, LoadableComponentState<ViewState>);
 
 impl ViewGridComp {
     fn columns() -> Rc<Vec<DataTableHeader<ViewConfig>>> {
@@ -197,8 +202,12 @@ impl LoadableComponent for ViewGridComp {
     type ViewState = ViewState;
 
     fn create(ctx: &proxmox_yew_comp::LoadableComponentContext<Self>) -> Self {
-        let selection = Selection::new().on_select(ctx.link().callback(|_| Msg::SelectionChanged));
+        let selection = Selection::new().on_select({
+            let link = ctx.link().clone();
+            move |_| link.send_redraw()
+        });
         Self {
+            state: LoadableComponentState::new(),
             store: Store::with_extract_key(|config: &ViewConfig| config.id.as_str().into()),
             columns: Self::columns(),
             selection,
@@ -232,13 +241,11 @@ impl LoadableComponent for ViewGridComp {
                     });
                 }
             }
-            Msg::SelectionChanged => {}
             Msg::Reload => {
                 ctx.link().change_view(None);
                 ctx.link().send_reload();
                 if let Some((context, _)) = ctx
                     .link()
-                    .yew_link()
                     .context::<ViewListContext>(Callback::from(|_| {}))
                 {
                     context.update_views();
@@ -286,7 +293,7 @@ impl LoadableComponent for ViewGridComp {
     }
 
     fn main_view(&self, ctx: &proxmox_yew_comp::LoadableComponentContext<Self>) -> Html {
-        let link = ctx.link();
+        let link = ctx.link().clone();
         DataTable::new(self.columns.clone(), self.store.clone())
             .on_row_dblclick(move |_: &mut _| link.change_view(Some(ViewState::Edit)))
             .selection(self.selection.clone())

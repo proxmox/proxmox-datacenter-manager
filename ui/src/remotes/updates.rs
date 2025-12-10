@@ -19,7 +19,8 @@ use proxmox_deb_version;
 
 use proxmox_yew_comp::{
     AptPackageManager, AptRepositories, ExistingProduct, LoadableComponent,
-    LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentContext, LoadableComponentMaster, LoadableComponentScopeExt,
+    LoadableComponentState,
 };
 use pwt::props::{CssBorderBuilder, CssPaddingBuilder, WidgetStyleBuilder};
 use pwt::widget::{Button, Container, Panel, Progress, Tooltip};
@@ -128,11 +129,18 @@ enum RemoteUpdateTreeMsg {
 }
 
 struct UpdateTreeComponent {
+    state: LoadableComponentState<ViewState>,
     store: TreeStore<UpdateTreeEntry>,
     selection: Selection,
     selected_entry: Option<UpdateTreeEntry>,
     refreshing: bool,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(
+    UpdateTreeComponent,
+    state,
+    LoadableComponentState<ViewState>
+);
 
 fn default_sorter(a: &UpdateTreeEntry, b: &UpdateTreeEntry) -> Ordering {
     a.name().cmp(b.name())
@@ -332,6 +340,7 @@ impl LoadableComponent for UpdateTreeComponent {
         }));
 
         Self {
+            state: LoadableComponentState::new(),
             store: store.clone(),
             selection,
             selected_entry: None,
@@ -397,7 +406,7 @@ impl LoadableComponent for UpdateTreeComponent {
                 }
             }
             Self::Message::CheckSubscription => {
-                let link = ctx.link();
+                let link = ctx.link().clone();
 
                 self.refreshing = true;
                 link.clone().spawn(async move {
@@ -412,7 +421,7 @@ impl LoadableComponent for UpdateTreeComponent {
                 });
             }
             Self::Message::RefreshAll => {
-                let link = ctx.link();
+                let link = ctx.link().clone();
 
                 link.clone().spawn(async move {
                     let client = pdm_client();
@@ -535,16 +544,14 @@ impl UpdateTreeComponent {
                             move |_| match ty {
                                 RemoteType::Pve => {
                                     let id = format!("node/{node}::apt");
-                                    if let Some(url) =
-                                        get_deep_url(link.yew_link(), &remote, None, &id)
-                                    {
+                                    if let Some(url) = get_deep_url(&link, &remote, None, &id) {
                                         let _ = gloo_utils::window().open_with_url(&url.href());
                                     }
                                 }
                                 RemoteType::Pbs => {
                                     let hash = "#pbsServerAdministration:updates";
                                     if let Some(url) =
-                                        get_deep_url_low_level(link.yew_link(), &remote, None, hash)
+                                        get_deep_url_low_level(&link, &remote, None, hash)
                                     {
                                         let _ = gloo_utils::window().open_with_url(&url.href());
                                     }

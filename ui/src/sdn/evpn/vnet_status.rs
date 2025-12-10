@@ -5,7 +5,10 @@ use std::rc::Rc;
 
 use anyhow::{Context, Error};
 
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use proxmox_yew_comp::{
+    LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState,
+};
 use pwt::props::ExtractPrimaryKey;
 use yew::virtual_dom::{Key, VComp, VNode};
 use yew::{AttrValue, Properties};
@@ -68,6 +71,7 @@ fn default_sorter(a: &MacVrfEntry, b: &MacVrfEntry) -> Ordering {
 }
 
 struct VnetStatusComponent {
+    state: LoadableComponentState<()>,
     store: Store<MacVrfEntry>,
     columns: Rc<Vec<DataTableHeader<MacVrfEntry>>>,
     nodes: Option<Rc<Vec<AttrValue>>>,
@@ -75,6 +79,8 @@ struct VnetStatusComponent {
     error_msg: Option<String>,
     vrf_loading: bool,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(VnetStatusComponent, state, LoadableComponentState<()>);
 
 impl VnetStatusComponent {
     fn columns() -> Rc<Vec<DataTableHeader<MacVrfEntry>>> {
@@ -106,6 +112,7 @@ impl LoadableComponent for VnetStatusComponent {
 
     fn create(_ctx: &LoadableComponentContext<Self>) -> Self {
         Self {
+            state: LoadableComponentState::new(),
             store: Store::new(),
             columns: Self::columns(),
             selected_node: None,
@@ -218,7 +225,7 @@ impl LoadableComponent for VnetStatusComponent {
                 ),
             )
             .with_flex_spacer()
-            .with_child(Button::refresh(ctx.loading() || self.vrf_loading).onclick(
+            .with_child(Button::refresh(self.loading() || self.vrf_loading).onclick(
                 ctx.link().callback(move |_| {
                     Self::Message::NodeSelected(selected_node.as_ref().map(ToString::to_string))
                 }),

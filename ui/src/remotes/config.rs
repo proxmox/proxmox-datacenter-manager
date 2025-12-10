@@ -33,6 +33,7 @@ use pwt::widget::{
 //use proxmox_yew_comp::EditWindow;
 use proxmox_yew_comp::{
     ConfirmButton, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState,
 };
 
 use pdm_api_types::remotes::{NodeUrl, RemoteType};
@@ -102,15 +103,21 @@ pub enum ViewState {
 }
 
 pub enum Msg {
-    SelectionChange,
     RemoveItem,
 }
 
 pub struct PbsRemoteConfigPanel {
+    state: LoadableComponentState<ViewState>,
     store: Store<Remote>,
     selection: Selection,
     remote_list_columns: Rc<Vec<DataTableHeader<Remote>>>,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(
+    PbsRemoteConfigPanel,
+    state,
+    LoadableComponentState<ViewState>
+);
 
 impl LoadableComponent for PbsRemoteConfigPanel {
     type Message = Msg;
@@ -132,11 +139,15 @@ impl LoadableComponent for PbsRemoteConfigPanel {
     fn create(ctx: &LoadableComponentContext<Self>) -> Self {
         let store = Store::with_extract_key(|record: &Remote| Key::from(record.id.clone()));
 
-        let selection = Selection::new().on_select(ctx.link().callback(|_| Msg::SelectionChange));
+        let selection = Selection::new().on_select({
+            let link = ctx.link().clone();
+            move |_| link.send_redraw()
+        });
 
         let remote_list_columns = remote_list_columns();
 
         Self {
+            state: LoadableComponentState::new(),
             store,
             selection,
             remote_list_columns,
@@ -145,11 +156,10 @@ impl LoadableComponent for PbsRemoteConfigPanel {
 
     fn update(&mut self, ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::SelectionChange => true,
             Msg::RemoveItem => {
                 if let Some(key) = self.selection.selected_key() {
-                    let link = ctx.link();
-                    link.clone().spawn(async move {
+                    let link = ctx.link().clone();
+                    self.spawn(async move {
                         if let Err(err) = delete_item(key).await {
                             link.show_error(tr!("Unable to delete item"), err, true);
                         }
@@ -202,8 +212,8 @@ impl LoadableComponent for PbsRemoteConfigPanel {
             )
             .with_flex_spacer()
             .with_child({
-                let loading = ctx.loading();
-                let link = ctx.link();
+                let loading = self.loading();
+                let link = ctx.link().clone();
                 Button::refresh(loading).onclick(move |_| link.send_reload())
             });
 
@@ -212,7 +222,7 @@ impl LoadableComponent for PbsRemoteConfigPanel {
 
     fn main_view(&self, ctx: &LoadableComponentContext<Self>) -> Html {
         let columns = Rc::clone(&self.remote_list_columns);
-        let link = ctx.link();
+        let link = ctx.link().clone();
         DataTable::new(columns, self.store.clone())
             .class(pwt::css::FlexFit)
             .selection(self.selection.clone())

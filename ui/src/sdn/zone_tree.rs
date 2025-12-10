@@ -9,7 +9,10 @@ use yew::{html, ContextHandle, Html, Properties};
 use pdm_api_types::resource::{PveNetworkResource, RemoteResources, ResourceType, SdnStatus};
 use pdm_client::types::{ClusterResourceNetworkType, Resource};
 use pdm_search::{Search, SearchTerm};
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use proxmox_yew_comp::{
+    LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState,
+};
 use pwt::props::EventSubscriber;
 use pwt::widget::{ActionIcon, Button, Toolbar};
 use pwt::{
@@ -114,11 +117,14 @@ pub enum ZoneTreeMsg {
 }
 
 pub struct ZoneTreeComponent {
+    state: LoadableComponentState<()>,
     store: TreeStore<ZoneTreeEntry>,
     selection: Selection,
     remote_errors: Vec<String>,
     _context_listener: ContextHandle<RemoteList>,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(ZoneTreeComponent, state, LoadableComponentState<()>);
 
 fn default_sorter(a: &ZoneTreeEntry, b: &ZoneTreeEntry) -> Ordering {
     a.name().cmp(b.name())
@@ -193,7 +199,7 @@ impl ZoneTreeComponent {
                         ZoneTreeEntry::Remote(remote) => {
                             // TODO: do not hardcode this here.
                             let hash = "#v1:0:18:4:::::::53";
-                            crate::get_deep_url_low_level(link.yew_link(), remote, None, hash)
+                            crate::get_deep_url_low_level(&link, remote, None, hash)
                         }
                         ZoneTreeEntry::NetworkResource(network_resource) => {
                             if network_resource.legacy {
@@ -201,7 +207,7 @@ impl ZoneTreeComponent {
                                     "sdn/{}/{}",
                                     network_resource.node, network_resource.name
                                 );
-                                get_deep_url(link.yew_link(), &network_resource.remote, None, &id)
+                                get_deep_url(&link, &network_resource.remote, None, &id)
                             } else {
                                 let id = format!(
                                     "network/{}/{}/{}",
@@ -209,7 +215,7 @@ impl ZoneTreeComponent {
                                     network_resource.network_type,
                                     network_resource.name
                                 );
-                                get_deep_url(link.yew_link(), &network_resource.remote, None, &id)
+                                get_deep_url(&link, &network_resource.remote, None, &id)
                             }
                         }
                     };
@@ -298,11 +304,11 @@ impl LoadableComponent for ZoneTreeComponent {
 
         let (_, _context_listener) = ctx
             .link()
-            .yew_link()
             .context(ctx.link().callback(Self::Message::RemoteListChanged))
             .expect("No Remote list context provided");
 
         Self {
+            state: LoadableComponentState::new(),
             store: store.clone(),
             selection,
             remote_errors: Vec::new(),
@@ -368,7 +374,7 @@ impl LoadableComponent for ZoneTreeComponent {
                 .class("pwt-overflow-hidden")
                 .class("pwt-border-bottom")
                 .with_flex_spacer()
-                .with_child(Button::refresh(ctx.loading()).onclick(on_refresh))
+                .with_child(Button::refresh(self.loading()).onclick(on_refresh))
                 .into(),
         )
     }

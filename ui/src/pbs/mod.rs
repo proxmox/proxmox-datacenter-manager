@@ -8,7 +8,8 @@ use yew::virtual_dom::{VComp, VNode};
 use yew::{Html, Properties};
 
 use proxmox_yew_comp::{
-    ConsoleType, LoadableComponent, LoadableComponentContext, LoadableComponentMaster, XTermJs,
+    ConsoleType, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState, XTermJs,
 };
 use pwt::css::{AlignItems, FlexFit};
 use pwt::prelude::*;
@@ -57,9 +58,12 @@ pub enum Msg {
 
 #[doc(hidden)]
 pub struct PbsRemoteComp {
+    state: LoadableComponentState<()>,
     datastores: Rc<Vec<DataStoreConfig>>,
     view: tree::PbsTreeNode,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(PbsRemoteComp, state, LoadableComponentState<()>);
 
 impl PbsRemoteComp {
     async fn load_datastores(remote: &str) -> Result<Vec<DataStoreConfig>, Error> {
@@ -75,6 +79,7 @@ impl LoadableComponent for PbsRemoteComp {
 
     fn create(_ctx: &LoadableComponentContext<Self>) -> Self {
         Self {
+            state: LoadableComponentState::new(),
             datastores: Rc::new(Vec::new()),
             view: tree::PbsTreeNode::Root,
         }
@@ -144,7 +149,7 @@ impl LoadableComponent for PbsRemoteComp {
                                         let remote = ctx.props().remote.clone();
                                         move |_| {
                                             if let Some(url) =
-                                                get_deep_url(link.yew_link(), &remote, None, "")
+                                                get_deep_url(&link, &remote, None, "")
                                             {
                                                 let _ = window().open_with_url(&url.href());
                                             }
@@ -169,7 +174,7 @@ impl LoadableComponent for PbsRemoteComp {
                                 PbsTree::new(
                                     props.remote.clone(),
                                     self.datastores.clone(),
-                                    ctx.loading(),
+                                    self.loading(),
                                     ctx.link().callback(Msg::SelectedView),
                                     {
                                         let link = ctx.link().clone();

@@ -8,7 +8,8 @@ use yew::{
 };
 
 use proxmox_yew_comp::{
-    LoadableComponent, LoadableComponentContext, LoadableComponentLink, LoadableComponentMaster,
+    LoadableComponent, LoadableComponentContext, LoadableComponentMaster, LoadableComponentScope,
+    LoadableComponentScopeExt, LoadableComponentState,
 };
 use pwt::css::{AlignItems, ColorScheme, FlexFit, FontStyle, JustifyContent};
 use pwt::props::{ContainerBuilder, CssBorderBuilder, ExtractPrimaryKey, WidgetBuilder};
@@ -135,6 +136,7 @@ pub enum Msg {
 }
 
 pub struct PveTreeComp {
+    state: LoadableComponentState<ViewState>,
     columns: Rc<Vec<DataTableHeader<PveTreeNode>>>,
     store: TreeStore<PveTreeNode>,
     loaded: bool,
@@ -143,8 +145,10 @@ pub struct PveTreeComp {
     view_selection: Selection,
 }
 
+proxmox_yew_comp::impl_deref_mut_property!(PveTreeComp, state, LoadableComponentState<ViewState>);
+
 impl PveTreeComp {
-    fn load_tree(&mut self, ctx: &LoadableComponentContext<'_, PveTreeComp>) {
+    fn load_tree(&mut self, ctx: &LoadableComponentContext<PveTreeComp>) {
         let remote = ctx.props().remote.clone();
         let resources = ctx.props().resources.as_ref();
         let mut tree = KeyedSlabTree::new();
@@ -261,6 +265,10 @@ impl PveTreeComp {
     }
 }
 
+fn get_base_url(remote: &str) -> AttrValue {
+    format!("/pve/remotes/{remote}/tasks").into()
+}
+
 impl LoadableComponent for PveTreeComp {
     type Message = Msg;
     type Properties = PveTree;
@@ -278,12 +286,10 @@ impl LoadableComponent for PveTreeComp {
             link.callback(|selection: Selection| Msg::KeySelected(selection.selected_key())),
         );
 
-        link.task_base_url(format!("/pve/remotes/{}/tasks", ctx.props().remote));
         link.repeated_load(3000);
 
         let (_nav_ctx, _nav_handle) = ctx
             .link()
-            .yew_link()
             .context::<NavigationContext>(Callback::from({
                 let link = ctx.link().clone();
                 move |nav_ctx: NavigationContext| {
@@ -296,9 +302,13 @@ impl LoadableComponent for PveTreeComp {
         let path = _nav_ctx.path();
         ctx.link().send_message(Msg::RouteChanged(path));
 
+        let mut state = LoadableComponentState::new();
+        state.set_task_base_url(get_base_url(&ctx.props().remote));
+
         Self {
+            state,
             columns: columns(
-                link,
+                link.clone(),
                 store.clone(),
                 ctx.props().remote.clone(),
                 ctx.props().loading,
@@ -379,9 +389,7 @@ impl LoadableComponent for PveTreeComp {
 
                 if let Some(node) = root.find_node_by_key(&key) {
                     let record = node.record().clone();
-                    ctx.link()
-                        .yew_link()
-                        .push_relative_route(&record.get_path());
+                    ctx.link().push_relative_route(&record.get_path());
                     ctx.props().on_select.emit(record);
                 }
             }
@@ -437,12 +445,15 @@ impl LoadableComponent for PveTreeComp {
         _old_props: &Self::Properties,
     ) -> bool {
         let props = ctx.props();
+
+        self.state.set_task_base_url(get_base_url(&props.remote));
+
         if props.resources != _old_props.resources {
             self.load_tree(ctx);
         }
 
         self.columns = columns(
-            ctx.link(),
+            ctx.link().clone(),
             self.store.clone(),
             props.remote.clone(),
             props.loading,
@@ -567,7 +578,7 @@ fn create_empty_node(node_id: String) -> PveTreeNode {
 }
 
 fn columns(
-    link: LoadableComponentLink<PveTreeComp>,
+    link: LoadableComponentScope<PveTreeComp>,
     store: TreeStore<PveTreeNode>,
     remote: String,
     loading: bool,
@@ -713,12 +724,9 @@ fn columns(
                             let remote = remote.clone();
                             move |_| {
                                 // there must be a remote with a connections config if were already here
-                                if let Some(url) = get_deep_url(
-                                    link.yew_link(),
-                                    &remote,
-                                    node.as_deref(),
-                                    &local_id,
-                                ) {
+                                if let Some(url) =
+                                    get_deep_url(&link, &remote, node.as_deref(), &local_id)
+                                {
                                     let _ = window().open_with_url(&url.href());
                                 }
                             }

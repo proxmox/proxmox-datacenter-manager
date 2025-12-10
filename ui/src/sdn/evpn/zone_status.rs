@@ -8,7 +8,10 @@ use yew::virtual_dom::{Key, VComp, VNode};
 use yew::{html, AttrValue, Properties};
 
 use pdm_client::types::SdnZoneIpVrf;
-use proxmox_yew_comp::{LoadableComponent, LoadableComponentContext, LoadableComponentMaster};
+use proxmox_yew_comp::{
+    LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState,
+};
 use pwt::props::{ContainerBuilder, FieldBuilder, WidgetBuilder, WidgetStyleBuilder};
 use pwt::props::{EventSubscriber, ExtractPrimaryKey};
 use pwt::state::Store;
@@ -65,6 +68,7 @@ fn default_sorter(a: &IpVrfEntry, b: &IpVrfEntry) -> Ordering {
 }
 
 struct ZoneStatusComponent {
+    state: LoadableComponentState<()>,
     store: Store<IpVrfEntry>,
     columns: Rc<Vec<DataTableHeader<IpVrfEntry>>>,
     nodes: Option<Rc<Vec<AttrValue>>>,
@@ -72,6 +76,8 @@ struct ZoneStatusComponent {
     error_msg: Option<String>,
     vrf_loading: bool,
 }
+
+proxmox_yew_comp::impl_deref_mut_property!(ZoneStatusComponent, state, LoadableComponentState<()>);
 
 impl ZoneStatusComponent {
     fn columns() -> Rc<Vec<DataTableHeader<IpVrfEntry>>> {
@@ -114,6 +120,7 @@ impl LoadableComponent for ZoneStatusComponent {
 
     fn create(_ctx: &LoadableComponentContext<Self>) -> Self {
         Self {
+            state: LoadableComponentState::new(),
             store: Store::new(),
             columns: Self::columns(),
             selected_node: None,
@@ -168,7 +175,7 @@ impl LoadableComponent for ZoneStatusComponent {
                     let link = ctx.link().clone();
                     let props = ctx.props().clone();
 
-                    ctx.link().spawn(async move {
+                    self.spawn(async move {
                         let status_result = pdm_client()
                             .pve_sdn_zone_get_ip_vrf(&props.remote, &node_name, &props.zone)
                             .await;
@@ -226,7 +233,7 @@ impl LoadableComponent for ZoneStatusComponent {
                 ),
             )
             .with_flex_spacer()
-            .with_child(Button::refresh(ctx.loading() || self.vrf_loading).onclick(
+            .with_child(Button::refresh(self.loading() || self.vrf_loading).onclick(
                 ctx.link().callback(move |_| {
                     Self::Message::NodeSelected(selected_node.as_ref().map(ToString::to_string))
                 }),
