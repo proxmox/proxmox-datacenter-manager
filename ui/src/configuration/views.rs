@@ -4,11 +4,12 @@ use std::rc::Rc;
 
 use anyhow::{bail, Error};
 
+use pdm_api_types::VIEW_ID_SCHEMA;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use proxmox_yew_comp::form::delete_empty_values;
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
-use proxmox_yew_comp::{http_delete, http_get, http_post, http_put, EditWindow};
+use proxmox_yew_comp::{http_delete, http_get, http_post, http_put, EditWindow, SchemaValidation};
 use proxmox_yew_comp::{
     LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
     LoadableComponentScopeExt, LoadableComponentState,
@@ -341,7 +342,13 @@ fn input_panel(form_ctx: &FormContext, mode: InputPanelMode) -> Html {
 
     match mode {
         InputPanelMode::Create(store) => {
-            input_panel.add_field(tr!("Name"), Field::new().name("id").required(true));
+            input_panel.add_field(
+                tr!("Name"),
+                Field::new()
+                    .name("id")
+                    .schema(&VIEW_ID_SCHEMA)
+                    .required(true),
+            );
             input_panel.add_right_field(
                 tr!("Copy Layout from"),
                 ViewSelector::new(store)
