@@ -1,10 +1,8 @@
 use std::rc::Rc;
 
 use anyhow::Error;
-use gloo_utils::{format::JsValueSerdeExt, window};
 use html::IntoEventCallback;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::JsValue;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use proxmox_schema::property_string::PropertyString;
@@ -25,7 +23,7 @@ use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, REMOTE_ID_SCHEMA};
 use pwt_macros::builder;
 
 use super::wizard_page_connect::ConnectParams;
-use crate::widget::PveRealmSelector;
+use crate::{get_nodename, widget::PveRealmSelector};
 
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
@@ -413,16 +411,4 @@ impl From<WizardPageInfo> for VNode {
         let comp = VComp::new::<PdmWizardPageInfo>(Rc::new(val), None);
         VNode::from(comp)
     }
-}
-
-#[derive(Deserialize)]
-struct ProxmoxServerConfig {
-    #[serde(alias = "NodeName")]
-    pub node_name: String,
-}
-
-fn get_nodename() -> Option<String> {
-    let value = js_sys::Reflect::get(&window(), &JsValue::from_str("Proxmox")).ok()?;
-    let config: ProxmoxServerConfig = JsValueSerdeExt::into_serde(&value).ok()?;
-    Some(config.node_name)
 }

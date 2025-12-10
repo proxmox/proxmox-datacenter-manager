@@ -1,3 +1,5 @@
+use gloo_utils::format::JsValueSerdeExt;
+use gloo_utils::window;
 use js_sys::{Array, JsString, Object};
 use pdm_api_types::remote_updates::RemoteUpdateSummary;
 use pdm_api_types::remotes::RemoteType;
@@ -37,6 +39,7 @@ pub use search_provider::SearchProvider;
 
 mod dashboard;
 
+use wasm_bindgen::JsValue;
 use yew::html::IntoEventCallback;
 use yew::Html;
 use yew_router::prelude::RouterScopeExt;
@@ -302,4 +305,17 @@ pub fn extract_package_version(
         .find_map(|package| (package.package == package_name).then_some(package.version.clone()))?;
 
     version.parse().ok()
+}
+
+#[derive(Deserialize)]
+struct ProxmoxServerConfig {
+    #[serde(alias = "NodeName")]
+    pub node_name: String,
+}
+
+/// Returns the nodename from the index if set
+pub fn get_nodename() -> Option<String> {
+    let value = js_sys::Reflect::get(&window(), &JsValue::from_str("Proxmox")).ok()?;
+    let config: ProxmoxServerConfig = JsValueSerdeExt::into_serde(&value).ok()?;
+    Some(config.node_name)
 }

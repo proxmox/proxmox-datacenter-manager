@@ -4,11 +4,15 @@ use anyhow::Error;
 use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_node_status::NodePowerCommand;
-use proxmox_yew_comp::utils::copy_text_to_clipboard;
+use proxmox_time::epoch_i64;
+use proxmox_yew_comp::percent_encoding::percent_encode_component;
+use proxmox_yew_comp::utils::{copy_text_to_clipboard, render_epoch};
 use proxmox_yew_comp::{http_post, ConfirmButton, NodeStatusPanel};
 use pwt::prelude::*;
 use pwt::widget::{Button, Column, Container, Row};
 use pwt::AsyncAbortGuard;
+
+use crate::get_nodename;
 
 #[derive(Properties, Clone, PartialEq)]
 pub(crate) struct NodeStatus {}
@@ -74,12 +78,39 @@ impl PdmNodeStatus {
                             .with_child(&report),
                     )
                     .with_child(
-                        Row::new().padding(2).with_flex_spacer().with_child(
-                            Button::new(tr!("Copy to clipboard"))
-                                .icon_class("fa fa-clipboard")
-                                .class(pwt::css::ColorScheme::Primary)
-                                .on_activate(move |_| copy_text_to_clipboard(&report)),
-                        ),
+                        Row::new()
+                            .padding(2)
+                            .gap(1)
+                            .with_flex_spacer()
+                            .with_child(
+                                Button::new(tr!("Copy to clipboard"))
+                                    .icon_class("fa fa-clipboard")
+                                    .class(pwt::css::ColorScheme::Primary)
+                                    .on_activate({
+                                        let report = report.clone();
+                                        move |_| copy_text_to_clipboard(&report)
+                                    }),
+                            )
+                            .with_child({
+                                let button = Button::new(tr!("Download"))
+                                    .icon_class("fa fa-download")
+                                    .class(pwt::css::ColorScheme::Primary);
+
+                                let data = format!(
+                                    "data:text/plain;charset=utf-8,{}",
+                                    percent_encode_component(&report)
+                                );
+                                let timestamp = render_epoch(epoch_i64());
+
+                                let filename = match get_nodename() {
+                                    Some(nodename) => {
+                                        format!("{nodename}-pdm-report-{timestamp}.txt")
+                                    }
+                                    None => format!("pdm-report-{timestamp}.txt"),
+                                };
+
+                                html! { <a href={data} download={filename}>{button}</a> }
+                            }),
                     )
                     .into()
             })
