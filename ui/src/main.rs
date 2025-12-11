@@ -7,7 +7,7 @@ use web_sys::HtmlElement;
 use yew::prelude::*;
 
 use pwt::prelude::*;
-use pwt::props::TextRenderFn;
+use pwt::props::RenderFn;
 use pwt::state::{Loader, PersistentState, SharedStateObserver};
 use pwt::widget::{Column, DesktopApp, Dialog, Mask};
 use pwt::AsyncPool;
@@ -346,9 +346,7 @@ impl Component for DatacenterManagerApp {
                 </ContextProvider<RemoteList>>
             </ContextProvider<SearchProvider>>
         })
-        .catalog_url_builder(TextRenderFn::new(|lang| {
-            format!("locale/catalog-{lang}.mo")
-        }))
+        .catalog_url_builder(RenderFn::new(|lang| format!("locale/catalog-{lang}.mo")))
         .into()
     }
 }
