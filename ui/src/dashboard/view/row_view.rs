@@ -337,7 +337,7 @@ impl Component for RowViewComp {
             .class(css::FlexDirection::Row)
             .class(css::FlexWrap::Wrap);
 
-        if layout.is_empty() && !self.edit_mode {
+        if layout.iter().flatten().count() == 0 && !self.edit_mode {
             let icon = "<i class=\"fa fa-pencil\"></i>";
             let message = tr!("The layout is empty. To add widgets, enable editing by clicking the {0} icon above.", icon);
             let message = Html::from_html_unchecked(message.into());
