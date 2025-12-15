@@ -9,6 +9,7 @@ use proxmox_router::RpcEnvironment;
 use proxmox_schema::api;
 
 mod remotes;
+mod support_eligibility;
 
 fn main() {
     //pbs_tools::setup_libc_malloc_opts(); // TODO: move from PBS to proxmox-sys and uncomment
@@ -36,6 +37,7 @@ fn main() {
             "report",
             CliCommand::new(&API_METHOD_GENERATE_SYSTEM_REPORT),
         )
+        .insert("support-eligibility", support_eligibility::cli())
         .insert("versions", CliCommand::new(&API_METHOD_GET_VERSIONS));
 
     let mut rpcenv = CliEnvironment::new();
