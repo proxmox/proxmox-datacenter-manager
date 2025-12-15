@@ -389,7 +389,14 @@ impl LoadableComponent for PveTreeComp {
 
                 if let Some(node) = root.find_node_by_key(&key) {
                     let record = node.record().clone();
-                    ctx.link().push_relative_route(&record.get_path());
+                    if let Some(nav) = ctx.link().nav_context() {
+                        let new_path = record.get_path();
+                        let current_path = nav.path();
+                        if current_path != new_path {
+                            ctx.link().push_relative_route(&new_path);
+                        }
+                    }
+
                     ctx.props().on_select.emit(record);
                 }
             }
