@@ -58,7 +58,7 @@ impl ExtractPrimaryKey for PveTreeNode {
 impl PveTreeNode {
     fn get_path(&self) -> String {
         match self {
-            PveTreeNode::Root => String::new(),
+            PveTreeNode::Root => "datacenter".to_string(),
             PveTreeNode::Node(node) => format!("node+{}", node.node),
             PveTreeNode::Lxc(lxc) => format!("guest+{}", lxc.vmid),
             PveTreeNode::Qemu(qemu) => format!("guest+{}", qemu.vmid),
@@ -394,7 +394,7 @@ impl LoadableComponent for PveTreeComp {
                 }
             }
             Msg::RouteChanged(path) => {
-                let key = if path == "_" {
+                let key = if path == "_" || path == "datacenter" || path == "" {
                     Key::from("__root__")
                 } else {
                     Key::from(format!(
