@@ -414,7 +414,7 @@ fn columns(
                     .into()
             })
             .into(),
-        DataTableColumn::new("Node")
+        DataTableColumn::new(tr!("Node"))
             .width("150px")
             .render(|item: &PdmTreeEntry| {
                 match item {
@@ -427,7 +427,7 @@ fn columns(
                 .into()
             })
             .into(),
-        DataTableColumn::new("")
+        DataTableColumn::new(tr!("UI"))
             .width("50px")
             .justify("right")
             .render({
