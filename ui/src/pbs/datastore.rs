@@ -45,6 +45,13 @@ impl Component for DatastorePanelComp {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
+        let offline = props
+            .config
+            .maintenance_mode
+            .as_ref()
+            .map(|v| v == "offline")
+            .unwrap_or_default();
+
         pwt::widget::TabPanel::new()
             .router(true)
             .class(FlexFit)
@@ -64,6 +71,15 @@ impl Component for DatastorePanelComp {
                 TabBarItem::new()
                     .key("content")
                     .label(tr!("Content"))
+                    .disabled(offline)
+                    .tip(
+                        offline.then_some(
+                            tr!(
+                                "Not available if the datastore is in maintenance mode \"offline\"."
+                            )
+                            .into(),
+                        ),
+                    )
                     .icon_class("fa fa-th"),
                 {
                     let remote = props.remote.clone();
