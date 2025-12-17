@@ -9,17 +9,14 @@ use proxmox_schema::api;
 
 pub fn cli() -> CommandLineInterface {
     CliCommandMap::new()
-        .insert("get", CliCommand::new(&API_METHOD_SUPPORT_ELIGIBILITY))
-        .insert(
-            "update",
-            CliCommand::new(&API_METHOD_UPDATE_SUPPORT_ELIGIBILITY),
-        )
+        .insert("get", CliCommand::new(&API_METHOD_SUPPORT_STATUS))
+        .insert("update", CliCommand::new(&API_METHOD_UPDATE_SUPPORT_STATUS))
         .into()
 }
 
 #[api]
-/// Get the support eligibility information.
-async fn support_eligibility(
+/// Get the support status information.
+async fn support_status(
     param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), anyhow::Error> {
@@ -42,8 +39,8 @@ async fn support_eligibility(
 }
 
 #[api]
-/// Update the support eligibility information.
-async fn update_support_eligibility(
+/// Update the support status information.
+async fn update_support_status(
     param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), anyhow::Error> {

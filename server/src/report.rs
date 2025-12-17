@@ -61,7 +61,7 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
         ),
         (
             "proxmox-datacenter-manager-admin",
-            vec!["support-eligibility", "get"],
+            vec!["support-status", "get"],
         ),
         ("proxmox-boot-tool", vec!["status"]),
         ("df", vec!["-h", "-T"]),
