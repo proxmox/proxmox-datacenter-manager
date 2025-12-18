@@ -57,7 +57,7 @@ mod load_result;
 pub use load_result::LoadResult;
 
 mod tasks;
-pub use tasks::register_pve_tasks;
+pub use tasks::register_tasks;
 
 mod view_list_context;
 pub use view_list_context::ViewListContext;

@@ -23,8 +23,8 @@ use proxmox_yew_comp::{
 //use pbs::MainMenu;
 use pdm_api_types::views::ViewConfig;
 use pdm_ui::{
-    check_pdm_subscription, pdm_subscription_alert, register_pve_tasks, MainMenu, RemoteList,
-    RemoteListCacheEntry, SearchProvider, TopNavBar, ViewListContext,
+    check_pdm_subscription, pdm_subscription_alert, MainMenu, RemoteList, RemoteListCacheEntry,
+    SearchProvider, TopNavBar, ViewListContext,
 };
 
 type MsgRemoteList = Result<RemoteList, Error>;
@@ -378,7 +378,8 @@ fn main() {
     yew::set_custom_panic_hook(panic_hook());
 
     init_task_descr_table_base();
-    register_pve_tasks();
+    pdm_ui::register_tasks();
+
     proxmox_yew_comp::http_setup(&proxmox_yew_comp::ExistingProduct::PDM);
 
     pwt::props::set_http_get_method(

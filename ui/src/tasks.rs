@@ -4,7 +4,12 @@ use pwt::tr;
 use pdm_api_types::{NativeUpid, RemoteUpid};
 use yew::virtual_dom::Key;
 
-pub fn register_pve_tasks() {
+pub fn register_tasks() {
+    register_pve_tasks();
+    register_pdm_tasks();
+}
+
+fn register_pve_tasks() {
     register_task_description("qmstart", ("VM", tr!("Start")));
     register_task_description("acmedeactivate", ("ACME Account", tr!("Deactivate")));
     register_task_description("acmenewcert", ("SRV", tr!("Order Certificate")));
@@ -105,6 +110,18 @@ pub fn register_pve_tasks() {
     register_task_description("vzumount", ("CT", tr!("Unmount")));
     register_task_description("zfscreate", (tr!("ZFS Storage"), tr!("Create")));
     register_task_description("zfsremove", ("ZFS Pool", tr!("Remove")));
+}
+
+fn register_pdm_tasks() {
+    register_task_description("logrotate", tr!("Log Rotation"));
+    register_task_description(
+        "refresh-remote-tasks",
+        tr!("Fetch latest tasks from remotes"),
+    );
+    register_task_description(
+        "refresh-remote-updates",
+        tr!("Fetch system update list from remotes"),
+    );
 }
 
 /// Format a UPID that is either [`RemoteUpid`] or a [`UPID`]
