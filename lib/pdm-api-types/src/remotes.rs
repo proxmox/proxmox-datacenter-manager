@@ -8,7 +8,7 @@ use proxmox_schema::{api, ApiType, Schema, StringSchema, Updater};
 use proxmox_section_config::typed::ApiSectionDataEntry;
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
 
-use crate::Authid;
+use crate::{Authid, HOST_OPTIONAL_PORT_FORMAT};
 
 pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
     .format(&crate::PROXMOX_SAFE_ID_FORMAT)
@@ -18,6 +18,9 @@ pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
 
 #[api(
     properties: {
+        hostname: {
+            format: &HOST_OPTIONAL_PORT_FORMAT,
+        },
         "fingerprint": {
             type: String,
             format: &crate::FINGERPRINT_SHA256_FORMAT,
