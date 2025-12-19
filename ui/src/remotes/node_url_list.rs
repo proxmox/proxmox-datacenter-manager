@@ -17,6 +17,7 @@ use pwt::{css, prelude::*};
 use proxmox_yew_comp::{SchemaValidation, Status};
 
 use pdm_api_types::remotes::NodeUrl;
+use pdm_api_types::HOST_OPTIONAL_PORT_SCHEMA;
 use proxmox_schema::property_string::PropertyString;
 
 use proxmox_schema::api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
@@ -259,6 +260,7 @@ fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader
                     Field::new()
                         .on_change(link.callback(move |value| Msg::UpdateHostname(index, value)))
                         .required(true)
+                        .schema(&HOST_OPTIONAL_PORT_SCHEMA)
                         .value(item.data.hostname.clone())
                         .into()
                 }

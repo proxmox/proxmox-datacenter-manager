@@ -137,6 +137,9 @@ pub const HOST_PORT_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HOST_POR
 pub const HOST_OPTIONAL_PORT_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&HOST_OPTIONAL_PORT_REGEX);
 pub const HTTP_URL_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HTTP_URL_REGEX);
+pub const HOST_OPTIONAL_PORT_SCHEMA: Schema = StringSchema::new("A host with an optional port.")
+    .format(&HOST_OPTIONAL_PORT_FORMAT)
+    .schema();
 
 pub const DAILY_DURATION_FORMAT: ApiStringFormat =
     ApiStringFormat::VerifyFn(|s| parse_daily_duration(s).map(drop));
