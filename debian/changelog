@@ -1,3 +1,15 @@
+proxmox-datacenter-manager (1.0.2) trixie; urgency=medium
+
+  * admin cli: add `support-status` sub-command
+
+  * server: include the new `support-status` sub-command in the system
+    report.
+
+  * update proxmox-apt and related api-types for more robust package name
+    handling.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 22 Dec 2025 17:01:33 +0100
+
 proxmox-datacenter-manager (1.0.1) trixie; urgency=medium
 
   * api: subscription check avoid potential division through zero and improve
