@@ -32,8 +32,8 @@ members = [
 # proxmox workspace
 proxmox-access-control = "1"
 proxmox-api-macro = "1.3"
-proxmox-apt = { version = "0.99.6", features = [ "enum-fallback" ] }
-proxmox-apt-api-types = { version = "2.0.2", features = [ "enum-fallback" ] }
+proxmox-apt = { version = "0.99.7", features = [ "enum-fallback" ] }
+proxmox-apt-api-types = { version = "2.0.5", features = [ "enum-fallback" ] }
 proxmox-async = "0.5"
 proxmox-auth-api = "1.0.5"
 proxmox-base64 = "1"
