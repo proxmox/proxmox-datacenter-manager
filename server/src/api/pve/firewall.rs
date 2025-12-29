@@ -132,7 +132,7 @@ async fn fetch_cluster_firewall_data(
 
     let enabled = options_response
         .await
-        .map(|opts| opts.enable.map_or(false, |e| e != 0));
+        .map(|opts| opts.enable.is_some_and(|e| e != 0));
     let rules = rules_response.await.map(|rules| {
         let all = rules.len();
         let active = rules.iter().filter(|r| r.enable == Some(1)).count();
