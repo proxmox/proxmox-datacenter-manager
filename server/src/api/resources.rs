@@ -409,18 +409,17 @@ pub(crate) async fn get_resources_impl(
     for handle in join_handles {
         let remote_with_resources = handle.await?;
 
-        if filters.is_empty() {
-            remote_resources.push(remote_with_resources);
-        } else if !remote_with_resources.resources.is_empty() {
-            remote_resources.push(remote_with_resources);
-        } else if filters.matches(|filter| {
-            remote_matches_search_term(
-                &remote_with_resources.remote_name,
-                &remote_with_resources.remote,
-                Some(remote_with_resources.error.is_none()),
-                filter,
-            )
-        }) {
+        if filters.is_empty()
+            || !remote_with_resources.resources.is_empty()
+            || filters.matches(|filter| {
+                remote_matches_search_term(
+                    &remote_with_resources.remote_name,
+                    &remote_with_resources.remote,
+                    Some(remote_with_resources.error.is_none()),
+                    filter,
+                )
+            })
+        {
             remote_resources.push(remote_with_resources);
         }
     }
