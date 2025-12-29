@@ -1166,9 +1166,7 @@ pub(super) fn map_pve_network(
 ) -> Option<PveNetworkResource> {
     match resource.ty {
         ClusterResourceType::Network => {
-            let Some(network_type) = resource.network_type else {
-                return None;
-            };
+            let network_type = resource.network_type?;
 
             let id = format!("remote/{remote}/{}", &resource.id);
             let node = resource.node.unwrap_or_default();
