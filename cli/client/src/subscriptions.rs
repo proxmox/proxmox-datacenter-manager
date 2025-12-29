@@ -87,7 +87,7 @@ async fn get_subscription_status(
 
             let mut node_status = node_status.iter().collect::<Vec<_>>();
 
-            node_status.sort_by(|a, b| a.0.cmp(&b.0));
+            node_status.sort_by(|a, b| a.0.cmp(b.0));
             for (node, info) in node_status {
                 let Some(info) = info else {
                     println!("    {node}");

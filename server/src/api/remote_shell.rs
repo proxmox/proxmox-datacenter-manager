@@ -171,7 +171,7 @@ fn upgrade_to_websocket(
             let remote = get_remote(&remotes, &remote)?;
             let (ticket, port) = match remote.ty {
                 RemoteType::Pve => {
-                    let pve = crate::connection::make_pve_client(&remote)?;
+                    let pve = crate::connection::make_pve_client(remote)?;
                     let pve_term_ticket = pve
                         .node_shell_termproxy(
                             &node,
@@ -184,7 +184,7 @@ fn upgrade_to_websocket(
                     (pve_term_ticket.ticket, pve_term_ticket.port)
                 }
                 RemoteType::Pbs => {
-                    let pbs = crate::connection::make_pbs_client(&remote)?;
+                    let pbs = crate::connection::make_pbs_client(remote)?;
                     let pbs_term_ticket = pbs.node_shell_termproxy().await?;
                     (pbs_term_ticket.ticket, pbs_term_ticket.port as i64)
                 }

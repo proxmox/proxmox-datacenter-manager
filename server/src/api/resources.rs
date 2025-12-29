@@ -139,7 +139,7 @@ fn resource_matches_search_term(
             MatchCategory::RemoteType => return None,
             MatchCategory::NetworkType => match resource {
                 Resource::PveNetwork(network_resource) => {
-                    category.matches(&network_resource.network_type().as_str(), &term.value)
+                    category.matches(network_resource.network_type().as_str(), &term.value)
                 }
                 _ => false,
             },

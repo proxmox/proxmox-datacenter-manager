@@ -80,7 +80,7 @@ mod vnets {
     ) -> Result<Vec<SdnVnetMacVrf>, Error> {
         let (remote_config, _) = pdm_config::remotes::config()?;
         let remote = get_remote(&remote_config, &remote)?;
-        let client = connect(&remote)?;
+        let client = connect(remote)?;
 
         client
             .get_vnet_mac_vrf(&node, &vnet)

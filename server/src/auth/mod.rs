@@ -167,7 +167,7 @@ impl proxmox_auth_api::api::AuthContext for PdmAuthContext {
                             path_vec.push(part);
                         }
                     }
-                    user_info.check_privs(&auth_id, &path_vec, *privilege, false)?;
+                    user_info.check_privs(auth_id, &path_vec, *privilege, false)?;
                     return Ok(Some(true));
                 }
             }
