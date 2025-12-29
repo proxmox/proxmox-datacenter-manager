@@ -84,7 +84,7 @@ fn check_counts(stats: &SubscriptionStatistics) -> Result<(), Error> {
         (stats.active_subscriptions - stats.community) as f64 / stats.total_nodes as f64;
 
     if basic_or_higher_ratio >= SUBSCRIPTION_THRESHOLD {
-        return Ok(());
+        Ok(())
     } else {
         bail!("Too many remote nodes without active basic or higher subscription!");
     }
