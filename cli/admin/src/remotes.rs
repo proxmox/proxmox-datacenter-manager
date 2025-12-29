@@ -135,7 +135,7 @@ async fn get_remote_subscriptions(
                 RemoteSubscriptionState::Mixed => "Mixed",
                 RemoteSubscriptionState::Active => "Active",
             };
-            let ln = first.then_some("").unwrap_or("\n");
+            let ln = if first { "" } else { "\n" };
             first = false;
             println!("{ln}Remote {} subscription status: {state}", entry.remote);
             if let Some(error) = entry.error {
