@@ -163,7 +163,7 @@ pub struct FirewallTreeComponent {
     tree_collapsed: bool,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(
+pwt::impl_deref_mut_property!(
     FirewallTreeComponent,
     state,
     LoadableComponentState<()>

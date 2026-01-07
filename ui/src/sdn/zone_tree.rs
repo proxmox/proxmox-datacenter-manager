@@ -124,7 +124,7 @@ pub struct ZoneTreeComponent {
     _context_listener: ContextHandle<RemoteList>,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(ZoneTreeComponent, state, LoadableComponentState<()>);
+pwt::impl_deref_mut_property!(ZoneTreeComponent, state, LoadableComponentState<()>);
 
 fn default_sorter(a: &ZoneTreeEntry, b: &ZoneTreeEntry) -> Ordering {
     a.name().cmp(b.name())

@@ -80,7 +80,7 @@ struct VnetStatusComponent {
     vrf_loading: bool,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(VnetStatusComponent, state, LoadableComponentState<()>);
+pwt::impl_deref_mut_property!(VnetStatusComponent, state, LoadableComponentState<()>);
 
 impl VnetStatusComponent {
     fn columns() -> Rc<Vec<DataTableHeader<MacVrfEntry>>> {

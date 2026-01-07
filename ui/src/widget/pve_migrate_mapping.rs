@@ -5,6 +5,7 @@ use serde_json::Value;
 use yew::{html::IntoPropValue, virtual_dom::Key, AttrValue, Properties};
 
 use proxmox_schema::property_string::PropertyString;
+use pwt::widget::form::ManagedFieldScopeExt;
 use pwt::{
     props::{ContainerBuilder, CssBorderBuilder, ExtractPrimaryKey, FieldBuilder, WidgetBuilder},
     state::Store,
@@ -110,10 +111,13 @@ pub enum Msg {
 }
 
 pub struct PveMigrateMapComp {
+    state: ManagedFieldState,
     store: Store<MapEntry>,
     last_err: Option<String>,
     _async_pool: AsyncPool,
 }
+
+pwt::impl_deref_mut_property!(PveMigrateMapComp, state, ManagedFieldState);
 
 impl PveMigrateMapComp {
     async fn load_storages(
@@ -244,10 +248,6 @@ impl ManagedField for PveMigrateMapComp {
         Ok(value.clone())
     }
 
-    fn setup(props: &Self::Properties) -> ManagedFieldState {
-        ManagedFieldState::new(props.value.clone().into(), props.default.clone().into())
-    }
-
     fn update(&mut self, ctx: &ManagedFieldContext<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::LoadResult(res) => match res {
@@ -308,11 +308,11 @@ impl ManagedField for PveMigrateMapComp {
         true
     }
 
-    fn create(ctx: &ManagedFieldContext<'_, Self>) -> Self {
+    fn create(ctx: &ManagedFieldContext<Self>) -> Self {
         let props = ctx.props();
         let remote = props.remote.clone();
         let guest_info = props.guest_info;
-        let link = ctx.link();
+        let link = ctx.link().clone();
 
         let _async_pool = AsyncPool::new();
         _async_pool.spawn(async move {
@@ -322,13 +322,14 @@ impl ManagedField for PveMigrateMapComp {
         });
 
         Self {
+            state: ManagedFieldState::new(props.value.clone().into(), props.default.clone().into()),
             store: Store::new(),
             _async_pool,
             last_err: None,
         }
     }
 
-    fn view(&self, ctx: &ManagedFieldContext<'_, Self>) -> yew::Html {
+    fn view(&self, ctx: &ManagedFieldContext<Self>) -> yew::Html {
         let props = ctx.props();
         let err = self.last_err.as_ref().map(|err| error_message(err));
         Column::new()
@@ -342,7 +343,7 @@ impl ManagedField for PveMigrateMapComp {
 }
 
 fn columns(
-    ctx: &ManagedFieldContext<'_, PveMigrateMapComp>,
+    ctx: &ManagedFieldContext<PveMigrateMapComp>,
     remote: AttrValue,
 ) -> Rc<Vec<DataTableHeader<MapEntry>>> {
     let props = ctx.props();
@@ -361,7 +362,7 @@ fn columns(
         DataTableColumn::new(tr!("Target"))
             .flex(2)
             .render({
-                let link = ctx.link();
+                let link = ctx.link().clone();
                 let node = props.node.clone();
                 move |entry: &MapEntry| match entry.map_type {
                     MapType::Storage => PveStorageSelector::new(remote.clone())

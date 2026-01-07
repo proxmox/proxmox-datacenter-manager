@@ -136,7 +136,7 @@ struct UpdateTreeComponent {
     refreshing: bool,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(
+pwt::impl_deref_mut_property!(
     UpdateTreeComponent,
     state,
     LoadableComponentState<ViewState>

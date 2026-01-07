@@ -7,6 +7,7 @@ use yew::{virtual_dom::Key, Callback, Component, Html, Properties};
 
 use pdm_client::types::{CreateZoneParams, ListController, SDN_ID_SCHEMA};
 use proxmox_yew_comp::{EditWindow, SchemaValidation};
+use pwt::widget::form::ManagedFieldScopeExt;
 use pwt::{
     css,
     props::{
@@ -154,11 +155,14 @@ impl ExtractPrimaryKey for ControllerTableEntry {
 }
 
 struct ControllerTableComponent {
+    state: ManagedFieldState,
     store: Store<ControllerTableEntry>,
     selection: Selection,
     columns: Rc<Vec<DataTableHeader<ControllerTableEntry>>>,
     error_msg: Option<String>,
 }
+
+pwt::impl_deref_mut_property!(ControllerTableComponent, state, ManagedFieldState);
 
 enum ControllerTableMsg {
     SelectionChange,
@@ -205,10 +209,6 @@ impl ManagedField for ControllerTableComponent {
         Ok(value.clone())
     }
 
-    fn setup(_props: &Self::Properties) -> ManagedFieldState {
-        ManagedFieldState::new(Value::Null, Value::Array(Vec::new()))
-    }
-
     fn create(ctx: &ManagedFieldContext<Self>) -> Self {
         let link = ctx.link().clone();
 
@@ -248,6 +248,7 @@ impl ManagedField for ControllerTableComponent {
         };
 
         Self {
+            state: ManagedFieldState::new(Value::Null, Value::Array(Vec::new())),
             store,
             selection,
             columns,

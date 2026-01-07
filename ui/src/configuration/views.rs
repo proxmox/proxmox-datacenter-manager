@@ -111,7 +111,7 @@ pub struct ViewGridComp {
     selection: Selection,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(ViewGridComp, state, LoadableComponentState<ViewState>);
+pwt::impl_deref_mut_property!(ViewGridComp, state, LoadableComponentState<ViewState>);
 
 impl ViewGridComp {
     fn columns() -> Rc<Vec<DataTableHeader<ViewConfig>>> {

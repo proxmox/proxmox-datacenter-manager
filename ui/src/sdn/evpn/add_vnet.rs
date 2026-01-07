@@ -7,6 +7,7 @@ use yew::{virtual_dom::Key, Callback, Component, Html, Properties};
 
 use pdm_client::types::{CreateVnetParams, ListZone, SDN_ID_SCHEMA};
 use proxmox_yew_comp::{EditWindow, SchemaValidation};
+use pwt::widget::form::ManagedFieldScopeExt;
 use pwt::{
     css,
     props::{
@@ -151,11 +152,14 @@ impl ExtractPrimaryKey for ZoneTableEntry {
 }
 
 pub struct ZoneTableComponent {
+    state: ManagedFieldState,
     store: Store<ZoneTableEntry>,
     selection: Selection,
     columns: Rc<Vec<DataTableHeader<ZoneTableEntry>>>,
     error_msg: Option<String>,
 }
+
+pwt::impl_deref_mut_property!(ZoneTableComponent, state, ManagedFieldState);
 
 pub enum ZoneTableMsg {
     SelectionChange,
@@ -200,10 +204,6 @@ impl ManagedField for ZoneTableComponent {
         Ok(value.clone())
     }
 
-    fn setup(_props: &Self::Properties) -> ManagedFieldState {
-        ManagedFieldState::new(Value::Array(Vec::new()), Value::Array(Vec::new()))
-    }
-
     fn create(ctx: &ManagedFieldContext<Self>) -> Self {
         let columns = Self::columns();
         let link = ctx.link().clone();
@@ -238,6 +238,7 @@ impl ManagedField for ZoneTableComponent {
         };
 
         Self {
+            state: ManagedFieldState::new(Value::Array(Vec::new()), Value::Array(Vec::new())),
             store,
             selection,
             columns,

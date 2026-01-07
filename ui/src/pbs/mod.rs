@@ -63,7 +63,7 @@ pub struct PbsRemoteComp {
     view: tree::PbsTreeNode,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(PbsRemoteComp, state, LoadableComponentState<()>);
+pwt::impl_deref_mut_property!(PbsRemoteComp, state, LoadableComponentState<()>);
 
 impl PbsRemoteComp {
     async fn load_datastores(remote: &str) -> Result<Vec<DataStoreConfig>, Error> {

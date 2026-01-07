@@ -113,7 +113,7 @@ pub struct PbsRemoteConfigPanel {
     remote_list_columns: Rc<Vec<DataTableHeader<Remote>>>,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(
+pwt::impl_deref_mut_property!(
     PbsRemoteConfigPanel,
     state,
     LoadableComponentState<ViewState>

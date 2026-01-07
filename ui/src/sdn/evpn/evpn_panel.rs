@@ -103,7 +103,7 @@ pub struct EvpnPanelComponent {
     selected_tab: Selection,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(
+pwt::impl_deref_mut_property!(
     EvpnPanelComponent,
     state,
     LoadableComponentState<EvpnPanelViewState>

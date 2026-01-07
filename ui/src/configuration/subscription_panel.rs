@@ -41,7 +41,7 @@ pub struct ProxmoxSubscriptionPanel {
     checking: bool,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(
+pwt::impl_deref_mut_property!(
     ProxmoxSubscriptionPanel,
     state,
     LoadableComponentState<()>

@@ -145,7 +145,7 @@ pub struct PveTreeComp {
     view_selection: Selection,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(PveTreeComp, state, LoadableComponentState<ViewState>);
+pwt::impl_deref_mut_property!(PveTreeComp, state, LoadableComponentState<ViewState>);
 
 impl PveTreeComp {
     fn load_tree(&mut self, ctx: &LoadableComponentContext<PveTreeComp>) {

@@ -11,6 +11,7 @@ use yew::virtual_dom::Key;
 use pwt::prelude::*;
 use pwt::state::Store;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
+use pwt::widget::form::ManagedFieldScopeExt;
 use pwt::widget::form::{
     Combobox, Field, ManagedField, ManagedFieldContext, ManagedFieldMaster, ManagedFieldState,
 };
@@ -86,8 +87,11 @@ impl ViewFilterSelector {
 }
 
 pub struct ViewFilterSelectorComp {
+    state: ManagedFieldState,
     store: Store<FilterRuleEntry>,
 }
+
+pwt::impl_deref_mut_property!(ViewFilterSelectorComp, state, ManagedFieldState);
 
 impl ViewFilterSelectorComp {
     fn update_value(&self, ctx: &ManagedFieldContext<Self>) {
@@ -161,10 +165,6 @@ impl ManagedField for ViewFilterSelectorComp {
         true
     }
 
-    fn setup(_props: &Self::Properties) -> pwt::widget::form::ManagedFieldState {
-        ManagedFieldState::new(Value::Array(Vec::new()), Value::Array(Vec::new()))
-    }
-
     fn validator(required: &Self::ValidateClosure, value: &Value) -> Result<Value, anyhow::Error> {
         FILTER_RULE_LIST_SCHEMA.verify_json(value)?;
 
@@ -178,11 +178,14 @@ impl ManagedField for ViewFilterSelectorComp {
     fn create(_ctx: &pwt::widget::form::ManagedFieldContext<Self>) -> Self {
         let store = Store::with_extract_key(|rule: &FilterRuleEntry| Key::from(rule.index));
 
-        Self { store }
+        Self {
+            state: ManagedFieldState::new(Value::Array(Vec::new()), Value::Array(Vec::new())),
+            store,
+        }
     }
 
-    fn value_changed(&mut self, ctx: &ManagedFieldContext<Self>) {
-        if let Ok(data) = serde_json::from_value::<Vec<FilterRule>>(ctx.state().value.clone()) {
+    fn value_changed(&mut self, _ctx: &ManagedFieldContext<Self>) {
+        if let Ok(data) = serde_json::from_value::<Vec<FilterRule>>(self.state.value.clone()) {
             self.store.set_data(
                 data.into_iter()
                     .enumerate()

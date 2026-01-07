@@ -151,7 +151,7 @@ pub struct PveRemoteComp {
     updates: LoadResult<RemoteUpdateSummary, Error>,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(PveRemoteComp, state, LoadableComponentState<()>);
+pwt::impl_deref_mut_property!(PveRemoteComp, state, LoadableComponentState<()>);
 
 impl LoadableComponent for PveRemoteComp {
     type Message = Msg;

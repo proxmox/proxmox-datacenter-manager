@@ -9,6 +9,7 @@ use pwt::css::FlexFit;
 use pwt::state::Store;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::form::ManagedField;
+use pwt::widget::form::ManagedFieldScopeExt;
 use pwt::widget::form::{Field, ManagedFieldContext, ManagedFieldMaster, ManagedFieldState};
 use pwt::widget::{ActionIcon, Button, Column, Container, Fa, Row, Trigger};
 use pwt::{css, prelude::*};
@@ -50,9 +51,12 @@ struct Entry {
 
 #[doc(hidden)]
 pub struct PdmNodeUrlField {
+    state: ManagedFieldState,
     store: Store<Entry>,
     columns: Rc<Vec<DataTableHeader<Entry>>>,
 }
+
+pwt::impl_deref_mut_property!(PdmNodeUrlField, state, ManagedFieldState);
 
 pub enum Msg {
     DataChange,
@@ -101,22 +105,23 @@ impl ManagedField for PdmNodeUrlField {
         Ok(value.clone())
     }
 
-    fn setup(props: &Self::Properties) -> ManagedFieldState {
-        let value = Value::Null;
-        let default = props
-            .default
-            .iter()
-            .filter_map(|n| serde_json::to_value(n).ok())
-            .collect();
-
-        ManagedFieldState::new(value, default)
-    }
-
     fn create(ctx: &pwt::widget::form::ManagedFieldContext<Self>) -> Self {
         let store = Store::with_extract_key(|entry: &Entry| Key::from(entry.index))
             .on_change(ctx.link().callback(|_| Msg::DataChange));
         let columns = columns(ctx);
-        let mut this = Self { store, columns };
+        let value = Value::Null;
+        let default = ctx
+            .props()
+            .default
+            .iter()
+            .filter_map(|n| serde_json::to_value(n).ok())
+            .collect();
+        let state = ManagedFieldState::new(value, default);
+        let mut this = Self {
+            state,
+            store,
+            columns,
+        };
         this.set_nodes(
             ctx.props()
                 .default
@@ -142,10 +147,10 @@ impl ManagedField for PdmNodeUrlField {
         true
     }
 
-    fn value_changed(&mut self, ctx: &ManagedFieldContext<Self>) {
-        match ctx.state().value {
-            Value::Null => self.sync_from_value(ctx.state().default.clone()),
-            _ => self.sync_from_value(ctx.state().value.clone()),
+    fn value_changed(&mut self, _ctx: &ManagedFieldContext<Self>) {
+        match self.state.value {
+            Value::Null => self.sync_from_value(self.state.default.clone()),
+            _ => self.sync_from_value(self.state.value.clone()),
         }
     }
 
@@ -220,7 +225,7 @@ impl ManagedField for PdmNodeUrlField {
                     }),
             )
             .with_flex_spacer()
-            .with_optional_child(ctx.state().result.clone().err().map(|err| {
+            .with_optional_child(self.state.result.clone().err().map(|err| {
                 Row::new()
                     .class(css::AlignItems::Center)
                     .gap(2)
@@ -242,7 +247,7 @@ impl ManagedField for PdmNodeUrlField {
 }
 
 fn columns(ctx: &ManagedFieldContext<PdmNodeUrlField>) -> Rc<Vec<DataTableHeader<Entry>>> {
-    let link = ctx.link();
+    let link = ctx.link().clone();
 
     Rc::new(vec![
         DataTableColumn::new(tr!("Hostname/IP"))

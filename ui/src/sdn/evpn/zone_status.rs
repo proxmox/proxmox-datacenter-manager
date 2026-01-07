@@ -77,7 +77,7 @@ struct ZoneStatusComponent {
     vrf_loading: bool,
 }
 
-proxmox_yew_comp::impl_deref_mut_property!(ZoneStatusComponent, state, LoadableComponentState<()>);
+pwt::impl_deref_mut_property!(ZoneStatusComponent, state, LoadableComponentState<()>);
 
 impl ZoneStatusComponent {
     fn columns() -> Rc<Vec<DataTableHeader<IpVrfEntry>>> {
