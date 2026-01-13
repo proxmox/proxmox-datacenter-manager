@@ -1,11 +1,12 @@
 use std::rc::Rc;
 
-use pwt::state::SharedState;
 use web_sys::HtmlElement;
 use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_yew_comp::utils::render_epoch;
 use pwt::prelude::*;
+use pwt::state::SharedState;
+use pwt::widget::Fa;
 use pwt::{
     css::{AlignItems, Display, FlexFit, JustifyContent},
     dom::align::{align_to, AlignOptions},
@@ -336,34 +337,49 @@ pub fn create_top_entities_panel(
     leaderboard_type: LeaderboardType,
 ) -> Panel {
     let top_entities = top_entities.read();
-    let (entities, icon, title, metrics_title, threshold) = match leaderboard_type {
-        LeaderboardType::GuestCpu => (
-            top_entities.data.as_ref().map(|e| e.guest_cpu.clone()),
-            "desktop",
-            tr!("Guests With the Highest CPU Usage"),
-            tr!("CPU usage"),
-            0.85,
-        ),
-        LeaderboardType::NodeCpu => (
-            top_entities.data.as_ref().map(|e| e.node_cpu.clone()),
-            "building",
-            tr!("Nodes With the Highest CPU Usage"),
-            tr!("CPU usage"),
-            0.85,
-        ),
-        LeaderboardType::NodeMemory => (
-            top_entities.data.as_ref().map(|e| e.node_memory.clone()),
-            "building",
-            tr!("Nodes With the Highest Memory Usage"),
-            tr!("Memory usage"),
-            0.95,
-        ),
-    };
+    let (entities, icon, title, metrics_title, metrics_empty_message, threshold) =
+        match leaderboard_type {
+            LeaderboardType::GuestCpu => (
+                top_entities.data.as_ref().map(|e| e.guest_cpu.clone()),
+                "desktop",
+                tr!("Guests With the Highest CPU Usage"),
+                tr!("CPU usage"),
+                tr!("No guests available"),
+                0.85,
+            ),
+            LeaderboardType::NodeCpu => (
+                top_entities.data.as_ref().map(|e| e.node_cpu.clone()),
+                "building",
+                tr!("Nodes With the Highest CPU Usage"),
+                tr!("CPU usage"),
+                tr!("No nodes available"),
+                0.85,
+            ),
+            LeaderboardType::NodeMemory => (
+                top_entities.data.as_ref().map(|e| e.node_memory.clone()),
+                "building",
+                tr!("Nodes With the Highest Memory Usage"),
+                tr!("Memory usage"),
+                tr!("No nodes available"),
+                0.95,
+            ),
+        };
     Panel::new()
         .title(create_title_with_icon(icon, title))
-        .with_optional_child(
-            entities.map(|entities| TopEntities::new(entities, metrics_title, threshold)),
-        )
+        .with_optional_child(entities.and_then(|entities| {
+            let html: Html = if entities.is_empty() {
+                Row::new()
+                    .padding(4)
+                    .gap(2)
+                    .with_child(Fa::new("info-circle").fixed_width())
+                    .with_child(&metrics_empty_message)
+                    .into()
+            } else {
+                TopEntities::new(entities, metrics_title, threshold).into()
+            };
+
+            Some(html)
+        }))
         .with_optional_child((!top_entities.has_data()).then_some(loading_column()))
         .with_optional_child(
             top_entities
