@@ -5,6 +5,9 @@ use pwt::tr;
 use pwt::widget::{Container, Fa, Row};
 use yew::{html, Html};
 
+use proxmox_yew_comp::configuration::pve::FirewallRulesPanel;
+use proxmox_yew_comp::form::pve::PveGuestType;
+
 use super::types::TreeEntry;
 
 pub fn render_firewall_status(status: &FirewallStatus, masked: bool) -> Html {
@@ -62,47 +65,42 @@ pub struct PanelConfig {
 }
 
 impl PanelConfig {
-    pub fn for_remote(remote: &str, reload_token: usize) -> Self {
-        let mut rules = proxmox_yew_comp::FirewallRules::cluster(remote.to_string());
-        rules.reload_token = reload_token;
+    pub fn for_remote(remote: &str) -> Self {
+        let rules = FirewallRulesPanel::cluster_firewall()
+            .remote(remote.to_string())
+            .readonly(true);
         Self {
             title: create_panel_title("server", tr!("Cluster Firewall - {}", remote)),
             content: rules.into(),
         }
     }
 
-    pub fn for_node(remote: &str, node: &str, reload_token: usize) -> Self {
-        let mut rules = proxmox_yew_comp::FirewallRules::node(remote.to_string(), node.to_string());
-        rules.reload_token = reload_token;
+    pub fn for_node(remote: &str, node: &str) -> Self {
+        let rules = FirewallRulesPanel::node_firewall(node.to_string())
+            .remote(remote.to_string())
+            .readonly(true);
         Self {
             title: create_panel_title("building", tr!("Node Firewall - {0}/{1}", remote, node)),
             content: rules.into(),
         }
     }
 
-    pub fn for_guest(
-        remote: &str,
-        node: &str,
-        vmid: u32,
-        kind: GuestKind,
-        reload_token: usize,
-    ) -> Self {
-        let vmtype = kind.as_str();
-        let mut rules = proxmox_yew_comp::FirewallRules::guest(
-            remote.to_string(),
-            node.to_string(),
-            vmid as u64,
-            vmtype,
-        );
-        rules.reload_token = reload_token;
+    pub fn for_guest(remote: &str, node: &str, vmid: u32, guest_type: PveGuestType) -> Self {
+        let rules = FirewallRulesPanel::guest_firewall(guest_type, node.to_string(), vmid)
+            .remote(remote.to_string())
+            .readonly(true);
+        let (prefix, icon) = match guest_type {
+            PveGuestType::Lxc => ("CT", "cube"),
+            PveGuestType::Qemu => ("VM", "desktop"),
+        };
         Self {
             title: create_panel_title(
-                if vmtype == "lxc" { "cube" } else { "desktop" },
+                icon,
                 tr!(
                     "Guest Firewall - {0}/{1}/{2} {3}",
                     remote,
                     node,
-                    vmtype.to_uppercase(),
+                    prefix,
                     vmid
                 ),
             ),
@@ -129,19 +127,17 @@ impl PanelConfig {
         }
     }
 
-    pub fn from_entry(entry: &TreeEntry, reload_token: usize) -> Self {
+    pub fn from_entry(entry: &TreeEntry) -> Self {
         match entry {
-            TreeEntry::Remote(remote_entry) => Self::for_remote(&remote_entry.name, reload_token),
-            TreeEntry::Node(node_entry) => {
-                Self::for_node(&node_entry.remote, &node_entry.name, reload_token)
+            TreeEntry::Remote(remote_entry) => Self::for_remote(&remote_entry.name),
+            TreeEntry::Node(node_entry) => Self::for_node(&node_entry.remote, &node_entry.name),
+            TreeEntry::Guest(guest, kind) => {
+                let guest_type = match *kind {
+                    GuestKind::Lxc => PveGuestType::Lxc,
+                    GuestKind::Qemu => PveGuestType::Qemu,
+                };
+                Self::for_guest(&guest.remote, &guest.node, guest.guest.vmid, guest_type)
             }
-            TreeEntry::Guest(guest, kind) => Self::for_guest(
-                &guest.remote,
-                &guest.node,
-                guest.guest.vmid,
-                *kind,
-                reload_token,
-            ),
             TreeEntry::Root => Self::for_no_selection(),
         }
     }

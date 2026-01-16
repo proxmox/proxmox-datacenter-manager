@@ -163,11 +163,7 @@ pub struct FirewallTreeComponent {
     tree_collapsed: bool,
 }
 
-pwt::impl_deref_mut_property!(
-    FirewallTreeComponent,
-    state,
-    LoadableComponentState<()>
-);
+pwt::impl_deref_mut_property!(FirewallTreeComponent, state, LoadableComponentState<()>);
 
 impl FirewallTreeComponent {
     fn reset_tree_for_loading(&mut self) {
@@ -335,7 +331,7 @@ impl FirewallTreeComponent {
             None => return PanelConfig::for_no_selection().content.into(),
         };
 
-        let config = PanelConfig::from_entry(entry, self.load_state.data_generation);
+        let config = PanelConfig::from_entry(entry);
 
         let title = if self.tree_collapsed {
             let expand_button: Html = Button::new_icon("fa fa-angle-double-right")
