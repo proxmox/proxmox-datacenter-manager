@@ -46,7 +46,7 @@ ZFS Administration
 ~~~~~~~~~~~~~~~~~~
 
 This section gives you some usage examples for common tasks. ZFS itself is really powerful and
-provides many options. The main commands to manage ZFS are `zfs` and `zpool`. Both commands come
+provides many options. The main commands to manage ZFS are ``zfs`` and ``zpool``. Both commands come
 with extensive manual pages, which can be read with:
 
 .. code-block:: console
@@ -57,8 +57,8 @@ with extensive manual pages, which can be read with:
 Create a new zpool
 ^^^^^^^^^^^^^^^^^^
 
-To create a new pool, at least one disk is needed. The `ashift` should have the same sector-size (2
-power of `ashift`) or larger as the underlying disk.
+To create a new pool, at least one disk is needed. The ``ashift`` should have the same sector-size (2
+power of ``ashift``) or larger as the underlying disk.
 
 .. code-block:: console
 
@@ -115,7 +115,7 @@ Create a new pool with cache (L2ARC)
 It is possible to use a dedicated cache drive partition to increase
 the read performance (use SSDs).
 
-For `<device>`, you can use multiple devices, as is shown in
+For ``<device>``, you can use multiple devices, as is shown in
 "Create a new pool with RAID*".
 
 .. code-block:: console
@@ -128,7 +128,7 @@ Create a new pool with log (ZIL)
 It is possible to use a dedicated cache drive partition to increase the write performance (use
 SSDs).
 
-For `<device>`, you can use multiple devices, as is shown in "Create a new pool with RAID*".
+For ``<device>``, you can use multiple devices, as is shown in "Create a new pool with RAID*".
 
 .. code-block:: console
 
@@ -138,8 +138,8 @@ Add cache and log to an existing pool
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can add cache and log devices to a pool after its creation. In this example, we will use a
-single drive for both cache and log. First, you need to create 2 partitions on the SSD with `parted`
-or `gdisk`
+single drive for both cache and log. First, you need to create 2 partitions on the SSD with ``parted``
+or ``gdisk``
 
    .. important:: Always use GPT partition tables.
 
@@ -162,8 +162,8 @@ Changing a failed device
 Changing a failed bootable device
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Depending on how `Proxmox Datacenter Manager`_ was installed, it is either using `grub` or
-`systemd-boot` as a bootloader.
+Depending on how `Proxmox Datacenter Manager`_ was installed, it is either using ``grub`` or
+``systemd-boot`` as a bootloader.
 
 In either case, the first steps of copying the partition table, reissuing GUIDs and replacing the
 ZFS partition are the same. To make the system bootable from the new disk, different steps are
@@ -178,19 +178,19 @@ needed which depend on the bootloader in use.
 .. NOTE:: Use the `zpool status -v` command to monitor how far the resilvering process of the new
    disk has progressed.
 
-With `systemd-boot`:
+With ``systemd-boot``:
 
 .. code-block:: console
 
   # proxmox-boot-tool format <new ESP> # proxmox-boot-tool init <new ESP>
 
-.. NOTE:: `ESP` stands for EFI System Partition, which is setup as partition #2 on bootable disks
+.. NOTE:: ``ESP`` stands for EFI System Partition, which is setup as partition #2 on bootable disks
    by the Proxmox Datacenter Manager installer. For details, see :ref:`Setting up a new partition for use
    as synced ESP <systembooting-proxmox-boot-setup>`.
 
-With `grub`:
+With ``grub``:
 
-Usually `grub.cfg` is located in `/boot/grub/grub.cfg`
+Usually ``grub.cfg`` is located in ``/boot/grub/grub.cfg``
 
 .. code-block:: console
 
@@ -222,7 +222,7 @@ Limit ZFS memory usage
 
 It is good to use at most 50 percent (which is the default) of the system memory for ZFS ARC, to
 prevent performance degradation of the host. Use your preferred editor to change the configuration
-in `/etc/modprobe.d/zfs.conf` and insert:
+in ``/etc/modprobe.d/zfs.conf`` and insert:
 
 .. code-block:: console
 
@@ -230,10 +230,10 @@ in `/etc/modprobe.d/zfs.conf` and insert:
 
 The above example limits the usage to 8 GiB ('8 * 2^30^').
 
-.. IMPORTANT:: In case your desired `zfs_arc_max` value is lower than or equal to `zfs_arc_min`
-   (which defaults to 1/32 of the system memory), `zfs_arc_max` will be ignored. Thus, for it to
-   work in this case, you must set `zfs_arc_min` to at most `zfs_arc_max - 1`. This would require
-   updating the configuration in `/etc/modprobe.d/zfs.conf`, with:
+.. IMPORTANT:: In case your desired ``zfs_arc_max`` value is lower than or equal to ``zfs_arc_min``
+   (which defaults to 1/32 of the system memory), ``zfs_arc_max`` will be ignored. Thus, for it to
+   work in this case, you must set ``zfs_arc_min`` to at most ``zfs_arc_max - 1``. This would require
+   updating the configuration in ``/etc/modprobe.d/zfs.conf``, with:
 
 .. code-block:: console
 
@@ -241,7 +241,7 @@ The above example limits the usage to 8 GiB ('8 * 2^30^').
   options zfs zfs_arc_max=8589934592
 
 This example setting limits the usage to 8 GiB ('8 * 2^30^') on systems with more than 256 GiB of
-total memory, where simply setting `zfs_arc_max` alone would not work.
+total memory, where simply setting ``zfs_arc_max`` alone would not work.
 
 .. IMPORTANT:: If your root file system is ZFS, you must update your initramfs every time this value
    changes.
@@ -268,7 +268,7 @@ A good value for servers is 10:
 
   # sysctl -w vm.swappiness=10
 
-To make the swappiness persistent, open `/etc/sysctl.conf` with an editor of your choice and add the
+To make the swappiness persistent, open ``/etc/sysctl.conf`` with an editor of your choice and add the
 following line:
 
 .. code-block:: console
@@ -297,8 +297,8 @@ To activate compression:
 
   # zpool set compression=lz4 <pool>
 
-We recommend using the `lz4` algorithm, since it adds very little CPU overhead.  Other algorithms
-such as `lzjb`, `zstd` and `gzip-N` (where `N` is an integer from `1-9` representing the compression
+We recommend using the ``lz4`` algorithm, since it adds very little CPU overhead.  Other algorithms
+such as ``lzjb``, ``zstd`` and ``gzip-N`` (where ``N`` is an integer from ``1-9`` representing the compression
 ratio, where 1 is fastest and 9 is best compression) are also available. Depending on the algorithm
 and how compressible the data is, having compression enabled can even increase I/O performance.
 
@@ -341,16 +341,16 @@ Adding a `special` device to an existing pool with RAID-1:
 
   # zpool add <pool> special mirror <device1> <device2>
 
-ZFS datasets expose the `special_small_blocks=<size>` property. `size` can be `0` to disable storing
-small file blocks on the `special` device, or a power of two in the range between `512B` to `128K`.
+ZFS datasets expose the ``special_small_blocks=<size>`` property. ``size`` can be ``0`` to disable storing
+small file blocks on the `special` device, or a power of two in the range between ``512B`` to ``128K``.
 After setting this property, new file blocks smaller than `size` will be allocated on the `special`
 device.
 
-.. IMPORTANT:: If the value for `special_small_blocks` is greater than or equal to the `recordsize`
-   (default `128K`) of the dataset, *all* data will be written to the `special` device, so be
+.. IMPORTANT:: If the value for ``special_small_blocks`` is greater than or equal to the ``recordsize``
+   (default ``128K``) of the dataset, *all* data will be written to the `special` device, so be
    careful!
 
-Setting the `special_small_blocks` property on a pool will change the default value of that property
+Setting the ``special_small_blocks`` property on a pool will change the default value of that property
 for all child ZFS datasets (for example, all containers in the pool will opt in for small file
 blocks).
 
@@ -398,5 +398,5 @@ then, update the `initramfs` by running:
 
 and finally, reboot the node.
 
-Another workaround to this problem is enabling the `zfs-import-scan.service`, which searches and
+Another workaround to this problem is enabling the ``zfs-import-scan.service``, which searches and
 imports pools via device scanning (usually slower).
