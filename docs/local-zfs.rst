@@ -185,7 +185,7 @@ With `systemd-boot`:
   # proxmox-boot-tool format <new ESP> # proxmox-boot-tool init <new ESP>
 
 .. NOTE:: `ESP` stands for EFI System Partition, which is setup as partition #2 on bootable disks
-   setup by the Proxmox Datacenter Manager installer. For details, see :ref:`Setting up a new partition for use
+   by the Proxmox Datacenter Manager installer. For details, see :ref:`Setting up a new partition for use
    as synced ESP <systembooting-proxmox-boot-setup>`.
 
 With `grub`:
