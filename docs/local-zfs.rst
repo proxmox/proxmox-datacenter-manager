@@ -57,8 +57,8 @@ with extensive manual pages, which can be read with:
 Create a new zpool
 ^^^^^^^^^^^^^^^^^^
 
-To create a new pool, at least one disk is needed. The ``ashift`` should have the same sector-size (2
-power of ``ashift``) or larger as the underlying disk.
+To create a new pool, at least one disk is needed. The ``ashift`` should have the same sector-size
+(2 power of ``ashift``) or larger as the underlying disk.
 
 .. code-block:: console
 
@@ -138,8 +138,8 @@ Add cache and log to an existing pool
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can add cache and log devices to a pool after its creation. In this example, we will use a
-single drive for both cache and log. First, you need to create 2 partitions on the SSD with ``parted``
-or ``gdisk``
+single drive for both cache and log. First, you need to create 2 partitions on the SSD with
+``parted`` or ``gdisk``
 
    .. important:: Always use GPT partition tables.
 
@@ -185,8 +185,8 @@ With ``systemd-boot``:
   # proxmox-boot-tool format <new ESP> # proxmox-boot-tool init <new ESP>
 
 .. NOTE:: ``ESP`` stands for EFI System Partition, which is setup as partition #2 on bootable disks
-   by the Proxmox Datacenter Manager installer. For details, see :ref:`Setting up a new partition for use
-   as synced ESP <systembooting-proxmox-boot-setup>`.
+   by the Proxmox Datacenter Manager installer. For details, see :ref:`Setting up a new partition
+   for use as synced ESP <systembooting-proxmox-boot-setup>`.
 
 With ``grub``:
 
@@ -232,8 +232,8 @@ The above example limits the usage to 8 GiB ('8 * 2^30^').
 
 .. IMPORTANT:: In case your desired ``zfs_arc_max`` value is lower than or equal to ``zfs_arc_min``
    (which defaults to 1/32 of the system memory), ``zfs_arc_max`` will be ignored. Thus, for it to
-   work in this case, you must set ``zfs_arc_min`` to at most ``zfs_arc_max - 1``. This would require
-   updating the configuration in ``/etc/modprobe.d/zfs.conf``, with:
+   work in this case, you must set ``zfs_arc_min`` to at most ``zfs_arc_max - 1``. This would
+   require updating the configuration in ``/etc/modprobe.d/zfs.conf``, with:
 
 .. code-block:: console
 
@@ -268,8 +268,8 @@ A good value for servers is 10:
 
   # sysctl -w vm.swappiness=10
 
-To make the swappiness persistent, open ``/etc/sysctl.conf`` with an editor of your choice and add the
-following line:
+To make the swappiness persistent, open ``/etc/sysctl.conf`` with an editor of your choice and add
+the following line:
 
 .. code-block:: console
 
@@ -298,9 +298,10 @@ To activate compression:
   # zpool set compression=lz4 <pool>
 
 We recommend using the ``lz4`` algorithm, since it adds very little CPU overhead.  Other algorithms
-such as ``lzjb``, ``zstd`` and ``gzip-N`` (where ``N`` is an integer from ``1-9`` representing the compression
-ratio, where 1 is fastest and 9 is best compression) are also available. Depending on the algorithm
-and how compressible the data is, having compression enabled can even increase I/O performance.
+such as ``lzjb``, ``zstd`` and ``gzip-N`` (where ``N`` is an integer from ``1-9`` representing the
+compression ratio, where 1 is fastest and 9 is best compression) are also available. Depending on
+the algorithm and how compressible the data is, having compression enabled can even increase I/O
+performance.
 
 You can disable compression at any time with:
 
@@ -341,18 +342,18 @@ Adding a `special` device to an existing pool with RAID-1:
 
   # zpool add <pool> special mirror <device1> <device2>
 
-ZFS datasets expose the ``special_small_blocks=<size>`` property. ``size`` can be ``0`` to disable storing
-small file blocks on the `special` device, or a power of two in the range between ``512B`` to ``128K``.
-After setting this property, new file blocks smaller than `size` will be allocated on the `special`
-device.
+ZFS datasets expose the ``special_small_blocks=<size>`` property. ``size`` can be ``0`` to disable
+storing small file blocks on the `special` device, or a power of two in the range between ``512B``
+to ``128K``. After setting this property, new file blocks smaller than `size` will be allocated on
+the `special` device.
 
-.. IMPORTANT:: If the value for ``special_small_blocks`` is greater than or equal to the ``recordsize``
-   (default ``128K``) of the dataset, *all* data will be written to the `special` device, so be
-   careful!
+.. IMPORTANT:: If the value for ``special_small_blocks`` is greater than or equal to the
+   ``recordsize`` (default ``128K``) of the dataset, *all* data will be written to the `special`
+   device, so be careful!
 
-Setting the ``special_small_blocks`` property on a pool will change the default value of that property
-for all child ZFS datasets (for example, all containers in the pool will opt in for small file
-blocks).
+Setting the ``special_small_blocks`` property on a pool will change the default value of that
+property for all child ZFS datasets (for example, all containers in the pool will opt in for small
+file blocks).
 
 Opt in for all files smaller than 4K-blocks pool-wide:
 
