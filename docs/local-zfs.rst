@@ -268,8 +268,8 @@ A good value for servers is 10:
 
   # sysctl -w vm.swappiness=10
 
-To make the swappiness persistent, open ``/etc/sysctl.conf`` with an editor of your choice and add
-the following line:
+To make the swappiness persistent, create a new file ``/etc/sysctl.d/99-swappiness.conf`` with an
+editor of your choice and add the following line:
 
 .. code-block:: console
 
