@@ -546,6 +546,10 @@ async fn migrate_qemu(
             },
             vmid: { schema: VMID_SCHEMA },
             target: { schema: REMOTE_ID_SCHEMA },
+            "target-vmid": {
+                optional: true,
+                schema: VMID_SCHEMA,
+            },
             delete: {
                 description: "Delete the original VM and related data after successful migration.",
                 optional: true,
@@ -587,6 +591,7 @@ async fn remote_migrate_qemu(
     node: Option<String>,
     vmid: u32,
     target: String,
+    target_vmid: Option<u32>,
     online: Option<bool>,
     delete: Option<bool>,
     map_storage: Vec<String>,
@@ -602,6 +607,9 @@ async fn remote_migrate_qemu(
     }
     if let Some(bwlimit) = bwlimit {
         params = params.bwlimit(bwlimit);
+    }
+    if let Some(target_vmid) = target_vmid {
+        params = params.target_vmid(target_vmid);
     }
     for mapping in map_storage {
         let pos = mapping
