@@ -8,6 +8,7 @@ use anyhow::Error;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinSet;
 
+use proxmox_log::LogContext;
 use pve_api_types::ClusterNodeIndexResponse;
 
 use pdm_api_types::remotes::{Remote, RemoteType};
@@ -82,14 +83,19 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
             let semaphore = Arc::clone(&total_connections_semaphore);
 
             let f = func.clone();
-
-            remote_join_set.spawn(Self::fetch_remote(
+            let future = Self::fetch_remote(
                 remote,
                 self.context.clone(),
                 semaphore,
                 f,
                 self.max_connections_per_remote,
-            ));
+            );
+
+            if let Some(log_context) = LogContext::current() {
+                remote_join_set.spawn(log_context.scope(future));
+            } else {
+                remote_join_set.spawn(future);
+            }
         }
 
         let mut results = FetchResults::default();
@@ -160,14 +166,20 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
                     let node_name = node.node.clone();
                     let context_clone = context.clone();
 
-                    nodes_join_set.spawn(Self::fetch_node(
+                    let future = Self::fetch_node(
                         func_clone,
                         context_clone,
                         remote_clone,
                         node_name,
                         permit,
                         Some(per_remote_connections_permit),
-                    ));
+                    );
+
+                    if let Some(log_context) = LogContext::current() {
+                        nodes_join_set.spawn(log_context.scope(future));
+                    } else {
+                        nodes_join_set.spawn(future);
+                    }
                 }
 
                 while let Some(join_result) = nodes_join_set.join_next().await {
@@ -251,15 +263,20 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
             let remote_id = remote.id.clone();
             let context = self.context.clone();
             let func = func.clone();
-
-            node_join_set.spawn(async move {
+            let future = async move {
                 let permit = total_connections_semaphore.acquire_owned().await.unwrap();
 
                 (
                     remote_id,
                     Self::fetch_node(func, context, remote, "localhost".into(), permit, None).await,
                 )
-            });
+            };
+
+            if let Some(log_context) = LogContext::current() {
+                node_join_set.spawn(log_context.scope(future));
+            } else {
+                node_join_set.spawn(future);
+            }
         }
 
         while let Some(a) = node_join_set.join_next().await {
