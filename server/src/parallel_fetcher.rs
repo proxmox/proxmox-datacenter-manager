@@ -19,9 +19,9 @@ pub const DEFAULT_MAX_CONNECTIONS: usize = 20;
 pub const DEFAULT_MAX_CONNECTIONS_PER_REMOTE: usize = 5;
 
 pub struct ParallelFetcher<C> {
-    pub max_connections: usize,
-    pub max_connections_per_remote: usize,
-    pub context: C,
+    max_connections: usize,
+    max_connections_per_remote: usize,
+    context: C,
 }
 
 pub struct FetchResults<T> {
@@ -59,13 +59,57 @@ pub struct NodeResults<T> {
     pub api_response_time: Duration,
 }
 
-impl<C: Clone + Send + 'static> ParallelFetcher<C> {
-    pub fn new(context: C) -> Self {
+/// Builder for the [`ParallelFetcher`] struct.
+pub struct ParallelFetcherBuilder<C> {
+    max_connections: Option<usize>,
+    max_connections_per_remote: Option<usize>,
+    context: C,
+}
+
+impl<C> ParallelFetcherBuilder<C> {
+    fn new(context: C) -> Self {
         Self {
-            max_connections: DEFAULT_MAX_CONNECTIONS,
-            max_connections_per_remote: DEFAULT_MAX_CONNECTIONS_PER_REMOTE,
             context,
+            max_connections: None,
+            max_connections_per_remote: None,
         }
+    }
+
+    /// Set the maximum number of parallel connections.
+    pub fn max_connections(mut self, limit: usize) -> Self {
+        self.max_connections = Some(limit);
+        self
+    }
+
+    /// Set the maximum number of parallel connections per remote.
+    ///
+    /// This only really affects PVE remotes with multiple cluster members.
+    pub fn max_connections_per_remote(mut self, limit: usize) -> Self {
+        self.max_connections_per_remote = Some(limit);
+        self
+    }
+
+    /// Build the [`ParallelFetcher`] instance.
+    pub fn build(self) -> ParallelFetcher<C> {
+        ParallelFetcher {
+            max_connections: self.max_connections.unwrap_or(DEFAULT_MAX_CONNECTIONS),
+            max_connections_per_remote: self
+                .max_connections_per_remote
+                .unwrap_or(DEFAULT_MAX_CONNECTIONS_PER_REMOTE),
+            context: self.context,
+        }
+    }
+}
+
+impl<C: Clone + Send + 'static> ParallelFetcher<C> {
+    /// Create a [`ParallelFetcher`] with default settings.
+    pub fn new(context: C) -> Self {
+        Self::builder(context).build()
+    }
+
+    /// Create the builder for constructing a [`ParallelFetcher`] with custom settings.
+    pub fn builder(context: C) -> ParallelFetcherBuilder<C> {
+        ParallelFetcherBuilder::new(context)
     }
 
     pub async fn do_for_all_remote_nodes<A, F, T, Ft>(self, remotes: A, func: F) -> FetchResults<T>

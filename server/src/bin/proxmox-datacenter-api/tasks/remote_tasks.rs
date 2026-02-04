@@ -264,11 +264,10 @@ async fn fetch_remotes(
     remotes: Vec<Remote>,
     cache_state: Arc<State>,
 ) -> (Vec<TaskCacheItem>, NodeFetchSuccessMap) {
-    let fetcher = ParallelFetcher {
-        max_connections: MAX_CONNECTIONS,
-        max_connections_per_remote: CONNECTIONS_PER_PVE_REMOTE,
-        context: cache_state,
-    };
+    let fetcher = ParallelFetcher::builder(cache_state)
+        .max_connections(MAX_CONNECTIONS)
+        .max_connections_per_remote(CONNECTIONS_PER_PVE_REMOTE)
+        .build();
 
     let fetch_results = fetcher
         .do_for_all_remote_nodes(remotes.into_iter(), fetch_tasks_from_single_node)
