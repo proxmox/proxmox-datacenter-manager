@@ -1,18 +1,16 @@
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    future::Future,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::future::Future;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use anyhow::Error;
-use pdm_api_types::remotes::{Remote, RemoteType};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+use tokio::task::JoinSet;
+
 use pve_api_types::ClusterNodeIndexResponse;
-use tokio::{
-    sync::{OwnedSemaphorePermit, Semaphore},
-    task::JoinSet,
-};
+
+use pdm_api_types::remotes::{Remote, RemoteType};
 
 use crate::connection;
 
