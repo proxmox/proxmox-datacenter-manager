@@ -214,6 +214,11 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
 
     let mut content = get_cached_summary_or_default()?;
 
+    // Clean out any remotes that might have been removed from the remote config in the meanwhile.
+    content
+        .remotes
+        .retain(|remote, _| fetch_response.iter().any(|r| r.remote() == remote));
+
     for remote_response in fetch_response {
         let remote_name = remote_response.remote().to_string();
 
@@ -228,6 +233,11 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
 
         match remote_response.nodes() {
             Ok(node_responses) => {
+                // Clean out any nodes that might have been removed from the cluster in the meanwhile.
+                entry
+                    .nodes
+                    .retain(|name, _| node_responses.iter().any(|n| n.node_name() == name));
+
                 entry.status = RemoteUpdateStatus::Success;
 
                 for node_response in node_responses {
