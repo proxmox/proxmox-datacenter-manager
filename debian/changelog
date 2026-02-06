@@ -1,3 +1,32 @@
+proxmox-datacenter-manager (1.0.3) UNRELEASED; urgency=medium
+
+  * dashboard: top entities: display hint message if there are no entities to
+    show
+
+  * docs: ZFS: repair broken formatting and other minor cosmetic touch-ups
+
+  * docs: ZFS: fix instructions on how to change the kernel's swappiness via a
+    drop-in file in /etc/sysctl.d/ on Debian Trixie
+
+  * docs: fix typo in FAQ section
+
+  * client cli: support the 'target-vmid' parameter for the 'pve qemu
+    remote-migrate' and 'pve lxc remote-migrate' commands
+
+  * api: validate a remote node's URL when updating a remote config
+
+  * ui: validate a remote node's URL in the UI form field for better UX
+
+  * ui: fix an issue that would log out the user on the first POST request
+
+  * ui: use new panel for firewall rules
+
+  * ui: improve the date picker in system log view
+
+  * ui: consistently use IEC units for HDD utilization in the remote overview
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 06 Feb 2026 16:05:19 +0100
+
 proxmox-datacenter-manager (1.0.2) trixie; urgency=medium
 
   * admin cli: add `support-status` sub-command
