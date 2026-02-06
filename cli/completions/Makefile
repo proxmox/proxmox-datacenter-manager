@@ -2,7 +2,7 @@
 all:
 
 # bash completion
-%.bc:
+%.bash:
 	@echo "creating bash completion definition for $*"
 	@printf '# $* bash completion\n\n' >$@.tmp
 	@printf "complete -C '$* bashcomplete' $*\n" >>$@.tmp
@@ -26,4 +26,4 @@ _%:
 	mv $@.tmp $@
 
 clean:
-	rm -f _* *.bc
+	rm -f _* *.bash
