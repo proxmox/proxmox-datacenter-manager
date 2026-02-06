@@ -53,8 +53,8 @@ COMPILED_BINS := \
 	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN) $(INTERNAL_SERVICE_BIN))
 
 # completion helper get generated on build
-BASH_COMPLETIONS := $(addsuffix .bash,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
-ZSH_COMPLETIONS := $(addprefix _,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
+BASH_COMPLETIONS := $(addsuffix .bash,$(USR_BIN) $(USR_SBIN))
+ZSH_COMPLETIONS := $(addprefix _,$(USR_BIN) $(USR_SBIN))
 SHELL_COMPLETION_FILES := $(addprefix $(COMPLETION_DIR)/,$(BASH_COMPLETIONS) $(ZSH_COMPLETIONS))
 
 tests ?= --workspace

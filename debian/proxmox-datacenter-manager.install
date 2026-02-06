@@ -11,15 +11,11 @@ usr/libexec/proxmox/proxmox-datacenter-privileged-api
 usr/sbin/pdmAtoB
 usr/sbin/proxmox-datacenter-manager-admin
 usr/share/bash-completion/completions/pdmAtoB.bash
-usr/share/bash-completion/completions/proxmox-datacenter-api.bash
 usr/share/bash-completion/completions/proxmox-datacenter-manager-admin.bash
-usr/share/bash-completion/completions/proxmox-datacenter-privileged-api.bash
 usr/share/man/man1/proxmox-datacenter-api.1
 usr/share/man/man1/proxmox-datacenter-manager-admin.1
 usr/share/man/man1/proxmox-datacenter-privileged-api.1
 usr/share/man/man5/remotes.cfg.5
 usr/share/man/man5/views.cfg.5
 usr/share/zsh/vendor-completions/_pdmAtoB
-usr/share/zsh/vendor-completions/_proxmox-datacenter-api
 usr/share/zsh/vendor-completions/_proxmox-datacenter-manager-admin
-usr/share/zsh/vendor-completions/_proxmox-datacenter-privileged-api
