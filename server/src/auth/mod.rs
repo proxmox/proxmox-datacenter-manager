@@ -16,10 +16,10 @@ use proxmox_auth_api::types::Authid;
 use proxmox_auth_api::{HMACKey, Keyring};
 use proxmox_ldap::types::{AdRealmConfig, LdapRealmConfig};
 use proxmox_rest_server::AuthError;
-use proxmox_router::UserInformation;
+use proxmox_router::{http_bail, UserInformation};
 use proxmox_tfa::api::{OpenUserChallengeData, TfaConfig};
 
-use pdm_api_types::{RealmRef, Userid};
+use pdm_api_types::{OpenIdRealmConfig, RealmRef, Userid, UsernameRef};
 
 pub mod certs;
 pub mod csrf;
@@ -189,17 +189,17 @@ pub(crate) fn lookup_authenticator(
             lock_filename: pdm_buildcfg::configdir!("/access/shadow.json.lock"),
         })),
         realm => {
-            if let Ok((domains, _digest)) = pdm_config::domains::config() {
-                if let Ok(config) = domains.lookup::<LdapRealmConfig>("ldap", realm) {
-                    return Ok(Box::new(LdapAuthenticator::new(config)));
-                }
+            let (domains, _digest) = pdm_config::domains::config()?;
 
-                if let Ok(config) = domains.lookup::<AdRealmConfig>("ad", realm) {
-                    return Ok(Box::new(AdAuthenticator::new(config)));
-                }
+            if let Ok(config) = domains.lookup::<LdapRealmConfig>("ldap", realm) {
+                Ok(Box::new(LdapAuthenticator::new(config)))
+            } else if let Ok(config) = domains.lookup::<AdRealmConfig>("ad", realm) {
+                Ok(Box::new(AdAuthenticator::new(config)))
+            } else if domains.lookup::<OpenIdRealmConfig>("openid", realm).is_ok() {
+                Ok(Box::new(OpenIdAuthenticator()))
+            } else {
+                bail!("unknwon realm {realm}");
             }
-
-            bail!("unknwon realm {realm}");
         }
     }
 }
@@ -232,5 +232,44 @@ impl LockedTfaConfig for PdmLockedTfaConfig {
 
     fn save_config(&mut self) -> Result<(), Error> {
         tfa::write(&self.config)
+    }
+}
+
+struct OpenIdAuthenticator();
+/// When a user is manually added, the lookup_authenticator is called to verify that
+/// the realm exists. Thus, it is necessary to have an (empty) implementation for
+/// OpendID as well.
+impl Authenticator for OpenIdAuthenticator {
+    fn authenticate_user<'a>(
+        &'a self,
+        _username: &'a UsernameRef,
+        _password: &'a str,
+        _client_ip: Option<&'a IpAddr>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
+        Box::pin(async move {
+            http_bail!(
+                NOT_IMPLEMENTED,
+                "password authentication is not implemented for OpenID realms"
+            );
+        })
+    }
+
+    fn store_password(
+        &self,
+        _username: &UsernameRef,
+        _password: &str,
+        _client_ip: Option<&IpAddr>,
+    ) -> Result<(), Error> {
+        http_bail!(
+            NOT_IMPLEMENTED,
+            "storing passwords is not implemented for OpenID realms"
+        );
+    }
+
+    fn remove_password(&self, _username: &UsernameRef) -> Result<(), Error> {
+        http_bail!(
+            NOT_IMPLEMENTED,
+            "storing passwords is not implemented for OpenID realms"
+        );
     }
 }
