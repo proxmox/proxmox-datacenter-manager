@@ -68,7 +68,7 @@ pub fn access_control() -> Html {
                 Container::new()
                     .class("pwt-content-spacer")
                     .class(pwt::css::FlexFit)
-                    .with_child(UserPanel::new())
+                    .with_child(UserPanel::new().product_realm(AttrValue::from("pdm")))
                     // forces a reload when the tab becomes visible again
                     .key(format!(
                         "user-management-{}",
