@@ -1,3 +1,21 @@
+proxmox-datacenter-manager-ui (1.0.2) UNRELEASED; urgency=medium
+
+  * dashboard: top entities: display hint message if there are no entities to
+    show.
+
+  * validate a remote node's URL in the UI form field for better UX.
+
+  * fix an issue that would log out the user on the first POST request.
+
+  * re-use factored out panel for firewall rules, no bigger semantic changes
+    expected.
+
+  * improve the date picker in system log view.
+
+  * consistently use IEC units for HDD utilization in the remote overview.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 13 Feb 2026 08:55:05 +0100
+
 proxmox-datacenter-manager-ui (1.0.1) trixie; urgency=medium
 
   * subscription panel: avoid potential division through zero and fix typo in
