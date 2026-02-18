@@ -217,16 +217,25 @@ fn update_remote(
     input: {
         properties: {
             id: { schema: REMOTE_ID_SCHEMA },
+            "delete-token": {
+                optional: true,
+                default: true,
+                description: "If set to false, token deletion on the remote is skipped."
+            }
         }
     }
 )]
-/// Add a new remote.
-fn remove_remote(id: String, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
-    let param = json!({ "id": id });
+/// Remove a remote.
+async fn remove_remote(
+    id: String,
+    delete_token: bool,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let param = json!({ "id": id, "delete-token": delete_token });
 
     let info = &dc_api::remotes::API_METHOD_REMOVE_REMOTE;
     match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv).map(drop),
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await.map(drop),
         _ => unreachable!(),
     }
 }
