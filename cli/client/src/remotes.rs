@@ -116,12 +116,17 @@ async fn update_remote(id: String, updater: RemoteUpdater) -> Result<(), Error> 
     input: {
         properties: {
             id: { schema: REMOTE_ID_SCHEMA },
+            "delete-token": {
+                optional: true,
+                default: true,
+                description: "If set to false, token deletion on the remote is skipped."
+            }
         }
     }
 )]
-/// Add a new remote.
-async fn delete_remote(id: String) -> Result<(), Error> {
-    client()?.delete_remote(&id).await?;
+/// Delete a remote.
+async fn delete_remote(id: String, delete_token: bool) -> Result<(), Error> {
+    client()?.delete_remote(&id, Some(delete_token)).await?;
     Ok(())
 }
 
