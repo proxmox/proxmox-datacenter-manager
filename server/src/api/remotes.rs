@@ -415,15 +415,57 @@ pub fn update_remote(
     input: {
         properties: {
             id: { schema: REMOTE_ID_SCHEMA },
+            "delete-token": {
+                optional: true,
+                default: false,
+                description: "If true, deletes the API token on the remote.",
+            }
         },
     },
     access: {
         permission: &Permission::Privilege(&["resource"], PRIV_RESOURCE_MODIFY, false),
     },
 )]
-/// List all the remotes this instance is managing.
-pub fn remove_remote(id: String) -> Result<(), Error> {
+/// Remove a remote that this instance is managing.
+pub async fn remove_remote(id: String, delete_token: bool) -> Result<(), Error> {
+    let _lock = pdm_config::remotes::lock_config()?;
     let (mut remotes, _) = pdm_config::remotes::config()?;
+
+    if delete_token {
+        let remote = remotes
+            .get(&id)
+            .ok_or_else(|| http_err!(NOT_FOUND, "no such remote {id:?}"))?;
+
+        let user = remote.authid.user();
+
+        // With the `Client`'s error type the message gets a bit long, shorten it:
+        let short_delete_err = |err: proxmox_client::Error| {
+            format_err!("error deleting token: {}", err.source().unwrap_or(&err))
+        };
+
+        let token_name = remote
+            .authid
+            .tokenname()
+            .ok_or_else(|| format_err!("Unable to find the token for the remote {id:?}"))?;
+
+        // connect to remote and delete the already existing token.
+        match remote.ty {
+            RemoteType::Pve => {
+                let client = connection::make_pve_client(remote)?;
+                client
+                    .delete_token(user.as_str(), token_name.as_str())
+                    .await
+                    .map_err(short_delete_err)?
+            }
+            RemoteType::Pbs => {
+                let client = connection::make_pbs_client(remote)?;
+                client
+                    .delete_token(user, token_name)
+                    .await
+                    .map_err(short_delete_err)?
+            }
+        };
+    }
 
     if remotes.remove(&id).is_none() {
         http_bail!(NOT_FOUND, "no such entry {id:?}");
