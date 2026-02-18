@@ -136,8 +136,15 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(())
     }
 
-    pub async fn delete_remote(&self, remote: &str) -> Result<(), Error> {
-        let path = format!("/api2/extjs/remotes/remote/{remote}");
+    /// Deletes a remote, with optional flag to handle remote token deletion.
+    pub async fn delete_remote(
+        &self,
+        remote: &str,
+        delete_token: Option<bool>,
+    ) -> Result<(), Error> {
+        let path = ApiPathBuilder::new(format!("/api2/extjs/remotes/remote/{remote}"))
+            .maybe_arg("delete-token", &delete_token)
+            .build();
         self.0.delete(&path).await?.nodata()?;
         Ok(())
     }
