@@ -13,7 +13,7 @@ use proxmox_router::stream::JsonRecords;
 use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
 
-use pbs_api_types::{Authid, BasicRealmInfo, Tokenname, Userid};
+use pbs_api_types::{Authid, BasicRealmInfo, Tokenname, TokennameRef, Userid};
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 
@@ -269,6 +269,20 @@ impl PbsClient {
         self.0.put("/api2/extjs/access/acl", &acl).await?;
 
         Ok(token)
+    }
+
+    /// Delete API token from the PBS remote.
+    pub async fn delete_token(&self, userid: &Userid, tokenid: &TokennameRef) -> Result<(), Error> {
+        let path = format!(
+            "/api2/extjs/access/users/{}/token/{}",
+            percent_encoding::percent_encode(
+                userid.as_str().as_bytes(),
+                percent_encoding::NON_ALPHANUMERIC
+            ),
+            tokenid.as_str()
+        );
+        self.0.delete(&path).await?.nodata()?;
+        Ok(())
     }
 
     /// Return the status the Proxmox Backup Server instance
