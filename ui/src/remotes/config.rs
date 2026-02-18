@@ -7,6 +7,7 @@ use anyhow::Error;
 use proxmox_schema::property_string::PropertyString;
 
 use crate::remotes::edit_remote::EditRemote;
+use crate::remotes::remove_remote::RemoveRemote;
 //use pwt::widget::form::{Field, FormContext, InputType};
 
 use pdm_api_types::remotes::Remote;
@@ -17,7 +18,7 @@ use proxmox_yew_comp::percent_encoding::percent_encode_component;
 
 //use proxmox_schema::api_types::{CERT_FINGERPRINT_SHA256_SCHEMA, DNS_NAME_OR_IP_SCHEMA};
 
-use serde_json::Value;
+use serde_json::{json, Value};
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::prelude::*;
@@ -32,7 +33,7 @@ use pwt::widget::{
 
 //use proxmox_yew_comp::EditWindow;
 use proxmox_yew_comp::{
-    ConfirmButton, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
     LoadableComponentScopeExt, LoadableComponentState,
 };
 
@@ -42,10 +43,13 @@ async fn load_remotes() -> Result<Vec<Remote>, Error> {
     proxmox_yew_comp::http_get("/remotes/remote", None).await
 }
 
-async fn delete_item(key: Key) -> Result<(), Error> {
+async fn delete_item(key: Key, delete_token: bool) -> Result<(), Error> {
     let id = key.to_string();
+    let param = Some(json!({
+        "delete-token": delete_token,
+    }));
     let url = format!("/remotes/remote/{}", percent_encode_component(&id));
-    proxmox_yew_comp::http_delete(&url, None).await?;
+    proxmox_yew_comp::http_delete(&url, param).await?;
     Ok(())
 }
 
@@ -100,10 +104,11 @@ impl RemoteConfigPanel {
 pub enum ViewState {
     Add(RemoteType),
     Edit,
+    Remove,
 }
 
 pub enum Msg {
-    RemoveItem,
+    RemoveItem(bool),
 }
 
 pub struct PbsRemoteConfigPanel {
@@ -156,11 +161,11 @@ impl LoadableComponent for PbsRemoteConfigPanel {
 
     fn update(&mut self, ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::RemoveItem => {
+            Msg::RemoveItem(v) => {
                 if let Some(key) = self.selection.selected_key() {
                     let link = ctx.link().clone();
                     self.spawn(async move {
-                        if let Err(err) = delete_item(key).await {
+                        if let Err(err) = delete_item(key, v).await {
                             link.show_error(tr!("Unable to delete item"), err, true);
                         }
                         link.send_reload();
@@ -205,10 +210,9 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                     .onclick(link.change_view_callback(|_| Some(ViewState::Edit))),
             )
             .with_child(
-                ConfirmButton::new(tr!("Remove"))
-                    .confirm_message(tr!("Are you sure you want to remove this remote?"))
+                Button::new(tr!("Remove"))
                     .disabled(disabled)
-                    .on_activate(link.callback(|_| Msg::RemoveItem)),
+                    .on_activate(link.change_view_callback(|_| Some(ViewState::Remove))),
             )
             .with_flex_spacer()
             .with_child({
@@ -243,6 +247,7 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                 .selection
                 .selected_key()
                 .map(|key| self.create_edit_dialog(ctx, key)),
+            ViewState::Remove => Some(self.create_remove_remote_dialog(ctx)),
         }
     }
 }
@@ -301,6 +306,19 @@ impl PbsRemoteConfigPanel {
     fn create_edit_dialog(&self, ctx: &LoadableComponentContext<Self>, key: Key) -> Html {
         EditRemote::new(&key)
             .on_done(ctx.link().change_view_callback(|_| None))
+            .into()
+    }
+
+    fn create_remove_remote_dialog(&self, ctx: &LoadableComponentContext<Self>) -> Html {
+        let link = ctx.link().clone();
+        let close = link.change_view_callback(|_| None);
+
+        RemoveRemote::new()
+            .on_dismiss(close.clone())
+            .on_confirm(Callback::from(move |v| {
+                link.send_message(Msg::RemoveItem(v));
+                link.change_view(None);
+            }))
             .into()
     }
 }

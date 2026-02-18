@@ -27,6 +27,8 @@ pub use tasks::RemoteTaskList;
 mod updates;
 pub use updates::UpdateTree;
 
+mod remove_remote;
+
 mod firewall;
 pub use firewall::FirewallTree;
 
