@@ -12,6 +12,9 @@ proxmox-datacenter-manager (1.0.3) UNRELEASED; urgency=medium
 
   * docs: fix typo in FAQ section
 
+  * client/admin cli: fix shell completion for bash by providing completion
+    files with the expected file extension
+
  -- Proxmox Support Team <support@proxmox.com>  Fri, 06 Feb 2026 16:05:19 +0100
 
 proxmox-datacenter-manager (1.0.2) trixie; urgency=medium
