@@ -16,6 +16,8 @@ use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use pwt::props::{FieldBuilder, WidgetBuilder};
 use pwt_macros::{builder, widget};
 
+use pdm_api_types::remotes::RemoteType;
+
 #[widget(comp=RemoteRealmSelectorComp, @input)]
 #[derive(Clone, Properties, PartialEq)]
 #[builder]
@@ -30,6 +32,9 @@ pub struct RemoteRealmSelector {
 
     /// Optional fingerprint of the remote.
     pub fingerprint: Option<AttrValue>,
+
+    /// Type of the remote.
+    pub remote_type: RemoteType,
 }
 
 impl RemoteRealmSelector {
@@ -37,10 +42,12 @@ impl RemoteRealmSelector {
     pub fn new(
         hostname: impl IntoPropValue<AttrValue>,
         fingerprint: impl IntoPropValue<Option<AttrValue>>,
+        remote_type: RemoteType,
     ) -> Self {
         yew::props!(Self {
             hostname: hostname.into_prop_value(),
             fingerprint: fingerprint.into_prop_value(),
+            remote_type,
         })
     }
 }
@@ -89,7 +96,8 @@ impl Component for RemoteRealmSelectorComp {
         let props = ctx.props();
 
         let mut url = format!(
-            "/pve/realms?hostname={}",
+            "/{}/realms?hostname={}",
+            props.remote_type,
             percent_encode_component(&props.hostname)
         );
         if let Some(fp) = &props.fingerprint {

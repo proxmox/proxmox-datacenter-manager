@@ -329,7 +329,7 @@ impl Component for PdmWizardPageInfo {
             )
             .with_field(
                 tr!("Realm"),
-                RemoteRealmSelector::new(hostname, fingerprint)
+                RemoteRealmSelector::new(hostname, fingerprint, props.remote_type)
                     .name("realm")
                     .disabled(!self.user_mode)
                     .required(self.user_mode),
