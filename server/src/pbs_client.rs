@@ -13,7 +13,7 @@ use proxmox_router::stream::JsonRecords;
 use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
 
-use pbs_api_types::{Authid, Tokenname, Userid};
+use pbs_api_types::{Authid, BasicRealmInfo, Tokenname, Userid};
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 
@@ -163,6 +163,12 @@ impl PbsClient {
     /// API version details, including some parts of the global datacenter config.
     pub async fn version(&self) -> Result<pve_api_types::VersionResponse, Error> {
         Ok(self.0.get("/api2/extjs/version").await?.expect_json()?.data)
+    }
+
+    /// List available authentication realms (domains).
+    pub async fn list_domains(&self) -> Result<Vec<BasicRealmInfo>, Error> {
+        let url = "/api2/extjs/access/domains";
+        Ok(self.0.get(url).await?.expect_json()?.data)
     }
 
     /// List the datastores.
