@@ -15,6 +15,9 @@ proxmox-datacenter-manager (1.0.3) UNRELEASED; urgency=medium
   * client/admin cli: fix shell completion for bash by providing completion
     files with the expected file extension
 
+  * improve error reporting for the backup snapshots API endpoint for PBS
+    remotes by passing through the original error from the PBS API.
+
  -- Proxmox Support Team <support@proxmox.com>  Fri, 06 Feb 2026 16:05:19 +0100
 
 proxmox-datacenter-manager (1.0.2) trixie; urgency=medium

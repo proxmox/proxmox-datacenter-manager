@@ -16,6 +16,9 @@ proxmox-datacenter-manager-ui (1.0.2) UNRELEASED; urgency=medium
 
   * system report: support downloading the report as a text file
 
+  * disable 'Content' tab for PBS datastores if the datastore is currently in
+    'offline' maintenance mode
+
  -- Proxmox Support Team <support@proxmox.com>  Fri, 13 Feb 2026 08:55:05 +0100
 
 proxmox-datacenter-manager-ui (1.0.1) trixie; urgency=medium
