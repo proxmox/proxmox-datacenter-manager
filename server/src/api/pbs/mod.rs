@@ -33,6 +33,10 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("remotes", &REMOTES_ROUTER),
     ("scan", &Router::new().post(&API_METHOD_SCAN_REMOTE_PBS)),
     ("probe-tls", &Router::new().post(&API_METHOD_PROBE_TLS)),
+    (
+        "realms",
+        &Router::new().get(&API_METHOD_LIST_REALM_REMOTE_PBS)
+    )
 ]);
 
 const REMOTES_ROUTER: Router = Router::new()
@@ -278,6 +282,57 @@ pub async fn scan_remote_pbs(
         .map_err(|err| format_err!("could not login: {err}"))?;
 
     Ok(remote)
+}
+
+#[api(
+    input: {
+        properties: {
+            hostname: {
+                type: String,
+                format: &HOST_OPTIONAL_PORT_FORMAT,
+                description: "Hostname (with optional port) of the target remote",
+            },
+            fingerprint: {
+                type: String,
+                description: "Fingerprint of the target remote.",
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission:
+            &Permission::Privilege(&["/"], PRIV_SYS_MODIFY, false),
+    },
+    returns: {
+        type: Array,
+        description: "A list of realms of a PBS remote.",
+        items: {
+            type: pbs_api_types::BasicRealmInfo,
+        }
+    },
+)]
+/// List available authentication realms of a PBS remote.
+pub async fn list_realm_remote_pbs(
+    hostname: String,
+    fingerprint: Option<String>,
+) -> Result<Vec<pbs_api_types::BasicRealmInfo>, Error> {
+    // dummy remote to connect
+    let remote = Remote {
+        ty: RemoteType::Pbs,
+        id: String::new(),
+        nodes: vec![PropertyString::new(NodeUrl {
+            hostname,
+            fingerprint,
+        })],
+        authid: "root@pam".parse()?,
+        token: String::new(),
+        web_url: None,
+    };
+
+    let client = connection::make_pbs_client(&remote)?;
+    let list = client.list_domains().await?;
+
+    Ok(list)
 }
 
 #[api(
