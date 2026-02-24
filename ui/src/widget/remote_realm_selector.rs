@@ -42,7 +42,7 @@ impl RemoteRealmSelector {
     }
 }
 
-pub struct RemoteRealmSelectorComp {
+struct RemoteRealmSelectorComp {
     store: Store<BasicRealmInfo>,
     validate: ValidateFn<(String, Store<BasicRealmInfo>)>,
     picker: RenderFn<SelectorRenderArgs<Store<BasicRealmInfo>>>,
