@@ -13,8 +13,8 @@ pub use pve_storage_selector::PveStorageSelector;
 mod pve_migrate_mapping;
 pub use pve_migrate_mapping::PveMigrateMap;
 
-mod pve_realm_selector;
-pub use pve_realm_selector::PveRealmSelector;
+mod remote_realm_selector;
+pub use remote_realm_selector::PveRealmSelector;
 
 mod resource_tree;
 pub use resource_tree::{RedrawController, ResourceTree};
