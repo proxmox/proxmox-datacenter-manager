@@ -20,7 +20,7 @@ _%:
 	@printf '    cmd=$${words[1]}\n' >>$@.tmp
 	@printf '    curr=$${words[cwords]}\n' >>$@.tmp
 	@printf '    prev=$${words[cwords-1]}\n' >>$@.tmp
-	@printf '    compadd -- $$(COMP_CWORD="$$cwords" COMP_LINE="$$line" COMP_POINT="$$point" \\n' >>$@.tmp
+	@printf '    compadd -- $$(COMP_CWORD="$$cwords" COMP_LINE="$$line" COMP_POINT="$$point" \\\n' >>$@.tmp
 	@printf '        $* bashcomplete "$$cmd" "$$curr" "$$prev")\n' >>$@.tmp
 	@printf '}\n' >>$@.tmp
 	mv $@.tmp $@
