@@ -16,10 +16,10 @@ use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use pwt::props::{FieldBuilder, WidgetBuilder};
 use pwt_macros::{builder, widget};
 
-#[widget(comp=PdmPveRealmSelector, @input)]
+#[widget(comp=RemoteRealmSelectorComp, @input)]
 #[derive(Clone, Properties, PartialEq)]
 #[builder]
-pub struct PveRealmSelector {
+pub struct RemoteRealmSelector {
     /// The default value.
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
@@ -30,7 +30,7 @@ pub struct PveRealmSelector {
     pub fingerprint: Option<AttrValue>,
 }
 
-impl PveRealmSelector {
+impl RemoteRealmSelector {
     pub fn new(
         hostname: impl IntoPropValue<AttrValue>,
         fingerprint: impl IntoPropValue<Option<AttrValue>>,
@@ -42,15 +42,15 @@ impl PveRealmSelector {
     }
 }
 
-pub struct PdmPveRealmSelector {
+pub struct RemoteRealmSelectorComp {
     store: Store<BasicRealmInfo>,
     validate: ValidateFn<(String, Store<BasicRealmInfo>)>,
     picker: RenderFn<SelectorRenderArgs<Store<BasicRealmInfo>>>,
 }
 
-impl Component for PdmPveRealmSelector {
+impl Component for RemoteRealmSelectorComp {
     type Message = ();
-    type Properties = PveRealmSelector;
+    type Properties = RemoteRealmSelector;
 
     fn create(ctx: &Context<Self>) -> Self {
         let store = Store::new().on_change(ctx.link().callback(|_| ())); // trigger redraw

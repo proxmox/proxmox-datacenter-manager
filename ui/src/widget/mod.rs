@@ -14,7 +14,7 @@ mod pve_migrate_mapping;
 pub use pve_migrate_mapping::PveMigrateMap;
 
 mod remote_realm_selector;
-pub use remote_realm_selector::PveRealmSelector;
+pub use remote_realm_selector::RemoteRealmSelector;
 
 mod resource_tree;
 pub use resource_tree::{RedrawController, ResourceTree};

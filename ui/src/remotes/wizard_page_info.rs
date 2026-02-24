@@ -23,7 +23,7 @@ use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, REMOTE_ID_SCHEMA};
 use pwt_macros::builder;
 
 use super::wizard_page_connect::ConnectParams;
-use crate::{get_nodename, widget::PveRealmSelector};
+use crate::{get_nodename, widget::RemoteRealmSelector};
 
 #[derive(Clone, PartialEq, Properties)]
 #[builder]
@@ -329,7 +329,7 @@ impl Component for PdmWizardPageInfo {
             )
             .with_field(
                 tr!("Realm"),
-                PveRealmSelector::new(hostname, fingerprint)
+                RemoteRealmSelector::new(hostname, fingerprint)
                     .name("realm")
                     .disabled(!self.user_mode)
                     .required(self.user_mode),
