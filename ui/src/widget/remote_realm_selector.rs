@@ -25,12 +25,15 @@ pub struct RemoteRealmSelector {
     #[prop_or_default]
     pub default: Option<AttrValue>,
 
+    /// Hostname/IP of the remote that should be queried for its realms.
     pub hostname: AttrValue,
 
+    /// Optional fingerprint of the remote.
     pub fingerprint: Option<AttrValue>,
 }
 
 impl RemoteRealmSelector {
+    /// Create a new instance of this component.
     pub fn new(
         hostname: impl IntoPropValue<AttrValue>,
         fingerprint: impl IntoPropValue<Option<AttrValue>>,
