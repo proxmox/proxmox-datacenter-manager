@@ -7,6 +7,7 @@ GENERATED_SYNOPSIS := \
 	config/views/config.rst \
 
 MAN1_PAGES := \
+	pdmAtoB.1 \
 	proxmox-datacenter-manager-admin.1 \
 	proxmox-datacenter-manager-client.1 \
 	proxmox-datacenter-api.1 \

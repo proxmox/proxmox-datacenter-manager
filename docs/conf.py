@@ -95,6 +95,7 @@ man_pages = [
     ('proxmox-datacenter-api/man1', 'proxmox-datacenter-api', 'Proxmox Datacenter Manager Public API Server', [author], 1),
     ('proxmox-datacenter-privileged-api/man1', 'proxmox-datacenter-privileged-api', 'Proxmox Datacenter Manager Privileged API Server', [author], 1),
     # CLI
+    ('pdmAtoB/man1', 'pdmAtoB', 'Upgrade checker for Proxmox Datacenter Manager', [author], 1),
     ('proxmox-datacenter-manager-admin/man1', 'proxmox-datacenter-manager-admin', 'Command line tool for managing Proxmox Datacenter Manager hosts.', [author], 1),
     ('proxmox-datacenter-manager-client/man1', 'proxmox-datacenter-manager-client', 'Command line tool for connecting and controlling the remotes and resources of a Proxmox Datacenter Manager hosts.', [author], 1),
     # configs
