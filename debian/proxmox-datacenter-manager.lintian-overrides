@@ -1,3 +1,4 @@
 package-installs-apt-sources [etc/apt/sources.list.d/pdm-enterprise.sources]
+uses-dpkg-database-directly [usr/sbin/pdmAtoB]
 uses-dpkg-database-directly [usr/libexec/proxmox/proxmox-datacenter-api]
 uses-dpkg-database-directly [usr/libexec/proxmox/proxmox-datacenter-privileged-api]
