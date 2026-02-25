@@ -19,6 +19,10 @@ proxmox-datacenter-manager-ui (1.0.2) UNRELEASED; urgency=medium
   * disable 'Content' tab for PBS datastores if the datastore is currently in
     'offline' maintenance mode
 
+  * views: in the 'Add: View' dialog, add validation to the "Name" field,
+    ensuring that an invalid view name is rejected immediately and not only
+    when pressing 'Add'
+
  -- Proxmox Support Team <support@proxmox.com>  Fri, 13 Feb 2026 08:55:05 +0100
 
 proxmox-datacenter-manager-ui (1.0.1) trixie; urgency=medium
