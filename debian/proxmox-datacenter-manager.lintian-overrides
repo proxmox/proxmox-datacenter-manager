@@ -1,4 +1,5 @@
 package-installs-apt-sources [etc/apt/sources.list.d/pdm-enterprise.sources]
+systemd-service-file-refers-to-unusual-wantedby-target getty.target [usr/lib/systemd/system/proxmox-datacenter-manager-banner.service]
 uses-dpkg-database-directly [usr/sbin/pdmAtoB]
 uses-dpkg-database-directly [usr/libexec/proxmox/proxmox-datacenter-api]
 uses-dpkg-database-directly [usr/libexec/proxmox/proxmox-datacenter-privileged-api]
