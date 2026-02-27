@@ -37,9 +37,9 @@ high quality ECC RAM.
 If you use a dedicated cache and/or log disk, you should use an enterprise class SSD (for example,
 Intel SSD DC S3700 Series). This can increase the overall performance significantly.
 
-IMPORTANT: Do not use ZFS on top of a hardware controller which has its own cache management. ZFS
-needs to directly communicate with disks. An HBA adapter or something like an LSI controller flashed
-in ``IT`` mode is recommended.
+.. IMPORTANT:: Do not use ZFS on top of a hardware controller which has its own cache management. ZFS
+  needs to directly communicate with disks. An HBA adapter or something like an LSI controller flashed
+  in ``IT`` mode is recommended.
 
 
 ZFS Administration
