@@ -1138,6 +1138,7 @@ pub(super) fn map_pve_storage(
             storage: resource.storage.unwrap_or_default(),
             node: resource.node.unwrap_or_default(),
             status: resource.status.unwrap_or_default(),
+            shared: resource.shared.unwrap_or_default(),
         }),
         _ => None,
     }

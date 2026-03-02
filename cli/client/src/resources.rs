@@ -85,6 +85,7 @@ impl fmt::Display for PrintResource<resource::PveStorageResource> {
             disk,
             maxdisk,
             id: _,
+            shared: _,
             ref storage,
             ref node,
             ref status,

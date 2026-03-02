@@ -355,6 +355,8 @@ pub struct PveStorageResource {
     pub node: String,
     /// Storage status
     pub status: String,
+    /// shared flag
+    pub shared: bool,
 }
 
 #[api]

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use proxmox_yew_comp::{Status, StatusRow};
@@ -72,12 +73,16 @@ impl RemotePanelComp {
         let mut nodes = 0;
         let mut cpu_usage = 0.0;
         let mut level = None;
+        let mut seen_shared_storages: HashSet<String> = HashSet::new();
 
         for res in ctx.props().resources.iter() {
             match res {
                 PveResource::Storage(store) => {
-                    storage += store.disk;
-                    max_storage += store.maxdisk;
+                    let storage_name = store.storage.clone();
+                    if seen_shared_storages.insert(storage_name) {
+                        storage += store.disk;
+                        max_storage += store.maxdisk;
+                    }
                 }
                 PveResource::Qemu(qemu) => {
                     guests += 1;

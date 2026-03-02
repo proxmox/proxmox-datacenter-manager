@@ -14,6 +14,7 @@ fn make_storage_resource(remote: &str, node: &str, storage_name: &str) -> Resour
         storage: storage_name.into(),
         node: node.into(),
         status: "available".into(),
+        shared: false,
     })
 }
 
