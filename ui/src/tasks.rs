@@ -118,7 +118,7 @@ pub fn format_optional_remote_upid(upid: &str, include_remote: bool) -> String {
             Ok(NativeUpid::PbsUpid(upid)) => {
                 format_task_description(&upid.worker_type, upid.worker_id.as_deref())
             }
-            Err(_) => format_upid(&remote_upid.upid()),
+            Err(_) => format_upid(remote_upid.upid()),
         };
 
         if include_remote {
@@ -155,7 +155,7 @@ impl TaskWorkerType {
             task_type if task_type.starts_with("vz") && task_type != "vzdump" => {
                 TaskWorkerType::Lxc
             }
-            task_type if task_type == "vzdump" => TaskWorkerType::Backup,
+            "vzdump" => TaskWorkerType::Backup,
             task_type if task_type.starts_with("ceph") => TaskWorkerType::Ceph,
             task_type if task_type.starts_with("ha") => TaskWorkerType::Ha,
             other => TaskWorkerType::Other(other.to_string()),
