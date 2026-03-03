@@ -1,3 +1,66 @@
+//! Helpers that can be used to parallelize API requests to remotes.
+//!
+//! ```no_run
+//! # use anyhow::Error;
+//! #
+//! # use pdm_api_types::remotes::{RemoteType, Remote};
+//! # use server::parallel_fetcher::ParallelFetcher;
+//! #
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Error> {
+//! #   let remotes: Vec<Remote> = Vec::new();
+//! #
+//!     async fn fetch_meaning(
+//!         _context: (),
+//!         remote: Remote,
+//!         node: String,
+//!     ) -> Result<i32, Error> {
+//!         match remote.ty {
+//!             RemoteType::Pve => {
+//!                 // Perform the API request here and return some result.
+//!                 Ok(42)
+//!             },
+//!             RemoteType::Pbs => Ok(42),
+//!         }
+//!     }
+//!
+//!     // This context can be passed to the function what is executed for every remote node.
+//!     let context = ();
+//!
+//!     let fetcher = ParallelFetcher::builder(context)
+//!         .max_connections(10)
+//!         .max_connections_per_remote(2)
+//!         .build();
+//!
+//!     let fetcher_response = fetcher
+//!         .do_for_all_remote_nodes(remotes.into_iter(), fetch_meaning)
+//!         .await;
+//!
+//!     for remote_response in fetcher_response {
+//!         match remote_response.nodes() {
+//!             Ok(node_responses) => {
+//!                 for node_response in node_responses {
+//!                     match node_response.data() {
+//!                         Ok(meaning) => assert_eq!(*meaning, 42),
+//!                         Err(err) =>
+//!                             log::error!(
+//!                                 "failed to retrieve result for node {}",
+//!                                 node_response.node_name()
+//!                             ),
+//!                     }
+//!                 }
+//!             }
+//!             Err(err) => log::error!(
+//!                 "failed to connect to remote {}",
+//!                 remote_response.remote()
+//!             ),
+//!         }
+//!     }
+//!
+//! #   Ok(())
+//! # }
+//! ```
+
 use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
@@ -14,7 +77,9 @@ use pdm_api_types::remotes::{Remote, RemoteType};
 
 use crate::connection;
 
+/// Maximum number of parallel outgoing API requests.
 pub const DEFAULT_MAX_CONNECTIONS: usize = 20;
+/// Maximum number of parallel outgoing API requests to the *same* remote.
 pub const DEFAULT_MAX_CONNECTIONS_PER_REMOTE: usize = 5;
 
 /// Response container type produced by [`ParallelFetcher::do_for_all_remotes`] or
