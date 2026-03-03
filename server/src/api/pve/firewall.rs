@@ -271,12 +271,10 @@ pub async fn pve_firewall_status(
 
     // 2: build context with guests for each remote and fetch node-level data
     let mut guests_per_remote = HashMap::new();
-    for (remote_id, remote_result) in &cluster_results.remote_results {
-        if let Ok(remote_result) = remote_result {
-            if let Ok(node_result) = remote_result.node_results.get("localhost").unwrap() {
-                guests_per_remote
-                    .insert(remote_id.clone(), Arc::new(node_result.data.guests.clone()));
-            }
+    for remote_response in &cluster_results {
+        let remote_id = remote_response.remote().to_string();
+        if let Ok(node_result) = remote_response.data() {
+            guests_per_remote.insert(remote_id, Arc::new(node_result.guests.clone()));
         }
     }
 
@@ -298,26 +296,18 @@ pub async fn pve_firewall_status(
     let mut result = Vec::new();
     for remote in &pve_remotes {
         let mut cluster_status = cluster_results
-            .remote_results
-            .get(&remote.id)
-            .and_then(|r| r.as_ref().ok())
-            .and_then(|r| r.node_results.get("localhost"))
-            .and_then(|n| n.as_ref().ok())
-            .and_then(|n| n.data.status.clone());
+            .get_remote_response(&remote.id)
+            .and_then(|r| r.data().ok())
+            .and_then(|n| n.status.clone());
 
-        let node_fetch_result = node_results.remote_results.get(&remote.id);
+        let node_fetch_result = node_results.get_remote_response(&remote.id);
 
         let nodes = node_fetch_result
-            .and_then(|r| r.as_ref().ok())
-            .map(|r| {
-                r.node_results
-                    .values()
-                    .filter_map(|n| n.as_ref().ok().map(|n| n.data.clone()))
-                    .collect()
-            })
+            .and_then(|r| r.nodes().ok())
+            .map(|r| r.iter().filter_map(|n| n.data().ok().cloned()).collect())
             .unwrap_or_default();
 
-        if node_fetch_result.and_then(|r| r.as_ref().err()).is_some() {
+        if node_fetch_result.and_then(|r| r.nodes().err()).is_some() {
             cluster_status = None;
         }
 
@@ -389,12 +379,8 @@ pub async fn cluster_firewall_status(
         .await;
 
     let cluster_data = cluster_results
-        .remote_results
-        .get(&remote)
-        .and_then(|r| r.as_ref().ok())
-        .and_then(|r| r.node_results.get("localhost"))
-        .and_then(|n| n.as_ref().ok())
-        .map(|n| &n.data);
+        .get_remote_response(&remote)
+        .and_then(|r| r.data().ok());
 
     let (cluster_status, guests) = match cluster_data {
         Some(data) => (data.status.clone(), data.guests.clone()),
@@ -418,19 +404,14 @@ pub async fn cluster_firewall_status(
         .await;
 
     // 3: collect node results
-    let node_fetch_result = node_results.remote_results.get(&remote);
+    let node_fetch_result = node_results.get_remote_response(&remote);
 
     let nodes = node_fetch_result
-        .and_then(|r| r.as_ref().ok())
-        .map(|r| {
-            r.node_results
-                .values()
-                .filter_map(|n| n.as_ref().ok().map(|n| n.data.clone()))
-                .collect()
-        })
+        .and_then(|r| r.nodes().ok())
+        .map(|r| r.iter().filter_map(|n| n.data().ok().cloned()).collect())
         .unwrap_or_default();
 
-    let final_status = if node_fetch_result.and_then(|r| r.as_ref().err()).is_some() {
+    let final_status = if node_fetch_result.and_then(|r| r.nodes().err()).is_some() {
         None
     } else {
         cluster_status

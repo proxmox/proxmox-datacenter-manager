@@ -16,7 +16,7 @@ use proxmox_section_config::typed::SectionConfigData;
 
 use server::{
     connection,
-    parallel_fetcher::{NodeResults, ParallelFetcher},
+    parallel_fetcher::ParallelFetcher,
     pbs_client,
     remote_tasks::{
         self,
@@ -269,30 +269,36 @@ async fn fetch_remotes(
         .max_connections_per_remote(CONNECTIONS_PER_PVE_REMOTE)
         .build();
 
-    let fetch_results = fetcher
+    let fetch_response = fetcher
         .do_for_all_remote_nodes(remotes.into_iter(), fetch_tasks_from_single_node)
         .await;
 
     let mut all_tasks = Vec::new();
     let mut node_success_map = NodeFetchSuccessMap::default();
 
-    for (remote_name, result) in fetch_results.remote_results {
-        match result {
-            Ok(remote_result) => {
-                for (node_name, node_result) in remote_result.node_results {
-                    match node_result {
-                        Ok(NodeResults { data, .. }) => {
+    for remote_response in fetch_response {
+        let (remote, node_responses) = remote_response.into_remote_and_nodes();
+
+        match node_responses {
+            Ok(node_responses) => {
+                for node_response in node_responses {
+                    let node_name = node_response.node_name().to_string();
+
+                    match node_response.into_data() {
+                        Ok(data) => {
                             all_tasks.extend(data);
-                            node_success_map.set_node_success(remote_name.clone(), node_name);
+                            node_success_map.set_node_success(remote.clone(), node_name);
                         }
                         Err(err) => {
-                            log::error!("could not fetch tasks from remote '{remote_name}', node {node_name}: {err:#}");
+                            log::error!(
+                                "could not fetch tasks from remote '{remote}', node {node_name}: {err:#}",
+                            );
                         }
                     }
                 }
             }
             Err(err) => {
-                log::error!("could not fetch tasks from remote '{remote_name}': {err:#}");
+                log::error!("could not fetch tasks from remote '{remote}': {err:#}",);
             }
         }
     }

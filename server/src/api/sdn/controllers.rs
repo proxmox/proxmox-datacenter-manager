@@ -9,10 +9,7 @@ use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use pve_api_types::ListControllersType;
 
-use crate::{
-    api::pve,
-    parallel_fetcher::{NodeResults, ParallelFetcher},
-};
+use crate::{api::pve, parallel_fetcher::ParallelFetcher};
 
 pub const ROUTER: Router = Router::new().get(&API_METHOD_LIST_CONTROLLERS);
 
@@ -105,26 +102,19 @@ pub async fn list_controllers(
         })
         .await;
 
-    for (remote, remote_result) in results.remote_results.into_iter() {
-        match remote_result {
-            Ok(remote_result) => {
-                for (node, node_result) in remote_result.node_results.into_iter() {
-                    match node_result {
-                        Ok(NodeResults { data, .. }) => {
-                            vnets.extend(data.into_iter().map(|controller| ListController {
-                                remote: remote.clone(),
-                                controller,
-                            }))
-                        }
-                        Err(error) => {
-                            log::error!(
-                                "could not fetch vnets from remote {} node {}: {error:#}",
-                                remote,
-                                node
-                            );
-                        }
-                    }
-                }
+    for remote_response in results {
+        let remote = remote_response.remote().to_string();
+
+        match remote_response.into_data() {
+            Ok(sdn_controllers) => {
+                vnets.extend(
+                    sdn_controllers
+                        .into_iter()
+                        .map(|controller| ListController {
+                            remote: remote.clone(),
+                            controller,
+                        }),
+                )
             }
             Err(error) => {
                 log::error!("could not fetch vnets from remote {}: {error:#}", remote)

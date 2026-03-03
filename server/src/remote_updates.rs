@@ -15,7 +15,7 @@ use pdm_api_types::RemoteUpid;
 use pdm_buildcfg::PDM_CACHE_DIR_M;
 
 use crate::connection;
-use crate::parallel_fetcher::{NodeResults, ParallelFetcher};
+use crate::parallel_fetcher::ParallelFetcher;
 
 pub const UPDATE_CACHE: &str = concat!(PDM_CACHE_DIR_M!(), "/remote-updates.json");
 
@@ -208,36 +208,34 @@ async fn update_cached_summary_for_node(
 pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Error> {
     let fetcher = ParallelFetcher::new(());
 
-    let fetch_results = fetcher
+    let fetch_response = fetcher
         .do_for_all_remote_nodes(remotes.clone().into_iter(), fetch_available_updates)
         .await;
 
     let mut content = get_cached_summary_or_default()?;
 
-    for (remote_name, result) in fetch_results.remote_results {
+    for remote_response in fetch_response {
+        let remote_name = remote_response.remote().to_string();
+
         let entry = content
             .remotes
             .entry(remote_name.clone())
-            .or_insert_with(|| {
-                // unwrap: remote name came from the same config, should be safe.
-                // TODO: Include type in ParallelFetcher results - should be much more efficient.
-                let remote_type = remotes.iter().find(|r| r.id == remote_name).unwrap().ty;
-
-                RemoteUpdateSummary {
-                    nodes: Default::default(),
-                    remote_type,
-                    status: RemoteUpdateStatus::Success,
-                }
+            .or_insert_with(|| RemoteUpdateSummary {
+                nodes: Default::default(),
+                remote_type: remote_response.remote_type(),
+                status: RemoteUpdateStatus::Success,
             });
 
-        match result {
-            Ok(remote_result) => {
+        match remote_response.nodes() {
+            Ok(node_responses) => {
                 entry.status = RemoteUpdateStatus::Success;
 
-                for (node_name, node_result) in remote_result.node_results {
-                    match node_result {
-                        Ok(NodeResults { data, .. }) => {
-                            entry.nodes.insert(node_name, data.into());
+                for node_response in node_responses {
+                    let node_name = node_response.node_name().to_string();
+
+                    match node_response.data() {
+                        Ok(update_info) => {
+                            entry.nodes.insert(node_name, update_info.clone().into());
                         }
                         Err(err) => {
                             // Could not fetch updates from node

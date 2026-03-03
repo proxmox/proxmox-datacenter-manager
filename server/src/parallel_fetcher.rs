@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
@@ -18,45 +17,149 @@ use crate::connection;
 pub const DEFAULT_MAX_CONNECTIONS: usize = 20;
 pub const DEFAULT_MAX_CONNECTIONS_PER_REMOTE: usize = 5;
 
-pub struct ParallelFetcher<C> {
-    max_connections: usize,
-    max_connections_per_remote: usize,
-    context: C,
+/// Response container type produced by [`ParallelFetcher::do_for_all_remotes`] or
+/// [`ParallelFetcher::do_for_all_remote_nodes`].
+///
+/// This type contains the individual responses for each remote. These can be accessed
+/// by iterating over this type (`.iter()`, `.into_iter()`) or by calling
+/// [`FetcherResponse::get_remote_response`].
+pub struct FetcherResponse<R> {
+    // NOTE: This vector is sorted ascending by remote name.
+    remote_responses: Vec<RemoteResponse<R>>,
 }
 
-pub struct FetchResults<T> {
-    /// Per-remote results. The key in the map is the remote name.
-    pub remote_results: HashMap<String, Result<RemoteResult<T>, Error>>,
-}
+impl<R> IntoIterator for FetcherResponse<R> {
+    type Item = RemoteResponse<R>;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
 
-impl<T> Default for FetchResults<T> {
-    fn default() -> Self {
-        Self {
-            remote_results: Default::default(),
-        }
+    fn into_iter(self) -> Self::IntoIter {
+        self.remote_responses.into_iter()
     }
 }
 
-#[derive(Debug)]
-pub struct RemoteResult<T> {
-    /// Per-node results. The key in the map is the node name.
-    pub node_results: HashMap<String, Result<NodeResults<T>, Error>>,
-}
+impl<'a, O> IntoIterator for &'a FetcherResponse<O> {
+    type Item = &'a RemoteResponse<O>;
+    type IntoIter = std::slice::Iter<'a, RemoteResponse<O>>;
 
-impl<T> Default for RemoteResult<T> {
-    fn default() -> Self {
-        Self {
-            node_results: Default::default(),
-        }
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
-#[derive(Debug)]
-pub struct NodeResults<T> {
-    /// The data returned from the passed function.
-    pub data: T,
-    /// Time needed waiting for the passed function to return.
-    pub api_response_time: Duration,
+impl<R> FetcherResponse<R> {
+    /// Create a new iterator of all contained [`RemoteResponse`]s.
+    pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, RemoteResponse<R>> {
+        self.remote_responses.iter()
+    }
+
+    /// Get the response for a particular remote.
+    pub fn get_remote_response(&self, remote: &str) -> Option<&RemoteResponse<R>> {
+        self.remote_responses
+            .binary_search_by(|probe| probe.remote().cmp(remote))
+            .ok()
+            .map(|index| &self.remote_responses[index])
+    }
+}
+
+/// Response container for one remote.
+pub struct RemoteResponse<R> {
+    remote_name: String,
+    remote_type: RemoteType,
+    response: R,
+}
+
+impl<R> RemoteResponse<R> {
+    /// Returns the remote id.
+    pub fn remote(&self) -> &str {
+        self.remote_name.as_str()
+    }
+
+    /// Returns the type of the remote.
+    pub fn remote_type(&self) -> RemoteType {
+        self.remote_type
+    }
+}
+
+impl<T> RemoteResponse<NodeResponse<T>> {
+    /// Access the data that was returned by the handler function.
+    pub fn data(&self) -> Result<&T, &Error> {
+        self.response.data()
+    }
+
+    /// Access the data that was returned by the handler function, consuming self.
+    pub fn into_data(self) -> Result<T, Error> {
+        self.response.into_data()
+    }
+
+    /// The [`Duration`] of the handler call.
+    pub fn handler_duration(&self) -> Duration {
+        self.response.handler_duration()
+    }
+}
+
+impl<T> RemoteResponse<MultipleNodesResponse<T>> {
+    /// Access the node responses.
+    ///
+    /// This returns an error if the list of nodes could not be fetched
+    /// during [`ParallelFetcher::do_for_all_remote_nodes`].
+    pub fn nodes(&self) -> Result<&[NodeResponse<T>], &Error> {
+        self.response.inner.as_ref().map(|inner| inner.as_slice())
+    }
+
+    /// Access the node responses, consuming self.
+    ///
+    /// This returns an error if the list of nodes could not be fetched
+    /// during [`ParallelFetcher::do_for_all_remote_nodes`].
+    pub fn into_nodes(self) -> Result<Vec<NodeResponse<T>>, Error> {
+        self.response.inner
+    }
+
+    /// Access the remote name and node responses, consuming self.
+    ///
+    /// The node part is an error if the list of nodes could not be fetched
+    /// during [`ParallelFetcher::do_for_all_remote_nodes`].
+    pub fn into_remote_and_nodes(self) -> (String, Result<Vec<NodeResponse<T>>, Error>) {
+        (self.remote_name, self.response.inner)
+    }
+}
+
+/// Wrapper type used to contain the node responses when using
+/// [`ParallelFetcher::do_for_all_remote_nodes`].
+pub struct MultipleNodesResponse<T> {
+    inner: Result<Vec<NodeResponse<T>>, Error>,
+}
+
+/// Response for a single node.
+pub struct NodeResponse<T> {
+    node_name: String,
+    data: Result<T, Error>,
+    api_response_time: Duration,
+}
+
+impl<T> NodeResponse<T> {
+    /// Name of the node.
+    ///
+    /// At the moment, this is always `localhost` if `do_for_all_remotes` was used.
+    /// If `do_for_all_remote_nodes` is used, this is the actual nodename for PVE remotes and
+    /// `localhost` for PBS remotes.
+    pub fn node_name(&self) -> &str {
+        &self.node_name
+    }
+
+    /// Access the data that was returned by the handler function.
+    pub fn data(&self) -> Result<&T, &Error> {
+        self.data.as_ref()
+    }
+
+    /// Access the data that was returned by the handler function, consuming `self`.
+    pub fn into_data(self) -> Result<T, Error> {
+        self.data
+    }
+
+    /// The [`Duration`] of the handler call.
+    pub fn handler_duration(&self) -> Duration {
+        self.api_response_time
+    }
 }
 
 /// Builder for the [`ParallelFetcher`] struct.
@@ -101,6 +204,13 @@ impl<C> ParallelFetcherBuilder<C> {
     }
 }
 
+/// Helper for parallelizing API requests to multiple remotes/nodes.
+pub struct ParallelFetcher<C> {
+    max_connections: usize,
+    max_connections_per_remote: usize,
+    context: C,
+}
+
 impl<C: Clone + Send + 'static> ParallelFetcher<C> {
     /// Create a [`ParallelFetcher`] with default settings.
     pub fn new(context: C) -> Self {
@@ -112,7 +222,12 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
         ParallelFetcherBuilder::new(context)
     }
 
-    pub async fn do_for_all_remote_nodes<A, F, T, Ft>(self, remotes: A, func: F) -> FetchResults<T>
+    /// Invoke a function `func` for all nodes of a given list of remotes in parallel.
+    pub async fn do_for_all_remote_nodes<A, F, T, Ft>(
+        self,
+        remotes: A,
+        func: F,
+    ) -> FetcherResponse<MultipleNodesResponse<T>>
     where
         A: Iterator<Item = Remote>,
         F: Fn(C, Remote, String) -> Ft + Clone + Send + 'static,
@@ -142,20 +257,20 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
             }
         }
 
-        let mut results = FetchResults::default();
+        let mut remote_responses = Vec::new();
 
         while let Some(a) = remote_join_set.join_next().await {
             match a {
-                Ok((remote_name, remote_result)) => {
-                    results.remote_results.insert(remote_name, remote_result);
-                }
+                Ok(remote_response) => remote_responses.push(remote_response),
                 Err(err) => {
                     log::error!("join error when waiting for future: {err}")
                 }
             }
         }
 
-        results
+        remote_responses.sort_by(|a, b| a.remote().cmp(b.remote()));
+
+        FetcherResponse { remote_responses }
     }
 
     async fn fetch_remote<F, Ft, T>(
@@ -164,13 +279,13 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
         semaphore: Arc<Semaphore>,
         func: F,
         max_connections_per_remote: usize,
-    ) -> (String, Result<RemoteResult<T>, Error>)
+    ) -> RemoteResponse<MultipleNodesResponse<T>>
     where
         F: Fn(C, Remote, String) -> Ft + Clone + Send + 'static,
         Ft: Future<Output = Result<T, Error>> + Send + 'static,
         T: Send + Debug + 'static,
     {
-        let mut per_remote_results = RemoteResult::default();
+        let mut node_responses = Vec::new();
 
         let mut permit = Some(Arc::clone(&semaphore).acquire_owned().await.unwrap());
         let per_remote_semaphore = Arc::new(Semaphore::new(max_connections_per_remote));
@@ -188,7 +303,13 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
                 .await
                 {
                     Ok(nodes) => nodes,
-                    Err(err) => return (remote.id.clone(), Err(err)),
+                    Err(err) => {
+                        return RemoteResponse {
+                            remote_name: remote.id,
+                            remote_type: remote.ty,
+                            response: MultipleNodesResponse { inner: Err(err) },
+                        }
+                    }
                 };
 
                 let mut nodes_join_set = JoinSet::new();
@@ -228,10 +349,8 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
 
                 while let Some(join_result) = nodes_join_set.join_next().await {
                     match join_result {
-                        Ok((node_name, per_node_result)) => {
-                            per_remote_results
-                                .node_results
-                                .insert(node_name, per_node_result);
+                        Ok(node_response) => {
+                            node_responses.push(node_response);
                         }
                         Err(e) => {
                             log::error!("join error when waiting for future: {e}")
@@ -240,7 +359,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
                 }
             }
             RemoteType::Pbs => {
-                let (nodename, result) = Self::fetch_node(
+                let node_response = Self::fetch_node(
                     func,
                     context,
                     remote.clone(),
@@ -250,14 +369,17 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
                 )
                 .await;
 
-                match result {
-                    Ok(a) => per_remote_results.node_results.insert(nodename, Ok(a)),
-                    Err(err) => per_remote_results.node_results.insert(nodename, Err(err)),
-                };
+                node_responses.push(node_response)
             }
         }
 
-        (remote.id, Ok(per_remote_results))
+        RemoteResponse {
+            remote_name: remote.id,
+            remote_type: remote.ty,
+            response: MultipleNodesResponse {
+                inner: Ok(node_responses),
+            },
+        }
     }
 
     async fn fetch_node<F, Ft, T>(
@@ -267,7 +389,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
         node: String,
         _permit: OwnedSemaphorePermit,
         _per_remote_connections_permit: Option<OwnedSemaphorePermit>,
-    ) -> (String, Result<NodeResults<T>, Error>)
+    ) -> NodeResponse<T>
     where
         F: Fn(C, Remote, String) -> Ft + Clone + Send + 'static,
         Ft: Future<Output = Result<T, Error>> + Send + 'static,
@@ -277,19 +399,19 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
         let result = func(context, remote.clone(), node.clone()).await;
         let api_response_time = now.elapsed();
 
-        match result {
-            Ok(data) => (
-                node,
-                Ok(NodeResults {
-                    data,
-                    api_response_time,
-                }),
-            ),
-            Err(err) => (node, Err(err)),
+        NodeResponse {
+            node_name: node,
+            data: result,
+            api_response_time,
         }
     }
 
-    pub async fn do_for_all_remotes<A, F, T, Ft>(self, remotes: A, func: F) -> FetchResults<T>
+    /// Invoke a function `func` for all passed remotes in parallel.
+    pub async fn do_for_all_remotes<A, F, T, Ft>(
+        self,
+        remotes: A,
+        func: F,
+    ) -> FetcherResponse<NodeResponse<T>>
     where
         A: Iterator<Item = Remote>,
         F: Fn(C, Remote, String) -> Ft + Clone + Send + 'static,
@@ -299,21 +421,31 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
         let total_connections_semaphore = Arc::new(Semaphore::new(self.max_connections));
 
         let mut node_join_set = JoinSet::new();
-        let mut results = FetchResults::default();
 
         for remote in remotes {
             let total_connections_semaphore = total_connections_semaphore.clone();
 
             let remote_id = remote.id.clone();
+            let remote_type = remote.ty;
+
             let context = self.context.clone();
             let func = func.clone();
             let future = async move {
                 let permit = total_connections_semaphore.acquire_owned().await.unwrap();
 
-                (
-                    remote_id,
-                    Self::fetch_node(func, context, remote, "localhost".into(), permit, None).await,
-                )
+                RemoteResponse {
+                    remote_type,
+                    remote_name: remote_id,
+                    response: Self::fetch_node(
+                        func,
+                        context,
+                        remote,
+                        "localhost".into(),
+                        permit,
+                        None,
+                    )
+                    .await,
+                }
             };
 
             if let Some(log_context) = LogContext::current() {
@@ -323,29 +455,19 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
             }
         }
 
+        let mut remote_responses = Vec::new();
+
         while let Some(a) = node_join_set.join_next().await {
             match a {
-                Ok((remote_id, (node_id, node_result))) => {
-                    let mut node_results = HashMap::new();
-                    node_results.insert(node_id, node_result);
-
-                    let remote_result = RemoteResult { node_results };
-
-                    if results
-                        .remote_results
-                        .insert(remote_id, Ok(remote_result))
-                        .is_some()
-                    {
-                        // should never happen, but log for good measure if it actually does
-                        log::warn!("made multiple requests for a remote!");
-                    }
-                }
+                Ok(remote_response) => remote_responses.push(remote_response),
                 Err(err) => {
                     log::error!("join error when waiting for future: {err}")
                 }
             }
         }
 
-        results
+        remote_responses.sort_by(|a, b| a.remote().cmp(b.remote()));
+
+        FetcherResponse { remote_responses }
     }
 }
