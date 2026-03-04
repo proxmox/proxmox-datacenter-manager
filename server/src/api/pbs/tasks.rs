@@ -47,8 +47,7 @@ const UPID_API_SUBDIRS: SubdirMap = &sorted!([
 )]
 /// Get the list of tasks either for a specific node, or query all at once.
 async fn list_tasks(remote: String) -> Result<Vec<pbs_api_types::TaskListItem>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let client = pbs_client::connect_to_remote(&remotes, &remote)?;
+    let client = pbs_client::connect_to_remote_by_id(&remote)?;
 
     Ok(client.get_task_list(Default::default()).await?)
 }
@@ -67,11 +66,9 @@ async fn list_tasks(remote: String) -> Result<Vec<pbs_api_types::TaskListItem>, 
 )]
 /// Get the status of a task from a Proxmox VE instance.
 async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
     crate::api::verify_upid(&remote, RemoteType::Pbs, &upid)?;
 
-    let client = pbs_client::connect_to_remote(&remotes, upid.remote())?;
+    let client = pbs_client::connect_to_remote_by_id(upid.remote())?;
 
     Ok(client.stop_task(upid.upid()).await?)
 }
@@ -101,11 +98,9 @@ pub async fn get_task_status(
     upid: RemoteUpid,
     wait: bool,
 ) -> Result<pdm_api_types::pbs::TaskStatus, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
     crate::api::verify_upid(&remote, RemoteType::Pbs, &upid)?;
 
-    let client = pbs_client::connect_to_remote(&remotes, upid.remote())?;
+    let client = pbs_client::connect_to_remote_by_id(upid.remote())?;
 
     loop {
         let status = client.get_task_status(upid.upid()).await?;
@@ -156,11 +151,9 @@ async fn read_task_log(
     limit: Option<u64>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<pbs_client::TaskLogLine>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
     crate::api::verify_upid(&remote, RemoteType::Pbs, &upid)?;
 
-    let client = pbs_client::connect_to_remote(&remotes, &remote)?;
+    let client = pbs_client::connect_to_remote_by_id(&remote)?;
 
     let response = client
         .get_task_log(upid.upid(), download, limit, start)

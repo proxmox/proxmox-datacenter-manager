@@ -43,6 +43,12 @@ pub fn connect_to_remote(
     connect(get_remote(config, id)?)
 }
 
+/// Load remote config, look up a PBS remote by id and connect.
+pub fn connect_to_remote_by_id(id: &str) -> Result<Box<PbsClient>, anyhow::Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    connect_to_remote(&remotes, id)
+}
+
 pub struct PbsClient(pub proxmox_client::Client);
 
 impl std::ops::Deref for PbsClient {

@@ -19,7 +19,7 @@ use crate::api::pve::get_remote;
 
 use super::{
     check_guest_delete_perms, check_guest_list_permissions, check_guest_permissions,
-    connect_to_remote, new_remote_upid,
+    connect_to_remote, connect_to_remote_by_id, new_remote_upid,
 };
 
 use super::find_node_for_vm;
@@ -77,9 +77,7 @@ pub async fn list_lxc(
     // and fine-grained checks once those are implemented for all API calls..
     let (auth_id, user_info, top_level_allowed) = check_guest_list_permissions(&remote, rpcenv)?;
 
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let list = if let Some(node) = node {
         pve.list_lxc(&node).await?
@@ -139,9 +137,7 @@ pub async fn lxc_get_config(
     state: ConfigurationState,
     snapshot: Option<String>,
 ) -> Result<pve_api_types::LxcConfig, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -174,9 +170,7 @@ pub async fn lxc_get_pending(
     node: Option<String>,
     vmid: u32,
 ) -> Result<Vec<PendingConfigValue>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -206,9 +200,7 @@ pub async fn lxc_get_status(
     node: Option<String>,
     vmid: u32,
 ) -> Result<pve_api_types::LxcStatus, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -237,9 +229,7 @@ pub async fn lxc_start(
     node: Option<String>,
     vmid: u32,
 ) -> Result<RemoteUpid, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -270,9 +260,7 @@ pub async fn lxc_stop(
     node: Option<String>,
     vmid: u32,
 ) -> Result<RemoteUpid, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -303,9 +291,7 @@ pub async fn lxc_shutdown(
     node: Option<String>,
     vmid: u32,
 ) -> Result<RemoteUpid, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -379,8 +365,7 @@ pub async fn lxc_migrate(
 
     log::info!("in-cluster migration requested for remote {remote:?} ct {vmid} to node {target:?}");
 
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 

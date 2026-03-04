@@ -9,8 +9,7 @@ use pdm_api_types::PRIV_RESOURCE_AUDIT;
 
 use pbs_api_types::NODE_SCHEMA;
 
-use crate::connection;
-use crate::pbs_client::get_remote;
+use crate::pbs_client;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -48,9 +47,7 @@ const SUBDIRS: SubdirMap = &sorted!([
 )]
 /// Get subscription for the PBS remote
 async fn get_subscription(remote: String) -> Result<proxmox_subscription::SubscriptionInfo, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let remote = get_remote(&remotes, &remote)?;
-    Ok(connection::make_pbs_client(remote)?
+    Ok(pbs_client::connect_to_remote_by_id(&remote)?
         .get_subscription()
         .await?)
 }

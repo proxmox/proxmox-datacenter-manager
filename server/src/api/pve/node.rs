@@ -50,8 +50,7 @@ const SUBDIRS: SubdirMap = &sorted!([
 )]
 /// Get config for the node.
 async fn get_config(remote: String, node: String) -> Result<NodeConfig, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let client = super::connect_to_remote(&remotes, &remote)?;
+    let client = super::connect_to_remote_by_id(&remote)?;
     let result = client.node_config(&node, None).await?;
     Ok(result)
 }
@@ -88,8 +87,7 @@ async fn get_network(
     node: String,
     interface_type: Option<pve_api_types::ListNetworksType>,
 ) -> Result<Vec<pve_api_types::NetworkInterface>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let client = super::connect_to_remote(&remotes, &remote)?;
+    let client = super::connect_to_remote_by_id(&remote)?;
     let networks = client.list_networks(&node, interface_type).await?;
     Ok(networks)
 }
@@ -151,8 +149,7 @@ async fn get_storages(
     storage: Option<String>,
     target: Option<String>,
 ) -> Result<Vec<pve_api_types::StorageInfo>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let client = super::connect_to_remote(&remotes, &remote)?;
+    let client = super::connect_to_remote_by_id(&remote)?;
     let list = client
         .list_storages(&node, content, enabled, format, storage, target)
         .await?;
@@ -173,8 +170,7 @@ async fn get_storages(
 )]
 /// Get status for the node
 async fn get_status(remote: String, node: String) -> Result<pve_api_types::NodeStatus, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let client = super::connect_to_remote(&remotes, &remote)?;
+    let client = super::connect_to_remote_by_id(&remote)?;
     let result = client.node_status(&node).await?;
     Ok(result)
 }
@@ -196,8 +192,7 @@ async fn get_subscription(
     remote: String,
     node: String,
 ) -> Result<pve_api_types::NodeSubscriptionInfo, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let client = super::connect_to_remote(&remotes, &remote)?;
+    let client = super::connect_to_remote_by_id(&remote)?;
     let result = client.get_subscription(&node).await?;
     Ok(result)
 }

@@ -16,7 +16,7 @@ use pdm_api_types::remotes::{Remote, REMOTE_ID_SCHEMA};
 use pdm_api_types::{NODE_SCHEMA, VMID_SCHEMA};
 use pdm_api_types::{PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY, PRIV_SYS_MODIFY};
 
-use super::{connect_to_remote, find_node_for_vm};
+use super::{connect_to_remote_by_id, find_node_for_vm};
 use crate::connection::PveClient;
 use crate::parallel_fetcher::ParallelFetcher;
 
@@ -337,8 +337,7 @@ pub async fn cluster_firewall_options(
     remote: String,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<pve_api_types::ClusterFirewallOptions, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     Ok(pve.cluster_firewall_options().await?)
 }
@@ -444,8 +443,7 @@ pub async fn node_firewall_options(
     node: String,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<pve_api_types::NodeFirewallOptions, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     Ok(pve.node_firewall_options(&node).await?)
 }
@@ -470,8 +468,7 @@ pub async fn node_firewall_status(
     node: String,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<NodeFirewallStatus, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let guests = pve.cluster_resources(Some(ClusterResourceKind::Vm)).await?;
 
@@ -521,8 +518,7 @@ pub async fn cluster_firewall_rules(
     remote: String,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<pve_api_types::ListFirewallRules>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     Ok(pve.list_cluster_firewall_rules().await?)
 }
@@ -550,9 +546,7 @@ pub async fn lxc_firewall_options(
     vmid: u32,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<pve_api_types::GuestFirewallOptions, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -579,8 +573,7 @@ pub async fn update_cluster_firewall_options(
     update: pve_api_types::UpdateClusterFirewallOptions,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     Ok(pve.set_cluster_firewall_options(update).await?)
 }
@@ -609,8 +602,7 @@ pub async fn update_node_firewall_options(
     update: pve_api_types::UpdateNodeFirewallOptions,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     Ok(pve.set_node_firewall_options(&node, update).await?)
 }
@@ -639,8 +631,7 @@ pub async fn node_firewall_rules(
     node: String,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<pve_api_types::ListFirewallRules>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     Ok(pve.list_node_firewall_rules(&node).await?)
 }
@@ -668,9 +659,7 @@ pub async fn qemu_firewall_options(
     vmid: u32,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<pve_api_types::GuestFirewallOptions, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -704,9 +693,7 @@ pub async fn update_lxc_firewall_options(
     update: pve_api_types::UpdateGuestFirewallOptions,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -740,9 +727,7 @@ pub async fn update_qemu_firewall_options(
     update: pve_api_types::UpdateGuestFirewallOptions,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -776,9 +761,7 @@ pub async fn lxc_firewall_rules(
     vmid: u32,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<pve_api_types::ListFirewallRules>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -812,9 +795,7 @@ pub async fn qemu_firewall_rules(
     vmid: u32,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<pve_api_types::ListFirewallRules>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 

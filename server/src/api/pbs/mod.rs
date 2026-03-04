@@ -120,8 +120,7 @@ fn list_remotes() -> Result<Vec<RemoteListEntry>, Error> {
 )]
 /// List the PBS remote's datastores.
 async fn list_datastores(remote: String) -> Result<Vec<pbs_api_types::DataStoreConfig>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    Ok(pbs_client::connect_to_remote(&remotes, &remote)?
+    Ok(pbs_client::connect_to_remote_by_id(&remote)?
         .list_datastores()
         .await?)
 }
@@ -150,9 +149,7 @@ async fn list_namespaces(
     remote: String,
     params: pbs_client::DatstoreListNamespaces,
 ) -> Result<Vec<pbs_api_types::NamespaceListItem>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let remote = get_remote(&remotes, &remote)?;
-    Ok(connection::make_pbs_client(remote)?
+    Ok(pbs_client::connect_to_remote_by_id(&remote)?
         .list_datastore_namespaces(params)
         .await?)
 }
@@ -301,7 +298,7 @@ pub async fn scan_remote_pbs(
 )]
 /// Get status for the PBS remote
 async fn get_status(remote: String) -> Result<pbs_api_types::NodeStatus, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let remote = get_remote(&remotes, &remote)?;
-    Ok(connection::make_pbs_client(remote)?.node_status().await?)
+    Ok(pbs_client::connect_to_remote_by_id(&remote)?
+        .node_status()
+        .await?)
 }

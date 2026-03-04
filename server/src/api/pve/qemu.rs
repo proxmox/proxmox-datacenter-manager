@@ -20,7 +20,7 @@ use crate::api::pve::get_remote;
 
 use super::{
     check_guest_delete_perms, check_guest_list_permissions, check_guest_permissions,
-    connect_to_remote, find_node_for_vm, new_remote_upid,
+    connect_to_remote, connect_to_remote_by_id, find_node_for_vm, new_remote_upid,
 };
 
 pub const ROUTER: Router = Router::new()
@@ -81,9 +81,7 @@ pub async fn list_qemu(
     // and fine-grained checks once those are implemented for all API calls..
     let (auth_id, user_info, top_level_allowed) = check_guest_list_permissions(&remote, rpcenv)?;
 
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let list = if let Some(node) = node {
         pve.list_qemu(&node, None).await?
@@ -143,9 +141,7 @@ pub async fn qemu_get_config(
     state: ConfigurationState,
     snapshot: Option<String>,
 ) -> Result<pve_api_types::QemuConfig, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -178,9 +174,7 @@ pub async fn qemu_get_pending(
     node: Option<String>,
     vmid: u32,
 ) -> Result<Vec<PendingConfigValue>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -210,9 +204,7 @@ pub async fn qemu_get_status(
     node: Option<String>,
     vmid: u32,
 ) -> Result<pve_api_types::QemuStatus, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -241,9 +233,7 @@ pub async fn qemu_start(
     node: Option<String>,
     vmid: u32,
 ) -> Result<RemoteUpid, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -276,9 +266,7 @@ pub async fn qemu_stop(
     node: Option<String>,
     vmid: u32,
 ) -> Result<RemoteUpid, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -309,9 +297,7 @@ pub async fn qemu_shutdown(
     node: Option<String>,
     vmid: u32,
 ) -> Result<RemoteUpid, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -395,8 +381,7 @@ pub async fn qemu_migrate(
 ) -> Result<RemoteUpid, Error> {
     log::info!("in-cluster migration requested for remote {remote:?} vm {vmid} to node {target:?}");
 
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 
@@ -449,8 +434,7 @@ async fn qemu_migrate_preconditions(
     target: Option<String>,
     vmid: u32,
 ) -> Result<QemuMigratePreconditions, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
 

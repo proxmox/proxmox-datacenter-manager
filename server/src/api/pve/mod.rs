@@ -122,6 +122,12 @@ fn connect_to_remote(
     connect(get_remote(config, id)?)
 }
 
+/// Load remote config, look up a PVE remote by id and connect.
+pub fn connect_to_remote_by_id(id: &str) -> Result<Arc<PveClient>, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    connect_to_remote(&remotes, id)
+}
+
 #[api(
     returns: {
         type: Array,
@@ -166,9 +172,7 @@ fn list_remotes() -> Result<Vec<RemoteListEntry>, Error> {
 pub async fn list_nodes(
     remote: String,
 ) -> Result<Vec<pve_api_types::ClusterNodeIndexResponse>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    Ok(connect_to_remote(&remotes, &remote)?.list_nodes().await?)
+    Ok(connect_to_remote_by_id(&remote)?.list_nodes().await?)
 }
 
 #[api(
@@ -199,7 +203,6 @@ pub async fn cluster_resources(
     kind: Option<ClusterResourceKind>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<PveResource>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
     let user_info = CachedUserInfo::new()?;
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -209,7 +212,7 @@ pub async fn cluster_resources(
         http_bail!(FORBIDDEN, "user has no access to resource list");
     }
 
-    let cluster_resources = connect_to_remote(&remotes, &remote)?
+    let cluster_resources = connect_to_remote_by_id(&remote)?
         .cluster_resources(kind)
         .await?
         .into_iter()
@@ -525,11 +528,7 @@ pub async fn list_realm_remote_pve(
 )]
 /// Return the remote's cluster options.
 pub async fn get_options(remote: String) -> Result<serde_json::Value, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let options = connect_to_remote(&remotes, &remote)?
-        .cluster_options()
-        .await?;
+    let options = connect_to_remote_by_id(&remote)?.cluster_options().await?;
 
     Ok(options)
 }

@@ -7,7 +7,7 @@ use proxmox_sortable_macro::sortable;
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use pdm_api_types::{NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PVE_STORAGE_ID_SCHEMA};
 
-use super::connect_to_remote;
+use super::connect_to_remote_by_id;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(STORAGE_SUBDIR))
@@ -39,9 +39,7 @@ pub async fn get_status(
     node: String,
     storage: String,
 ) -> Result<pve_api_types::StorageStatus, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     Ok(pve.storage_status(&node, &storage).await?)
 }

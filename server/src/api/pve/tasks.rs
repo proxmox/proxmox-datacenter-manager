@@ -12,7 +12,7 @@ use pdm_api_types::{
     TASKLOG_DOWNLOAD_PARAM_SCHEMA, TASKLOG_LIMIT_PARAM_SCHEMA, TASKLOG_START_PARAM_SCHEMA,
 };
 
-use super::{connect, connect_to_remote, get_remote};
+use super::connect_to_remote_by_id;
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TASKS)
@@ -56,9 +56,7 @@ async fn list_tasks(
     remote: String,
     node: Option<String>,
 ) -> Result<Vec<pve_api_types::ListTasksResponse>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
-    let pve = connect_to_remote(&remotes, &remote)?;
+    let pve = connect_to_remote_by_id(&remote)?;
 
     if let Some(node) = node {
         Ok(pve.get_task_list(&node, Default::default()).await?)
@@ -85,14 +83,10 @@ async fn list_tasks(
 )]
 /// Get the status of a task from a Proxmox VE instance.
 async fn stop_task(remote: String, upid: RemoteUpid) -> Result<(), Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
     crate::api::verify_upid(&remote, RemoteType::Pve, &upid)?;
 
     let pve_upid = upid.pve_upid()?;
-
-    let remote = get_remote(&remotes, upid.remote())?;
-    let client = connect(remote)?;
+    let client = connect_to_remote_by_id(upid.remote())?;
 
     Ok(client.stop_task(&pve_upid.node, upid.upid()).await?)
 }
@@ -122,14 +116,10 @@ pub async fn get_task_status(
     upid: RemoteUpid,
     wait: bool,
 ) -> Result<pve_api_types::TaskStatus, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
     crate::api::verify_upid(&remote, RemoteType::Pve, &upid)?;
 
     let pve_upid = upid.pve_upid()?;
-
-    let remote = get_remote(&remotes, upid.remote())?;
-    let client = connect(remote)?;
+    let client = connect_to_remote_by_id(upid.remote())?;
 
     loop {
         let status = client.get_task_status(&pve_upid.node, upid.upid()).await?;
@@ -174,14 +164,10 @@ async fn read_task_log(
     limit: Option<u64>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<pve_api_types::TaskLogLine>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-
     crate::api::verify_upid(&remote, RemoteType::Pve, &upid)?;
 
     let pve_upid = upid.pve_upid()?;
-
-    let remote = get_remote(&remotes, upid.remote())?;
-    let client = connect(remote)?;
+    let client = connect_to_remote_by_id(upid.remote())?;
 
     let response = client
         .get_task_log(&pve_upid.node, upid.upid(), download, limit, start)
