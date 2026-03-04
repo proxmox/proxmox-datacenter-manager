@@ -116,7 +116,7 @@ pub async fn list_zones(
                 zone,
             })),
             Err(error) => {
-                log::error!("could not fetch vnets from remote {}: {error:#}", remote)
+                log::error!("could not fetch zones from remote {remote}: {error:#}")
             }
         }
     }

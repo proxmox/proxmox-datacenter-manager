@@ -117,7 +117,7 @@ pub async fn list_controllers(
                 )
             }
             Err(error) => {
-                log::error!("could not fetch vnets from remote {}: {error:#}", remote)
+                log::error!("could not fetch controllers from remote {remote}: {error:#}")
             }
         }
     }
