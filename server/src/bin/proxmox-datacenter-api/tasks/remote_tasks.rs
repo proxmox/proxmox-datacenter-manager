@@ -298,7 +298,7 @@ async fn fetch_remotes(
                 }
             }
             Err(err) => {
-                log::error!("could not fetch tasks from remote '{remote}': {err:#}",);
+                log::error!("could not fetch tasks from remote '{remote}': {err:#}");
             }
         }
     }
