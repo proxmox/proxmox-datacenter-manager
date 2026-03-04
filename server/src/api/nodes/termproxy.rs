@@ -3,7 +3,7 @@
 use std::net::TcpListener;
 use std::os::unix::io::AsRawFd;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Context, Error};
 
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -72,7 +72,7 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
     // intentionally user only for now
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
 
     if auth_id.is_token() {

@@ -1,4 +1,4 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context, Error};
 use futures::{FutureExt, TryFutureExt};
 use http::{
     header::{SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE},
@@ -72,7 +72,7 @@ pub(crate) async fn shell_ticket(
     // intentionally user only for now
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
 
     if auth_id.is_token() {
@@ -132,7 +132,7 @@ fn upgrade_to_websocket(
         // intentionally user only for now
         let auth_id: Authid = rpcenv
             .get_auth_id()
-            .ok_or_else(|| format_err!("no authid available"))?
+            .context("no authid available")?
             .parse()?;
 
         if auth_id.is_token() {

@@ -1,6 +1,6 @@
 //! Server/Node Configuration and Administration
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Context, Error};
 use futures::future::{FutureExt, TryFutureExt};
 use hyper::http::request::Parts;
 use hyper::upgrade::Upgraded;
@@ -74,7 +74,7 @@ fn upgrade_to_websocket(
         // intentionally user only for now
         let auth_id: Authid = rpcenv
             .get_auth_id()
-            .ok_or_else(|| format_err!("no authid available"))?
+            .context("no authid available")?
             .parse()?;
 
         if auth_id.is_token() {

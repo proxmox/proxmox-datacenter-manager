@@ -1,4 +1,4 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context, Error};
 use http::uri::Authority;
 
 use proxmox_access_control::CachedUserInfo;
@@ -537,7 +537,7 @@ pub async fn qemu_remote_migrate(
     let user_info = CachedUserInfo::new()?;
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
     let target_privs = user_info.lookup_privs(
         &auth_id,

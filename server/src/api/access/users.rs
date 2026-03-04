@@ -1,6 +1,6 @@
 //! User Management
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Context, Error};
 use std::collections::HashMap;
 
 use proxmox_access_control::types::{ApiToken, User, UserUpdater, UserWithTokens};
@@ -54,7 +54,7 @@ pub fn list_users(
 
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
 
     let userid = auth_id.user();
@@ -223,7 +223,7 @@ pub fn update_user(
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
 
     let _lock = proxmox_access_control::user::lock_config()?;

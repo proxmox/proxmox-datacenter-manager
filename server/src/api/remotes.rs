@@ -2,7 +2,7 @@
 
 use std::error::Error as _;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_access_control::CachedUserInfo;
@@ -90,7 +90,7 @@ pub fn get_remote<'a>(
 pub fn list_remotes(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<Remote>, Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
     let user_info = CachedUserInfo::new()?;
     let top_level_allowed = 0 != user_info.lookup_privs(&auth_id, &["resource"]);

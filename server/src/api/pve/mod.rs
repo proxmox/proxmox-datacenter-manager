@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context, Error};
 
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
@@ -203,7 +203,7 @@ pub async fn cluster_resources(
     let user_info = CachedUserInfo::new()?;
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
     if !user_info.any_privs_below(&auth_id, &["resource", &remote], PRIV_RESOURCE_AUDIT)? {
         http_bail!(FORBIDDEN, "user has no access to resource list");
@@ -271,7 +271,7 @@ fn check_guest_list_permissions(
 ) -> Result<(Authid, Arc<CachedUserInfo>, bool), Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
 
     let user_info = CachedUserInfo::new()?;
@@ -324,7 +324,7 @@ fn check_guest_delete_perms(
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
 
     CachedUserInfo::new()?.check_privs(

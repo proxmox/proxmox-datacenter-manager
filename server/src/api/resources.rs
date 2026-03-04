@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{LazyLock, RwLock};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Context, Error};
 use futures::future::join_all;
 use futures::FutureExt;
 
@@ -310,7 +310,7 @@ pub(crate) async fn get_resources_impl(
     if let Some(ref rpcenv) = rpcenv {
         let auth_id: Authid = rpcenv
             .get_auth_id()
-            .ok_or_else(|| format_err!("no authid available"))?
+            .context("no authid available")?
             .parse()?;
 
         // NOTE: Assumption is that the regular permission check is completely replaced by a check
@@ -713,7 +713,7 @@ async fn get_top_entities(
     let user_info = CachedUserInfo::new()?;
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
 
     if let Some(view) = &view {

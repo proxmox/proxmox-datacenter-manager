@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use anyhow::{format_err, Error};
+use anyhow::{Context, Error};
 
 use pbs_api_types::REMOTE_ID_SCHEMA;
 use pdm_api_types::{
@@ -73,7 +73,7 @@ pub async fn list_zones(
 
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
 
     if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT)? {
@@ -152,7 +152,7 @@ async fn create_zone(
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("no authid available"))?
+        .context("no authid available")?
         .parse()?;
 
     let upid = WorkerTask::spawn(
