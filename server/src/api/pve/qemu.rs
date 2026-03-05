@@ -1,5 +1,4 @@
-use anyhow::{bail, format_err, Context, Error};
-use http::uri::Authority;
+use anyhow::{bail, Context, Error};
 
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
@@ -557,34 +556,8 @@ pub async fn qemu_remote_migrate(
 
     let node = find_node_for_vm(node, vmid, source_conn.as_ref()).await?;
 
-    // FIXME: For now we'll only try with the first node but we should probably try others, too, in
-    // case some are offline?
-
-    let target_node = target
-        .nodes
-        .iter()
-        .find(|endpoint| match target_endpoint.as_deref() {
-            Some(target) => target == endpoint.hostname,
-            None => true,
-        })
-        .ok_or_else(|| match target_endpoint {
-            Some(endpoint) => format_err!("{endpoint} not configured for target cluster"),
-            None => format_err!("no nodes configured for target cluster"),
-        })?;
-
-    let target_host_port: Authority = target_node.hostname.parse()?;
-    let mut target_endpoint = format!(
-        "host={host},port={port},apitoken=PVEAPIToken={authid}={secret}",
-        host = target_host_port.host(),
-        authid = target.authid,
-        secret = pdm_config::remotes::get_secret_token(target)?,
-        port = target_host_port.port_u16().unwrap_or(8006),
-    );
-    if let Some(fp) = target_node.fingerprint.as_deref() {
-        target_endpoint.reserve(fp.len() + ",fingerprint=".len());
-        target_endpoint.push_str(",fingerprint=");
-        target_endpoint.push_str(fp);
-    }
+    let target_node = super::select_migration_target_node(target, target_endpoint.as_deref())?;
+    let target_endpoint = super::build_migration_endpoint(target, target_node)?;
 
     log::info!("forwarding remote migration requested");
     let params = pve_api_types::RemoteMigrateQemu {

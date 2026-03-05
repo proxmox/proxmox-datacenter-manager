@@ -261,6 +261,53 @@ fn map_pve_resource(remote: &str, resource: pve_api_types::ClusterResource) -> O
     }
 }
 
+/// Select a target node for cross-cluster migration, preferring nodes known to be reachable.
+///
+/// When `target_endpoint` is `Some`, the specific node is looked up. When `None`, nodes are checked
+/// against the reachability cache and the first reachable one is returned. Falls back to the first
+/// configured node if none are known to be reachable.
+fn select_migration_target_node<'a>(
+    remote: &'a Remote,
+    target_endpoint: Option<&str>,
+) -> Result<&'a NodeUrl, Error> {
+    match target_endpoint {
+        Some(hostname) => remote
+            .nodes
+            .iter()
+            .find(|n| n.hostname == hostname)
+            .map(|ps| &**ps)
+            .ok_or_else(|| format_err!("{hostname} not configured for target cluster")),
+        None => {
+            let cache = crate::remote_cache::RemoteMappingCache::get();
+            remote
+                .nodes
+                .iter()
+                .map(|ps| &**ps)
+                .find(|n| cache.host_is_reachable(&remote.id, &n.hostname))
+                .or_else(|| remote.nodes.first().map(|ps| &**ps))
+                .ok_or_else(|| format_err!("no nodes configured for target cluster"))
+        }
+    }
+}
+
+/// Build the `target_endpoint` connection string for PVE's remote migration API.
+fn build_migration_endpoint(remote: &Remote, node: &NodeUrl) -> Result<String, Error> {
+    let authority: http::uri::Authority = node.hostname.parse()?;
+    let mut endpoint = format!(
+        "host={host},port={port},apitoken=PVEAPIToken={authid}={secret}",
+        host = authority.host(),
+        authid = remote.authid,
+        secret = pdm_config::remotes::get_secret_token(remote)?,
+        port = authority.port_u16().unwrap_or(8006),
+    );
+    if let Some(fp) = node.fingerprint.as_deref() {
+        endpoint.reserve(fp.len() + ",fingerprint=".len());
+        endpoint.push_str(",fingerprint=");
+        endpoint.push_str(fp);
+    }
+    Ok(endpoint)
+}
+
 /// Common permission checks between listing qemu & lxc guests.
 ///
 /// Returns the data commonly reused afterwards: (auth_id, CachedUserInfo, top_level_allowed).
