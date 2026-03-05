@@ -1,4 +1,4 @@
-use anyhow::Error;
+use anyhow::{Context, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_access_control::CachedUserInfo;
@@ -41,7 +41,10 @@ pub fn get_views(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<ViewConfig>, Err
     let (config, _) = pdm_config::views::config()?;
 
     let user_info = CachedUserInfo::new()?;
-    let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
     let top_level_allowed = user_info
         .check_privs(&auth_id, &["view"], PRIV_RESOURCE_AUDIT, false)
         .is_ok();

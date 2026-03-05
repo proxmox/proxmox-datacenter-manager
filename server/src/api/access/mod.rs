@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{bail, Error};
+use anyhow::{bail, Context, Error};
 
 use proxmox_access_control::acl::AclTreeNode;
 use proxmox_access_control::CachedUserInfo;
@@ -99,7 +99,10 @@ pub fn list_permissions(
     path: Option<String>,
     rpcenv: &dyn RpcEnvironment,
 ) -> Result<HashMap<String, HashMap<&'static str, bool>>, Error> {
-    let current_auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let current_auth_id: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
 
     let user_info = CachedUserInfo::new()?;
 

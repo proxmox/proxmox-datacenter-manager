@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::Error;
+use anyhow::{Context, Error};
 
 use pdm_api_types::{
     remotes::REMOTE_ID_SCHEMA, RemoteUpid, TaskCount, TaskFilters, TaskListItem, TaskStateType,
@@ -63,7 +63,10 @@ async fn list_tasks(
     view: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
-    let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
     let user_info = CachedUserInfo::new()?;
 
     if let Some(view) = &view {
@@ -116,7 +119,10 @@ async fn task_statistics(
     view: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<TaskStatistics, Error> {
-    let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
     let user_info = CachedUserInfo::new()?;
 
     if let Some(view) = &view {

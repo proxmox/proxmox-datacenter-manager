@@ -1,6 +1,6 @@
 //! List Authentication domains/realms.
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context, Error};
 use serde_json::{json, Value};
 
 use proxmox_auth_api::types::Realm;
@@ -93,7 +93,10 @@ pub fn sync_realm(
     enable_new: Option<bool>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 

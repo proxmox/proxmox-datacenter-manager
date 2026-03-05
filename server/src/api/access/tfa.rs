@@ -1,6 +1,6 @@
 //! TFA management API.
 
-use anyhow::Error;
+use anyhow::{Context, Error};
 
 use proxmox_access_control::types::User;
 use proxmox_access_control::CachedUserInfo;
@@ -38,7 +38,10 @@ async fn tfa_update_auth(
     password: Option<String>,
     must_exist: bool,
 ) -> Result<(), Error> {
-    let authid: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let authid: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
 
     if authid.user() != Userid::root_userid() {
         let client_ip = rpcenv.get_client_ip().map(|sa| sa.ip());
@@ -81,7 +84,10 @@ async fn tfa_update_auth(
 )]
 /// List user TFA configuration.
 fn list_tfa(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<methods::TfaUser>, Error> {
-    let authid: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let authid: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
     let user_info = CachedUserInfo::new()?;
 
     let top_level_privs = user_info.lookup_privs(&authid, &["access", "users"]);

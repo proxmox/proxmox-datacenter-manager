@@ -140,7 +140,10 @@ pub fn create_user(
 
     if let Some(password) = password {
         let user_info = CachedUserInfo::new()?;
-        let current_auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        let current_auth_id: Authid = rpcenv
+            .get_auth_id()
+            .context("no authid available")?
+            .parse()?;
         if realm == "pam" && !user_info.is_superuser(&current_auth_id) {
             bail!("only superuser can edit pam credentials!");
         }
@@ -276,7 +279,10 @@ pub fn update_user(
     }
 
     if let Some(password) = password {
-        let current_auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        let current_auth_id: Authid = rpcenv
+            .get_auth_id()
+            .context("no authid available")?
+            .parse()?;
         let self_service = current_auth_id.user() == &userid;
         let target_realm = userid.realm();
         if !self_service && target_realm == "pam" && !user_info.is_superuser(&current_auth_id) {

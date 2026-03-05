@@ -1,4 +1,4 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context, Error};
 use openssl::pkey::PKey;
 use openssl::x509::X509;
 
@@ -258,7 +258,7 @@ fn spawn_certificate_worker(
 
     let (cert_config, _digest) = pdm_config::certificate_config::config()?;
 
-    let auth_id = rpcenv.get_auth_id().unwrap();
+    let auth_id = rpcenv.get_auth_id().context("no authid available")?;
 
     let domains = cert_config.acme_domains().try_fold(
         Vec::<AcmeDomain>::new(),
@@ -321,7 +321,7 @@ pub fn revoke_acme_cert(rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error
 
     let cert_pem = get_certificate_pem()?;
 
-    let auth_id = rpcenv.get_auth_id().unwrap();
+    let auth_id = rpcenv.get_auth_id().context("no authid available")?;
 
     let acme_config = if let Some(cfg) = cert_config.acme_config().transpose()? {
         cfg

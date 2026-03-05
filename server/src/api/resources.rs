@@ -596,7 +596,10 @@ pub async fn get_subscription_status(
 
     let mut futures = Vec::new();
 
-    let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
     let user_info = CachedUserInfo::new()?;
 
     let allow_all = if let Some(view) = &view {

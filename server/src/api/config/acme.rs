@@ -1,4 +1,4 @@
-use anyhow::Error;
+use anyhow::{Context, Error};
 
 use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{Router, RpcEnvironment, SubdirMap};
@@ -126,7 +126,7 @@ fn register_account(
     eab_hmac_key: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-    let auth_id = rpcenv.get_auth_id().unwrap();
+    let auth_id = rpcenv.get_auth_id().context("no authid available")?;
     let name = name.unwrap_or_else(|| unsafe {
         AcmeAccountName::from_string_unchecked("default".to_string())
     });
@@ -207,7 +207,7 @@ pub fn update_account(
     contact: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-    let auth_id = rpcenv.get_auth_id().unwrap();
+    let auth_id = rpcenv.get_auth_id().context("no authid available")?;
 
     proxmox_rest_server::WorkerTask::spawn(
         "acme-update",
@@ -252,7 +252,7 @@ pub fn deactivate_account(
     force: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-    let auth_id = rpcenv.get_auth_id().unwrap();
+    let auth_id = rpcenv.get_auth_id().context("no authid available")?;
 
     proxmox_rest_server::WorkerTask::spawn(
         "acme-deactivate",

@@ -1,4 +1,4 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context, Error};
 use http::request::Parts;
 use http::{header, Response, StatusCode};
 use serde_json::{json, Value};
@@ -88,7 +88,10 @@ pub fn list_tasks(
         statusfilter,
     } = filters;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&auth_id, &["system", "tasks"]);
 
@@ -196,7 +199,7 @@ pub fn list_tasks(
 )]
 /// Try to stop a task.
 fn stop_task(upid: UPID, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
-    let auth_id = rpcenv.get_auth_id().unwrap();
+    let auth_id = rpcenv.get_auth_id().context("no authid available")?;
 
     if auth_id != upid.auth_id {
         let user_info = CachedUserInfo::new()?;
@@ -275,7 +278,10 @@ fn stop_task(upid: UPID, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
 )]
 /// Get task status.
 async fn get_task_status(upid: UPID, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
     check_task_access(&auth_id, &upid)?;
 
     let task_auth_id: Authid = upid.auth_id.parse()?;
@@ -397,7 +403,10 @@ fn read_task_log(
             .ok_or_else(|| format_err!("bad upid parameter type, expected a string"))?
             .parse()
             .map_err(|err| format_err!("invalid upid parameter - {err}"))?;
-        let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        let auth_id: Authid = rpcenv
+            .get_auth_id()
+            .context("no authid available")?
+            .parse()?;
         check_task_access(&auth_id, &upid)?;
 
         let download = param["download"].as_bool().unwrap_or(false);

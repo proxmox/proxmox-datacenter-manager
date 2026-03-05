@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::{bail, Context, Error};
 use serde_json::Value;
 
 use proxmox_apt_api_types::{
@@ -97,7 +97,7 @@ pub fn apt_update_database(
     options: APTUpdateOptions,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-    let auth_id = rpcenv.get_auth_id().unwrap();
+    let auth_id = rpcenv.get_auth_id().context("no authid available")?;
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread("aptupdate", None, auth_id, to_stdout, move |_worker| {

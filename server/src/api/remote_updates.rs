@@ -1,6 +1,6 @@
 //! API for getting a remote update update summary.
 
-use anyhow::Error;
+use anyhow::{Context, Error};
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::PRIV_RESOURCE_AUDIT;
@@ -43,7 +43,10 @@ const SUBDIRS: SubdirMap = &sorted!([
 )]
 /// Return available update summary for managed remote nodes.
 pub fn update_summary(rpcenv: &mut dyn RpcEnvironment) -> Result<UpdateSummary, Error> {
-    let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
     let user_info = CachedUserInfo::new()?;
 
     if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_MODIFY)? {
@@ -77,7 +80,10 @@ pub fn update_summary(rpcenv: &mut dyn RpcEnvironment) -> Result<UpdateSummary, 
 pub fn refresh_remote_update_summaries(rpcenv: &mut dyn RpcEnvironment) -> Result<UPID, Error> {
     let (config, _digest) = pdm_config::remotes::config()?;
 
-    let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
     let user_info = CachedUserInfo::new()?;
 
     if !user_info.any_privs_below(&auth_id, &["resource"], PRIV_RESOURCE_MODIFY)? {

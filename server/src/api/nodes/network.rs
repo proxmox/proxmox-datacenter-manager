@@ -1,4 +1,4 @@
-use anyhow::Error;
+use anyhow::{Context, Error};
 use serde_json::{to_value, Value};
 
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
@@ -214,7 +214,10 @@ pub fn delete_interface(iface: String, digest: Option<ConfigDigest>) -> Result<(
 pub async fn reload_network_config(rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error> {
     proxmox_network_api::assert_ifupdown2_installed()?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
 
     let upid_str = WorkerTask::spawn(
         "srvreload",
