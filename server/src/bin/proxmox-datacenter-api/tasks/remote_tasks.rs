@@ -410,7 +410,7 @@ async fn apply_journal(cache: TaskCache) -> Result<(), Error> {
 
 /// Get a list of active tasks.
 async fn get_active_tasks(cache: TaskCache) -> Result<Vec<RemoteUpid>, Error> {
-    Ok(tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || {
         let tasks: Vec<RemoteUpid> = cache
             .read()?
             .get_tasks(GetTasks::Active)?
@@ -419,7 +419,7 @@ async fn get_active_tasks(cache: TaskCache) -> Result<Vec<RemoteUpid>, Error> {
 
         Ok::<Vec<RemoteUpid>, Error>(tasks)
     })
-    .await??)
+    .await?
 }
 
 #[derive(PartialEq, Debug)]
