@@ -249,14 +249,9 @@ async fn fetch_node_firewall_status(
 pub async fn pve_firewall_status(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<RemoteFirewallStatus>, Error> {
-    let (remote_config, _) = pdm_config::remotes::config()?;
-
-    let pve_remotes: Vec<Remote> = remote_config
-        .into_iter()
-        .filter_map(|(_, remote)| match remote.ty {
-            pdm_api_types::remotes::RemoteType::Pve => Some(remote),
-            pdm_api_types::remotes::RemoteType::Pbs => None,
-        })
+    let pve_remotes: Vec<Remote> = crate::api::remotes::RemoteIterator::new()?
+        .remote_type(pdm_api_types::remotes::RemoteType::Pve)
+        .into_remotes()
         .collect();
 
     if pve_remotes.is_empty() {

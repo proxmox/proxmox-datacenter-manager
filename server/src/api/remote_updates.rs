@@ -78,8 +78,6 @@ pub fn update_summary(rpcenv: &mut dyn RpcEnvironment) -> Result<UpdateSummary, 
 )]
 /// Refresh the update summary of all remotes.
 pub fn refresh_remote_update_summaries(rpcenv: &mut dyn RpcEnvironment) -> Result<UPID, Error> {
-    let (config, _digest) = pdm_config::remotes::config()?;
-
     let auth_id = rpcenv
         .get_auth_id()
         .context("no authid available")?
@@ -90,19 +88,9 @@ pub fn refresh_remote_update_summaries(rpcenv: &mut dyn RpcEnvironment) -> Resul
         http_bail!(FORBIDDEN, "user has no access to resources");
     }
 
-    let remotes: Vec<Remote> = config
-        .into_iter()
-        .filter_map(|(remote_name, remote)| {
-            user_info
-                .check_privs(
-                    &auth_id,
-                    &["resource", &remote_name],
-                    PRIV_RESOURCE_MODIFY,
-                    false,
-                )
-                .is_ok()
-                .then_some(remote)
-        })
+    let remotes: Vec<Remote> = super::remotes::RemoteIterator::new()?
+        .all_privs(&user_info, &auth_id, PRIV_RESOURCE_MODIFY)
+        .into_remotes()
         .collect();
 
     let upid_str = WorkerTask::spawn(

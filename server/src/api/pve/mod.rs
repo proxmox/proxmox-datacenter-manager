@@ -139,15 +139,11 @@ pub fn connect_to_remote_by_id(id: &str) -> Result<Arc<PveClient>, Error> {
 )]
 /// Return the list of PVE remotes
 fn list_remotes() -> Result<Vec<RemoteListEntry>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let remotes = remotes
-        .into_iter()
-        .filter_map(|(remote, Remote { ty, .. })| match ty {
-            RemoteType::Pve => Some(RemoteListEntry { remote }),
-            RemoteType::Pbs => None,
-        })
-        .collect();
-    Ok(remotes)
+    Ok(super::remotes::RemoteIterator::new()?
+        .remote_type(RemoteType::Pve)
+        .into_names()
+        .map(|name| RemoteListEntry { remote: name })
+        .collect())
 }
 
 #[api(

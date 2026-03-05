@@ -13,7 +13,9 @@ use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use pve_api_types::{CreateVnet, SdnVnetType};
 
-use crate::{api::pve, parallel_fetcher::ParallelFetcher, sdn_client::LockedSdnClients};
+use crate::api::pve;
+use crate::api::remotes::RemoteIterator;
+use crate::{parallel_fetcher::ParallelFetcher, sdn_client::LockedSdnClients};
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_VNETS)
@@ -74,29 +76,18 @@ async fn list_vnets(
         http_bail!(FORBIDDEN, "user has no access to resources");
     }
 
-    let (remote_config, _) = pdm_config::remotes::config()?;
-    let authorized_remotes = remote_config.into_iter().filter(|(remote_name, _)| {
-        user_info.lookup_privs(&auth_id, &["resource", remote_name]) & PRIV_RESOURCE_AUDIT != 0
-    });
-
-    let filtered_remotes = authorized_remotes.filter_map(|(_, remote)| {
-        if remote.ty == RemoteType::Pve
-            && remotes
-                .as_ref()
-                .map(|remotes| remotes.contains(&remote.id))
-                .unwrap_or(true)
-        {
-            return Some(remote);
-        }
-
-        None
-    });
+    let mut iter = RemoteIterator::new()?
+        .remote_type(RemoteType::Pve)
+        .any_privs(&user_info, &auth_id, PRIV_RESOURCE_AUDIT);
+    if let Some(ref filter) = remotes {
+        iter = iter.name_filter(filter);
+    }
 
     let mut vnets = Vec::new();
     let fetcher = ParallelFetcher::new((pending, running));
 
     let results = fetcher
-        .do_for_all_remotes(filtered_remotes, async |ctx, r, _| {
+        .do_for_all_remotes(iter.into_remotes(), async |ctx, r, _| {
             Ok(pve::connect(&r)?.list_vnets(ctx.0, ctx.1).await?)
         })
         .await;

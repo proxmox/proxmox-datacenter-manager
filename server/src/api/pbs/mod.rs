@@ -92,15 +92,11 @@ pub async fn new_remote_upid(
 )]
 /// Return the list of PBS remotes
 fn list_remotes() -> Result<Vec<RemoteListEntry>, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let remotes = remotes
-        .into_iter()
-        .filter_map(|(remote, Remote { ty, .. })| match ty {
-            RemoteType::Pbs => Some(RemoteListEntry { remote }),
-            RemoteType::Pve => None,
-        })
-        .collect();
-    Ok(remotes)
+    Ok(super::remotes::RemoteIterator::new()?
+        .remote_type(RemoteType::Pbs)
+        .into_names()
+        .map(|name| RemoteListEntry { remote: name })
+        .collect())
 }
 
 #[api(
