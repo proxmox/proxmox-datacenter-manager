@@ -1,5 +1,6 @@
 //! Manage remote configuration.
 
+use std::collections::HashSet;
 use std::error::Error as _;
 
 use anyhow::{bail, format_err, Context, Error};
@@ -71,6 +72,128 @@ pub fn get_remote<'a>(
     config
         .get(id)
         .ok_or_else(|| http_err!(NOT_FOUND, "no such node '{id}'"))
+}
+
+/// Builder for iterating over remotes with optional filtering.
+///
+/// Loads the remote config once and provides chainable filter methods.
+/// Implements [`IntoIterator`] so it can be used directly in `for`
+/// loops or passed to iterator adapters.
+///
+/// # Examples
+///
+/// Filter by remote type:
+/// ```
+/// use pdm_api_types::remotes::{Remote, RemoteType};
+/// use proxmox_section_config::typed::ApiSectionDataEntry;
+/// use server::api::remotes::RemoteIterator;
+///
+/// let config = Remote::parse_section_config("test", "\
+/// pve: my-pve
+/// \tauthid admin@test!token
+/// \tnodes 10.0.0.1
+/// \ttoken secret
+///
+/// pbs: my-pbs
+/// \tauthid admin@test!token
+/// \tnodes 10.0.0.2
+/// \ttoken secret
+/// ").unwrap();
+///
+/// let names: Vec<String> = RemoteIterator::from_config(config)
+///     .remote_type(RemoteType::Pve)
+///     .into_names()
+///     .collect();
+/// assert_eq!(names, ["my-pve"]);
+/// ```
+///
+/// With privilege filtering (requires initialized auth subsystem):
+/// ```ignore
+/// let remotes = RemoteIterator::new()?
+///     .remote_type(RemoteType::Pve)
+///     .any_privs(&user_info, &auth_id, PRIV_RESOURCE_AUDIT)
+///     .into_remotes();
+/// fetcher.do_for_all_remotes(remotes, ...).await;
+/// ```
+pub struct RemoteIterator {
+    remotes: Vec<(String, Remote)>,
+}
+
+impl RemoteIterator {
+    /// Load the remote config and create an unfiltered iterator.
+    pub fn new() -> Result<Self, Error> {
+        let (config, _) = pdm_config::remotes::config()?;
+        Ok(Self {
+            remotes: config.into_iter().collect(),
+        })
+    }
+
+    /// Create an iterator from an existing [`SectionConfigData`].
+    pub fn from_config(config: SectionConfigData<Remote>) -> Self {
+        Self {
+            remotes: config.into_iter().collect(),
+        }
+    }
+
+    /// Keep only remotes of the given type.
+    pub fn remote_type(mut self, ty: RemoteType) -> Self {
+        self.remotes.retain(|(_, r)| r.ty == ty);
+        self
+    }
+
+    /// Keep only remotes where the user has *any* of the given privileges on `/resource/{remote}`.
+    ///
+    /// When multiple privilege bits are OR'd together, a remote is kept if
+    /// the user has **at least one** of them.
+    pub fn any_privs(mut self, user_info: &CachedUserInfo, auth_id: &Authid, privs: u64) -> Self {
+        self.remotes
+            .retain(|(name, _)| user_info.lookup_privs(auth_id, &["resource", name]) & privs != 0);
+        self
+    }
+
+    /// Keep only remotes where the user has *all* of the given privileges on `/resource/{remote}`.
+    ///
+    /// When multiple privilege bits are OR'd together, a remote is kept
+    /// only if the user has **every one** of them.
+    pub fn all_privs(mut self, user_info: &CachedUserInfo, auth_id: &Authid, privs: u64) -> Self {
+        self.remotes.retain(|(name, _)| {
+            let user_privs = user_info.lookup_privs(auth_id, &["resource", name]);
+            user_privs & privs == privs
+        });
+        self
+    }
+
+    /// Keep only remotes whose id is in the given set.
+    pub fn name_filter<T: std::borrow::Borrow<str> + Eq + std::hash::Hash>(
+        mut self,
+        names: &HashSet<T>,
+    ) -> Self {
+        self.remotes.retain(|(_, r)| names.contains(r.id.as_str()));
+        self
+    }
+
+    /// Consume the builder and return an iterator of just the [`Remote`] values (dropping the
+    /// names).
+    ///
+    /// Useful when passing to [`ParallelFetcher::do_for_all_remotes`].
+    pub fn into_remotes(self) -> impl Iterator<Item = Remote> {
+        self.remotes.into_iter().map(|(_, r)| r)
+    }
+
+    /// Consume the builder and return an iterator of just the remote names.
+    pub fn into_names(self) -> impl Iterator<Item = String> {
+        self.remotes.into_iter().map(|(name, _)| name)
+    }
+}
+
+/// Consuming iteration yields `(String, Remote)` pairs.
+impl IntoIterator for RemoteIterator {
+    type Item = (String, Remote);
+    type IntoIter = std::vec::IntoIter<(String, Remote)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.remotes.into_iter()
+    }
 }
 
 #[api(
@@ -405,4 +528,77 @@ fn get_per_remote_rrd_data(
 ) -> Result<Vec<RemoteDatapoint>, Error> {
     let base = format!("remotes/{id}");
     rrd_common::create_datapoints_from_rrd(&base, timeframe, cf)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use pdm_api_types::remotes::{Remote, RemoteType};
+    use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
+
+    use super::RemoteIterator;
+
+    /// Parse a `remotes.cfg`-style string into a [`SectionConfigData`].
+    fn parse_config(raw: &str) -> SectionConfigData<Remote> {
+        Remote::parse_section_config("test", raw).expect("valid test config")
+    }
+
+    const TEST_CONFIG: &str = "\
+pve: pve-prod
+\tauthid admin@test!token
+\tnodes 10.0.0.1
+\ttoken secret
+
+pve: pve-staging
+\tauthid admin@test!token
+\tnodes 10.0.0.2
+\ttoken secret
+
+pbs: pbs-backup
+\tauthid backup@test!token
+\tnodes 10.0.0.3
+\ttoken secret
+
+pbs: pbs-offsite
+\tauthid backup@test!token
+\tnodes 10.0.0.4
+\ttoken secret
+";
+
+    #[test]
+    fn type_and_name_filters_intersect() {
+        let filter: HashSet<&str> = ["pve-prod", "pve-enoent"].into_iter().collect();
+
+        let names: Vec<String> = RemoteIterator::from_config(parse_config(TEST_CONFIG))
+            .remote_type(RemoteType::Pve)
+            .name_filter(&filter)
+            .into_names()
+            .collect();
+
+        assert_eq!(names, ["pve-prod"]);
+    }
+
+    #[test]
+    fn into_remotes_preserves_parsed_fields() {
+        let remotes: Vec<Remote> = RemoteIterator::from_config(parse_config(TEST_CONFIG))
+            .remote_type(RemoteType::Pbs)
+            .into_remotes()
+            .collect();
+
+        assert_eq!(remotes.len(), 2);
+        assert_eq!(remotes[0].id, "pbs-backup");
+        assert_eq!(remotes[0].authid.to_string(), "backup@test!token");
+        assert_eq!(remotes[1].id, "pbs-offsite");
+    }
+
+    #[test]
+    fn empty_config() {
+        let count = RemoteIterator::from_config(SectionConfigData::default())
+            .remote_type(RemoteType::Pve)
+            .into_names()
+            .count();
+
+        assert_eq!(count, 0);
+    }
 }
