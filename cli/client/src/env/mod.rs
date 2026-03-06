@@ -28,7 +28,6 @@ macro_rules! xdg_path {
     };
 }
 
-pub(crate) use xdg_path;
 
 /// Supported types.
 const TOTP: u8 = 1;
