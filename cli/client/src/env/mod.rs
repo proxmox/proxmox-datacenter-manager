@@ -28,7 +28,6 @@ macro_rules! xdg_path {
     };
 }
 
-
 /// Supported types.
 const TOTP: u8 = 1;
 const RECOVERY: u8 = 2;

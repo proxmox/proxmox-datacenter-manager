@@ -41,11 +41,7 @@ pub struct ProxmoxSubscriptionPanel {
     checking: bool,
 }
 
-pwt::impl_deref_mut_property!(
-    ProxmoxSubscriptionPanel,
-    state,
-    LoadableComponentState<()>
-);
+pwt::impl_deref_mut_property!(ProxmoxSubscriptionPanel, state, LoadableComponentState<()>);
 
 impl LoadableComponent for ProxmoxSubscriptionPanel {
     type Message = Msg;
