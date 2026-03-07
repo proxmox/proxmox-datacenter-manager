@@ -351,24 +351,24 @@ impl Component for DatacenterManagerApp {
     }
 }
 
-fn set_body(content: &str) {
-    let document = web_sys::window().unwrap().document().unwrap();
-    let body: HtmlElement = document.create_element("body").unwrap().dyn_into().unwrap();
-    body.set_inner_html(content);
-    document.set_body(Some(&body));
-}
-
 fn panic_hook() -> Box<dyn Fn(&std::panic::PanicHookInfo) + 'static + Sync + Send> {
     Box::new(|info: &std::panic::PanicHookInfo<'_>| {
         let msg = format!("Application panicked: {info}");
         web_sys::console::error_1(&msg.into());
 
-        set_body(&format!(
-            r#"
-<h1 class="panicked__title">Application panicked!</h1>
-<p>Reason: {info}</p>
-"#
-        ));
+        let document = web_sys::window().unwrap().document().unwrap();
+        let body: HtmlElement = document.create_element("body").unwrap().dyn_into().unwrap();
+
+        let title = document.create_element("h1").unwrap();
+        title.set_class_name("panicked__title");
+        title.set_text_content(Some("Application panicked!"));
+        body.append_child(&title).unwrap();
+
+        let reason = document.create_element("p").unwrap();
+        reason.set_text_content(Some(&format!("Reason: {info}")));
+        body.append_child(&reason).unwrap();
+
+        document.set_body(Some(&body));
     })
 }
 
