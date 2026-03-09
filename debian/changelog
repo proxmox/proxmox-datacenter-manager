@@ -1,24 +1,40 @@
-proxmox-datacenter-manager (1.0.3) UNRELEASED; urgency=medium
+proxmox-datacenter-manager (1.0.3) trixie; urgency=medium
 
   * client cli: support the 'target-vmid' parameter for the 'pve qemu
-    remote-migrate' and 'pve lxc remote-migrate' commands
+    remote-migrate' and 'pve lxc remote-migrate' commands.
 
-  * validate a remote node's URL when updating a remote config
+  * validate a remote node's URL when updating a remote config.
 
-  * docs: ZFS: repair broken formatting and other minor cosmetic touch-ups
+  * docs: ZFS: repair broken formatting and other minor cosmetic touch-ups.
 
   * docs: ZFS: fix instructions on how to change the kernel's swappiness via a
-    drop-in file in /etc/sysctl.d/ on Debian Trixie
+    drop-in file in /etc/sysctl.d/ on Debian Trixie.
 
-  * docs: fix typo in FAQ section
+  * docs: fix typo in FAQ section.
 
   * client/admin cli: fix shell completion for bash by providing completion
-    files with the expected file extension
+    files with the expected file extension.
 
   * improve error reporting for the backup snapshots API endpoint for PBS
     remotes by passing through the original error from the PBS API.
 
- -- Proxmox Support Team <support@proxmox.com>  Fri, 06 Feb 2026 16:05:19 +0100
+  * fix #7120: remote updates: drop vanished nodes and remotes from the
+    update cache on full refresh, avoiding stale entries after cluster
+    topology changes.
+
+  * cli: fix zsh shell completion definitions.
+
+  * api: pbs: add realms endpoint to enumerate available authentication
+    domains on PBS remotes.
+
+  * fix #6914: add option to delete the API token on the remote when
+    removing a remote, avoiding errors when re-adding the same remote
+    later. Supported in the API, client CLI, and admin CLI.
+
+  * remote tasks: add API endpoint to manually trigger a task cache
+    refresh for a single or all remotes.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 10 Mar 2026 00:06:23 +0100
 
 proxmox-datacenter-manager (1.0.2) trixie; urgency=medium
 
