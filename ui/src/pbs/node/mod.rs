@@ -17,7 +17,7 @@ pub(crate) mod overview;
 
 use overview::PbsNodeOverviewPanel;
 
-use crate::get_deep_url_low_level;
+use crate::{get_deep_url_low_level, remotes::RemoteTaskList};
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
 pub struct PbsNodePanel {
@@ -76,6 +76,16 @@ impl yew::Component for PbsNodePanelComp {
                 {
                     let remote = props.remote.clone();
                     move |_| PbsNodeOverviewPanel::new(remote.clone()).into()
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("tasks_view")
+                    .label(tr!("Tasks"))
+                    .icon_class("fa fa-list"),
+                {
+                    let remote = props.remote.clone();
+                    move |_| RemoteTaskList::new().remote(remote.clone()).into()
                 },
             )
             .with_item_builder(
