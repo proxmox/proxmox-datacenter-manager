@@ -65,17 +65,6 @@ pub struct TaskState {
 }
 
 impl TaskState {
-    pub fn new() -> Self {
-        let now = Instant::now();
-
-        Self {
-            last_rotate_check: now - CHECK_ROTATE_INTERVAL,
-            last_fetch: now - TASK_FETCH_INTERVAL,
-            last_journal_apply: now - APPLY_JOURNAL_INTERVAL,
-            last_active_poll: now - POLL_ACTIVE_INTERVAL,
-        }
-    }
-
     /// Reset the task archive rotation timestamp.
     fn reset_rotate_check(&mut self) {
         self.last_rotate_check = Instant::now();
@@ -114,6 +103,19 @@ impl TaskState {
     /// Should we poll active tasks?
     fn is_due_for_active_poll(&self) -> bool {
         Instant::now().duration_since(self.last_active_poll) > POLL_ACTIVE_INTERVAL
+    }
+}
+
+impl Default for TaskState {
+    fn default() -> Self {
+        let now = Instant::now();
+
+        Self {
+            last_rotate_check: now - CHECK_ROTATE_INTERVAL,
+            last_fetch: now - TASK_FETCH_INTERVAL,
+            last_journal_apply: now - APPLY_JOURNAL_INTERVAL,
+            last_active_poll: now - POLL_ACTIVE_INTERVAL,
+        }
     }
 }
 

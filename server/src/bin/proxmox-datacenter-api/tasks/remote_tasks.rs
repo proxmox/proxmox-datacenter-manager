@@ -29,7 +29,7 @@ pub fn start_task() -> Result<(), Error> {
 /// Task which handles fetching remote tasks and task archive rotation.
 /// This function never returns.
 async fn remote_task_fetching_task() -> ! {
-    let mut task_state = refresh_task::TaskState::new();
+    let mut task_state = refresh_task::TaskState::default();
 
     let mut interval = tokio::time::interval(POLL_INTERVAL);
     interval.reset_at(task_utils::next_aligned_instant(POLL_INTERVAL.as_secs()).into());
