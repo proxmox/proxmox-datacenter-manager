@@ -189,6 +189,20 @@ pub async fn handle_timer_tick(task_state: &mut TaskState) -> Result<(), Error> 
     Ok(())
 }
 
+/// Manually trigger task collection from a list of remotes.
+pub async fn refresh_taskcache(remotes: Vec<Remote>) -> Result<(), Error> {
+    let cache = super::get_cache()?;
+    let cache_state = cache.read_state();
+
+    let (all_tasks, update_state_for_remote) = fetch_remotes(remotes, Arc::new(cache_state)).await;
+
+    if !all_tasks.is_empty() {
+        update_task_cache(cache, all_tasks, update_state_for_remote, HashMap::new()).await?;
+    }
+
+    Ok(())
+}
+
 /// Initialize the remote task cache with initial archive files, in case there are not
 /// any archive files yet.
 ///
