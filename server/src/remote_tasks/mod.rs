@@ -5,6 +5,7 @@ use anyhow::Error;
 use pdm_api_types::{NativeUpid, RemoteUpid, TaskFilters, TaskListItem, TaskStateType};
 use pve_api_types::PveUpid;
 
+pub mod refresh_task;
 pub mod task_cache;
 
 use task_cache::{GetTasks, TaskCache, TaskCacheItem};
