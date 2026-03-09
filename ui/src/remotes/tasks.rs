@@ -10,7 +10,9 @@ use yew::{
 use pbs_api_types::TaskListItem;
 use pdm_api_types::RemoteUpid;
 
-use proxmox_yew_comp::{utils::render_epoch_short, TaskViewer, Tasks};
+use proxmox_yew_comp::{
+    percent_encoding::percent_encode_component, utils::render_epoch_short, TaskViewer, Tasks,
+};
 
 use pwt::{
     css::{FlexFit, JustifyContent},
@@ -138,8 +140,18 @@ impl Component for PbsRemoteTaskList {
                     })
             });
 
+        let refresh_task_url = if let Some(remote) = &props.remote {
+            format!(
+                "/remotes/tasks/refresh?remotes={}",
+                percent_encode_component(remote)
+            )
+        } else {
+            "/remotes/tasks/refresh".into()
+        };
+
         let mut task_list = Tasks::new()
             .base_url("/remotes/tasks/list")
+            .refresh_task_url(refresh_task_url)
             .on_show_task({
                 let link = ctx.link().clone();
                 move |(upid_str, endtime)| link.send_message(Some((upid_str, endtime)))
