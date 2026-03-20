@@ -1,7 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use serde::Deserialize;
+use serde_json::json;
 
 use pdm_api_types::{remotes::Remote, Authid, ConfigDigest};
 use pdm_config::remotes::RemoteConfig;
@@ -10,8 +11,7 @@ use proxmox_product_config::ApiLockGuard;
 use proxmox_section_config::typed::SectionConfigData;
 use pve_api_types::{
     ClusterMetrics, ClusterMetricsData, ClusterNodeIndexResponse, ClusterNodeIndexResponseStatus,
-    ClusterResource, ClusterResourceKind, ClusterResourceType, ListTasks, ListTasksResponse,
-    PveUpid, StorageContent,
+    ClusterResource, ClusterResourceKind, ListTasks, ListTasksResponse, PveUpid,
 };
 
 use crate::{
@@ -152,163 +152,100 @@ impl pve_api_types::client::PveClient for FakePveClient {
         for _ in 0..self.nr_of_vms {
             vmid += 1;
             let jitter = ((vmid as f64).sin() * bytejitter).round() as i64;
-            result.push(ClusterResource {
-                cgroup_mode: None,
-                content: None,
-                cpu: Some(cpu),
-                diskread: Some(1034),
-                diskwrite: Some(1034),
-                disk: Some(disk.saturating_add_signed(jitter)),
-                hastate: None,
-                id: format!("qemu/{vmid}"),
-                level: Some("".into()),
-                maxcpu: Some(maxcpu),
-                maxdisk: Some(maxdisk),
-                maxmem: Some(maxmem),
-                mem: Some(mem.saturating_sub_signed(jitter)),
-                memhost: Some(memhost.saturating_add_signed(jitter)),
-                name: Some(format!("vm-{vmid}")),
-                netin: Some(1034),
-                netout: Some(1034),
-                node: Some(format!("node-{}", vmid % self.nr_of_nodes)),
-                plugintype: None,
-                pool: None,
-                status: Some("running".into()),
-                storage: None,
-                template: Some(false),
-                ty: ClusterResourceType::Qemu,
-                uptime: Some(1234),
-                vmid: Some(vmid),
-                lock: None,
-                tags: None,
-                sdn: None,
-                network: None,
-                network_type: None,
-                protocol: None,
-                shared: None,
-                zone_type: None,
+            let val = json!({
+                "cpu": cpu,
+                "diskread": 1034,
+                "diskwrite": 1034,
+                "disk": disk.saturating_add_signed(jitter),
+                "id": format!("qemu/{vmid}"),
+                "level": "",
+                "maxcpu": maxcpu,
+                "maxdisk": maxdisk,
+                "maxmem": maxmem,
+                "mem": mem.saturating_add_signed(jitter),
+                "memhost": memhost.saturating_add_signed(jitter),
+                "name": format!("vm-{vmid}"),
+                "netin": 1034,
+                "netout": 1034,
+                "node": format!("node-{}", vmid % self.nr_of_nodes),
+                "status": "running",
+                "template": false,
+                "type": "qemu",
+                "uptime": 1234,
+                "vmid": vmid,
             });
+            result.push(serde_json::from_value(val).map_err(|err| {
+                proxmox_client::Error::Anyhow(format_err!("error on vm {vmid}: {err}"))
+            })?);
         }
 
         for _ in 0..self.nr_of_cts {
             vmid += 1;
             let jitter = ((vmid as f64).sin() * bytejitter).round() as i64;
-            result.push(ClusterResource {
-                cgroup_mode: None,
-                content: None,
-                cpu: Some(cpu),
-                disk: Some(disk.saturating_add_signed(jitter)),
-                diskread: Some(1034),
-                diskwrite: Some(1034),
-                hastate: None,
-                id: format!("lxc/{vmid}"),
-                level: Some("".into()),
-                maxcpu: Some(maxcpu),
-                maxdisk: Some(maxdisk),
-                maxmem: Some(maxmem),
-                memhost: Some(memhost),
-                mem: Some(mem.saturating_add_signed(jitter)),
-                name: Some(format!("ct-{vmid}")),
-                netin: Some(1034),
-                netout: Some(1034),
-                node: Some(format!("node-{}", vmid % self.nr_of_nodes)),
-                plugintype: None,
-                pool: None,
-                status: Some("running".into()),
-                storage: None,
-                template: Some(false),
-                ty: ClusterResourceType::Lxc,
-                uptime: Some(1234),
-                vmid: Some(vmid),
-                lock: None,
-                tags: None,
-                sdn: None,
-                network: None,
-                network_type: None,
-                protocol: None,
-                shared: None,
-                zone_type: None,
+            let val = json!({
+                "cpu": cpu,
+                "diskread": 1034,
+                "diskwrite": 1034,
+                "disk": disk.saturating_add_signed(jitter),
+                "id": format!("lxc/{vmid}"),
+                "level": "",
+                "maxcpu": maxcpu,
+                "maxdisk": maxdisk,
+                "maxmem": maxmem,
+                "mem": mem.saturating_add_signed(jitter),
+                "memhost": memhost.saturating_add_signed(jitter),
+                "name": format!("ct-{vmid}"),
+                "netin": 1034,
+                "netout": 1034,
+                "node": format!("node-{}", vmid % self.nr_of_nodes),
+                "status": "running",
+                "template": false,
+                "type": "lxc",
+                "uptime": 1234,
+                "vmid": vmid,
             });
+            result.push(serde_json::from_value(val).map_err(|err| {
+                proxmox_client::Error::Anyhow(format_err!("error on ct {vmid}: {err}"))
+            })?);
         }
 
         for i in 0..self.nr_of_nodes {
             let jitter = ((i as f64).sin() * bytejitter).round() as i64;
-            result.push(ClusterResource {
-                cgroup_mode: None,
-                content: None,
-                cpu: Some(cpu),
-                disk: Some(disk.saturating_add_signed(jitter)),
-                diskread: None,
-                diskwrite: None,
-                hastate: None,
-                id: format!("node/node-{i}"),
-                level: Some("".into()),
-                maxcpu: Some(16.),
-                maxdisk: Some(maxdisk),
-                maxmem: Some(maxmem),
-                mem: Some(mem.saturating_add_signed(jitter)),
-                memhost: None,
-                name: None,
-                netin: None,
-                netout: None,
-                node: Some(format!("node-{i}")),
-                plugintype: None,
-                pool: None,
-                status: Some("online".into()),
-                storage: None,
-                template: None,
-                ty: ClusterResourceType::Node,
-                uptime: Some(1234),
-                vmid: Some(vmid),
-                lock: None,
-                tags: None,
-                sdn: None,
-                network: None,
-                network_type: None,
-                protocol: None,
-                shared: None,
-                zone_type: None,
+            let val = json!({
+                "cpu": cpu,
+                "disk": disk.saturating_add_signed(jitter),
+                "id": format!("node/node-{i}"),
+                "level": "",
+                "maxcpu": 16.0,
+                "maxdisk": maxdisk,
+                "maxmem": maxmem,
+                "mem": mem.saturating_add_signed(jitter),
+                "node": format!("node-{i}"),
+                "status": "online",
+                "type": "node",
+                "uptime": 1234,
             });
+            result.push(serde_json::from_value(val).map_err(|err| {
+                proxmox_client::Error::Anyhow(format_err!("error on node {i}: {err}"))
+            })?);
         }
 
         for i in 0..self.nr_of_storages {
             let jitter = ((i as f64).sin() * bytejitter).round() as i64;
-            result.push(ClusterResource {
-                cgroup_mode: None,
-                content: Some(vec![StorageContent::Images, StorageContent::Rootdir]),
-                cpu: None,
-                disk: Some(disk.saturating_add_signed(jitter)),
-                diskread: None,
-                diskwrite: None,
-                hastate: None,
-                id: format!("storage/node-0/storage-{i}"),
-                level: None,
-                maxcpu: None,
-                maxdisk: Some(maxdisk),
-                maxmem: None,
-                mem: None,
-                memhost: None,
-                name: None,
-                netin: None,
-                netout: None,
-                node: Some(format!("node-{}", i % self.nr_of_nodes)),
-                plugintype: Some("dir".into()),
-                pool: None,
-                status: Some("available".into()),
-                storage: Some(format!("storage-{i}")),
-                template: None,
-                ty: ClusterResourceType::Storage,
-                uptime: None,
-                vmid: None,
-                lock: None,
-                tags: None,
-                sdn: None,
-                network: None,
-                network_type: None,
-                protocol: None,
-                shared: None,
-                zone_type: None,
+            let val = json!({
+                "content": "images,rootdir",
+                "disk": disk.saturating_add_signed(jitter),
+                "id": format!("storage/node-0/storage-{i}"),
+                "maxdisk": maxdisk,
+                "node": format!("node-{}", i % self.nr_of_nodes),
+                "plugintype": "dir",
+                "status": "available",
+                "storage": format!("storage-{i}"),
+                "type": "storage",
             });
+            result.push(serde_json::from_value(val).map_err(|err| {
+                proxmox_client::Error::Anyhow(format_err!("error on storage {i}: {err}"))
+            })?);
         }
 
         tokio::time::sleep(Duration::from_millis(self.api_delay_ms as u64)).await;
