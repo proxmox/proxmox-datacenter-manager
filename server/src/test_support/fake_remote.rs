@@ -19,6 +19,10 @@ use crate::{
     pbs_client::PbsClient,
 };
 
+const KIBI: u64 = 1024;
+const MEBI: u64 = 1024 * KIBI;
+const GIBI: u64 = 1024 * MEBI;
+
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct FakeRemoteConfig {
@@ -137,17 +141,17 @@ impl pve_api_types::client::PveClient for FakePveClient {
 
         let mut vmid = 100;
 
-        let disk: u64 = 42 * 1024 * 1024 * 1024;
-        let maxdisk: u64 = 100 * 1024 * 1024 * 1024;
+        let disk: u64 = 42 * GIBI;
+        let maxdisk: u64 = 100 * GIBI;
 
-        let mem: u64 = 3 * 1024 * 1024 * 1024;
-        let memhost: u64 = 4 * 1024 * 1024 * 1024;
-        let maxmem: i64 = 8 * 1024 * 1024 * 1024;
+        let mem: u64 = 3 * GIBI;
+        let memhost: u64 = 4 * GIBI;
+        let maxmem: i64 = 8 * GIBI as i64;
 
         let cpu = 0.1;
         let maxcpu = 4.0;
 
-        let bytejitter = 2.0 * 1024.0 * 1024.0 * 1024.0 * proxmox_time::epoch_f64().sin();
+        let bytejitter = 2.0 * GIBI as f64 * proxmox_time::epoch_f64().sin();
 
         for _ in 0..self.nr_of_vms {
             vmid += 1;
