@@ -59,8 +59,12 @@ impl RemoteConfig for FakeRemoteConfig {
         unsafe { Ok(proxmox_product_config::create_mocked_lock()) }
     }
 
-    fn save_config(&self, _remotes: &SectionConfigData<Remote>) -> Result<(), Error> {
+    fn save_config(&self, _remotes: SectionConfigData<Remote>) -> Result<(), Error> {
         Ok(())
+    }
+
+    fn get_secret_token(&self, _remote: &Remote) -> Result<String, Error> {
+        Ok(String::new())
     }
 }
 
@@ -165,6 +169,11 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 lock: None,
                 tags: None,
                 sdn: None,
+                network: None,
+                network_type: None,
+                protocol: None,
+                shared: None,
+                zone_type: None,
             });
         }
 
@@ -200,6 +209,11 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 lock: None,
                 tags: None,
                 sdn: None,
+                network: None,
+                network_type: None,
+                protocol: None,
+                shared: None,
+                zone_type: None,
             });
         }
 
@@ -234,6 +248,11 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 lock: None,
                 tags: None,
                 sdn: None,
+                network: None,
+                network_type: None,
+                protocol: None,
+                shared: None,
+                zone_type: None,
             });
         }
 
@@ -268,6 +287,11 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 lock: None,
                 tags: None,
                 sdn: None,
+                network: None,
+                network_type: None,
+                protocol: None,
+                shared: None,
+                zone_type: None,
             });
         }
 
