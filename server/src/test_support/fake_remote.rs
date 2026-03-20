@@ -147,23 +147,26 @@ impl pve_api_types::client::PveClient for FakePveClient {
         let cpu = 0.1;
         let maxcpu = 4.0;
 
+        let bytejitter = 2.0 * 1024.0 * 1024.0 * 1024.0 * proxmox_time::epoch_f64().sin();
+
         for _ in 0..self.nr_of_vms {
             vmid += 1;
+            let jitter = ((vmid as f64).sin() * bytejitter).round() as i64;
             result.push(ClusterResource {
                 cgroup_mode: None,
                 content: None,
                 cpu: Some(cpu),
                 diskread: Some(1034),
                 diskwrite: Some(1034),
-                disk: Some(disk),
+                disk: Some(disk.saturating_add_signed(jitter)),
                 hastate: None,
                 id: format!("qemu/{vmid}"),
                 level: Some("".into()),
                 maxcpu: Some(maxcpu),
                 maxdisk: Some(maxdisk),
                 maxmem: Some(maxmem),
-                mem: Some(mem),
-                memhost: Some(memhost),
+                mem: Some(mem.saturating_sub_signed(jitter)),
+                memhost: Some(memhost.saturating_add_signed(jitter)),
                 name: Some(format!("vm-{vmid}")),
                 netin: Some(1034),
                 netout: Some(1034),
@@ -189,11 +192,12 @@ impl pve_api_types::client::PveClient for FakePveClient {
 
         for _ in 0..self.nr_of_cts {
             vmid += 1;
+            let jitter = ((vmid as f64).sin() * bytejitter).round() as i64;
             result.push(ClusterResource {
                 cgroup_mode: None,
                 content: None,
                 cpu: Some(cpu),
-                disk: Some(disk),
+                disk: Some(disk.saturating_add_signed(jitter)),
                 diskread: Some(1034),
                 diskwrite: Some(1034),
                 hastate: None,
@@ -203,7 +207,7 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 maxdisk: Some(maxdisk),
                 maxmem: Some(maxmem),
                 memhost: Some(memhost),
-                mem: Some(mem),
+                mem: Some(mem.saturating_add_signed(jitter)),
                 name: Some(format!("ct-{vmid}")),
                 netin: Some(1034),
                 netout: Some(1034),
@@ -228,11 +232,12 @@ impl pve_api_types::client::PveClient for FakePveClient {
         }
 
         for i in 0..self.nr_of_nodes {
+            let jitter = ((i as f64).sin() * bytejitter).round() as i64;
             result.push(ClusterResource {
                 cgroup_mode: None,
                 content: None,
                 cpu: Some(cpu),
-                disk: Some(disk),
+                disk: Some(disk.saturating_add_signed(jitter)),
                 diskread: None,
                 diskwrite: None,
                 hastate: None,
@@ -241,7 +246,7 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 maxcpu: Some(16.),
                 maxdisk: Some(maxdisk),
                 maxmem: Some(maxmem),
-                mem: Some(mem),
+                mem: Some(mem.saturating_add_signed(jitter)),
                 memhost: None,
                 name: None,
                 netin: None,
@@ -267,11 +272,12 @@ impl pve_api_types::client::PveClient for FakePveClient {
         }
 
         for i in 0..self.nr_of_storages {
+            let jitter = ((i as f64).sin() * bytejitter).round() as i64;
             result.push(ClusterResource {
                 cgroup_mode: None,
                 content: Some(vec![StorageContent::Images, StorageContent::Rootdir]),
                 cpu: None,
-                disk: Some(disk),
+                disk: Some(disk.saturating_add_signed(jitter)),
                 diskread: None,
                 diskwrite: None,
                 hastate: None,
