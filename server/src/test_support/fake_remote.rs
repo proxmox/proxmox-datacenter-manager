@@ -137,23 +137,33 @@ impl pve_api_types::client::PveClient for FakePveClient {
 
         let mut vmid = 100;
 
+        let disk: u64 = 42 * 1024 * 1024 * 1024;
+        let maxdisk: u64 = 100 * 1024 * 1024 * 1024;
+
+        let mem: u64 = 3 * 1024 * 1024 * 1024;
+        let memhost: u64 = 4 * 1024 * 1024 * 1024;
+        let maxmem: i64 = 8 * 1024 * 1024 * 1024;
+
+        let cpu = 0.1;
+        let maxcpu = 4.0;
+
         for _ in 0..self.nr_of_vms {
             vmid += 1;
             result.push(ClusterResource {
                 cgroup_mode: None,
                 content: None,
-                cpu: Some(0.1),
+                cpu: Some(cpu),
                 diskread: Some(1034),
                 diskwrite: Some(1034),
-                disk: Some(42 * 1024 * 1024 * 1024),
+                disk: Some(disk),
                 hastate: None,
                 id: format!("qemu/{vmid}"),
                 level: Some("".into()),
-                maxcpu: Some(4.),
-                maxdisk: Some(100 * 1024 * 1024 * 1024),
-                maxmem: Some(8 * 1024 * 1024 * 1024),
-                mem: Some(3 * 1024 * 1024 * 1024),
-                memhost: Some(4 * 1024 * 1024 * 1024),
+                maxcpu: Some(maxcpu),
+                maxdisk: Some(maxdisk),
+                maxmem: Some(maxmem),
+                mem: Some(mem),
+                memhost: Some(memhost),
                 name: Some(format!("vm-{vmid}")),
                 netin: Some(1034),
                 netout: Some(1034),
@@ -182,18 +192,18 @@ impl pve_api_types::client::PveClient for FakePveClient {
             result.push(ClusterResource {
                 cgroup_mode: None,
                 content: None,
-                cpu: Some(0.1),
-                disk: Some(42 * 1024 * 1024 * 1024),
+                cpu: Some(cpu),
+                disk: Some(disk),
                 diskread: Some(1034),
                 diskwrite: Some(1034),
                 hastate: None,
                 id: format!("lxc/{vmid}"),
                 level: Some("".into()),
-                maxcpu: Some(4.),
-                maxdisk: Some(100 * 1024 * 1024 * 1024),
-                maxmem: Some(8 * 1024 * 1024 * 1024),
-                memhost: Some(4 * 1024 * 1024 * 1024),
-                mem: Some(3 * 1024 * 1024 * 1024),
+                maxcpu: Some(maxcpu),
+                maxdisk: Some(maxdisk),
+                maxmem: Some(maxmem),
+                memhost: Some(memhost),
+                mem: Some(mem),
                 name: Some(format!("ct-{vmid}")),
                 netin: Some(1034),
                 netout: Some(1034),
@@ -221,17 +231,17 @@ impl pve_api_types::client::PveClient for FakePveClient {
             result.push(ClusterResource {
                 cgroup_mode: None,
                 content: None,
-                cpu: Some(0.1),
-                disk: Some(42 * 1024 * 1024 * 1024),
+                cpu: Some(cpu),
+                disk: Some(disk),
                 diskread: None,
                 diskwrite: None,
                 hastate: None,
                 id: format!("node/node-{i}"),
                 level: Some("".into()),
                 maxcpu: Some(16.),
-                maxdisk: Some(100 * 1024 * 1024 * 1024),
-                maxmem: Some(8 * 1024 * 1024 * 1024),
-                mem: Some(3 * 1024 * 1024 * 1024),
+                maxdisk: Some(maxdisk),
+                maxmem: Some(maxmem),
+                mem: Some(mem),
                 memhost: None,
                 name: None,
                 netin: None,
@@ -261,14 +271,14 @@ impl pve_api_types::client::PveClient for FakePveClient {
                 cgroup_mode: None,
                 content: Some(vec![StorageContent::Images, StorageContent::Rootdir]),
                 cpu: None,
-                disk: Some(42 * 1024 * 1024 * 1024),
+                disk: Some(disk),
                 diskread: None,
                 diskwrite: None,
                 hastate: None,
                 id: format!("storage/node-0/storage-{i}"),
                 level: None,
                 maxcpu: None,
-                maxdisk: Some(100 * 1024 * 1024 * 1024),
+                maxdisk: Some(maxdisk),
                 maxmem: None,
                 mem: None,
                 memhost: None,
