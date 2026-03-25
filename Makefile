@@ -158,6 +158,7 @@ dsc-ui: $(UI_DIR)
 	$(MAKE) -C $(UI_DIR) dsc
 	dcmd mv $(UI_DIR)/proxmox-datacenter-manager-ui*.dsc .
 
+.PHONY: test
 test:
 	$(CARGO) test $(tests) $(CARGO_BUILD_ARGS)
 
