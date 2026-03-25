@@ -1,6 +1,4 @@
-# Debug features
-
-## Faked remotes
+# Faked remotes
 
 To enable an alternative implementation for reading remote configurations (`/etc/proxmox-datacenter-manager/remotes.cfg`) 
 and creating API clients for these remotes, compile the project using:
