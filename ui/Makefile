@@ -128,3 +128,7 @@ clean:
 .PHONY: dinstall
 dinstall: deb
 	dpkg -i $(DEB)
+
+.PHONY: tidy
+tidy:
+	$(CARGO) fmt

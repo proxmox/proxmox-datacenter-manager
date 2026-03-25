@@ -160,3 +160,9 @@ dsc-ui: $(UI_DIR)
 
 test:
 	$(CARGO) test $(tests) $(CARGO_BUILD_ARGS)
+
+.PHONY: tidy
+tidy:
+	$(CARGO) fmt
+	$(MAKE) -C $(UI_DIR) tidy
+
