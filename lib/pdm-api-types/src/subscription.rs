@@ -8,7 +8,7 @@ use proxmox_subscription::{SubscriptionInfo, SubscriptionStatus};
 
 #[api]
 // order is important here, since we use that for determining if a node has a valid subscription
-#[derive(Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 /// Describes the level of subscription
 pub enum SubscriptionLevel {
     #[default]
@@ -50,11 +50,11 @@ impl FromStr for SubscriptionLevel {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
-            "p" => SubscriptionLevel::Premium,
-            "s" => SubscriptionLevel::Standard,
-            "b" => SubscriptionLevel::Basic,
-            "c" => SubscriptionLevel::Community,
-            "" => SubscriptionLevel::None,
+            "p" | "premium" | "Premium" => SubscriptionLevel::Premium,
+            "s" | "standard" | "Standard" => SubscriptionLevel::Standard,
+            "b" | "basic" | "Basic" => SubscriptionLevel::Basic,
+            "c" | "community" | "Community" => SubscriptionLevel::Community,
+            "" | "none" | "None" => SubscriptionLevel::None,
             _ => SubscriptionLevel::Unknown,
         })
     }
@@ -63,12 +63,12 @@ impl FromStr for SubscriptionLevel {
 impl std::fmt::Display for SubscriptionLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            SubscriptionLevel::None => "",
-            SubscriptionLevel::Unknown => "unknown",
-            SubscriptionLevel::Community => "c",
-            SubscriptionLevel::Basic => "b",
-            SubscriptionLevel::Standard => "s",
-            SubscriptionLevel::Premium => "p",
+            SubscriptionLevel::None => "None",
+            SubscriptionLevel::Unknown => "Unknown",
+            SubscriptionLevel::Community => "Community",
+            SubscriptionLevel::Basic => "Basic",
+            SubscriptionLevel::Standard => "Standard",
+            SubscriptionLevel::Premium => "Premium",
         })
     }
 }

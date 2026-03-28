@@ -204,17 +204,6 @@ fn columns(
             .with_child(Container::from_tag("span").with_child(text))
     }
 
-    fn render_subscription_level(level: SubscriptionLevel) -> &'static str {
-        match level {
-            SubscriptionLevel::None => "None",
-            SubscriptionLevel::Basic => "Basic",
-            SubscriptionLevel::Community => "Community",
-            SubscriptionLevel::Premium => "Premium",
-            SubscriptionLevel::Standard => "Standard",
-            SubscriptionLevel::Unknown => "Unknown",
-        }
-    }
-
     let subscription_column = DataTableColumn::new(tr!("Subscription"))
         .render(|entry: &SubscriptionTreeEntry| match entry {
             SubscriptionTreeEntry::Node(node) => {
@@ -222,16 +211,13 @@ fn columns(
                     let (sub_state, text) = match node.level {
                         SubscriptionLevel::None => (RemoteSubscriptionState::None, None),
                         SubscriptionLevel::Unknown => (RemoteSubscriptionState::Unknown, None),
-                        other => (
-                            RemoteSubscriptionState::Active,
-                            Some(render_subscription_level(other)),
-                        ),
+                        other => (RemoteSubscriptionState::Active, Some(other.to_string())),
                     };
                     render_subscription_state(&sub_state)
                         .with_optional_child(text)
                         .into()
                 } else {
-                    render_subscription_level(node.level).into()
+                    node.level.to_string().into()
                 }
             }
             SubscriptionTreeEntry::Remote(remote) => {
