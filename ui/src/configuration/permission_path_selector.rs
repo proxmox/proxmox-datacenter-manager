@@ -8,7 +8,7 @@ use pwt::{prelude::*, AsyncPool};
 
 use pwt_macros::{builder, widget};
 
-use crate::pdm_client;
+use crate::{pdm_client, RemoteList};
 
 static PREDEFINED_PATHS: &[&str] = &[
     "/",
@@ -67,8 +67,18 @@ impl PdmPermissionPathSelector {
         Ok(paths)
     }
 
-    async fn get_paths() -> Result<Vec<String>, Error> {
-        let paths = Self::get_view_paths().await?;
+    async fn get_paths(remote_list: Option<RemoteList>) -> Result<Vec<String>, Error> {
+        let mut paths = Self::get_view_paths().await?;
+
+        if let Some(remotes) = remote_list {
+            let mut remote_paths = remotes
+                .0
+                .iter()
+                .map(|remote| format!("/resource/{}", remote.id))
+                .collect();
+            paths.append(&mut remote_paths);
+        }
+
         Ok(paths)
     }
 }
@@ -83,10 +93,14 @@ impl Component for PdmPermissionPathSelector {
             .map(|i| AttrValue::from(*i))
             .collect();
 
-        let link = ctx.link().clone();
+        let result = ctx.link().context(Callback::from(|_: RemoteList| {}));
+        let remote_list = result.map(|(remote_list, _)| remote_list);
+
         let async_pool = AsyncPool::new();
+        let link = ctx.link().clone();
+
         async_pool.spawn(async move {
-            let paths = Self::get_paths().await;
+            let paths = Self::get_paths(remote_list).await;
             match paths {
                 Ok(paths) => link.send_message(Msg::Prefetched(paths)),
                 Err(_) => link.send_message(Msg::PrefetchFailed),
