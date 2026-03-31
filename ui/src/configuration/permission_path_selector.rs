@@ -1,11 +1,14 @@
 use std::rc::Rc;
 
+use anyhow::Error;
 use yew::html::IntoPropValue;
 
-use pwt::prelude::*;
 use pwt::widget::form::Combobox;
+use pwt::{prelude::*, AsyncPool};
 
 use pwt_macros::{builder, widget};
+
+use crate::pdm_client;
 
 static PREDEFINED_PATHS: &[&str] = &[
     "/",
@@ -44,33 +47,68 @@ impl PermissionPathSelector {
     }
 }
 
-enum Msg {}
+enum Msg {
+    Prefetched(Vec<String>),
+    PrefetchFailed,
+}
 
 struct PdmPermissionPathSelector {
     items: Rc<Vec<AttrValue>>,
+    _async_pool: AsyncPool,
 }
 
-impl PdmPermissionPathSelector {}
+impl PdmPermissionPathSelector {
+    async fn get_view_paths() -> Result<Vec<String>, Error> {
+        let views = pdm_client().list_views().await?;
+        let paths: Vec<String> = views
+            .iter()
+            .map(|cfg| format!("/view/{}", cfg.id))
+            .collect();
+        Ok(paths)
+    }
+
+    async fn get_paths() -> Result<Vec<String>, Error> {
+        let paths = Self::get_view_paths().await?;
+        Ok(paths)
+    }
+}
 
 impl Component for PdmPermissionPathSelector {
     type Message = Msg;
     type Properties = PermissionPathSelector;
 
-    fn create(_ctx: &Context<Self>) -> Self {
-        // TODO: fetch resources & remotes from the backend to improve the pre-defined selection of
-        // acl paths
+    fn create(ctx: &Context<Self>) -> Self {
+        let base_items: Vec<AttrValue> = PREDEFINED_PATHS
+            .iter()
+            .map(|i| AttrValue::from(*i))
+            .collect();
+
+        let link = ctx.link().clone();
+        let async_pool = AsyncPool::new();
+        async_pool.spawn(async move {
+            let paths = Self::get_paths().await;
+            match paths {
+                Ok(paths) => link.send_message(Msg::Prefetched(paths)),
+                Err(_) => link.send_message(Msg::PrefetchFailed),
+            }
+        });
+
         Self {
-            items: Rc::new(
-                PREDEFINED_PATHS
-                    .iter()
-                    .map(|i| AttrValue::from(*i))
-                    .collect(),
-            ),
+            items: Rc::new(base_items),
+            _async_pool: async_pool,
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
-        false
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            Msg::Prefetched(paths) => {
+                let items = Rc::make_mut(&mut self.items);
+                items.extend(paths.into_iter().map(AttrValue::from));
+                items.sort_by_key(|k| k.to_lowercase());
+                true
+            }
+            Msg::PrefetchFailed => false,
+        }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
