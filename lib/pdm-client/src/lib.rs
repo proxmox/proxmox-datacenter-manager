@@ -1366,6 +1366,16 @@ impl<T: HttpApiClient> PdmClient<T> {
             .expect_json()?
             .data)
     }
+
+    /// Get the list of views.
+    pub async fn list_views(&self) -> Result<Vec<pdm_api_types::views::ViewConfig>, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/config/views")
+            .await?
+            .expect_json()?
+            .data)
+    }
 }
 
 /// Builder for migration parameters.
