@@ -1,5 +1,6 @@
 use anyhow::{Context, Error};
 
+use pdm_api_types::acme::AcmeRegistrationParams;
 use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{Router, RpcEnvironment, SubdirMap};
 
@@ -79,31 +80,9 @@ pub fn list_accounts() -> Result<Vec<AccountEntry>, Error> {
 #[api(
     input: {
         properties: {
-            name: {
-                type: AcmeAccountName,
-                optional: true,
-            },
-            contact: {
-                description: "List of email addresses.",
-            },
-            tos_url: {
-                description: "URL of CA TermsOfService - setting this indicates agreement.",
-                optional: true,
-            },
-            directory: {
-                type: String,
-                description: "The ACME Directory.",
-                optional: true,
-            },
-            eab_kid: {
-                type: String,
-                description: "Key Identifier for External Account Binding.",
-                optional: true,
-            },
-            eab_hmac_key: {
-                type: String,
-                description: "HMAC Key for External Account Binding.",
-                optional: true,
+            params: {
+                type: AcmeRegistrationParams,
+                flatten: true
             }
         },
     },
@@ -116,16 +95,19 @@ pub fn list_accounts() -> Result<Vec<AccountEntry>, Error> {
     },
 )]
 /// Register an ACME account.
-fn register_account(
-    name: Option<AcmeAccountName>,
-    // Todo: email & email-list schema
-    contact: String,
-    tos_url: Option<String>,
-    directory: Option<String>,
-    eab_kid: Option<String>,
-    eab_hmac_key: Option<String>,
+pub fn register_account(
+    params: AcmeRegistrationParams,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
+    let AcmeRegistrationParams {
+        name,
+        contact,
+        tos_url,
+        directory,
+        eab_kid,
+        eab_hmac_key,
+    } = params;
+
     let auth_id = rpcenv.get_auth_id().context("no authid available")?;
     let name = name.unwrap_or_else(|| unsafe {
         AcmeAccountName::from_string_unchecked("default".to_string())

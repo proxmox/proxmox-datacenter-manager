@@ -116,6 +116,8 @@ pub mod sdn;
 
 pub mod views;
 
+pub mod acme;
+
 const_regex! {
     // just a rough check - dummy acceptor is used before persisting
     pub OPENSSL_CIPHERS_REGEX = r"^[0-9A-Za-z_:, +!\-@=.]+$";
