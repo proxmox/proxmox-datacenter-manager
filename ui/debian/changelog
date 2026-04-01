@@ -1,3 +1,11 @@
+proxmox-datacenter-manager-ui (1.0.3) UNRELEASED; urgency=medium
+
+  * when adding a new ACL entry, the permission path selector is now
+    pre-populated with available views (/views/<view-name>) and remotes
+    (/resource/<remote-name>).
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 01 Apr 2026 10:02:20 +0200
+
 proxmox-datacenter-manager-ui (1.0.2) trixie; urgency=medium
 
   * dashboard: top entities: display hint message if there are no entities to
