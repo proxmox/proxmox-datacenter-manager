@@ -1,6 +1,6 @@
 use anyhow::{Context, Error};
 
-use pdm_api_types::acme::AcmeRegistrationParams;
+use pdm_api_types::acme::{AcmeRegistrationParams, ACME_CONTACT_LIST_SCHEMA};
 use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{Router, RpcEnvironment, SubdirMap};
 
@@ -169,7 +169,7 @@ pub async fn get_account(name: AcmeAccountName) -> Result<AccountInfo, Error> {
         properties: {
             name: { type: AcmeAccountName },
             contact: {
-                description: "List of email addresses.",
+                schema: ACME_CONTACT_LIST_SCHEMA,
                 optional: true,
             },
         },
@@ -185,7 +185,6 @@ pub async fn get_account(name: AcmeAccountName) -> Result<AccountInfo, Error> {
 /// Update an ACME account.
 pub fn update_account(
     name: AcmeAccountName,
-    // Todo: email & email-list schema
     contact: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
