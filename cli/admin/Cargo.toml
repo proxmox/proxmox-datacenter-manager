@@ -22,7 +22,9 @@ proxmox-access-control.workspace = true
 proxmox-rest-server.workspace = true
 proxmox-sys.workspace = true
 proxmox-daemon.workspace = true
-
+proxmox-acme.workspace = true
+proxmox-acme-api.workspace = true
+proxmox-base64.workspace = true
 pdm-api-types.workspace = true
 pdm-config.workspace = true
 pdm-buildcfg.workspace = true

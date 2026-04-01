@@ -11,6 +11,7 @@ use proxmox_router::RpcEnvironment;
 use proxmox_schema::api;
 use proxmox_sys::fs::CreateOptions;
 
+mod acme;
 mod remotes;
 mod support_status;
 
@@ -24,7 +25,11 @@ async fn run() -> Result<(), Error> {
         pdm_buildcfg::configdir!("/access"),
     )
     .context("failed to setup access control config")?;
+    proxmox_acme_api::init(pdm_buildcfg::configdir!("/acme"), false)
+        .context("failed to initialize acme config")?;
+
     proxmox_log::Logger::from_env("PDM_LOG", proxmox_log::LevelFilter::INFO)
+        .tasklog_pbs()
         .stderr()
         .init()
         .context("failed to set up logger")?;
@@ -32,6 +37,7 @@ async fn run() -> Result<(), Error> {
     server::context::init().context("could not set up server context")?;
 
     let cmd_def = CliCommandMap::new()
+        .insert("acme", acme::acme_mgmt_cli())
         .insert("remote", remotes::cli())
         .insert(
             "report",
