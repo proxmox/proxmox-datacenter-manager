@@ -68,7 +68,7 @@ proxmox-upgrade-checks = "1"
 proxmox-uuid = "1"
 
 # other proxmox crates
-proxmox-acme = "0.5"
+proxmox-acme = "1.0"
 proxmox-openid = "1.0.2"
 
 # api implementation creates
