@@ -1,35 +1,35 @@
+use core::matches;
+
+use anyhow::{Context, Error};
 use serde_json::{json, Value};
 
 use proxmox_router::cli::{
-    default_table_format_options, format_and_print_result_full, get_output_format, run_cli_command,
-    CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
+    default_table_format_options, format_and_print_result_full, get_output_format,
+    run_async_cli_command, CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
 };
 use proxmox_router::RpcEnvironment;
-
 use proxmox_schema::api;
+use proxmox_sys::fs::CreateOptions;
 
 mod remotes;
 mod support_status;
 
-fn main() {
-    //pbs_tools::setup_libc_malloc_opts(); // TODO: move from PBS to proxmox-sys and uncomment
+async fn run() -> Result<(), Error> {
+    let api_user = pdm_config::api_user().context("could not get api user")?;
+    let priv_user = pdm_config::priv_user().context("could not get privileged user")?;
 
-    let api_user = pdm_config::api_user().expect("cannot get api user");
-    let priv_user = pdm_config::priv_user().expect("cannot get privileged user");
-    proxmox_product_config::init(api_user, priv_user);
-
+    proxmox_product_config::init(api_user.clone(), priv_user);
     proxmox_access_control::init::init(
         &pdm_api_types::AccessControlConfig,
         pdm_buildcfg::configdir!("/access"),
     )
-    .expect("failed to setup access control config");
-
+    .context("failed to setup access control config")?;
     proxmox_log::Logger::from_env("PDM_LOG", proxmox_log::LevelFilter::INFO)
         .stderr()
         .init()
-        .expect("failed to set up logger");
+        .context("failed to set up logger")?;
 
-    server::context::init().expect("could not set up server context");
+    server::context::init().context("could not set up server context")?;
 
     let cmd_def = CliCommandMap::new()
         .insert("remote", remotes::cli())
@@ -40,14 +40,36 @@ fn main() {
         .insert("support-status", support_status::cli())
         .insert("versions", CliCommand::new(&API_METHOD_GET_VERSIONS));
 
+    let args: Vec<String> = std::env::args().collect();
+    let avoid_init = matches!(
+        args.get(1).map(String::as_str),
+        Some("bashcomplete") | Some("printdoc")
+    );
+
+    if !avoid_init {
+        let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
+        proxmox_rest_server::init_worker_tasks(pdm_buildcfg::PDM_LOG_DIR_M!().into(), file_opts)
+            .context("failed to initialize worker tasks")?;
+
+        let mut command_sock = proxmox_daemon::command_socket::CommandSocket::new(api_user.gid);
+        proxmox_rest_server::register_task_control_commands(&mut command_sock)
+            .context("failed to register task control commands")?;
+        command_sock
+            .spawn(proxmox_rest_server::last_worker_future())
+            .context("failed to activate the socket")?;
+    }
+
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some("root@pam".into()));
 
-    run_cli_command(
-        cmd_def,
-        rpcenv,
-        Some(|future| proxmox_async::runtime::main(future)),
-    );
+    run_async_cli_command(cmd_def, rpcenv).await;
+
+    Ok(())
+}
+
+fn main() -> Result<(), Error> {
+    //pbs_tools::setup_libc_malloc_opts(); // TODO: move from PBS to proxmox-sys and uncomment
+    proxmox_async::runtime::main(run())
 }
 
 #[api(
