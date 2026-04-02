@@ -1,3 +1,9 @@
+proxmox-datacenter-manager (1.0.4) UNRELEASED; urgency=medium
+
+  * admin cli: add commands to manage ACME certificates, accounts and plugins.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 02 Apr 2026 14:15:25 +0200
+
 proxmox-datacenter-manager (1.0.3) trixie; urgency=medium
 
   * client cli: support the 'target-vmid' parameter for the 'pve qemu
