@@ -21,7 +21,7 @@ use crate::dashboard::view::EditingMessage;
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::views::{
-    LeaderboardType, RowWidget, TaskSummaryGrouping, ViewLayout, WidgetType,
+    LeaderboardType, NodeResourceType, RowWidget, TaskSummaryGrouping, ViewLayout, WidgetType,
 };
 
 #[derive(Properties, PartialEq)]
@@ -539,6 +539,35 @@ fn create_menu(ctx: &yew::Context<RowViewComp>, new_coords: Position) -> Menu {
         ctx.link()
             .callback(move |_| Msg::AddWidget(new_coords, widget.clone()))
     };
+    let create_gauge_menu = |remote_type: Option<RemoteType>| -> Menu {
+        Menu::new()
+            .with_item(
+                MenuItem::new(tr!("All Resources")).on_select(create_callback(
+                    WidgetType::NodeResourceGauge {
+                        resource: None,
+                        remote_type,
+                    },
+                )),
+            )
+            .with_item(MenuItem::new(tr!("CPU")).on_select(create_callback(
+                WidgetType::NodeResourceGauge {
+                    resource: Some(NodeResourceType::Cpu),
+                    remote_type,
+                },
+            )))
+            .with_item(MenuItem::new(tr!("Memory")).on_select(create_callback(
+                WidgetType::NodeResourceGauge {
+                    resource: Some(NodeResourceType::Memory),
+                    remote_type,
+                },
+            )))
+            .with_item(MenuItem::new(tr!("Storage")).on_select(create_callback(
+                WidgetType::NodeResourceGauge {
+                    resource: Some(NodeResourceType::Storage),
+                    remote_type,
+                },
+            )))
+    };
     Menu::new()
         .with_item(
             MenuItem::new(tr!("Remote Panel"))
@@ -641,5 +670,19 @@ fn create_menu(ctx: &yew::Context<RowViewComp>, new_coords: Position) -> Menu {
         .with_item(
             MenuItem::new(tr!("Resource Tree"))
                 .on_select(create_callback(WidgetType::ResourceTree)),
+        )
+        .with_item(
+            MenuItem::new(tr!("Resource Usage")).menu(
+                Menu::new()
+                    .with_item(MenuItem::new(tr!("All")).menu(create_gauge_menu(None)))
+                    .with_item(
+                        MenuItem::new(tr!("Virtual Environment"))
+                            .menu(create_gauge_menu(Some(RemoteType::Pve))),
+                    )
+                    .with_item(
+                        MenuItem::new(tr!("Backup Server"))
+                            .menu(create_gauge_menu(Some(RemoteType::Pbs))),
+                    ),
+            ),
         )
 }

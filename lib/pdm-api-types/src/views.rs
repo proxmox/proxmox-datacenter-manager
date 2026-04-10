@@ -266,6 +266,15 @@ pub struct RowWidget {
     pub r#type: WidgetType,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
+/// A type of resource of a node
+pub enum NodeResourceType {
+    Cpu,
+    Memory,
+    Storage,
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "widget-type")]
@@ -295,6 +304,14 @@ pub enum WidgetType {
         grouping: TaskSummaryGrouping,
     },
     ResourceTree,
+    #[serde(rename_all = "kebab-case")]
+    /// Display node resources as gauge chart
+    NodeResourceGauge {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        resource: Option<NodeResourceType>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        remote_type: Option<RemoteType>,
+    },
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]

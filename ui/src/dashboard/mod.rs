@@ -14,6 +14,9 @@ pub use subscriptions_list::SubscriptionsList;
 mod remote_panel;
 pub use remote_panel::create_remote_panel;
 
+mod gauge_panel;
+pub use gauge_panel::create_gauge_panel;
+
 mod guest_panel;
 pub use guest_panel::create_guest_panel;
 
