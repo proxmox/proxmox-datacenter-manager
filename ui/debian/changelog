@@ -1,10 +1,28 @@
-proxmox-datacenter-manager-ui (1.0.3) UNRELEASED; urgency=medium
+proxmox-datacenter-manager-ui (1.0.3) trixie; urgency=medium
 
   * when adding a new ACL entry, the permission path selector is now
     pre-populated with available views (/views/<view-name>) and remotes
     (/resource/<remote-name>).
 
- -- Proxmox Support Team <support@proxmox.com>  Wed, 01 Apr 2026 10:02:20 +0200
+  * wizard: make content panel resizable so it fills the dialog area when the
+    parent wizard dialog is resized.
+
+  * realm sync dialog: fix an issue where syncing with the realm's default
+    settings was not possible without first changing a value.
+
+  * user panel: handle the expire property on edit properly, treating the
+    special value "0" as "never expires" instead of rendering the Unix epoch.
+
+  * markdown viewer: make HTML sanitizer more robust by also encoding the
+    'base' tag and fixing tag comparisons that prevented matching uppercase
+    tag name variants.
+
+  * combobox: allow auto-selecting the filter field for more intuitive
+    keyboard-driven selection.
+
+  * fix focusing number input fields on click.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 10 Apr 2026 19:05:27 +0200
 
 proxmox-datacenter-manager-ui (1.0.2) trixie; urgency=medium
 
