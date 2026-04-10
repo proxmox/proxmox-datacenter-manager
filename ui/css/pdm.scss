@@ -37,35 +37,38 @@
 
 .fa-cpu::before {
     content: " ";
-    background-image: url(./images/icon-cpu.svg);
-    background-size: 16px 16px;
-    background-repeat: no-repeat;
+    mask-image: url(./images/icon-cpu.svg);
+    mask-size: 16px 16px;
+    mask-repeat: no-repeat;
     width: 16px;
     height: 16px;
     vertical-align: bottom;
     display: inline-block;
+    background-color: var(--pwt-color);
 }
 
 .fa-memory::before {
     content: " ";
-    background-image: url(./images/icon-memory.svg);
-    background-size: 16px 16px;
-    background-repeat: no-repeat;
+    mask-image: url(./images/icon-memory.svg);
+    mask-size: 16px 16px;
+    mask-repeat: no-repeat;
     width: 16px;
     height: 16px;
     vertical-align: bottom;
     display: inline-block;
+    background-color: var(--pwt-color);
 }
 
 .fa-cdrom::before {
     content: " ";
-    background-image: url(./images/icon-cd-drive.svg);
-    background-size: 16px 16px;
-    background-repeat: no-repeat;
+    mask-image: url(./images/icon-cd-drive.svg);
+    mask-size: 16px 16px;
+    mask-repeat: no-repeat;
     width: 16px;
     height: 16px;
     vertical-align: bottom;
     display: inline-block;
+    background-color: var(--pwt-color);
 }
 
 .fa-sdn-vnet::before {
@@ -93,6 +96,9 @@
 }
 
 .pwt-nav-menu .pwt-nav-link.active{
+    .fa-cdrom:before,
+    .fa-memory:before,
+    .fa-cpu:before,
     .fa-sdn:before,
     .fa-sdn-vnet:before {
         background-color: var(--pwt-accent-color);
@@ -100,17 +106,12 @@
 }
 
 .pwt-panel-header-text{
+    .fa-cdrom:before,
+    .fa-memory:before,
+    .fa-cpu:before,
     .fa-sdn:before,
     .fa-sdn-vnet:before {
       background-color: var(--pwt-accent-color-background);
-    }
-}
-
-:root.pwt-dark-mode {
-    .fa-cdrom,
-    .fa-memory,
-    .fa-cpu {
-        filter: invert(90%);
     }
 }
 
