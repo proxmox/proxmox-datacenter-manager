@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::{api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema};
 
 use super::remotes::{RemoteType, REMOTE_ID_SCHEMA};
+use super::{MemoryStatus, StorageStatus};
+
 use pve_api_types::ClusterResourceNetworkType;
 
 /// High PBS datastore usage threshold
@@ -668,6 +670,18 @@ pub struct SdnZoneCount {
     pub unknown: u64,
 }
 
+#[api]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+/// Statistics for CPU utilization
+pub struct CpuStatistics {
+    /// Number of utilized threads
+    pub used: f64,
+    /// Number of physically available cpu threads
+    pub max: f64,
+    /// Currently allocated cores of running guests (only on PVE)
+    pub allocated: Option<f64>,
+}
+
 #[api(
     properties: {
         "failed_remotes_list": {
@@ -699,6 +713,19 @@ pub struct ResourcesStatus {
     pub pbs_nodes: NodeStatusCount,
     /// Status of PBS Datastores
     pub pbs_datastores: PbsDatastoreStatusCount,
+    /// Combined CPU statistics for all PVE remotes
+    pub pve_cpu_stats: CpuStatistics,
+    /// Combined CPU statistics for all PBS remotes
+    pub pbs_cpu_stats: CpuStatistics,
+    /// Combined Memory statistics for all PVE remotes
+    pub pve_memory_stats: MemoryStatus,
+    /// Combined Memory statistics for all PBS remotes
+    pub pbs_memory_stats: MemoryStatus,
+    /// Combined Storage statistics for all PVE remotes (shared storages are only counted once per
+    /// remote).
+    pub pve_storage_stats: StorageStatus,
+    /// Combined Storage statistics for all PBS remotes
+    pub pbs_storage_stats: StorageStatus,
     /// List of the failed remotes including type and error
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub failed_remotes_list: Vec<FailedRemote>,

@@ -193,7 +193,7 @@ pub const PVE_STORAGE_ID_SCHEMA: Schema = StringSchema::new("Storage ID.")
 // Complex type definitions
 
 #[api()]
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Clone)]
 /// Storage space usage information.
 pub struct StorageStatus {
     /// Total space (bytes).
@@ -201,6 +201,18 @@ pub struct StorageStatus {
     /// Used space (bytes).
     pub used: u64,
     /// Available space (bytes).
+    pub avail: u64,
+}
+
+#[api]
+#[derive(Default, Serialize, Deserialize, PartialEq, Clone)]
+/// Memory usage information.
+pub struct MemoryStatus {
+    /// Total memory size (bytes).
+    pub total: u64,
+    /// Used memory (bytes).
+    pub used: u64,
+    /// Available memory (bytes).
     pub avail: u64,
 }
 

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::{LazyLock, RwLock};
 
@@ -468,6 +468,7 @@ pub async fn get_status(
     let remotes_with_resources =
         get_resources_impl(max_age, None, None, view.as_deref(), Some(rpcenv)).await?;
     let mut counts = ResourcesStatus::default();
+    let mut pve_cpu_allocated = 0.0;
     for remote_with_resources in remotes_with_resources {
         if let Some(err) = remote_with_resources.error {
             counts.failed_remotes += 1;
@@ -479,29 +480,52 @@ pub async fn get_status(
         } else {
             counts.remotes += 1;
         }
+        let mut seen_storages = HashSet::new();
         for resource in remote_with_resources.resources {
             match resource {
-                Resource::PveStorage(r) => match r.status.as_str() {
-                    "available" => counts.storages.available += 1,
-                    _ => counts.storages.unknown += 1,
-                },
+                Resource::PveStorage(r) => {
+                    match r.status.as_str() {
+                        "available" => counts.storages.available += 1,
+                        _ => counts.storages.unknown += 1,
+                    }
+                    if !r.shared || !seen_storages.contains(&r.storage) {
+                        counts.pve_storage_stats.total += r.maxdisk;
+                        counts.pve_storage_stats.used += r.disk;
+                        counts.pve_storage_stats.avail += r.maxdisk - r.disk;
+                        seen_storages.insert(r.storage);
+                    }
+                }
                 Resource::PveQemu(r) => match r.status.as_str() {
                     _ if r.template => counts.qemu.template += 1,
-                    "running" => counts.qemu.running += 1,
+                    "running" => {
+                        counts.qemu.running += 1;
+                        pve_cpu_allocated += r.maxcpu;
+                    }
                     "stopped" => counts.qemu.stopped += 1,
                     _ => counts.qemu.unknown += 1,
                 },
                 Resource::PveLxc(r) => match r.status.as_str() {
                     _ if r.template => counts.lxc.template += 1,
-                    "running" => counts.lxc.running += 1,
+                    "running" => {
+                        counts.lxc.running += 1;
+                        pve_cpu_allocated += r.maxcpu;
+                    }
                     "stopped" => counts.lxc.stopped += 1,
                     _ => counts.lxc.unknown += 1,
                 },
-                Resource::PveNode(r) => match r.status.as_str() {
-                    "online" => counts.pve_nodes.online += 1,
-                    "offline" => counts.pve_nodes.offline += 1,
-                    _ => counts.pve_nodes.unknown += 1,
-                },
+                Resource::PveNode(r) => {
+                    match r.status.as_str() {
+                        "online" => counts.pve_nodes.online += 1,
+                        "offline" => counts.pve_nodes.offline += 1,
+                        _ => counts.pve_nodes.unknown += 1,
+                    }
+                    counts.pve_cpu_stats.used += r.cpu * r.maxcpu;
+                    counts.pve_cpu_stats.max += r.maxcpu;
+
+                    counts.pve_memory_stats.total += r.maxmem;
+                    counts.pve_memory_stats.used += r.mem;
+                    counts.pve_memory_stats.avail += r.maxmem - r.mem;
+                }
                 Resource::PveNetwork(r) => {
                     if let PveNetworkResource::Zone(zone) = r {
                         match zone.status() {
@@ -521,7 +545,16 @@ pub async fn get_status(
                     }
                 }
                 // FIXME better status for pbs/datastores
-                Resource::PbsNode(_) => counts.pbs_nodes.online += 1,
+                Resource::PbsNode(r) => {
+                    counts.pbs_nodes.online += 1;
+
+                    counts.pbs_cpu_stats.used += r.cpu * r.maxcpu;
+                    counts.pbs_cpu_stats.max += r.maxcpu;
+
+                    counts.pbs_memory_stats.total += r.maxmem;
+                    counts.pbs_memory_stats.used += r.mem;
+                    counts.pbs_memory_stats.avail += r.maxmem - r.mem;
+                }
                 Resource::PbsDatastore(r) => {
                     if r.maintenance.is_none() {
                         counts.pbs_datastores.online += 1;
@@ -546,10 +579,16 @@ pub async fn get_status(
                         }
                         _ => (),
                     }
+
+                    counts.pbs_storage_stats.total += r.maxdisk;
+                    counts.pbs_storage_stats.used += r.disk;
+                    counts.pbs_storage_stats.avail += r.maxdisk - r.disk;
                 }
             }
         }
     }
+
+    counts.pve_cpu_stats.allocated = Some(pve_cpu_allocated);
 
     Ok(counts)
 }
