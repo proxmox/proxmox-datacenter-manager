@@ -598,6 +598,16 @@ const DEFAULT_DASHBOARD: &str = "
           ],
           [
             {
+              \"widget-type\": \"node-resource-gauge\",
+              \"remote-type\": \"pve\"
+            },
+            {
+              \"widget-type\": \"node-resource-gauge\",
+              \"remote-type\": \"pbs\"
+            }
+          ],
+          [
+            {
               \"widget-type\": \"leaderboard\",
               \"leaderboard-type\": \"guest-cpu\"
             },
