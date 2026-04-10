@@ -38,7 +38,7 @@ pub const ROUTER: Router = Router::new()
 )]
 /// List views.
 pub fn get_views(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<ViewConfig>, Error> {
-    let (config, _) = pdm_config::views::config()?;
+    let (config, config_digest) = pdm_config::views::config()?;
 
     let user_info = CachedUserInfo::new()?;
     let auth_id = rpcenv
@@ -64,6 +64,8 @@ pub fn get_views(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<ViewConfig>, Err
             }
         })
         .collect();
+
+    rpcenv["digest"] = config_digest.to_hex().into();
 
     Ok(views)
 }
@@ -273,8 +275,8 @@ pub fn remove_view(id: String, digest: Option<ConfigDigest>) -> Result<(), Error
     returns: { type: ViewConfig },
 )]
 /// Get the config of a single view.
-pub fn read_view(id: String) -> Result<ViewConfig, Error> {
-    let (config, _) = pdm_config::views::config()?;
+pub fn read_view(id: String, rpcenv: &mut dyn RpcEnvironment) -> Result<ViewConfig, Error> {
+    let (config, config_digest) = pdm_config::views::config()?;
 
     let view = config
         .get(&id)
@@ -283,6 +285,8 @@ pub fn read_view(id: String) -> Result<ViewConfig, Error> {
     let view = match view {
         ViewConfigEntry::View(view) => view.clone(),
     };
+
+    rpcenv["digest"] = config_digest.to_hex().into();
 
     Ok(view)
 }
