@@ -8,7 +8,7 @@ use proxmox_schema::{api, param_bail};
 
 use pdm_api_types::{
     views::{ViewConfig, ViewConfigEntry, ViewConfigUpdater, ViewTemplate},
-    PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY,
+    PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY, VIEW_ID_SCHEMA,
 };
 
 const VIEW_ROUTER: Router = Router::new()
@@ -30,8 +30,7 @@ pub const ROUTER: Router = Router::new()
         description: "List of views.",
         type: Array,
         items: {
-            type: String,
-            description: "The name of a view."
+            type: ViewConfig,
         },
     },
 )]
@@ -135,8 +134,7 @@ pub enum DeletableProperty {
     input: {
         properties: {
             id: {
-                type: String,
-                description: "",
+                schema: VIEW_ID_SCHEMA,
             },
             view: {
                 flatten: true,
@@ -225,8 +223,7 @@ pub fn update_view(
     input: {
         properties: {
             id: {
-                type: String,
-                description: "",
+                schema: VIEW_ID_SCHEMA,
             },
             digest: {
                 type: ConfigDigest,
@@ -260,8 +257,7 @@ pub fn remove_view(id: String, digest: Option<ConfigDigest>) -> Result<(), Error
     input: {
         properties: {
             id: {
-                type: String,
-                description: "",
+                schema: VIEW_ID_SCHEMA,
             },
         },
     },
