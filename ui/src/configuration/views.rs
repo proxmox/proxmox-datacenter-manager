@@ -192,6 +192,7 @@ impl ViewGridComp {
                 props.base_url,
                 percent_encode_component(&selection)
             ))
+            .submit_digest(true)
             .on_done(ctx.link().callback(|_| Msg::Reload))
             .into()
     }
