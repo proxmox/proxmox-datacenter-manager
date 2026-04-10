@@ -22,7 +22,6 @@ pub const ROUTER: Router = Router::new()
     .match_all("id", &VIEW_ROUTER);
 
 #[api(
-    protected: true,
     access: {
         permission: &Permission::Anybody,
         description: "Returns the views the user has access to.",
@@ -71,7 +70,6 @@ pub fn get_views(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<ViewConfig>, Err
 }
 
 #[api(
-    protected: true,
     input: {
         properties: {
             view: {
@@ -134,7 +132,6 @@ pub enum DeletableProperty {
 }
 
 #[api(
-    protected: true,
     input: {
         properties: {
             id: {
@@ -225,7 +222,6 @@ pub fn update_view(
 }
 
 #[api(
-    protected: true,
     input: {
         properties: {
             id: {
