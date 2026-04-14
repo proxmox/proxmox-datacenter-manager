@@ -18,6 +18,7 @@ pub const PBS_DATASTORE_HIGH_USAGE_THRESHOLD: f64 = 0.80;
         description: "Resource ID",
     },
 )]
+/// A resource entry.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
@@ -202,6 +203,7 @@ impl std::str::FromStr for ResourceType {
         description: "Resource ID",
     },
 )]
+/// A PVE resource entry.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
