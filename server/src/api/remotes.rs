@@ -324,7 +324,7 @@ pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Resu
 
     pdm_config::remotes::save_config(remotes)?;
 
-    if let Err(e) = metric_collection::trigger_metric_collection(Some(name), false).await {
+    if let Err(e) = metric_collection::trigger_remote_metric_collection(Some(name), false).await {
         log::error!("could not trigger metric collection after adding remote: {e}");
     }
 

@@ -8,7 +8,7 @@ use proxmox_schema::api;
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 /// Per-remote collection status.
-pub struct MetricCollectionStatus {
+pub struct RemoteMetricCollectionStatus {
     /// The remote's name.
     pub remote: String,
     /// Any error that occured during the last collection attempt.

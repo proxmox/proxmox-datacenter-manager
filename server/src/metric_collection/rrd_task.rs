@@ -200,7 +200,7 @@ mod tests {
     use pve_api_types::{ClusterMetrics, ClusterMetricsData};
 
     use crate::{
-        metric_collection::collection_task::tests::get_create_options,
+        metric_collection::remote_collection_task::tests::get_create_options,
         test_support::temp::NamedTempDir,
     };
 

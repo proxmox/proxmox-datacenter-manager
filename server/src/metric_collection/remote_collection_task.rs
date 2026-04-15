@@ -46,13 +46,13 @@ pub(super) enum ControlMsg {
 
 /// Task which periodically collects metrics from all remotes and stores
 /// them in the local metrics database.
-pub(super) struct MetricCollectionTask {
+pub(super) struct RemoteMetricCollectionTask {
     state: MetricCollectionState,
     metric_data_tx: Sender<RrdStoreRequest>,
     control_message_rx: Receiver<ControlMsg>,
 }
 
-impl MetricCollectionTask {
+impl RemoteMetricCollectionTask {
     /// Create a new metric collection task.
     pub(super) fn new(
         metric_data_tx: Sender<RrdStoreRequest>,
@@ -574,7 +574,7 @@ pub(super) mod tests {
 
         let (_control_tx, control_rx) = tokio::sync::mpsc::channel(10);
 
-        let mut task = MetricCollectionTask {
+        let mut task = RemoteMetricCollectionTask {
             state,
             metric_data_tx: tx,
             control_message_rx: control_rx,
@@ -644,7 +644,7 @@ pub(super) mod tests {
 
         let (_control_tx, control_rx) = tokio::sync::mpsc::channel(10);
 
-        let mut task = MetricCollectionTask {
+        let mut task = RemoteMetricCollectionTask {
             state,
             metric_data_tx: tx,
             control_message_rx: control_rx,

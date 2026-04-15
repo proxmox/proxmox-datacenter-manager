@@ -347,7 +347,7 @@ impl<T: HttpApiClient> PdmClient<T> {
     }
 
     /// Trigger metric collection for a single remote or for all remotes, if no remote is provided.
-    pub async fn trigger_metric_collection(
+    pub async fn trigger_remote_metric_collection(
         &self,
         remote: Option<&str>,
     ) -> Result<(), proxmox_client::Error> {
@@ -368,9 +368,9 @@ impl<T: HttpApiClient> PdmClient<T> {
     }
 
     /// Get global metric collection status.
-    pub async fn get_metric_collection_status(
+    pub async fn get_remote_metric_collection_status(
         &self,
-    ) -> Result<Vec<pdm_api_types::MetricCollectionStatus>, Error> {
+    ) -> Result<Vec<pdm_api_types::RemoteMetricCollectionStatus>, Error> {
         let path = "/api2/extjs/remotes/metric-collection/status";
         Ok(self.0.get(path).await?.expect_json()?.data)
     }

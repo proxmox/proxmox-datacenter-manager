@@ -34,7 +34,7 @@ pub fn cli() -> CommandLineInterface {
 /// all.
 async fn trigger_metric_collection(remote: Option<String>) -> Result<(), Error> {
     client()?
-        .trigger_metric_collection(remote.as_deref())
+        .trigger_remote_metric_collection(remote.as_deref())
         .await?;
     Ok(())
 }
@@ -42,7 +42,7 @@ async fn trigger_metric_collection(remote: Option<String>) -> Result<(), Error> 
 #[api]
 /// Show metric collection status.
 async fn metric_collection_status() -> Result<(), Error> {
-    let result = client()?.get_metric_collection_status().await?;
+    let result = client()?.get_remote_metric_collection_status().await?;
 
     let output_format = env().format_args.output_format;
     if output_format == OutputFormat::Text {

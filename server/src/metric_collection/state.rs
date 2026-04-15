@@ -92,7 +92,7 @@ impl MetricCollectionState {
 
 #[cfg(test)]
 mod tests {
-    use crate::metric_collection::collection_task::tests::get_create_options;
+    use crate::metric_collection::remote_collection_task::tests::get_create_options;
     use crate::test_support::temp::NamedTempFile;
 
     use super::*;

@@ -74,7 +74,7 @@ pub async fn get_rrd_datapoints<T: DataPoint + Send + 'static>(
         // is super slow or if the metric collection tasks currently busy with collecting other
         // metrics, we just return the data we already have, not the newest one.
         let _ = tokio::time::timeout(WAIT_FOR_NEWEST_METRIC_TIMEOUT, async {
-            metric_collection::trigger_metric_collection(Some(remote), true).await
+            metric_collection::trigger_remote_metric_collection(Some(remote), true).await
         })
         .await;
     }

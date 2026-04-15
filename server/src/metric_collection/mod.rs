@@ -7,16 +7,16 @@ use nix::sys::stat::Mode;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::oneshot;
 
-use pdm_api_types::MetricCollectionStatus;
+use pdm_api_types::RemoteMetricCollectionStatus;
 use pdm_buildcfg::PDM_STATE_DIR_M;
 
-mod collection_task;
+mod remote_collection_task;
 pub mod rrd_cache;
 mod rrd_task;
 mod state;
 pub mod top_entities;
 
-use collection_task::{ControlMsg, MetricCollectionTask};
+use remote_collection_task::{ControlMsg, RemoteMetricCollectionTask};
 use rrd_cache::RrdCache;
 
 const RRD_CACHE_BASEDIR: &str = concat!(PDM_STATE_DIR_M!(), "/rrdb");
@@ -46,7 +46,7 @@ pub fn start_task() -> Result<(), Error> {
 
     tokio::spawn(async move {
         let metric_collection_task_future = pin!(async move {
-            match MetricCollectionTask::new(metric_data_tx, trigger_collection_rx) {
+            match RemoteMetricCollectionTask::new(metric_data_tx, trigger_collection_rx) {
                 Ok(mut task) => task.run().await,
                 Err(err) => log::error!("could not start metric collection task: {err}"),
             }
@@ -76,7 +76,10 @@ pub fn start_task() -> Result<(), Error> {
 ///
 /// Has no effect if the tx end of the channel has not been initialized yet.
 /// Returns an error if the mpsc channel has been closed already.
-pub async fn trigger_metric_collection(remote: Option<String>, wait: bool) -> Result<(), Error> {
+pub async fn trigger_remote_metric_collection(
+    remote: Option<String>,
+    wait: bool,
+) -> Result<(), Error> {
     let (done_sender, done_receiver) = oneshot::channel();
 
     if let Some(sender) = CONTROL_MESSAGE_TX.get() {
@@ -93,15 +96,15 @@ pub async fn trigger_metric_collection(remote: Option<String>, wait: bool) -> Re
 }
 
 /// Get each remote's metric collection status.
-pub fn get_status() -> Result<Vec<MetricCollectionStatus>, Error> {
+pub fn remote_metric_collection_status() -> Result<Vec<RemoteMetricCollectionStatus>, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
-    let state = collection_task::load_state()?;
+    let state = remote_collection_task::load_state()?;
 
     let mut result = Vec::new();
 
     for (remote, _) in remotes.into_iter() {
         if let Some(status) = state.get_status(&remote) {
-            result.push(MetricCollectionStatus {
+            result.push(RemoteMetricCollectionStatus {
                 remote,
                 error: status.error.clone(),
                 last_collection: status.last_collection,
