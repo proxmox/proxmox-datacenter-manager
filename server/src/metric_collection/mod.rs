@@ -41,7 +41,7 @@ pub fn start_task() -> Result<(), Error> {
 
     let (trigger_collection_tx, trigger_collection_rx) = mpsc::channel(128);
     if CONTROL_MESSAGE_TX.set(trigger_collection_tx).is_err() {
-        bail!("control message sender alread set");
+        bail!("control message sender already set");
     }
 
     tokio::spawn(async move {
