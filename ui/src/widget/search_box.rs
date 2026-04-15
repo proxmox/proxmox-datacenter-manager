@@ -151,7 +151,7 @@ impl Component for PdmSearchBox {
                             .placeholder(tr!("Search (Ctrl+Space / Ctrl+Shift+F)"))
                             .value(self.force_value.then_some(self.search_term.clone()))
                             .with_trigger(
-                                Trigger::new(clear_trigger_icon).onclick(
+                                Trigger::new(clear_trigger_icon).on_activate(
                                     ctx.link().callback(|_| Msg::ChangeTerm("".into(), true)),
                                 ),
                                 true,
