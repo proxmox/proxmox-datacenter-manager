@@ -56,7 +56,7 @@ impl yew::Component for PveRemotePanelComp {
             .with_item_builder(
                 TabBarItem::new()
                     .key("tasks_view")
-                    .label(tr!("Remote Tasks"))
+                    .label(tr!("Tasks"))
                     .icon_class("fa fa-list"),
                 {
                     let remote = props.remote.clone();
