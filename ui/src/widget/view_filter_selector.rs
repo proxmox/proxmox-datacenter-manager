@@ -231,27 +231,35 @@ fn columns(
                     Combobox::new()
                         .placeholder(tr!("Select"))
                         .required(true)
-                        .default(filter_type.map(AttrValue::from))
+                        .value(filter_type.map(AttrValue::from))
                         .on_change({
                             let link = link.clone();
                             move |value: String| {
-                                let filter = match FilterRuleType::from_str(value.as_str()) {
-                                    Ok(FilterRuleType::ResourceType) => {
+                                let Ok(new_filter_type) = FilterRuleType::from_str(value.as_str())
+                                else {
+                                    return;
+                                };
+                                if Some(new_filter_type) == filter_type {
+                                    // this can happen on reset, since we force the value ourselves
+                                    return;
+                                }
+
+                                let filter = match new_filter_type {
+                                    FilterRuleType::ResourceType => {
                                         FilterRule::ResourceType(EnumMatcher(ResourceType::Node))
                                     }
-                                    Ok(FilterRuleType::ResourcePool) => FilterRule::ResourcePool(
+                                    FilterRuleType::ResourcePool => FilterRule::ResourcePool(
                                         StringMatcher::Exact(String::new()),
                                     ),
-                                    Ok(FilterRuleType::ResourceId) => {
+                                    FilterRuleType::ResourceId => {
                                         FilterRule::ResourceId(StringMatcher::Exact(String::new()))
                                     }
-                                    Ok(FilterRuleType::Tag) => {
+                                    FilterRuleType::Tag => {
                                         FilterRule::Tag(StringMatcher::Exact(String::new()))
                                     }
-                                    Ok(FilterRuleType::Remote) => {
+                                    FilterRuleType::Remote => {
                                         FilterRule::Remote(StringMatcher::Exact(String::new()))
                                     }
-                                    Err(_) => return,
                                 };
 
                                 link.send_message(Msg::ChangeFilter(filter, index));
