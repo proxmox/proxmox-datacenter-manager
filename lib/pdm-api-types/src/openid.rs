@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::api_types::SAFE_ID_REGEX;
 use proxmox_schema::{api, ApiStringFormat, ArraySchema, Schema, StringSchema, Updater};
 
-use super::{PROXMOX_SAFE_ID_FORMAT, REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA};
+use super::{
+    GENERIC_URI_REGEX, PROXMOX_SAFE_ID_FORMAT, REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,
+};
 
 pub const OPENID_SCOPE_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SAFE_ID_REGEX);
 
@@ -40,6 +42,26 @@ pub const OPENID_ACR_LIST_SCHEMA: Schema = StringSchema::new("OpenID ACR List")
     .format(&OPENID_ACR_LIST_FORMAT)
     .schema();
 
+pub const OPENID_AUDIENCE_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&GENERIC_URI_REGEX);
+
+pub const OPENID_AUDIENCE_SCHEMA: Schema = StringSchema::new("OpenID audience.")
+    .format(&OPENID_AUDIENCE_FORMAT)
+    .max_length(256)
+    .schema();
+
+pub const OPENID_AUDIENCE_ARRAY_SCHEMA: Schema = ArraySchema::new(
+    "A list of OpenID audiences that is allowed in addition to the 'client-id'.",
+    &OPENID_AUDIENCE_SCHEMA,
+)
+.schema();
+
+pub const OPENID_AUDIENCE_LIST_FORMAT: ApiStringFormat =
+    ApiStringFormat::PropertyString(&OPENID_AUDIENCE_ARRAY_SCHEMA);
+
+pub const OPENID_AUDIENCE_LIST_SCHEMA: Schema = StringSchema::new("OpenID audience list.")
+    .format(&OPENID_AUDIENCE_LIST_FORMAT)
+    .schema();
+
 pub const OPENID_USERNAME_CLAIM_SCHEMA: Schema = StringSchema::new(
     "Use the value of this attribute/claim as unique user name. It \
     is up to the identity provider to guarantee the uniqueness. The \
@@ -66,6 +88,10 @@ pub const OPENID_USERNAME_CLAIM_SCHEMA: Schema = StringSchema::new(
         },
         "acr-values": {
             schema: OPENID_ACR_LIST_SCHEMA,
+            optional: true,
+        },
+        audiences: {
+            schema: OPENID_AUDIENCE_LIST_SCHEMA,
             optional: true,
         },
         prompt: {
@@ -102,6 +128,8 @@ pub struct OpenIdRealmConfig {
     pub scopes: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acr_values: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audiences: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
     /// OpenID Client Key

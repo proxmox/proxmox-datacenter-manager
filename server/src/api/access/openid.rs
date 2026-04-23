@@ -48,6 +48,13 @@ fn openid_authenticator(
         );
     }
 
+    let audiences = realm_config.audiences.as_ref().map(|list| {
+        list.split(|c: char| c == ',' || c == ';' || char::is_ascii_whitespace(&c))
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect()
+    });
+
     let config = OpenIdConfig {
         issuer_url: realm_config.issuer_url.clone(),
         client_id: realm_config.client_id.clone(),
@@ -55,6 +62,7 @@ fn openid_authenticator(
         prompt: realm_config.prompt.clone(),
         scopes: Some(scopes),
         acr_values,
+        audiences,
     };
     OpenIdAuthenticator::discover(&config, redirect_url)
 }
