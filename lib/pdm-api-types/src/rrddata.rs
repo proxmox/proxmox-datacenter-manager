@@ -233,13 +233,81 @@ pub struct PbsDatastoreDataPoint {
 }
 
 #[api]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(rename_all = "kebab-case")]
 /// RRD datapoint for statistics about the metric collection loop.
 pub struct PdmNodeDatapoint {
     /// Timestamp (UNIX epoch)
     pub time: u64,
-
+    /// Current CPU utilization
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_current: Option<f64>,
+    /// Current IO wait
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_iowait: Option<f64>,
+    /// CPU utilization, averaged over the last minute
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_avg1: Option<f64>,
+    /// CPU utilization, averaged over the last five minutes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_avg5: Option<f64>,
+    /// CPU utilization, averaged over the last fifteen minutes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_avg15: Option<f64>,
+    /// Total root disk size
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_total: Option<f64>,
+    /// Total root disk usage
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_used: Option<f64>,
+    /// Root disk read IOPS
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_read_iops: Option<f64>,
+    /// Root disk write IOPS
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_write_iops: Option<f64>,
+    /// Root disk read rate
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_read: Option<f64>,
+    /// Root disk write rate
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_write: Option<f64>,
+    /// Root disk IO ticks
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_io_ticks: Option<f64>,
+    /// Total memory size
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mem_total: Option<f64>,
+    /// Currently used memory
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mem_used: Option<f64>,
+    /// Total swap size
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub swap_total: Option<f64>,
+    /// Current swap usage
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub swap_used: Option<f64>,
+    /// Inbound network data rate
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub net_in: Option<f64>,
+    /// Outbound network data rate
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub net_out: Option<f64>,
+    /// Average 'some' CPU pressure over the last 10 minutes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_pressure_some_avg10: Option<f64>,
+    /// Average 'some' memory pressure over the last 10 minutes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mem_pressure_some_avg10: Option<f64>,
+    /// Average 'full' memory pressure over the last 10 minutes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mem_pressure_full_avg10: Option<f64>,
+    /// Average 'some' IO pressure over the last 10 minutes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub io_pressure_some_avg10: Option<f64>,
+    /// Average 'full' IO pressure over the last 10 minutes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub io_pressure_full_avg10: Option<f64>,
     /// Total time in milliseconds needed for full metric collection run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metric_collection_total_time: Option<f64>,
