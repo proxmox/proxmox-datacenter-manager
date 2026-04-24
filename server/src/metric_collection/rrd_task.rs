@@ -8,6 +8,7 @@ use proxmox_rrd::rrd::DataSourceType;
 use pbs_api_types::{MetricDataPoint, MetricDataType, Metrics};
 use pve_api_types::{ClusterMetrics, ClusterMetricsData, ClusterMetricsDataType};
 
+use super::local_collection_task::PdmHostMetrics;
 use super::rrd_cache::RrdCache;
 
 /// Store request for the RRD task.
@@ -44,6 +45,16 @@ pub(super) enum RrdStoreRequest {
         timestamp: i64,
         /// Statistics.
         stats: CollectionStats,
+    },
+    /// Store PDM host metrics.
+    Host {
+        /// Timestamp at which the metrics were collected (UNIX epoch).
+        timestamp: i64,
+
+        /// Metric data for this PDM host.
+        // Boxed to avoid a clippy warning regarding large size differences between
+        // enum variants.
+        metrics: Box<PdmHostMetrics>,
     },
 }
 
@@ -116,6 +127,9 @@ pub(super) async fn store_in_rrd_task(
                 }
                 RrdStoreRequest::CollectionStats { timestamp, stats } => {
                     store_stats(&cache_clone, &stats, timestamp)
+                }
+                RrdStoreRequest::Host { timestamp, metrics } => {
+                    store_pdm_host_metrics(&cache_clone, timestamp, &metrics)
                 }
             };
         })
@@ -192,6 +206,177 @@ fn store_stats(cache: &RrdCache, stats: &CollectionStats, timestamp: i64) {
         timestamp,
         DataSourceType::Gauge,
     );
+}
+
+fn store_pdm_host_metrics(cache: &RrdCache, timestamp: i64, metrics: &PdmHostMetrics) {
+    if let Some(proc) = &metrics.proc {
+        cache.update_value(
+            "nodes/localhost/cpu-current",
+            proc.cpu,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+        cache.update_value(
+            "nodes/localhost/cpu-iowait",
+            proc.iowait_percent,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+    }
+
+    if let Some(load) = &metrics.load {
+        cache.update_value(
+            "nodes/localhost/cpu-avg1",
+            load.0,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+        cache.update_value(
+            "nodes/localhost/cpu-avg5",
+            load.1,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+        cache.update_value(
+            "nodes/localhost/cpu-avg15",
+            load.2,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+    }
+
+    if let Some(cpu_pressure) = &metrics.cpu_pressure {
+        cache.update_value(
+            "nodes/localhost/cpu-pressure-some-avg10",
+            cpu_pressure.some.average_10,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+
+        // NOTE: On a system level, 'full' CPU pressure is undefined and reported as 0,
+        // so it does not make sense to store it.
+        // https://docs.kernel.org/accounting/psi.html#pressure-interface
+    }
+
+    if let Some(meminfo) = &metrics.meminfo {
+        cache.update_value(
+            "nodes/localhost/mem-total",
+            meminfo.memtotal as f64,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+        cache.update_value(
+            "nodes/localhost/mem-used",
+            meminfo.memused as f64,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+        cache.update_value(
+            "nodes/localhost/swap-total",
+            meminfo.swaptotal as f64,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+        cache.update_value(
+            "nodes/localhost/swap-used",
+            meminfo.swapused as f64,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+    }
+
+    if let Some(memory_pressure) = &metrics.memory_pressure {
+        cache.update_value(
+            "nodes/localhost/mem-pressure-some-avg10",
+            memory_pressure.some.average_10,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+        cache.update_value(
+            "nodes/localhost/mem-pressure-full-avg10",
+            memory_pressure.full.average_10,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+    }
+
+    if let Some(netstats) = &metrics.netstats {
+        cache.update_value(
+            "nodes/localhost/net-in",
+            netstats.netin as f64,
+            timestamp,
+            DataSourceType::Derive,
+        );
+        cache.update_value(
+            "nodes/localhost/net-out",
+            netstats.netout as f64,
+            timestamp,
+            DataSourceType::Derive,
+        );
+    }
+
+    if let Some(disk) = &metrics.root_filesystem_info {
+        cache.update_value(
+            "nodes/localhost/disk-total",
+            disk.total as f64,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+        cache.update_value(
+            "nodes/localhost/disk-used",
+            disk.used as f64,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+    }
+
+    if let Some(stat) = &metrics.root_blockdev_stat {
+        cache.update_value(
+            "nodes/localhost/disk-read-iops",
+            stat.read_ios as f64,
+            timestamp,
+            DataSourceType::Derive,
+        );
+        cache.update_value(
+            "nodes/localhost/disk-write-iops",
+            stat.write_ios as f64,
+            timestamp,
+            DataSourceType::Derive,
+        );
+        cache.update_value(
+            "nodes/localhost/disk-read",
+            (stat.read_sectors * 512) as f64,
+            timestamp,
+            DataSourceType::Derive,
+        );
+        cache.update_value(
+            "nodes/localhost/disk-write",
+            (stat.write_sectors * 512) as f64,
+            timestamp,
+            DataSourceType::Derive,
+        );
+        cache.update_value(
+            "nodes/localhost/disk-io-ticks",
+            (stat.io_ticks as f64) / 1000.0,
+            timestamp,
+            DataSourceType::Derive,
+        );
+    }
+
+    if let Some(io_pressure) = &metrics.io_pressure {
+        cache.update_value(
+            "nodes/localhost/io-pressure-some-avg10",
+            io_pressure.some.average_10,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+        cache.update_value(
+            "nodes/localhost/io-pressure-full-avg10",
+            io_pressure.full.average_10,
+            timestamp,
+            DataSourceType::Gauge,
+        );
+    }
 }
 
 #[cfg(test)]
