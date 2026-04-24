@@ -48,7 +48,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     ("journal", &journal::ROUTER),
     ("network", &network::ROUTER),
     ("report", &report::ROUTER),
-    ("rrdata", &rrddata::ROUTER),
+    ("rrddata", &rrddata::ROUTER),
     ("sdn", &sdn::ROUTER),
     ("subscription", &subscription::ROUTER),
     ("status", &status::ROUTER),

@@ -1,10 +1,11 @@
 use anyhow::Error;
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 
-use proxmox_router::Router;
+use proxmox_router::{http_bail, Router};
 use proxmox_schema::api;
 
 use pdm_api_types::rrddata::PdmNodeDatapoint;
+use pdm_api_types::NODE_SCHEMA;
 
 use crate::api::rrd_common::{self, DataPoint};
 
@@ -36,6 +37,9 @@ impl DataPoint for PdmNodeDatapoint {
             cf: {
                 type: RrdMode,
             },
+            node: {
+                schema: NODE_SCHEMA,
+            },
         },
     },
     returns: {
@@ -47,7 +51,17 @@ impl DataPoint for PdmNodeDatapoint {
     }
 )]
 /// Read RRD data for this PDM node.
-fn get_node_rrddata(timeframe: RrdTimeframe, cf: RrdMode) -> Result<Vec<PdmNodeDatapoint>, Error> {
+fn get_node_rrddata(
+    node: String,
+    timeframe: RrdTimeframe,
+    cf: RrdMode,
+) -> Result<Vec<PdmNodeDatapoint>, Error> {
+    if node != "localhost" {
+        http_bail!(
+            BAD_REQUEST,
+            "PDM only supports `localhost` as a `node` parameter"
+        );
+    }
     let base = "nodes/localhost";
     rrd_common::create_datapoints_from_rrd(base, timeframe, cf)
 }

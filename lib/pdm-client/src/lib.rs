@@ -380,7 +380,7 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         mode: RrdMode,
         timeframe: RrdTimeframe,
-    ) -> Result<pdm_api_types::rrddata::PdmNodeDatapoint, Error> {
+    ) -> Result<Vec<pdm_api_types::rrddata::PdmNodeDatapoint>, Error> {
         let path = ApiPathBuilder::new("/api2/extjs/nodes/localhost/rrddata")
             .arg("cf", mode)
             .arg("timeframe", timeframe)
