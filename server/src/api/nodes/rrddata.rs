@@ -23,7 +23,7 @@ impl DataPoint for PdmNodeDatapoint {
 
     fn set_field(&mut self, name: &str, value: f64) {
         if name == "metric-collection-total-time" {
-            self.total_time = Some(value);
+            self.metric_collection_total_time = Some(value);
         }
     }
 }

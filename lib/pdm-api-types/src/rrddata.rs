@@ -242,7 +242,7 @@ pub struct PdmNodeDatapoint {
 
     /// Total time in milliseconds needed for full metric collection run.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_time: Option<f64>,
+    pub metric_collection_total_time: Option<f64>,
 }
 
 #[api]
