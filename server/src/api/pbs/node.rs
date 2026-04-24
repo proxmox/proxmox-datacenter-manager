@@ -17,18 +17,18 @@ pub const ROUTER: Router = Router::new()
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
-    ("apt", &crate::api::remote_updates::APT_ROUTER),
+    ("apt", &crate::api::remotes::updates::APT_ROUTER),
     (
         "subscription",
         &Router::new().get(&API_METHOD_GET_SUBSCRIPTION)
     ),
     (
         "termproxy",
-        &Router::new().post(&crate::api::remote_shell::API_METHOD_SHELL_TICKET)
+        &Router::new().post(&crate::api::remotes::shell::API_METHOD_SHELL_TICKET)
     ),
     (
         "vncwebsocket",
-        &Router::new().upgrade(&crate::api::remote_shell::API_METHOD_SHELL_WEBSOCKET)
+        &Router::new().upgrade(&crate::api::remotes::shell::API_METHOD_SHELL_WEBSOCKET)
     ),
 ]);
 

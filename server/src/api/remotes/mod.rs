@@ -22,15 +22,17 @@ use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA
 use pdm_api_types::rrddata::RemoteDatapoint;
 use pdm_api_types::{Authid, ConfigDigest, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY};
 
-use crate::api::metric_collection as metric_collection_api;
-use crate::api::remote_tasks;
-use crate::api::remote_updates;
-use crate::metric_collection;
+use crate::metric_collection::trigger_remote_metric_collection;
 use crate::{connection, pbs_client};
 
 use super::pve;
 use super::rrd_common;
 use super::rrd_common::DataPoint;
+
+pub(crate) mod metric_collection;
+pub(crate) mod shell;
+pub(crate) mod tasks;
+pub(crate) mod updates;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -39,9 +41,9 @@ pub const ROUTER: Router = Router::new()
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("remote", &REMOTE_ROUTER),
-    ("updates", &remote_updates::ROUTER),
-    ("tasks", &remote_tasks::ROUTER),
-    ("metric-collection", &metric_collection_api::ROUTER),
+    ("updates", &updates::ROUTER),
+    ("tasks", &tasks::ROUTER),
+    ("metric-collection", &metric_collection::ROUTER),
 ]);
 
 pub const REMOTE_ROUTER: Router = Router::new()
@@ -324,7 +326,7 @@ pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Resu
 
     pdm_config::remotes::save_config(remotes)?;
 
-    if let Err(e) = metric_collection::trigger_remote_metric_collection(Some(name), false).await {
+    if let Err(e) = trigger_remote_metric_collection(Some(name), false).await {
         log::error!("could not trigger metric collection after adding remote: {e}");
     }
 

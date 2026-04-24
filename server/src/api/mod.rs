@@ -10,13 +10,9 @@ use proxmox_sortable_macro::sortable;
 
 pub mod access;
 pub mod config;
-pub mod metric_collection;
 pub mod nodes;
 pub mod pbs;
 pub mod pve;
-pub mod remote_shell;
-pub mod remote_tasks;
-pub mod remote_updates;
 pub mod remotes;
 pub mod resources;
 mod rrd_common;

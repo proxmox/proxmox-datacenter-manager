@@ -19,7 +19,7 @@ use proxmox_sortable_macro::sortable;
 
 use crate::{connection, remote_updates};
 
-use super::remotes::get_remote;
+use super::get_remote;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -88,7 +88,7 @@ pub fn refresh_remote_update_summaries(rpcenv: &mut dyn RpcEnvironment) -> Resul
         http_bail!(FORBIDDEN, "user has no access to resources");
     }
 
-    let remotes: Vec<Remote> = super::remotes::RemoteIterator::new()?
+    let remotes: Vec<Remote> = super::RemoteIterator::new()?
         .all_privs(&user_info, &auth_id, PRIV_RESOURCE_MODIFY)
         .into_remotes()
         .collect();

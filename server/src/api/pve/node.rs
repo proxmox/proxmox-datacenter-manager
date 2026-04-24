@@ -15,18 +15,18 @@ pub const ROUTER: Router = Router::new()
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
-    ("apt", &crate::api::remote_updates::APT_ROUTER),
+    ("apt", &crate::api::remotes::updates::APT_ROUTER),
     ("config", &Router::new().get(&API_METHOD_GET_CONFIG)),
     ("firewall", &super::firewall::NODE_FW_ROUTER),
     ("rrddata", &super::rrddata::NODE_RRD_ROUTER),
     ("network", &Router::new().get(&API_METHOD_GET_NETWORK)),
     (
         "termproxy",
-        &Router::new().post(&crate::api::remote_shell::API_METHOD_SHELL_TICKET)
+        &Router::new().post(&crate::api::remotes::shell::API_METHOD_SHELL_TICKET)
     ),
     (
         "vncwebsocket",
-        &Router::new().upgrade(&crate::api::remote_shell::API_METHOD_SHELL_WEBSOCKET)
+        &Router::new().upgrade(&crate::api::remotes::shell::API_METHOD_SHELL_WEBSOCKET)
     ),
     ("sdn", &sdn::ROUTER),
     ("storage", &STORAGE_ROUTER),
