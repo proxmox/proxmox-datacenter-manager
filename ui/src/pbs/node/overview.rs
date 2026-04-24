@@ -5,7 +5,9 @@ use yew::{
     Context,
 };
 
-use proxmox_yew_comp::{node_info, RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
+use proxmox_yew_comp::{
+    node_info, rrd_value_renderer, RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series,
+};
 use pwt::{
     css::{ColorScheme, FlexFit, JustifyContent},
     prelude::*,
@@ -232,38 +234,20 @@ impl yew::Component for PbsNodeOverviewPanelComp {
                         .with_child(
                             RRDGraph::new(self.time_data.clone())
                                 .title(tr!("CPU Usage"))
-                                .render_value(|v: &f64| {
-                                    if v.is_finite() {
-                                        format!("{:.2}%", v * 100.0)
-                                    } else {
-                                        v.to_string()
-                                    }
-                                })
+                                .render_value(rrd_value_renderer::render_cpu_usage)
                                 .serie0(Some(self.cpu_data.clone())),
                         )
                         .with_child(
                             RRDGraph::new(self.time_data.clone())
                                 .title(tr!("Server Load"))
-                                .render_value(|v: &f64| {
-                                    if v.is_finite() {
-                                        format!("{:.2}", v)
-                                    } else {
-                                        v.to_string()
-                                    }
-                                })
+                                .render_value(rrd_value_renderer::render_load)
                                 .serie0(Some(self.load_data.clone())),
                         )
                         .with_child(
                             RRDGraph::new(self.time_data.clone())
                                 .title(tr!("Memory Usage"))
                                 .binary(true)
-                                .render_value(|v: &f64| {
-                                    if v.is_finite() {
-                                        proxmox_human_byte::HumanByte::from(*v as u64).to_string()
-                                    } else {
-                                        v.to_string()
-                                    }
-                                })
+                                .render_value(rrd_value_renderer::render_bytes)
                                 .serie0(Some(self.mem_data.clone()))
                                 .serie1(Some(self.mem_total_data.clone())),
                         ),

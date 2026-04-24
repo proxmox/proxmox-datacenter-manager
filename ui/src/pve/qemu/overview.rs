@@ -5,7 +5,7 @@ use serde_json::json;
 use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_human_byte::HumanByte;
-use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
+use proxmox_yew_comp::{rrd_value_renderer, RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
 
 use pwt::prelude::*;
 use pwt::props::WidgetBuilder;
@@ -347,25 +347,13 @@ impl yew::Component for QemuOverviewPanelComp {
                         .with_child(
                             RRDGraph::new(self.time.clone())
                                 .title(tr!("CPU Usage"))
-                                .render_value(|v: &f64| {
-                                    if v.is_finite() {
-                                        format!("{:.2}%", v * 100.0)
-                                    } else {
-                                        v.to_string()
-                                    }
-                                })
+                                .render_value(rrd_value_renderer::render_cpu_usage)
                                 .serie0(Some(self.cpu.clone())),
                         )
                         .with_child(
                             RRDGraph::new(self.time.clone())
                                 .title(tr!("Memory usage"))
-                                .render_value(|v: &f64| {
-                                    if v.is_finite() {
-                                        proxmox_human_byte::HumanByte::from(*v as u64).to_string()
-                                    } else {
-                                        v.to_string()
-                                    }
-                                })
+                                .render_value(rrd_value_renderer::render_bytes)
                                 .serie0(Some(self.memory.clone()))
                                 .serie1(Some(self.memory_max.clone())),
                         )
@@ -373,13 +361,7 @@ impl yew::Component for QemuOverviewPanelComp {
                             RRDGraph::new(self.time.clone())
                                 .title(tr!("Network Traffic"))
                                 .binary(true)
-                                .render_value(|v: &f64| {
-                                    if v.is_finite() {
-                                        proxmox_human_byte::HumanByte::from(*v as u64).to_string()
-                                    } else {
-                                        v.to_string()
-                                    }
-                                })
+                                .render_value(rrd_value_renderer::render_bandwidth)
                                 .serie0(Some(self.netin.clone()))
                                 .serie1(Some(self.netout.clone())),
                         )
@@ -387,13 +369,7 @@ impl yew::Component for QemuOverviewPanelComp {
                             RRDGraph::new(self.time.clone())
                                 .title(tr!("Disk I/O"))
                                 .binary(true)
-                                .render_value(|v: &f64| {
-                                    if v.is_finite() {
-                                        proxmox_human_byte::HumanByte::from(*v as u64).to_string()
-                                    } else {
-                                        v.to_string()
-                                    }
-                                })
+                                .render_value(rrd_value_renderer::render_bandwidth)
                                 .serie0(Some(self.diskread.clone()))
                                 .serie1(Some(self.diskwrite.clone())),
                         ),
