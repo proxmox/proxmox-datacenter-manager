@@ -3,6 +3,9 @@ proxmox-datacenter-manager-ui (1.0.4) UNRELEASED; urgency=medium
   * header bar search field: show finger pointer cursor when hovering the
     clear trigger.
 
+  * view configuration edit dialog: fixed an issue that would clear filter
+    value fields when editing an existing view.
+
  -- Proxmox Support Team <support@proxmox.com>  Thu, 16 Apr 2026 15:01:16 +0200
 
 proxmox-datacenter-manager-ui (1.0.3) trixie; urgency=medium
