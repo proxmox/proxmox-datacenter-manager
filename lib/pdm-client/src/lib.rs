@@ -3,6 +3,12 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use pdm_api_types::auto_installer::{
+    AnswerToken, AnswerTokenCreateResult, AnswerTokenUpdateResult, AnswerTokenUpdater,
+    DeletableAnswerTokenProperty, DeletablePreparedInstallationConfigProperty, Installation,
+    PreparedInstallationConfig, PreparedInstallationConfigCreateResult,
+    PreparedInstallationConfigUpdateResult, PreparedInstallationConfigUpdater,
+};
 use pdm_api_types::remote_updates::RemoteUpdateSummary;
 use pdm_api_types::remotes::{RemoteType, TlsProbeOutcome};
 use pdm_api_types::resource::{PveResource, RemoteResources, ResourceType, TopEntities};
@@ -1375,6 +1381,245 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await?
             .expect_json()?
             .data)
+    }
+
+    /// Retrieves all known installations done by auto-installer.
+    pub async fn get_autoinst_installations(&self) -> Result<Vec<Installation>, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/auto-install/installations")
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Deletes a saved auto-installation.
+    ///
+    /// # Parameters
+    ///
+    /// * `id` - ID of the entry to delete. Must be percent-encoded.
+    pub async fn delete_autoinst_installation(&self, id: &str) -> Result<(), Error> {
+        self.0
+            .delete(&format!("/api2/extjs/auto-install/installations/{id}"))
+            .await?
+            .nodata()?;
+        Ok(())
+    }
+
+    /// Retrieves all prepared answer configurations.
+    pub async fn get_autoinst_prepared_answers(
+        &self,
+    ) -> Result<Vec<PreparedInstallationConfig>, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/auto-install/prepared")
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Adds a new prepared answer file configuration for automated installations.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Answer to create.
+    /// * `root_password` - Optional root password to set for this answer.
+    ///
+    /// # Returns
+    ///
+    /// The newly created configuration, including the generated secret.
+    pub async fn add_autoinst_prepared_answer(
+        &self,
+        config: &PreparedInstallationConfig,
+        root_password: Option<&str>,
+    ) -> Result<PreparedInstallationConfigCreateResult, Error> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "kebab-case")]
+        struct CreatePreparedAnswer<'a> {
+            #[serde(flatten)]
+            config: &'a PreparedInstallationConfig,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            root_password: Option<&'a str>,
+        }
+
+        Ok(self
+            .0
+            .post(
+                "/api2/extjs/auto-install/prepared",
+                &CreatePreparedAnswer {
+                    config,
+                    root_password,
+                },
+            )
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Update an existing prepared answer file configuration for automated installations.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - ID of the entry to delete. Must be percent-encoded.
+    /// * `updater` - Field values to update.
+    /// * `root_password` - Optional root password to set for this answer.
+    /// * `delete` - List of properties to delete.
+    pub async fn update_autoinst_prepared_answer(
+        &self,
+        id: &str,
+        updater: &PreparedInstallationConfigUpdater,
+        root_password: Option<&str>,
+        delete: &[DeletablePreparedInstallationConfigProperty],
+    ) -> Result<PreparedInstallationConfigUpdateResult, Error> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "kebab-case")]
+        struct UpdatePreparedAnswer<'a> {
+            #[serde(flatten)]
+            updater: &'a PreparedInstallationConfigUpdater,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            root_password: Option<&'a str>,
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            delete: Vec<String>,
+        }
+
+        let delete = delete
+            .iter()
+            .map(DeletablePreparedInstallationConfigProperty::to_string)
+            .collect();
+
+        Ok(self
+            .0
+            .put(
+                &format!("/api2/extjs/auto-install/prepared/{id}"),
+                &UpdatePreparedAnswer {
+                    updater,
+                    root_password,
+                    delete,
+                },
+            )
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Deletes a prepared answer for automated installations.
+    ///
+    /// # Parameters
+    ///
+    /// * `id` - ID of the entry to delete. Must be percent-encoded.
+    pub async fn delete_autoinst_prepared_answer(&self, id: &str) -> Result<(), Error> {
+        self.0
+            .delete(&format!("/api2/extjs/auto-install/prepared/{id}"))
+            .await?
+            .nodata()?;
+        Ok(())
+    }
+
+    /// Retrieves all access tokens for the auto-installer server.
+    pub async fn get_autoinst_tokens(&self) -> Result<Vec<AnswerToken>, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/auto-install/tokens")
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Adds a new access token for authenticating requests from the automated installer.
+    ///
+    /// # Parameters
+    ///
+    /// * `id` - Name of the token to create.
+    /// * `comment` - Optional comment for the token.
+    /// * `enabled` - Whether this token is enabled.
+    /// * `expire_at` - Optional expiration date for this token.
+    pub async fn add_autoinst_token(
+        &self,
+        id: &str,
+        comment: Option<String>,
+        enabled: Option<bool>,
+        expire_at: Option<i64>,
+    ) -> Result<AnswerTokenCreateResult, Error> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "kebab-case")]
+        struct CreateTokenRequest<'a> {
+            id: &'a str,
+            comment: &'a Option<String>,
+            enabled: Option<bool>,
+            expire_at: Option<i64>,
+        }
+
+        Ok(self
+            .0
+            .post(
+                "/api2/extjs/auto-install/tokens",
+                &CreateTokenRequest {
+                    id,
+                    comment: &comment,
+                    enabled,
+                    expire_at,
+                },
+            )
+            .await?
+            .expect_json::<AnswerTokenCreateResult>()?
+            .data)
+    }
+
+    /// Updates an existing access token for authenticating requests from the automated installer.
+    ///
+    /// # Parameters
+    ///
+    /// * `id` - Name of the token to update.
+    /// * `updater` - Fields to update.
+    /// * `delete` - Fields to delete.
+    pub async fn update_autoinst_token(
+        &self,
+        id: &str,
+        updater: &AnswerTokenUpdater,
+        delete: &[DeletableAnswerTokenProperty],
+        regenerate_secret: bool,
+    ) -> Result<AnswerTokenUpdateResult, Error> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "kebab-case")]
+        struct UpdateToken<'a> {
+            #[serde(flatten)]
+            updater: &'a AnswerTokenUpdater,
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            delete: Vec<String>,
+            regenerate_secret: bool,
+        }
+
+        let delete = delete
+            .iter()
+            .map(DeletableAnswerTokenProperty::to_string)
+            .collect();
+
+        Ok(self
+            .0
+            .put(
+                &format!("/api2/extjs/auto-install/tokens/{id}"),
+                &UpdateToken {
+                    updater,
+                    delete,
+                    regenerate_secret,
+                },
+            )
+            .await?
+            .expect_json::<AnswerTokenUpdateResult>()?
+            .data)
+    }
+
+    /// Deletes an access token used for authenticating automated installations.
+    ///
+    /// # Parameters
+    ///
+    /// * `id` - Name of the token to delete.
+    pub async fn delete_autoinst_token(&self, id: &str) -> Result<(), Error> {
+        self.0
+            .delete(&format!("/api2/extjs/auto-install/tokens/{id}"))
+            .await?
+            .nodata()?;
+        Ok(())
     }
 }
 
