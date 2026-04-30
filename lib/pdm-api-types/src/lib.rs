@@ -100,6 +100,8 @@ pub use proxmox_schema::upid::*;
 mod openid;
 pub use openid::*;
 
+pub mod auto_installer;
+
 pub mod firewall;
 
 pub mod remotes;

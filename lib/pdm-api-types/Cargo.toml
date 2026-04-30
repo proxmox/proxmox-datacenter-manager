@@ -20,12 +20,15 @@ proxmox-auth-api = { workspace = true, features = ["api-types"] }
 proxmox-apt-api-types.workspace = true
 proxmox-lang.workspace = true
 proxmox-config-digest.workspace = true
+proxmox-installer-types = { workspace = true, features = ["api-types"] }
+proxmox-network-types = { workspace = true, features = ["api-types"] }
 proxmox-schema = { workspace = true, features = ["api-macro"] }
 proxmox-section-config.workspace = true
 proxmox-dns-api.workspace = true
 proxmox-time.workspace = true
 proxmox-serde.workspace = true
 proxmox-subscription = { workspace = true, features = ["api-types"], default-features = false }
+proxmox-uuid = { workspace = true, features = ["serde"] }
 
 pbs-api-types = { workspace = true }
 pve-api-types = { workspace = true }

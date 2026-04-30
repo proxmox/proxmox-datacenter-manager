@@ -68,6 +68,8 @@ proxmox-tfa = { version = "6", features = [ "api-types" ], default-features = fa
 proxmox-time = "2"
 proxmox-upgrade-checks = "1"
 proxmox-uuid = "1"
+proxmox-installer-types = "0.1"
+proxmox-network-types = "1.0"
 
 # other proxmox crates
 proxmox-acme = "1.0"
@@ -150,6 +152,7 @@ zstd = { version = "0.13" }
 # proxmox-http-error = { path = "../proxmox/proxmox-http-error" }
 # proxmox-http = { path = "../proxmox/proxmox-http" }
 # proxmox-human-byte = { path = "../proxmox/proxmox-human-byte" }
+# proxmox-installer-types = { path = "../proxmox/proxmox-installer-types" }
 # proxmox-io = { path = "../proxmox/proxmox-io" }
 # proxmox-lang = { path = "../proxmox/proxmox-lang" }
 # proxmox-ldap = { path = "../proxmox/proxmox-ldap" }
@@ -157,6 +160,7 @@ zstd = { version = "0.13" }
 # proxmox-log = { path = "../proxmox/proxmox-log" }
 # proxmox-metrics = { path = "../proxmox/proxmox-metrics" }
 # proxmox-network-api = { path = "../proxmox/proxmox-network-api" }
+# proxmox-network-types = { path = "../proxmox/proxmox-network-types" }
 # proxmox-node-status = { path = "../proxmox/proxmox-node-status" }
 # proxmox-notify = { path = "../proxmox/proxmox-notify" }
 # proxmox-openid = { path = "../proxmox/proxmox-openid" }
