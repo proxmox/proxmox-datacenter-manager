@@ -106,3 +106,13 @@ macro_rules! rundir {
         concat!($crate::PDM_RUN_DIR_M!(), $subdir)
     };
 }
+
+/// Prepend the state directory to a file name.
+///
+/// This is a simply way to get the full path for files in `/var/lib/`.
+#[macro_export]
+macro_rules! statedir {
+    ($subdir:expr) => {
+        concat!($crate::PDM_STATE_DIR_M!(), $subdir)
+    };
+}

@@ -12,6 +12,7 @@ nix.workspace = true
 once_cell.workspace = true
 openssl.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 
 proxmox-config-digest = { workspace = true, features = [ "openssl" ] }
 proxmox-http = { workspace = true, features = [ "http-helpers" ] }
@@ -23,5 +24,7 @@ proxmox-shared-memory.workspace = true
 proxmox-simple-config.workspace = true
 proxmox-sys = { workspace = true, features = [ "acl", "crypt", "timer" ] }
 proxmox-acme-api.workspace = true
+proxmox-serde.workspace = true
+proxmox-network-types.workspace = true
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true
