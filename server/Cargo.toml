@@ -14,6 +14,7 @@ async-stream.workspace = true
 async-trait.workspace = true
 const_format.workspace = true
 futures.workspace = true
+glob.workspace = true
 hex.workspace = true
 http.workspace = true
 http-body-util.workspace = true
@@ -21,6 +22,7 @@ hyper.workspace = true
 hyper-util.workspace = true
 libc.workspace = true
 log.workspace = true
+minijinja.workspace = true
 nix.workspace = true
 once_cell.workspace = true
 openssl.workspace = true
@@ -40,10 +42,12 @@ proxmox-daemon.workspace = true
 proxmox-disks.workspace = true
 proxmox-docgen.workspace = true
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async" ] } # pbs-client doesn't use these
+proxmox-installer-types.workspace = true
 proxmox-lang.workspace = true
 proxmox-ldap.workspace = true
 proxmox-log.workspace = true
 proxmox-login.workspace = true
+proxmox-network-types.workspace = true
 proxmox-openid.workspace = true
 proxmox-procfs.workspace = true
 proxmox-rest-server = { workspace = true, features = [ "templates" ] }
@@ -59,6 +63,7 @@ proxmox-sys = { workspace = true, features = [ "timer" ] }
 proxmox-systemd.workspace = true
 proxmox-tfa = { workspace = true, features = [ "api" ] }
 proxmox-time.workspace = true
+proxmox-uuid.workspace = true
 
 proxmox-apt = { workspace = true, features = [ "cache" ] }
 proxmox-apt-api-types.workspace = true
