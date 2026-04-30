@@ -238,10 +238,7 @@ async fn cluster_resources(
 
     format_and_print_result_full(
         &mut serde_json::to_value(data)?,
-        &ReturnType {
-            optional: false,
-            schema: &CLUSTER_LIST_SCHEMA,
-        },
+        &ReturnType::new(false, &CLUSTER_LIST_SCHEMA),
         &env().format_args.output_format.to_string(),
         &Default::default(),
     );
@@ -1077,10 +1074,7 @@ async fn list_tasks(remote: String, node: Option<String>) -> Result<(), Error> {
 
     format_and_print_result_full(
         &mut serde_json::to_value(data)?,
-        &ReturnType {
-            optional: false,
-            schema: &TASK_LIST_SCHEMA,
-        },
+        &ReturnType::new(false, &TASK_LIST_SCHEMA),
         &env().format_args.output_format.to_string(),
         &proxmox_router::cli::default_table_format_options(),
     );
@@ -1104,10 +1098,7 @@ async fn task_status(remote: String, upid: String) -> Result<(), Error> {
 
     format_and_print_result_full(
         &mut serde_json::to_value(data)?,
-        &ReturnType {
-            optional: false,
-            schema: &pve_api_types::TaskStatus::API_SCHEMA,
-        },
+        &ReturnType::new(false, &pve_api_types::TaskStatus::API_SCHEMA),
         &env().format_args.output_format.to_string(),
         &Default::default(),
     );

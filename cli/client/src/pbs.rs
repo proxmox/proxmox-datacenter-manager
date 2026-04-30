@@ -239,10 +239,7 @@ async fn list_tasks(remote: String) -> Result<(), Error> {
 
     format_and_print_result_full(
         &mut serde_json::to_value(data)?,
-        &ReturnType {
-            optional: false,
-            schema: &TASK_LIST_SCHEMA,
-        },
+        &ReturnType::new(false, &TASK_LIST_SCHEMA),
         &env().format_args.output_format.to_string(),
         &proxmox_router::cli::default_table_format_options(),
     );
@@ -266,10 +263,7 @@ async fn task_status(remote: String, upid: String) -> Result<(), Error> {
 
     format_and_print_result_full(
         &mut serde_json::to_value(data)?,
-        &ReturnType {
-            optional: false,
-            schema: &pdm_api_types::pbs::TaskStatus::API_SCHEMA,
-        },
+        &ReturnType::new(false, &pdm_api_types::pbs::TaskStatus::API_SCHEMA),
         &env().format_args.output_format.to_string(),
         &Default::default(),
     );

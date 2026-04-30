@@ -334,10 +334,10 @@ pub struct TaskStatistics {
     pub by_remote: HashMap<String, TaskCount>,
 }
 
-pub const NODE_TASKS_LIST_TASKS_RETURN_TYPE: ReturnType = ReturnType {
-    optional: false,
-    schema: &ArraySchema::new("A list of tasks.", &TaskListItem::API_SCHEMA).schema(),
-};
+pub const NODE_TASKS_LIST_TASKS_RETURN_TYPE: ReturnType = ReturnType::new(
+    false,
+    &ArraySchema::new("A list of tasks.", &TaskListItem::API_SCHEMA).schema(),
+);
 
 #[api]
 #[derive(Deserialize, Serialize, Copy, Clone, PartialEq, Eq)]

@@ -142,10 +142,7 @@ async fn remote_version(id: String) -> Result<(), Error> {
     let data = client()?.remote_version(&id).await?;
     format_and_print_result_full(
         &mut serde_json::to_value(data)?,
-        &ReturnType {
-            optional: false,
-            schema: &pve_api_types::VersionResponse::API_SCHEMA,
-        },
+        &ReturnType::new(false, &pve_api_types::VersionResponse::API_SCHEMA),
         &env().format_args.output_format.to_string(),
         &Default::default(),
     );
