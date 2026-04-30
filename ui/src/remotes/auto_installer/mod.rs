@@ -6,6 +6,7 @@ mod prepared_answer_edit_window;
 mod prepared_answer_form;
 mod prepared_answers_panel;
 mod token_selector;
+mod token_panel;
 
 use std::rc::Rc;
 use yew::virtual_dom::{VComp, VNode};
@@ -51,15 +52,22 @@ impl Component for AutoInstallerPanelComponent {
             .with_child(tr!("Prepared Answers"))
             .into();
 
+        let secrets_title: Html = Row::new()
+            .gap(2)
+            .class(AlignItems::Baseline)
+            .with_child(Fa::new("key"))
+            .with_child(tr!("Authentication tokens"))
+            .into();
+
         Container::new()
             .class("pwt-content-spacer")
             .class(Fit)
             .class(css::Display::Grid)
             .style("grid-template-columns", "repeat(2, 1fr)")
-            .style("grid-template-rows", "repeat(1, 1fr)")
+            .style("grid-template-rows", "repeat(2, 1fr)")
             .with_child(
                 Panel::new()
-                    .style("grid-row", "span 2 / span 1")
+                    .style("grid-row", "span 2 / span 2")
                     .title(installations_title)
                     .with_child(installations_panel::InstallationsPanel::default()),
             )
@@ -67,6 +75,11 @@ impl Component for AutoInstallerPanelComponent {
                 Panel::new()
                     .title(answers_title)
                     .with_child(prepared_answers_panel::PreparedAnswersPanel::default()),
+            )
+            .with_child(
+                Panel::new()
+                    .title(secrets_title)
+                    .with_child(token_panel::AuthTokenPanel::default()),
             )
             .into()
     }
