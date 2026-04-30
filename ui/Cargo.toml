@@ -37,6 +37,7 @@ proxmox-acme-api = "1"
 proxmox-deb-version = "0.1"
 proxmox-client = "1"
 proxmox-human-byte = "1"
+proxmox-installer-types = "0.1"
 proxmox-login = "1"
 proxmox-schema = "5"
 proxmox-subscription = { version = "1.0.1", features = ["api-types"], default-features = false }
@@ -55,6 +56,7 @@ pdm-search = { version = "0.2", path = "../lib/pdm-search" }
 [patch.crates-io]
 # proxmox-client = { path = "../../proxmox/proxmox-client" }
 # proxmox-human-byte = { path = "../../proxmox/proxmox-human-byte" }
+# proxmox-installer-types = { path = "../proxmox/proxmox-installer-types" }
 # proxmox-login = { path = "../../proxmox/proxmox-login" }
 # proxmox-rrd-api-types = { path = "../../proxmox/proxmox-rrd-api-types" }
 # proxmox-schema = { path = "../../proxmox/proxmox-schema" }

@@ -32,6 +32,9 @@ mod remove_remote;
 mod firewall;
 pub use firewall::FirewallTree;
 
+mod auto_installer;
+use auto_installer::AutoInstallerPanel;
+
 use yew::{function_component, Html};
 
 use pwt::prelude::*;
@@ -75,6 +78,13 @@ pub fn system_configuration() -> Html {
                 .label(tr!("Firewall"))
                 .icon_class("fa fa-shield"),
             |_| FirewallTree::new().into(),
+        )
+        .with_item_builder(
+            TabBarItem::new()
+                .key("auto-installer")
+                .label(tr!("Automated Installations"))
+                .icon_class("fa fa-cubes"),
+            |_| AutoInstallerPanel::default().into(),
         );
 
     NavigationContainer::new().with_child(panel).into()
