@@ -297,8 +297,8 @@ impl proxmox_access_control::init::AccessControlConfig for AccessControlConfig {
                     return Ok(());
                 }
                 match components[1] {
-                    "certificates" | "disks" | "log" | "notifications" | "status" | "tasks"
-                    | "time" => {
+                    "auto-installation" | "certificates" | "disks" | "log" | "notifications"
+                    | "status" | "tasks" | "time" => {
                         if components_len == 2 {
                             return Ok(());
                         }

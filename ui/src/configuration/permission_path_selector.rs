@@ -17,6 +17,7 @@ static PREDEFINED_PATHS: &[&str] = &[
     "/access/users",
     "/resource",
     "/system",
+    "/system/auto-installation",
     "/system/certificates",
     "/system/disks",
     "/system/log",
