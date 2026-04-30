@@ -1,18 +1,19 @@
 //! Implements all the methods under `/api2/json/auto-install/`.
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use http::StatusCode;
 use std::collections::{BTreeMap, HashMap};
 
 use pdm_api_types::{
     auto_installer::{
-        AnswerToken, DeletablePreparedInstallationConfigProperty, Installation, InstallationStatus,
-        PreparedInstallationConfig, PreparedInstallationConfigCreateResult,
+        AnswerToken, AnswerTokenCreateResult, AnswerTokenUpdateResult, AnswerTokenUpdater,
+        DeletableAnswerTokenProperty, DeletablePreparedInstallationConfigProperty, Installation,
+        InstallationStatus, PreparedInstallationConfig, PreparedInstallationConfigCreateResult,
         PreparedInstallationConfigUpdateResult, PreparedInstallationConfigUpdater,
         INSTALLATION_UUID_SCHEMA, PREPARED_INSTALL_CONFIG_ID_SCHEMA, TEMPLATE_COUNTER_NAME_REGEX,
         UDEV_FILTER_KEY_REGEX,
     },
-    ConfigDigest, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
+    Authid, ConfigDigest, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pdm_config::auto_install::types::PreparedInstallationSectionConfigWrapper;
 use proxmox_installer_types::{
@@ -28,7 +29,9 @@ use proxmox_router::{
     http_bail, list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission,
     Router, RpcEnvironment, SubdirMap,
 };
-use proxmox_schema::{api, AllOfSchema, ApiType, ParameterSchema, ReturnType};
+use proxmox_schema::{
+    api, api_types::COMMENT_SCHEMA, AllOfSchema, ApiType, ParameterSchema, ReturnType,
+};
 use proxmox_sortable_macro::sortable;
 use proxmox_uuid::Uuid;
 
@@ -61,6 +64,18 @@ const SUBDIRS: SubdirMap = &sorted!([
                     .get(&API_METHOD_GET_PREPARED_ANSWER)
                     .put(&API_METHOD_UPDATE_PREPARED_ANSWER)
                     .delete(&API_METHOD_DELETE_PREPARED_ANSWER)
+            )
+    ),
+    (
+        "tokens",
+        &Router::new()
+            .get(&API_METHOD_LIST_TOKENS)
+            .post(&API_METHOD_CREATE_TOKEN)
+            .match_all(
+                "id",
+                &Router::new()
+                    .put(&API_METHOD_UPDATE_TOKEN)
+                    .delete(&API_METHOD_DELETE_TOKEN)
             )
     ),
 ]);
@@ -342,6 +357,7 @@ async fn list_prepared_answers(
 async fn create_prepared_answer(
     mut config: PreparedInstallationConfig,
     root_password: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<PreparedInstallationConfigCreateResult> {
     let _lock = pdm_config::auto_install::prepared_answers_write_lock();
     let (mut prepared, _) = pdm_config::auto_install::read_prepared_answers()?;
@@ -376,6 +392,15 @@ async fn create_prepared_answer(
         );
     }
 
+    let token = if config.authorized_tokens.is_empty() {
+        // if no token was specified, generate a new one
+        let token = generate_token(&config.id, rpcenv)?;
+        config.authorized_tokens.push(token.token.id.clone());
+        Some(token)
+    } else {
+        None
+    };
+
     validate_udev_filter_map(&config.netdev_filter)?;
     validate_udev_filter_map(&config.disk_filter)?;
     validate_template_map(&config.template_counters)?;
@@ -383,10 +408,7 @@ async fn create_prepared_answer(
     prepared.insert(config.id.clone(), config.clone().try_into()?);
     pdm_config::auto_install::save_prepared_answers(&prepared)?;
 
-    Ok(PreparedInstallationConfigCreateResult {
-        config,
-        token: None,
-    })
+    Ok(PreparedInstallationConfigCreateResult { config, token })
 }
 
 #[api(
@@ -462,6 +484,7 @@ async fn update_prepared_answer(
     root_password: Option<String>,
     delete: Option<Vec<DeletablePreparedInstallationConfigProperty>>,
     digest: Option<ConfigDigest>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<PreparedInstallationConfigUpdateResult> {
     let _lock = pdm_config::auto_install::prepared_answers_write_lock();
 
@@ -548,7 +571,15 @@ async fn update_prepared_answer(
         template_counters,
     } = update;
 
-    if let Some(tokens) = authorized_tokens {
+    let mut new_token = None;
+    if let Some(mut tokens) = authorized_tokens {
+        if tokens.is_empty() {
+            // if no token was specified, generate a new one
+            let token = generate_token(&p.id, rpcenv)?;
+            tokens.push(token.token.id.clone());
+            new_token = Some(token);
+        }
+
         p.authorized_tokens = tokens;
     }
 
@@ -666,7 +697,7 @@ async fn update_prepared_answer(
 
     Ok(PreparedInstallationConfigCreateResult {
         config,
-        token: None,
+        token: new_token,
     })
 }
 
@@ -750,6 +781,249 @@ async fn handle_post_hook(uuid: Uuid, info: PostHookInfo) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[api(
+    returns: {
+        description: "List of tokens for authenticating automated installations requests.",
+        type: Array,
+        items: {
+            type: AnswerToken,
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "auto-installation"], PRIV_SYS_AUDIT, false),
+    },
+)]
+/// GET /auto-install/tokens
+///
+/// Get all tokens that can be used for authenticating automated installations requests.
+async fn list_tokens(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<AnswerToken>> {
+    let (tokens, digest) = pdm_config::auto_install::read_tokens()?;
+
+    rpcenv["digest"] = hex::encode(digest).into();
+
+    Ok(tokens.values().map(|t| t.clone().into()).collect())
+}
+
+#[api(
+    input: {
+        properties: {
+            id: {
+                type: String,
+                description: "Token ID.",
+            },
+            comment: {
+                schema: COMMENT_SCHEMA,
+                optional: true,
+            },
+            enabled: {
+                type: bool,
+                description: "Whether the token is enabled.",
+                default: true,
+                optional: true,
+            },
+            "expire-at": {
+                type: Integer,
+                description: "Token expiration date, in seconds since the epoch. '0' means no expiration.",
+                default: 0,
+                minimum: 0,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        type: AnswerTokenCreateResult,
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "auto-installation"], PRIV_SYS_MODIFY, false),
+    },
+    protected: true,
+)]
+/// POST /auto-install/tokens
+///
+/// Creates a new token for authenticating automated installations.
+fn create_token(
+    id: String,
+    comment: Option<String>,
+    enabled: Option<bool>,
+    expire_at: Option<i64>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<AnswerTokenCreateResult> {
+    let _lock = pdm_config::auto_install::tokens_write_lock();
+
+    let authid = rpcenv
+        .get_auth_id()
+        .ok_or_else(|| anyhow!("no authid"))?
+        .parse::<Authid>()?;
+
+    let token = AnswerToken {
+        id,
+        created_by: authid.user().clone(),
+        comment,
+        enabled,
+        expire_at,
+    };
+    let secret = Uuid::generate();
+
+    pdm_config::auto_install::add_token(&token, &secret.to_string())
+        .context("failed to create new token")?;
+
+    Ok(AnswerTokenCreateResult {
+        token,
+        secret: secret.to_string(),
+    })
+}
+
+#[api(
+    input: {
+        properties: {
+            id: {
+                type: String,
+                description: "Token ID.",
+            },
+            update: {
+                type: AnswerTokenUpdater,
+                flatten: true,
+            },
+            delete: {
+                type: Array,
+                description: "List of properties to delete.",
+                optional: true,
+                items: {
+                    type: DeletableAnswerTokenProperty,
+                }
+            },
+            "regenerate-secret": {
+                type: bool,
+                description: "Whether to regenerate the current secret, invalidating the old one.",
+                optional: true,
+                default: false,
+            },
+            digest: {
+                type: ConfigDigest,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        type: AnswerTokenUpdateResult,
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "auto-installation"], PRIV_SYS_MODIFY, false),
+    },
+    protected: true,
+)]
+/// PUT /auto-install/tokens/{id}
+///
+/// Updates an existing access token.
+async fn update_token(
+    id: String,
+    update: AnswerTokenUpdater,
+    delete: Option<Vec<DeletableAnswerTokenProperty>>,
+    regenerate_secret: bool,
+    digest: Option<ConfigDigest>,
+) -> Result<AnswerTokenUpdateResult> {
+    let _lock = pdm_config::auto_install::tokens_write_lock();
+    let (tokens, config_digest) = pdm_config::auto_install::read_tokens()?;
+
+    config_digest.detect_modification(digest.as_ref())?;
+
+    let mut token: AnswerToken = match tokens.get(&id.to_string()).cloned() {
+        Some(secret) => secret.into(),
+        None => http_bail!(NOT_FOUND, "no such access token: {id}"),
+    };
+
+    if let Some(delete) = delete {
+        for prop in delete {
+            match prop {
+                DeletableAnswerTokenProperty::Comment => token.comment = None,
+                DeletableAnswerTokenProperty::ExpireAt => token.expire_at = None,
+            }
+        }
+    }
+
+    let AnswerTokenUpdater {
+        comment,
+        enabled,
+        expire_at,
+    } = update;
+
+    if let Some(comment) = comment {
+        token.comment = Some(comment);
+    }
+
+    if let Some(enabled) = enabled {
+        token.enabled = Some(enabled);
+    }
+
+    if let Some(expire_at) = expire_at {
+        token.expire_at = Some(expire_at);
+    }
+
+    if regenerate_secret {
+        // If the user instructed to update secret, just delete + re-create the token and let
+        // the config implementation handle updating the shadow
+        pdm_config::auto_install::delete_token(&token.id)?;
+
+        let secret = Uuid::generate().to_string();
+        pdm_config::auto_install::add_token(&token, &secret)?;
+
+        Ok(AnswerTokenUpdateResult {
+            token,
+            secret: Some(secret),
+        })
+    } else {
+        pdm_config::auto_install::update_token(&token).context("failed to update token")?;
+
+        Ok(AnswerTokenUpdateResult {
+            token,
+            secret: None,
+        })
+    }
+}
+
+#[api(
+    input: {
+        properties: {
+            id: {
+                type: String,
+                description: "Token ID.",
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "auto-installation"], PRIV_SYS_MODIFY, false),
+    },
+    protected: true,
+)]
+/// DELETE /auto-install/tokens/{id}
+///
+/// Deletes a prepared auto-installer answer configuration.
+///
+/// If the token is currently in use by any prepared answer configuration, the deletion will fail.
+async fn delete_token(id: String) -> Result<()> {
+    // first check if the token is used anywhere
+    let (prepared, _) = pdm_config::auto_install::read_prepared_answers()?;
+
+    let used = prepared
+        .values()
+        .filter_map(|p| {
+            let PreparedInstallationSectionConfigWrapper::PreparedConfig(p) = p;
+            p.authorized_tokens.contains(&id).then(|| p.id.clone())
+        })
+        .collect::<Vec<String>>();
+
+    if !used.is_empty() {
+        http_bail!(
+            CONFLICT,
+            "token still in use by answer configurations: {}",
+            used.join(", ")
+        );
+    }
+
+    let _lock = pdm_config::auto_install::tokens_write_lock();
+    pdm_config::auto_install::delete_token(&id)
 }
 
 /// Tries to find a prepared answer configuration matching the given target node system
@@ -963,4 +1237,23 @@ fn increment_template_counters(id: &str) -> Result<()> {
 
     pdm_config::auto_install::save_prepared_answers(&prepared)?;
     Ok(())
+}
+
+fn generate_token(
+    config_id: &str,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<AnswerTokenCreateResult> {
+    let id = format!(
+        "{}-{}",
+        config_id,
+        hex::encode(proxmox_sys::linux::random_data(4)?)
+    );
+
+    create_token(
+        id.clone(),
+        Some("Automatically generated.".to_owned()),
+        Some(true),
+        None,
+        rpcenv,
+    )
 }
