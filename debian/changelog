@@ -2,6 +2,20 @@ proxmox-datacenter-manager (1.0.4) UNRELEASED; urgency=medium
 
   * admin cli: add commands to manage ACME certificates, accounts and plugins.
 
+  * views api: return a clearer error message if a view layout contains any
+    unknown widgets.
+
+  * add metric collection system for local metrics. Every 10 seconds, this new
+    subsystem collects various system metrics and stores them in a local
+    database.
+
+  * api: drop unused, broken /nodes/localhost/rrdata API handler. It always
+    failed due to a missing 'node' parameter in the definition. Also, there
+    was a typo in the path ('rrdata' instead of 'rrddata').
+
+  * api: add /nodes/localhost/rrddata route, returning metrics for the local
+    PDM node, to be consumed by the RRD graphs in the UI.
+
  -- Proxmox Support Team <support@proxmox.com>  Thu, 02 Apr 2026 14:15:25 +0200
 
 proxmox-datacenter-manager (1.0.3) trixie; urgency=medium

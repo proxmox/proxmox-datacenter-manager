@@ -6,6 +6,16 @@ proxmox-datacenter-manager-ui (1.0.4) UNRELEASED; urgency=medium
   * view configuration edit dialog: fixed an issue that would clear filter
     value fields when editing an existing view.
 
+  * views: gracefully handle unknown widget-types by showing a 'Unknown
+    Widget' card instead of a hard failure.
+
+  * notes view: allow a curated subset of presentation MathML so that admins
+    can embed the calculations they used to derive a configuration.
+
+  * node status: show graphs for various metrics of the local PDM node,
+    including CPU usage, load average, memory usage, pressure stall
+    information, network and disk utilization.
+
  -- Proxmox Support Team <support@proxmox.com>  Thu, 16 Apr 2026 15:01:16 +0200
 
 proxmox-datacenter-manager-ui (1.0.3) trixie; urgency=medium
