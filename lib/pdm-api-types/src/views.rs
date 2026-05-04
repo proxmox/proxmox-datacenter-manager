@@ -1,4 +1,7 @@
-use std::{fmt::Debug, fmt::Display, str::FromStr, sync::OnceLock};
+use std::collections::HashMap;
+use std::fmt::{Debug, Display};
+use std::str::FromStr;
+use std::sync::OnceLock;
 
 use anyhow::{bail, Error};
 use const_format::concatcp;
@@ -255,6 +258,24 @@ pub enum ViewLayout {
     },
 }
 
+impl ViewLayout {
+    /// Tests if this layout has unknown widget types
+    pub fn has_unknown_widgets(&self) -> bool {
+        match self {
+            ViewLayout::Rows { rows } => {
+                for row in rows {
+                    for widget in row {
+                        if let WidgetType::UnknownWidget { .. } = widget.r#type {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct RowWidget {
@@ -311,6 +332,15 @@ pub enum WidgetType {
         resource: Option<NodeResourceType>,
         #[serde(skip_serializing_if = "Option::is_none")]
         remote_type: Option<RemoteType>,
+    },
+    #[serde(untagged)]
+    #[serde(rename_all = "kebab-case")]
+    /// Catches all widgets for unknown types.
+    /// This can happen for example if the frontend is not the same version as the backend.
+    UnknownWidget {
+        widget_type: String,
+        #[serde(flatten)]
+        extra: HashMap<String, serde_json::Value>,
     },
 }
 

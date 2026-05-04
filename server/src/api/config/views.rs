@@ -1,4 +1,4 @@
-use anyhow::{Context, Error};
+use anyhow::{format_err, Context, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_access_control::CachedUserInfo;
@@ -97,8 +97,13 @@ pub fn add_view(view: ViewConfig, digest: Option<ConfigDigest>) -> Result<(), Er
     let id = view.id.clone();
 
     if !view.layout.is_empty() {
-        if let Err(err) = serde_json::from_str::<ViewTemplate>(&view.layout) {
-            param_bail!("layout", "layout is not valid: '{}'", err)
+        match serde_json::from_str::<ViewTemplate>(&view.layout) {
+            Ok(ViewTemplate { layout, .. }) => {
+                if layout.has_unknown_widgets() {
+                    param_bail!("layout", format_err!("layout has unknown widgets"));
+                }
+            }
+            Err(err) => param_bail!("layout", "layout is not valid: '{}'", err),
         }
     }
 
@@ -200,8 +205,13 @@ pub fn update_view(
 
     if let Some(layout) = view.layout {
         if !layout.is_empty() {
-            if let Err(err) = serde_json::from_str::<ViewTemplate>(&layout) {
-                param_bail!("layout", "layout is not valid: '{}'", err)
+            match serde_json::from_str::<ViewTemplate>(&layout) {
+                Ok(ViewTemplate { layout, .. }) => {
+                    if layout.has_unknown_widgets() {
+                        param_bail!("layout", format_err!("layout has unknown widgets"));
+                    }
+                }
+                Err(err) => param_bail!("layout", "layout is not valid: '{}'", err),
             }
         }
         conf.layout = layout;

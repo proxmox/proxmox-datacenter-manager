@@ -12,6 +12,7 @@ http.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_plain.workspace = true
+serde_json.workspace = true
 
 proxmox-acme-api.workspace = true
 proxmox-access-control = { workspace = true, features = ["acl"] }

@@ -7,12 +7,14 @@ use serde_json::{json, Value};
 use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
-use proxmox_yew_comp::{http_get, http_put};
+use proxmox_yew_comp::{http_get, http_put, Status};
 use pwt::css;
 use pwt::prelude::*;
 use pwt::props::StorageLocation;
 use pwt::state::{PersistentState, SharedState};
+use pwt::widget::container::span;
 use pwt::widget::{error_message, form::FormContext, Column, Container, Progress};
+use pwt::widget::{Fa, Panel, Row};
 use pwt::AsyncPool;
 
 use crate::dashboard::refresh_config_edit::{
@@ -171,6 +173,7 @@ fn render_widget(
             resource,
             remote_type,
         } => create_gauge_panel(*resource, *remote_type, status),
+        WidgetType::UnknownWidget { widget_type, .. } => create_unknown_widget_panel(widget_type),
     };
 
     if let Some(title) = &item.title {
@@ -284,6 +287,7 @@ fn required_api_calls(layout: &ViewLayout) -> (bool, bool, bool) {
                         WidgetType::ResourceTree => {
                             // each list must do it itself
                         }
+                        WidgetType::UnknownWidget { .. } => {}
                     }
                 }
             }
@@ -673,4 +677,23 @@ pub fn add_current_view_to_search<T: yew::Component>(ctx: &yew::Context<T>, sear
             );
         }
     }
+}
+
+fn create_unknown_widget_panel(widget_type: &str) -> Panel {
+    Panel::new()
+        .title(tr!("Unknown Widget"))
+        .border(true)
+        .with_child(
+            Column::new()
+                .class(css::FlexFit)
+                .class(css::JustifyContent::Center)
+                .class(css::AlignItems::Center)
+                .with_child(
+                    Row::new()
+                        .gap(1)
+                        .class(css::AlignItems::Center)
+                        .with_child(Fa::from(Status::Warning).large_2x())
+                        .with_child(span(tr!("Unknown Widget of type '{0}'", widget_type))),
+                ),
+        )
 }
