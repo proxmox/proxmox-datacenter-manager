@@ -201,13 +201,10 @@ fn verify_answer_authorization_header(header: &str) -> Option<String> {
 fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoInstallerConfig> {
     let _lock = pdm_config::auto_install::installations_write_lock();
 
+    // Uuid::generate() is backed by uuid_generate(3), 122 bits of randomness;
+    // a collision against any past installation is not realistic, so persist
+    // the new record directly without scanning the directory first.
     let uuid = Uuid::generate();
-    let (mut installations, _) = pdm_config::auto_install::read_installations()?;
-
-    if installations.iter().any(|p| p.uuid == uuid) {
-        http_bail!(CONFLICT, "already exists");
-    }
-
     let timestamp_now = proxmox_time::epoch_i64();
 
     if let Some(config) = find_config(token_id, &payload.sysinfo)? {
@@ -228,7 +225,7 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
             .is_some()
             .then(|| hex::encode(proxmox_sys::linux::random_data(16).unwrap_or_default()));
 
-        installations.push(Installation {
+        let installation = Installation {
             uuid: uuid.clone(),
             received_at: timestamp_now,
             status,
@@ -236,7 +233,7 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
             answer_id: Some(config.id.clone()),
             post_hook_data: None,
             post_hook_token: post_hook_token.clone(),
-        });
+        };
 
         // Inject our custom post hook if the user defined a base url
         if let Some(base_url) = config.post_hook_base_url {
@@ -251,10 +248,10 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
         }
 
         increment_template_counters(&config.id)?;
-        pdm_config::auto_install::save_installations(&installations)?;
+        pdm_config::auto_install::save_installation(&installation)?;
         Ok(answer)
     } else {
-        installations.push(Installation {
+        let installation = Installation {
             uuid: uuid.clone(),
             received_at: timestamp_now,
             status: InstallationStatus::NoAnswerFound,
@@ -262,9 +259,9 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
             answer_id: None,
             post_hook_data: None,
             post_hook_token: None,
-        });
+        };
 
-        pdm_config::auto_install::save_installations(&installations)?;
+        pdm_config::auto_install::save_installation(&installation)?;
         http_bail!(NOT_FOUND, "no answer file found");
     }
 }
@@ -314,16 +311,10 @@ fn list_installations(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<Installatio
 fn delete_installation(uuid: Uuid) -> Result<()> {
     let _lock = pdm_config::auto_install::installations_write_lock();
 
-    let (mut installations, _) = pdm_config::auto_install::read_installations()?;
-    if installations
-        .extract_if(.., |inst| inst.uuid == uuid)
-        .count()
-        == 0
-    {
+    if !pdm_config::auto_install::remove_installation(&uuid.to_string())? {
         http_bail!(NOT_FOUND, "no such entry {uuid:?}");
     }
-
-    pdm_config::auto_install::save_installations(&installations)
+    Ok(())
 }
 
 #[api(
@@ -812,17 +803,15 @@ async fn handle_post_hook(uuid: Uuid, token: String, info: PostHookInfo) -> Resu
     let _lock = pdm_config::auto_install::installations_write_lock();
     let (mut installations, _) = pdm_config::auto_install::read_installations()?;
 
-    let install = installations.iter_mut().find(|inst| {
-        inst.uuid == uuid
-            && inst.status == InstallationStatus::InProgress
-            && inst.post_hook_data.is_none()
-    });
-
     // Same generic error for unknown UUID, wrong status, already-handled hook,
     // or wrong token to avoid leaking which check failed.
     let not_found = || http_bail!(NOT_FOUND, "installation {uuid} not found");
 
-    let install = match install {
+    let install = match installations.iter_mut().find(|inst| {
+        inst.uuid == uuid
+            && inst.status == InstallationStatus::InProgress
+            && inst.post_hook_data.is_none()
+    }) {
         Some(install) => install,
         None => return not_found(),
     };
@@ -838,7 +827,7 @@ async fn handle_post_hook(uuid: Uuid, token: String, info: PostHookInfo) -> Resu
     install.status = InstallationStatus::Finished;
     install.post_hook_data = Some(info);
     install.post_hook_token = None;
-    pdm_config::auto_install::save_installations(&installations)?;
+    pdm_config::auto_install::save_installation(install)?;
 
     Ok(())
 }

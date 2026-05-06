@@ -21,7 +21,8 @@ const TOKENS_CONF_FILE: &str = pdm_buildcfg::configdir!("/autoinst/tokens.cfg");
 const TOKENS_SHADOW_FILE: &str = pdm_buildcfg::configdir!("/autoinst/tokens.shadow");
 const TOKENS_LOCK_FILE: &str = pdm_buildcfg::configdir!("/autoinst/.tokens.lock");
 
-const INSTALLATIONS_STATE_FILE: &str = pdm_buildcfg::statedir!("/automated-installations.json");
+const INSTALLATIONS_STATE_DIR: &str = pdm_buildcfg::statedir!("/automated-installations");
+const INSTALLATIONS_LEGACY_FILE: &str = pdm_buildcfg::statedir!("/automated-installations.json");
 const INSTALLATIONS_LOCK_FILE: &str = pdm_buildcfg::statedir!("/.automated-installations.lock");
 
 pub mod types {
@@ -420,22 +421,80 @@ pub fn installations_write_lock() -> Result<ApiLockGuard> {
     open_api_lockfile(INSTALLATIONS_LOCK_FILE, None, true)
 }
 
+/// Path to the per-installation state file for the given UUID.
+fn installation_state_path(uuid: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(INSTALLATIONS_STATE_DIR).join(format!("{uuid}.json"))
+}
+
+/// Migrate the legacy single-file representation, if present, to per-UUID
+/// state files. Caller must hold the installations write lock.
+fn migrate_legacy_installations_file() -> Result<()> {
+    let raw = match proxmox_sys::fs::file_read_optional_string(INSTALLATIONS_LEGACY_FILE)? {
+        Some(raw) => raw,
+        None => return Ok(()),
+    };
+
+    let installations: Vec<Installation> = serde_json::from_str(&raw)?;
+    std::fs::create_dir_all(INSTALLATIONS_STATE_DIR)?;
+    for inst in &installations {
+        let path = installation_state_path(&inst.uuid.to_string());
+        if path.exists() {
+            // Per-UUID file already exists, prefer it over the legacy data.
+            continue;
+        }
+        let raw = serde_json::to_string(inst)?;
+        replace_config(&path, raw.as_bytes())?;
+    }
+    std::fs::remove_file(INSTALLATIONS_LEGACY_FILE)?;
+    Ok(())
+}
+
 pub fn read_installations() -> Result<(Vec<Installation>, ConfigDigest)> {
-    let content: serde_json::Value = serde_json::from_str(
-        &proxmox_sys::fs::file_read_optional_string(INSTALLATIONS_STATE_FILE)?
-            .unwrap_or_else(|| "[]".to_owned()),
-    )?;
+    migrate_legacy_installations_file()?;
 
-    let digest = proxmox_serde::json::to_canonical_json(&content).map(ConfigDigest::from_slice)?;
-    let data = serde_json::from_value(content)?;
+    let mut installations: Vec<Installation> = Vec::new();
+    match std::fs::read_dir(INSTALLATIONS_STATE_DIR) {
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+        Err(err) => bail!("failed to read installations directory: {err:#}"),
+        Ok(entries) => {
+            for entry in entries {
+                let entry = entry?;
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                    continue;
+                }
+                let raw = proxmox_sys::fs::file_read_string(&path)?;
+                installations.push(serde_json::from_str(&raw)?);
+            }
+        }
+    }
 
-    Ok((data, digest))
+    // Sort for stable digest and reproducible listings independent of
+    // filesystem readdir order.
+    installations.sort_by(|a, b| a.uuid.cmp(&b.uuid));
+
+    let raw = serde_json::to_vec(&installations)?;
+    let digest = ConfigDigest::from_slice(&raw);
+
+    Ok((installations, digest))
 }
 
 /// Write lock must be already held.
-pub fn save_installations(config: &[Installation]) -> Result<()> {
-    let raw = serde_json::to_string(&config)?;
-    replace_config(INSTALLATIONS_STATE_FILE, raw.as_bytes())
+pub fn save_installation(installation: &Installation) -> Result<()> {
+    std::fs::create_dir_all(INSTALLATIONS_STATE_DIR)?;
+    let path = installation_state_path(&installation.uuid.to_string());
+    let raw = serde_json::to_string(installation)?;
+    replace_config(&path, raw.as_bytes())
+}
+
+/// Write lock must be already held.
+pub fn remove_installation(uuid: &str) -> Result<bool> {
+    let path = installation_state_path(uuid);
+    match std::fs::remove_file(&path) {
+        Ok(()) => Ok(true),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(err) => Err(err.into()),
+    }
 }
 
 pub fn prepared_answers_read_lock() -> Result<ApiLockGuard> {
