@@ -1161,14 +1161,27 @@ fn render_prepared_config(
         }
     }
 
+    // All templated fields are semantically single-line strings. The template
+    // strings themselves are admin-controlled, but the context is filled from
+    // installer-supplied SystemInfo, so reject any rendered output that
+    // contains characters which could confuse the receiving TOML/JSON parser
+    // or smuggle additional keys into the answer.
+    let render = |name: &str, tmpl: &str| -> Result<String> {
+        let rendered = jinja.render_named_str(name, tmpl, &context)?;
+        if rendered.chars().any(|c| c.is_control()) {
+            anyhow::bail!("rendered '{name}' contains control characters");
+        }
+        Ok(rendered)
+    };
+
     let fqdn = if conf.use_dhcp_fqdn {
         answer::FqdnConfig::from_dhcp(None)
     } else {
-        let fqdn = jinja.render_named_str("fqdn", &conf.fqdn.to_string(), &context)?;
+        let fqdn = render("fqdn", &conf.fqdn.to_string())?;
         answer::FqdnConfig::Simple(Fqdn::from(&fqdn)?)
     };
 
-    let mailto = jinja.render_named_str("mailto", &conf.mailto, &context)?;
+    let mailto = render("mailto", &conf.mailto)?;
 
     let global = answer::GlobalOptions {
         country: conf.country.clone(),
@@ -1199,21 +1212,19 @@ fn render_prepared_config(
             let cidr = conf
                 .cidr
                 .ok_or_else(|| anyhow!("no host address"))
-                .and_then(|cidr| Ok(jinja.render_named_str("cidr", &cidr.to_string(), &context)?))
+                .and_then(|cidr| render("cidr", &cidr.to_string()))
                 .and_then(|s| Ok(s.parse()?))?;
 
             let dns = conf
                 .dns
                 .ok_or_else(|| anyhow!("no DNS server address"))
-                .and_then(|cidr| Ok(jinja.render_named_str("dns", &cidr.to_string(), &context)?))
+                .and_then(|dns| render("dns", &dns.to_string()))
                 .and_then(|s| Ok(s.parse()?))?;
 
             let gateway = conf
                 .gateway
                 .ok_or_else(|| anyhow!("no gateway address"))
-                .and_then(|cidr| {
-                    Ok(jinja.render_named_str("gateway", &cidr.to_string(), &context)?)
-                })
+                .and_then(|gw| render("gateway", &gw.to_string()))
                 .and_then(|s| Ok(s.parse()?))?;
 
             answer::NetworkConfig::FromAnswer(answer::NetworkConfigFromAnswer {
