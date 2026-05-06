@@ -170,7 +170,7 @@ fn verify_answer_authorization_header(header: &str) -> Option<String> {
     let (id, secret) = token.split_once(':').unwrap_or_default();
 
     let token: AnswerToken = tokens.get(id)?.clone().into();
-    if !token.enabled.unwrap_or(true) {
+    if !token.is_active() {
         return None;
     }
 
