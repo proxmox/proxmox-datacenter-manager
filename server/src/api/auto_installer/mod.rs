@@ -223,7 +223,8 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
         let post_hook_token = config
             .post_hook_base_url
             .is_some()
-            .then(|| hex::encode(proxmox_sys::linux::random_data(16).unwrap_or_default()));
+            .then(|| -> Result<String> { Ok(hex::encode(proxmox_sys::linux::random_data(16)?)) })
+            .transpose()?;
 
         let installation = Installation {
             uuid: uuid.clone(),
