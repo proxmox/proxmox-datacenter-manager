@@ -123,9 +123,18 @@ fn api_function_new_installation(
         let token_id = match verify_answer_authorization_header(auth_header) {
             Some(token_id) => token_id,
             None => {
+                // Throttle on failure to slow down brute force attempts and to
+                // smear out timing differences between the various reasons the
+                // verification could fail (missing header, unknown id, wrong
+                // secret, disabled or expired token).
+                let jitter_ms = proxmox_sys::linux::random_data(2)
+                    .ok()
+                    .map(|b| u16::from_le_bytes([b[0], b[1]]) as u64)
+                    .unwrap_or(0);
+                tokio::time::sleep(std::time::Duration::from_millis(500 + jitter_ms / 64)).await;
                 return Ok(http::Response::builder()
                     .status(StatusCode::UNAUTHORIZED)
-                    .body(String::new().into())?)
+                    .body(String::new().into())?);
             }
         };
 
