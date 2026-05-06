@@ -210,6 +210,15 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
 
         let mut answer = render_prepared_config(&config, &payload.sysinfo)?;
 
+        // Generate a per-installation secret for authenticating the post-hook
+        // callback. The UUID alone is not a credential as it travels through
+        // the answer payload back to the installer; the secret is short-lived
+        // and cleared once the callback succeeded.
+        let post_hook_token = config
+            .post_hook_base_url
+            .is_some()
+            .then(|| hex::encode(proxmox_sys::linux::random_data(16).unwrap_or_default()));
+
         installations.push(Installation {
             uuid: uuid.clone(),
             received_at: timestamp_now,
@@ -217,6 +226,7 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
             info: payload.sysinfo,
             answer_id: Some(config.id.clone()),
             post_hook_data: None,
+            post_hook_token: post_hook_token.clone(),
         });
 
         // Inject our custom post hook if the user defined a base url
@@ -227,6 +237,7 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
                     base_url.trim_end_matches('/')
                 ),
                 cert_fingerprint: config.post_hook_cert_fp.clone(),
+                auth_token: post_hook_token,
             });
         }
 
@@ -241,6 +252,7 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
             info: payload.sysinfo,
             answer_id: None,
             post_hook_data: None,
+            post_hook_token: None,
         });
 
         pdm_config::auto_install::save_installations(&installations)?;
@@ -264,7 +276,12 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
 fn list_installations(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<Installation>> {
     let _lock = pdm_config::auto_install::installations_read_lock();
 
-    let (config, digest) = pdm_config::auto_install::read_installations()?;
+    let (mut config, digest) = pdm_config::auto_install::read_installations()?;
+
+    // The post-hook secret is on-disk state only, never expose it to API clients.
+    for inst in &mut config {
+        inst.post_hook_token = None;
+    }
 
     rpcenv["digest"] = hex::encode(digest).into();
     Ok(config)
@@ -751,6 +768,10 @@ fn validate_template_map<T>(map: &BTreeMap<String, T>) -> Result<()> {
             uuid: {
                 schema: INSTALLATION_UUID_SCHEMA,
             },
+            token: {
+                type: String,
+                description: "Per-installation token issued together with the answer.",
+            },
             info: {
                 type: PostHookInfo,
                 flatten: true,
@@ -758,27 +779,45 @@ fn validate_template_map<T>(map: &BTreeMap<String, T>) -> Result<()> {
         },
     },
     access: {
+        description: "Authenticated through the per-installation token issued \
+                      together with the answer.",
         permission: &Permission::World,
     },
 )]
 /// POST /auto-install/installations/{uuid}/post-hook
 ///
 /// Handles the post-installation hook for all installations.
-async fn handle_post_hook(uuid: Uuid, info: PostHookInfo) -> Result<()> {
+async fn handle_post_hook(uuid: Uuid, token: String, info: PostHookInfo) -> Result<()> {
     let _lock = pdm_config::auto_install::installations_write_lock();
     let (mut installations, _) = pdm_config::auto_install::read_installations()?;
 
-    if let Some(install) = installations.iter_mut().find(|inst| {
+    let install = installations.iter_mut().find(|inst| {
         inst.uuid == uuid
             && inst.status == InstallationStatus::InProgress
             && inst.post_hook_data.is_none()
-    }) {
-        install.status = InstallationStatus::Finished;
-        install.post_hook_data = Some(info);
-        pdm_config::auto_install::save_installations(&installations)?;
-    } else {
-        http_bail!(NOT_FOUND, "installation {uuid} not found");
+    });
+
+    // Same generic error for unknown UUID, wrong status, already-handled hook,
+    // or wrong token to avoid leaking which check failed.
+    let not_found = || http_bail!(NOT_FOUND, "installation {uuid} not found");
+
+    let install = match install {
+        Some(install) => install,
+        None => return not_found(),
+    };
+
+    let stored = install.post_hook_token.as_deref().unwrap_or_default();
+    if stored.is_empty()
+        || stored.len() != token.len()
+        || !openssl::memcmp::eq(stored.as_bytes(), token.as_bytes())
+    {
+        return not_found();
     }
+
+    install.status = InstallationStatus::Finished;
+    install.post_hook_data = Some(info);
+    install.post_hook_token = None;
+    pdm_config::auto_install::save_installations(&installations)?;
 
     Ok(())
 }

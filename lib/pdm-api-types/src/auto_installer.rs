@@ -66,6 +66,10 @@ pub struct Installation {
     /// Post-installation notification hook data, if available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub post_hook_data: Option<PostHookInfo>,
+    /// Per-installation secret used to authenticate the post-hook callback.
+    /// Persisted on disk only; stripped before being returned over the API.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post_hook_token: Option<String>,
 }
 
 #[api]
