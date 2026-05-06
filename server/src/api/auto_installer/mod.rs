@@ -407,6 +407,11 @@ async fn create_prepared_answer(
                 p.id
             );
         }
+    } else if config.target_filter.is_empty() {
+        http_bail!(
+            BAD_REQUEST,
+            "non-default answer requires at least one target-filter entry, otherwise it can never match"
+        );
     }
 
     if let Some(password) = root_password {
@@ -716,6 +721,13 @@ async fn update_prepared_answer(
     if let Some(counters) = template_counters {
         validate_template_map(&counters)?;
         **p.template_counters = counters;
+    }
+
+    if !p.is_default && p.target_filter.is_empty() {
+        http_bail!(
+            BAD_REQUEST,
+            "non-default answer requires at least one target-filter entry, otherwise it can never match"
+        );
     }
 
     let config = p.clone().try_into()?;
