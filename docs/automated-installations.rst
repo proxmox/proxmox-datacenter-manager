@@ -135,7 +135,7 @@ For example:
      --fetch-from http \
      --url 'https://datacenter.example.com/api2/json/auto-install/answer' \
      --cert-fingerprint 'ab:cd:ef:12:34:56:78:90:a1:b2:c3:d4:e5:f6:7a:8b:9c:0d:aa:bb:cc:dd:ee:ff:21:43:65:87:09:af:bd:ce' \
-     --answer-auth-token 'mytoken!ee2a5901-1910-4eb0-b0a2-c914f4adbb75'
+     --answer-auth-token 'mytoken:ee2a5901-1910-4eb0-b0a2-c914f4adbb75'
 
 .. _JSON Pointers: https://www.rfc-editor.org/rfc/rfc6901
 .. _fetch an answer via HTTP: https://pve.proxmox.com/edwiki/Automated_Installation#Answer_Fetched_via_HTTP
