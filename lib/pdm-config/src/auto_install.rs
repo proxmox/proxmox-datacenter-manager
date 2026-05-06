@@ -158,21 +158,21 @@ pub mod types {
     #[serde(rename_all = "kebab-case")]
     /// Configuration describing an automated installation.
     ///
-    /// Certain fields support simple templating via [Handlebars]. Currently, following fields will
-    /// resolve handlebars expression upon instantiation of an answer:
+    /// Certain fields support simple templating via [MiniJinja]. Currently, following fields will
+    /// resolve MiniJinja expressions upon instantiation of an answer:
     ///
     /// * `fqdn`
     /// * `mailto`
     /// * `cidr`
     /// * `gateway`
-    /// * `dns
+    /// * `dns`
     ///
-    /// [Handlebars]: https://handlebarsjs.com/guide/
+    /// [MiniJinja]: https://docs.rs/minijinja/
     pub struct PreparedInstallationSectionConfig {
         pub id: String,
 
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        /// List of token IDs that are authoried to retrieve this answer.
+        /// List of token IDs that are authorized to retrieve this answer.
         pub authorized_tokens: Vec<String>,
 
         /// Whether this is the default answer. There can only ever be one default answer.
@@ -198,7 +198,7 @@ pub mod types {
         pub country: String,
         /// FQDN to set for the installed system. Only used if `use_dhcp_fqdn` is true.
         ///
-        /// Supports templating via Handlebars.
+        /// Supports templating via MiniJinja.
         /// The [`proxmox_network_types::fqdn::Fqdn`] type cannot be used here
         /// because of that, as curly brackets are not valid in hostnames.
         pub fqdn: String,
@@ -208,7 +208,7 @@ pub mod types {
         pub keyboard: answer::KeyboardLayout,
         /// Mail address for `root@pam`.
         ///
-        /// Supports templating via Handlebars.
+        /// Supports templating via MiniJinja.
         pub mailto: String,
         /// Timezone to set on the new system.
         pub timezone: String,
@@ -229,17 +229,17 @@ pub mod types {
         pub use_dhcp_network: bool,
         /// IP address and netmask if not using DHCP.
         ///
-        /// Supports templating via Handlebars.
+        /// Supports templating via MiniJinja.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub cidr: Option<Cidr>,
         /// Gateway if not using DHCP.
         ///
-        /// Supports templating via Handlebars.
+        /// Supports templating via MiniJinja.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub gateway: Option<IpAddr>,
         /// DNS server address if not using DHCP.
         ///
-        /// Supports templating via Handlebars.
+        /// Supports templating via MiniJinja.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub dns: Option<IpAddr>,
         /// Filter for network devices, to select a specific management interface.

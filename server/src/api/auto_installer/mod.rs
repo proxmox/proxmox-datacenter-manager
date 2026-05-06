@@ -1138,7 +1138,7 @@ fn find_config(
 
 /// Renders a given [`PreparedInstallationConfig`] into the target [`AutoInstallerConfig`] struct.
 ///
-/// Converts all types as needed and renders out Handlebar templates in applicable fields.
+/// Converts all types as needed and renders out MiniJinja templates in applicable fields.
 /// Currently, templating is supported for the following fields:
 ///
 /// * `fqdn`
