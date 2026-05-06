@@ -431,6 +431,7 @@ async fn create_prepared_answer(
     prepared.insert(config.id.clone(), config.clone().try_into()?);
     pdm_config::auto_install::save_prepared_answers(&prepared)?;
 
+    config.root_password_hashed = None;
     Ok(PreparedInstallationConfigCreateResult { config, token })
 }
 
@@ -722,9 +723,10 @@ async fn update_prepared_answer(
         );
     }
 
-    let config = p.clone().try_into()?;
+    let mut config: PreparedInstallationConfig = p.clone().try_into()?;
     pdm_config::auto_install::save_prepared_answers(&prepared)?;
 
+    config.root_password_hashed = None;
     Ok(PreparedInstallationConfigCreateResult {
         config,
         token: new_token,
