@@ -413,10 +413,10 @@ pub struct AnswerToken {
 
 impl AnswerToken {
     pub fn is_active(&self) -> bool {
-        self.enabled.unwrap_or(false)
+        self.enabled.unwrap_or(true)
             && self
                 .expire_at
-                .map(|exp| exp > 0 && exp <= proxmox_time::epoch_i64())
+                .map(|exp| exp == 0 || exp > proxmox_time::epoch_i64())
                 .unwrap_or(true)
     }
 }
