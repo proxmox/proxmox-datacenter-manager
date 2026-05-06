@@ -516,7 +516,7 @@ pub fn add_token(token: &AnswerToken, value: &str) -> Result<()> {
 pub fn update_token(token: &AnswerToken) -> Result<()> {
     let (mut tokens, _) = read_tokens()?;
 
-    if tokens.contains_key(&token.id) {
+    if !tokens.contains_key(&token.id) {
         bail!("unknown token: {}", token.id);
     }
 
