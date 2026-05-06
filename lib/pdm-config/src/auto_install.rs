@@ -434,7 +434,19 @@ fn migrate_legacy_installations_file() -> Result<()> {
         None => return Ok(()),
     };
 
-    let installations: Vec<Installation> = serde_json::from_str(&raw)?;
+    // If the legacy file is unparseable, set it aside under a .broken suffix
+    // so subsequent reads succeed instead of looping over the same failure
+    // forever. The file still exists on disk for forensics.
+    let installations: Vec<Installation> = match serde_json::from_str(&raw) {
+        Ok(installations) => installations,
+        Err(err) => {
+            let broken = format!("{INSTALLATIONS_LEGACY_FILE}.broken");
+            log::error!("failed to parse legacy installations file, moving to '{broken}': {err:#}");
+            std::fs::rename(INSTALLATIONS_LEGACY_FILE, &broken)?;
+            return Ok(());
+        }
+    };
+
     std::fs::create_dir_all(INSTALLATIONS_STATE_DIR)?;
     for inst in &installations {
         let path = installation_state_path(&inst.uuid.to_string());
