@@ -16,6 +16,19 @@ proxmox-datacenter-manager (1.0.4) UNRELEASED; urgency=medium
   * api: add /nodes/localhost/rrddata route, returning metrics for the local
     PDM node, to be consumed by the RRD graphs in the UI.
 
+  * automated installer integration: PDM can now serve answer files via HTTPS
+    for the Proxmox auto-installer. Operators prepare per-product answer
+    configurations, restrict retrieval through bearer tokens, and view past
+    and in-flight installations from a new "Automated Installations" tab in
+    the Remotes menu. Permissions are scoped under a new
+    /system/auto-installation ACL path.
+
+  * auto-installer: templated fields in the answer file (FQDN, mailto,
+    network addresses) are evaluated through MiniJinja over the requesting
+    machine's system information, and the post-installation hook callback
+    is authenticated with a per-installation secret PDM hands out alongside
+    the answer.
+
  -- Proxmox Support Team <support@proxmox.com>  Thu, 02 Apr 2026 14:15:25 +0200
 
 proxmox-datacenter-manager (1.0.3) trixie; urgency=medium
