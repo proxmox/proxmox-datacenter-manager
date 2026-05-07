@@ -69,7 +69,7 @@ proxmox-time = "2"
 proxmox-upgrade-checks = "1"
 proxmox-uuid = "1"
 proxmox-installer-types = "0.1"
-proxmox-network-types = "1.0"
+proxmox-network-types = "1.1"
 
 # other proxmox crates
 proxmox-acme = "1.0"
