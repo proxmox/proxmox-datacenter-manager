@@ -1198,6 +1198,9 @@ fn render_prepared_config(
         reboot_on_error: conf.reboot_on_error,
         reboot_mode: conf.reboot_mode,
         root_ssh_keys: conf.root_ssh_keys.clone(),
+        // PDM does not expose subscription_key on prepared answers yet,
+        // see the subscription-via-auto-installer branch for the full plumbing.
+        subscription_key: None,
     };
 
     let network = {
