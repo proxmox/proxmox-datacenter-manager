@@ -830,11 +830,14 @@ fn get_cached_subscription_info(remote: &str, max_age: u64) -> Option<CachedSubs
         .read()
         .expect("subscription mutex poisoned");
 
+    if max_age == 0 {
+        return None;
+    }
     if let Some(cached_subscription) = cache.get(remote) {
         let now = proxmox_time::epoch_i64();
         let diff = now - cached_subscription.timestamp;
 
-        if diff > max_age as i64 || diff < 0 {
+        if diff >= max_age as i64 || diff < 0 {
             // value is too old or from the future
             None
         } else {
