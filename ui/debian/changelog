@@ -16,6 +16,13 @@ proxmox-datacenter-manager-ui (1.0.4) UNRELEASED; urgency=medium
     including CPU usage, load average, memory usage, pressure stall
     information, network and disk utilization.
 
+  * remotes: add new "Automated Installations" tab with three panels for
+    integrating with the Proxmox auto-installer: an installations overview
+    showing past and in-flight installations, a prepared-answer editor for
+    managing per-product answer configurations, and an access-token panel
+    for issuing and revoking the bearer tokens that authenticate answer
+    retrieval.
+
  -- Proxmox Support Team <support@proxmox.com>  Thu, 16 Apr 2026 15:01:16 +0200
 
 proxmox-datacenter-manager-ui (1.0.3) trixie; urgency=medium
