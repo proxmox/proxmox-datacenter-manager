@@ -5,8 +5,8 @@ mod prepared_answer_add_wizard;
 mod prepared_answer_edit_window;
 mod prepared_answer_form;
 mod prepared_answers_panel;
-mod token_selector;
 mod token_panel;
+mod token_selector;
 
 use std::rc::Rc;
 use yew::virtual_dom::{VComp, VNode};
