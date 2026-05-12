@@ -31,6 +31,13 @@ pub fn create_configdir() -> Result<(), Error> {
         0o750,
     )?;
 
+    mkdir_perms(
+        crate::subscriptions::CONFIG_PATH,
+        api_user.uid,
+        api_user.gid,
+        0o750,
+    )?;
+
     Ok(())
 }
 

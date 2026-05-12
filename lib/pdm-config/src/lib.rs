@@ -8,6 +8,7 @@ pub mod domains;
 pub mod node;
 pub mod remotes;
 pub mod setup;
+pub mod subscriptions;
 pub mod views;
 
 mod config_version_cache;

@@ -15,6 +15,7 @@ serde_plain.workspace = true
 serde_json.workspace = true
 
 proxmox-acme-api.workspace = true
+proxmox-base64.workspace = true
 proxmox-access-control = { workspace = true, features = ["acl"] }
 proxmox-auth-api = { workspace = true, features = ["api-types"] }
 proxmox-apt-api-types.workspace = true
