@@ -904,6 +904,31 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
+    /// Block until a PDM-local worker task finishes; returns the final status payload.
+    ///
+    /// The local task-status endpoint (`/nodes/localhost/tasks/{upid}/status`) has no
+    /// server-side `wait=1` today, so the helper polls at one-second intervals; sub-second
+    /// tasks (e.g. an Apply Pending with an empty queue) settle on the first request. Once a
+    /// server-side wait surface lands this method becomes a single GET with no behaviour change
+    /// for callers.
+    ///
+    /// No built-in time bound; wrap in `tokio::time::timeout` if needed. Dropping the future
+    /// stops the client-side polling only - the server-side worker keeps running.
+    ///
+    /// Native-only: the polling loop relies on `tokio::time::sleep`, which is not available on
+    /// the wasm32 target the UI builds for.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn wait_for_local_task(&self, upid: &str) -> Result<Value, Error> {
+        let path = format!("/api2/extjs/nodes/localhost/tasks/{upid}/status");
+        loop {
+            let body: Value = self.0.get(&path).await?.expect_json()?.data;
+            if body["status"].as_str() != Some("running") {
+                return Ok(body);
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
+    }
+
     pub async fn read_acl(
         &self,
         path: Option<&str>,

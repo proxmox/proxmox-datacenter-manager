@@ -22,6 +22,9 @@ proxmox-tfa = { workspace = true, features = [ "types" ] }
 pve-api-types = { workspace = true, features = [ "client" ] }
 pbs-api-types.workspace = true
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, features = [ "time" ] }
+
 [features]
 default = []
 hyper-client = [ "proxmox-client/hyper-client" ]
