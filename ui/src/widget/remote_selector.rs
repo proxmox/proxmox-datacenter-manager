@@ -38,11 +38,20 @@ pub struct RemoteSelector {
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
     pub remote_type: Option<RemoteType>,
+
+    /// Remote IDs to drop from the list (e.g. remotes with no node left to assign a key to).
+    #[prop_or_default]
+    pub excluded_remotes: Rc<Vec<AttrValue>>,
 }
 
 impl RemoteSelector {
     pub fn new() -> Self {
         yew::props!(Self {})
+    }
+
+    pub fn excluded_remotes(mut self, remotes: Rc<Vec<AttrValue>>) -> Self {
+        self.excluded_remotes = remotes;
+        self
     }
 }
 
@@ -64,12 +73,19 @@ impl PdmRemoteSelector {
 
     fn set_remote_list(&mut self, ctx: &yew::Context<Self>, remotes: RemoteList) {
         let ty = ctx.props().remote_type;
+        let excluded = ctx.props().excluded_remotes.clone();
         let remotes = remotes
             .iter()
-            .filter_map(move |remote| match (ty, remote.ty) {
-                (Some(a), b) if a == b => Some(remote.id.clone().into()),
-                (None, _) => Some(remote.id.clone().into()),
-                _ => None,
+            .filter_map(move |remote| {
+                let id: AttrValue = remote.id.clone().into();
+                if excluded.contains(&id) {
+                    return None;
+                }
+                match (ty, remote.ty) {
+                    (Some(a), b) if a == b => Some(id),
+                    (None, _) => Some(id),
+                    _ => None,
+                }
             })
             .collect();
 
@@ -97,7 +113,9 @@ impl Component for PdmRemoteSelector {
     }
 
     fn changed(&mut self, ctx: &yew::Context<Self>, _old_props: &Self::Properties) -> bool {
-        if ctx.props().remote_type != _old_props.remote_type {
+        if ctx.props().remote_type != _old_props.remote_type
+            || ctx.props().excluded_remotes != _old_props.excluded_remotes
+        {
             self.update_remote_list(ctx);
         }
         true

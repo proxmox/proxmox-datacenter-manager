@@ -43,6 +43,17 @@ pub struct PveNodeSelector {
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
     pub remote: AttrValue,
+
+    /// Node names that should not appear in the selector (e.g. nodes that already have a
+    /// subscription key assigned in the pool).
+    #[prop_or_default]
+    pub excluded_nodes: Rc<Vec<String>>,
+
+    /// Whether to show the "Memory Usage" column. Callers picking a node for a context where
+    /// memory is irrelevant (e.g. subscription assignment) can hide it.
+    #[builder]
+    #[prop_or(true)]
+    pub show_memory: bool,
 }
 
 impl PveNodeSelector {
@@ -50,6 +61,11 @@ impl PveNodeSelector {
         yew::props!(Self {
             remote: remote.into_prop_value()
         })
+    }
+
+    pub fn excluded_nodes(mut self, nodes: Rc<Vec<String>>) -> Self {
+        self.excluded_nodes = nodes;
+        self
     }
 }
 
@@ -60,6 +76,9 @@ pub enum Msg {
 pub struct PveNodeSelectorComp {
     _async_pool: AsyncPool,
     store: Store<ClusterNodeIndexResponse>,
+    /// Unfiltered node list as fetched from the remote, kept so a prop change to `excluded_nodes`
+    /// can re-filter without round-tripping the remote again.
+    raw_nodes: Vec<ClusterNodeIndexResponse>,
     last_err: Option<AttrValue>,
 }
 
@@ -68,6 +87,19 @@ impl PveNodeSelectorComp {
         let mut nodes = crate::pdm_client().pve_list_nodes(&remote).await?;
         nodes.sort_by(|a, b| a.node.cmp(&b.node));
         Ok(nodes)
+    }
+
+    fn apply_filter(&mut self, excluded: &[String]) {
+        let filtered: Vec<ClusterNodeIndexResponse> = if excluded.is_empty() {
+            self.raw_nodes.clone()
+        } else {
+            self.raw_nodes
+                .iter()
+                .filter(|n| !excluded.iter().any(|e| e == &n.node))
+                .cloned()
+                .collect()
+        };
+        self.store.set_data(filtered);
     }
 }
 
@@ -84,16 +116,20 @@ impl Component for PveNodeSelectorComp {
         Self {
             _async_pool,
             last_err: None,
+            raw_nodes: Vec::new(),
             store: Store::with_extract_key(|node: &ClusterNodeIndexResponse| {
                 Key::from(node.node.as_str())
             }),
         }
     }
 
-    fn update(&mut self, _ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::UpdateNodeList(res) => match res {
-                Ok(result) => self.store.set_data(result),
+                Ok(result) => {
+                    self.raw_nodes = result;
+                    self.apply_filter(&ctx.props().excluded_nodes);
+                }
                 Err(err) => self.last_err = Some(err.to_string().into()),
             },
         }
@@ -101,9 +137,17 @@ impl Component for PveNodeSelectorComp {
         true
     }
 
+    fn changed(&mut self, ctx: &yew::Context<Self>, old_props: &Self::Properties) -> bool {
+        if old_props.excluded_nodes != ctx.props().excluded_nodes {
+            self.apply_filter(&ctx.props().excluded_nodes);
+        }
+        true
+    }
+
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
         let err = self.last_err.clone();
+        let show_memory = props.show_memory;
         let on_change = {
             let on_change = props.on_change.clone();
             let store = self.store.clone();
@@ -128,7 +172,7 @@ impl Component for PveNodeSelectorComp {
                         .into();
                 }
                 GridPicker::new(
-                    DataTable::new(columns(), args.store.clone())
+                    DataTable::new(columns(show_memory), args.store.clone())
                         .min_width(300)
                         .header_focusable(false)
                         .class(FlexFit),
@@ -148,22 +192,27 @@ impl Component for PveNodeSelectorComp {
     }
 }
 
-fn columns() -> Rc<Vec<DataTableHeader<ClusterNodeIndexResponse>>> {
-    Rc::new(vec![
-        DataTableColumn::new(tr!("Node"))
-            .get_property(|entry: &ClusterNodeIndexResponse| &entry.node)
-            .sort_order(true)
-            .into(),
-        DataTableColumn::new(tr!("Memory Usage"))
-            .render(
-                |entry: &ClusterNodeIndexResponse| match (entry.mem, entry.maxmem) {
-                    (Some(mem), Some(maxmem)) => {
-                        html! {format!("{:.2}%", 100.0 * mem as f64 / maxmem as f64)}
-                    }
-                    _ => html! {},
-                },
-            )
-            .sorter(|a: &ClusterNodeIndexResponse, b: &ClusterNodeIndexResponse| a.mem.cmp(&b.mem))
-            .into(),
-    ])
+fn columns(show_memory: bool) -> Rc<Vec<DataTableHeader<ClusterNodeIndexResponse>>> {
+    let mut columns = vec![DataTableColumn::new(tr!("Node"))
+        .get_property(|entry: &ClusterNodeIndexResponse| &entry.node)
+        .sort_order(true)
+        .into()];
+    if show_memory {
+        columns.push(
+            DataTableColumn::new(tr!("Memory Usage"))
+                .render(
+                    |entry: &ClusterNodeIndexResponse| match (entry.mem, entry.maxmem) {
+                        (Some(mem), Some(maxmem)) => {
+                            html! {format!("{:.2}%", 100.0 * mem as f64 / maxmem as f64)}
+                        }
+                        _ => html! {},
+                    },
+                )
+                .sorter(
+                    |a: &ClusterNodeIndexResponse, b: &ClusterNodeIndexResponse| a.mem.cmp(&b.mem),
+                )
+                .into(),
+        );
+    }
+    Rc::new(columns)
 }

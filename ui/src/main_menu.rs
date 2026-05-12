@@ -15,6 +15,7 @@ use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
 use crate::configuration::subscription_panel::SubscriptionPanel;
+use crate::configuration::subscription_registry::SubscriptionRegistryProps;
 use crate::configuration::views::ViewGrid;
 use crate::dashboard::view::View;
 use crate::remotes::RemotesPanel;
@@ -290,6 +291,15 @@ impl Component for PdmMainMenu {
             Some("fa fa-gears"),
             |_| html! { <SystemConfiguration/> },
             config_submenu,
+        );
+
+        register_view(
+            &mut menu,
+            &mut content,
+            tr!("Subscription Registry"),
+            "subscription-registry",
+            Some("fa fa-id-card"),
+            |_| SubscriptionRegistryProps::new().into(),
         );
 
         let mut admin_submenu = Menu::new();

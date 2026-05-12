@@ -13,7 +13,10 @@ mod permission_path_selector;
 mod webauthn;
 pub use webauthn::WebauthnPanel;
 
+pub mod subscription_assign;
+pub mod subscription_keys;
 pub mod subscription_panel;
+pub mod subscription_registry;
 
 pub mod views;
 
