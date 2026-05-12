@@ -845,6 +845,20 @@ async fn get_cached_subscription_info(
     Ok(subscription_state)
 }
 
+/// Drop the cached subscription state for a remote, forcing the next read to refetch.
+pub async fn invalidate_subscription_info_for_remote(remote_id: &str) {
+    let cache = match api_cache::write_remote(remote_id).await {
+        Ok(cache) => cache,
+        Err(err) => {
+            log::error!("could not open API cache for {remote_id}: {err}");
+            return;
+        }
+    };
+    if let Err(err) = cache.remove(SUBSCRIPTION_STATE_CACHE_KEY).await {
+        log::error!("could not invalidate subscription-state cache for {remote_id}: {err}");
+    }
+}
+
 /// Update cached subscription data.
 ///
 /// If the cache already contains more recent data, this function returns the already
@@ -912,11 +926,19 @@ async fn fetch_remote_subscription_info(
             let nodes = client.list_nodes().await?;
             let mut futures = Vec::with_capacity(nodes.len());
             for node in nodes.iter() {
-                let future = client.get_subscription(&node.node).map(|res| res.ok());
-                futures.push(async move { (node.node.clone(), future.await) });
+                let sub_fut = client.get_subscription(&node.node).map(|res| res.ok());
+                // PVE's subscription endpoint only returns `sockets` once a key is registered, so
+                // auto-assign needs a separate hardware-socket source for un-subscribed nodes.
+                let status_fut = client.node_status(&node.node).map(|res| res.ok());
+                let node_name = node.node.clone();
+                futures.push(async move {
+                    let (sub, status) = futures::future::join(sub_fut, status_fut).await;
+                    (node_name, sub, status)
+                });
             }
 
-            for (node_name, remote_info) in join_all(futures).await {
+            for (node_name, remote_info, node_status) in join_all(futures).await {
+                let hw_sockets = node_status.map(|s| s.cpuinfo.sockets);
                 list.insert(
                     node_name,
                     remote_info.map(|info| {
@@ -925,7 +947,7 @@ async fn fetch_remote_subscription_info(
                             .unwrap_or_default();
                         NodeSubscriptionInfo {
                             status,
-                            sockets: info.sockets,
+                            sockets: info.sockets.or(hw_sockets),
                             key: info.key,
                             serverid: info.serverid,
                             level: info

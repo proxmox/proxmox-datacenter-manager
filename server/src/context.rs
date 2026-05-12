@@ -15,6 +15,13 @@ fn default_remote_setup() {
 
 /// Dependency-inject concrete implementations needed at runtime.
 pub fn init() -> Result<(), Error> {
+    // The subscription key pool is product-only (PDM stores its own pool of
+    // keys regardless of how remotes are mocked or not), so initialise it on
+    // both paths.
+    pdm_config::subscriptions::init(Box::new(
+        pdm_config::subscriptions::DefaultSubscriptionKeyConfig,
+    ));
+
     #[cfg(remote_config = "faked")]
     {
         use anyhow::bail;

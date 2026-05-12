@@ -61,7 +61,7 @@ proxmox-serde = "1"
 proxmox-shared-memory = "1"
 proxmox-simple-config = "1"
 proxmox-sortable-macro = "1"
-proxmox-subscription = { version = "1", features = [ "api-types"], default-features = false }
+proxmox-subscription = { version = "1.0.2", features = [ "api-types"], default-features = false }
 proxmox-sys = "1"
 proxmox-systemd = "1"
 proxmox-tfa = { version = "6", features = [ "api-types" ], default-features = false }
@@ -86,7 +86,7 @@ proxmox-acme-api = "1"
 proxmox-node-status = "1"
 
 # API types for PVE (and later PMG?)
-pve-api-types = "8.1.5"
+pve-api-types = "8.1.6"
 # API types for PBS
 pbs-api-types = { version = "1.0.9", features = [ "enum-fallback" ] }
 

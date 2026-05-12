@@ -338,6 +338,37 @@ impl PbsClient {
             .data)
     }
 
+    /// Write a new subscription key on the PBS node and trigger a fresh shop-side check.
+    pub async fn set_subscription(
+        &self,
+        params: proxmox_subscription::SetSubscription,
+    ) -> Result<(), Error> {
+        self.0
+            .put("/api2/extjs/nodes/localhost/subscription", &params)
+            .await?;
+        Ok(())
+    }
+
+    /// Tear down the subscription on the PBS node.
+    pub async fn delete_subscription(&self) -> Result<(), Error> {
+        self.0
+            .delete("/api2/extjs/nodes/localhost/subscription")
+            .await?;
+        Ok(())
+    }
+
+    /// Trigger a fresh shop-side check of the stored subscription on the PBS node. With
+    /// `force=true` the request bypasses PBS's on-disk cache and always hits the shop.
+    pub async fn check_subscription(
+        &self,
+        params: proxmox_subscription::UpdateSubscription,
+    ) -> Result<(), Error> {
+        self.0
+            .post("/api2/extjs/nodes/localhost/subscription", &params)
+            .await?;
+        Ok(())
+    }
+
     /// Return a list of available system updates.
     pub async fn list_available_updates(&self) -> Result<Vec<pbs_api_types::APTUpdateInfo>, Error> {
         Ok(self

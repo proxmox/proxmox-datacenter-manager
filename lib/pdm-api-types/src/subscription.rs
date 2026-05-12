@@ -4,6 +4,7 @@ use std::{collections::HashMap, str::FromStr};
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
+use proxmox_config_digest::ConfigDigest;
 use proxmox_schema::{api, const_regex, ApiStringFormat, ApiType, Schema, StringSchema};
 use proxmox_section_config::typed::ApiSectionDataEntry;
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
@@ -548,6 +549,29 @@ pub struct RemoteNodeStatus {
     /// Current key on the node (from remote query).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_key: Option<String>,
+    /// True when the pool entry bound to this node has a pending clear queued.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pending_clear: bool,
+}
+
+#[api]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+/// Result of the bulk clear-pending API endpoint.
+pub struct ClearPendingResult {
+    /// Number of pool entries whose pending push or reissue was cleared.
+    pub cleared: u32,
+}
+
+#[api]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+/// Result of the add-keys API endpoint.
+pub struct AddKeysResult {
+    /// Number of keys actually added to the pool.
+    pub added: u32,
+    /// Number of duplicate keys silently dropped from the input before adding.
+    pub deduplicated: u32,
 }
 
 #[api]
@@ -567,4 +591,30 @@ pub struct ProposedAssignment {
     /// Socket count of the node (PVE only).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub node_sockets: Option<i64>,
+}
+
+#[api(
+    properties: {
+        assignments: {
+            type: Array,
+            description: "Proposed assignments. Empty when nothing matches.",
+            items: { type: ProposedAssignment },
+        },
+        "keys-digest": { type: ConfigDigest },
+    },
+)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+/// The full plan returned by auto-assign and accepted by bulk-assign.
+///
+/// `keys_digest` and `node_status_digest` are snapshots taken when the plan was computed.
+/// `bulk_assign` rejects the plan with 409 if either has changed in the meantime, so the
+/// operator never silently commits a plan that no longer matches the live state.
+pub struct AutoAssignProposal {
+    /// Proposed assignments. Empty when nothing matches.
+    pub assignments: Vec<ProposedAssignment>,
+    /// Digest of the key pool config the proposal was computed against.
+    pub keys_digest: ConfigDigest,
+    /// SHA-256 over the relevant slice of node status (sorted JSON) at proposal time.
+    pub node_status_digest: String,
 }
