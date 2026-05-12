@@ -76,7 +76,10 @@ pub mod types {
 
     pub use pve_api_types::StorageStatus as PveStorageStatus;
 
-    pub use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
+    pub use pdm_api_types::subscription::{
+        AutoAssignProposal, ClearPendingResult, ProductType, ProposedAssignment, RemoteNodeStatus,
+        RemoteSubscriptionState, RemoteSubscriptions, SubscriptionKeyEntry, SubscriptionKeySource,
+    };
 
     pub use pve_api_types::{SdnVnetMacVrf, SdnZoneIpVrf};
 }
@@ -912,9 +915,6 @@ impl<T: HttpApiClient> PdmClient<T> {
     /// server-side wait surface lands this method becomes a single GET with no behaviour change
     /// for callers.
     ///
-    /// No built-in time bound; wrap in `tokio::time::timeout` if needed. Dropping the future
-    /// stops the client-side polling only - the server-side worker keeps running.
-    ///
     /// Native-only: the polling loop relies on `tokio::time::sleep`, which is not available on
     /// the wasm32 target the UI builds for.
     #[cfg(not(target_arch = "wasm32"))]
@@ -1126,6 +1126,177 @@ impl<T: HttpApiClient> PdmClient<T> {
             .build();
 
         Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    /// List all keys in the subscription pool. Returns the entries plus the matching
+    /// `ConfigDigest` so the caller can chain a digest-aware add / assign / delete back.
+    pub async fn list_subscription_keys(
+        &self,
+    ) -> Result<(Vec<SubscriptionKeyEntry>, Option<ConfigDigest>), Error> {
+        let mut res = self
+            .0
+            .get("/api2/extjs/subscriptions/keys")
+            .await?
+            .expect_json()?;
+        Ok((res.data, res.attribs.remove("digest").map(ConfigDigest)))
+    }
+
+    /// Add one or more keys to the pool. See the daemon-side endpoint for the all-or-nothing
+    /// validation semantics.
+    pub async fn add_subscription_keys(
+        &self,
+        keys: &[String],
+        digest: Option<ConfigDigest>,
+    ) -> Result<pdm_api_types::subscription::AddKeysResult, Error> {
+        #[derive(Serialize)]
+        struct AddArgs<'a> {
+            keys: &'a [String],
+            #[serde(skip_serializing_if = "Option::is_none")]
+            digest: Option<ConfigDigest>,
+        }
+        Ok(self
+            .0
+            .post("/api2/extjs/subscriptions/keys", &AddArgs { keys, digest })
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Bind a key to a remote node.
+    pub async fn set_subscription_assignment(
+        &self,
+        key: &str,
+        remote: &str,
+        node: &str,
+        digest: Option<ConfigDigest>,
+    ) -> Result<(), Error> {
+        #[derive(Serialize)]
+        struct AssignArgs<'a> {
+            remote: &'a str,
+            node: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            digest: Option<ConfigDigest>,
+        }
+        let path = format!("/api2/extjs/subscriptions/keys/{key}/assignment");
+        self.0
+            .post(
+                &path,
+                &AssignArgs {
+                    remote,
+                    node,
+                    digest,
+                },
+            )
+            .await?
+            .nodata()
+    }
+
+    /// Drop the remote-node binding for a pool key (the inverse of
+    /// [`set_subscription_assignment`]).
+    pub async fn clear_subscription_assignment(
+        &self,
+        key: &str,
+        digest: Option<ConfigDigest>,
+    ) -> Result<(), Error> {
+        let path = ApiPathBuilder::new(format!("/api2/extjs/subscriptions/keys/{key}/assignment"))
+            .maybe_arg("digest", &digest.map(Value::from))
+            .build();
+        self.0.delete(&path).await?.nodata()
+    }
+
+    /// Remove a key from the pool entirely.
+    ///
+    /// No digest parameter: deletion is a point-of-no-return operation and the typed-client
+    /// surface elsewhere (delete_remote, delete_user, ...) does not round-trip a digest on
+    /// DELETE either. External REST callers can still pass `digest` via the URL query if they
+    /// want optimistic concurrency on deletion; the server-side endpoint accepts it.
+    pub async fn delete_subscription_key(&self, key: &str) -> Result<(), Error> {
+        let path = format!("/api2/extjs/subscriptions/keys/{key}");
+        self.0.delete(&path).await?.nodata()
+    }
+
+    /// Combined remote/node subscription status, filtered to remotes the caller has audit
+    /// privilege on.
+    pub async fn subscription_node_status(
+        &self,
+        max_age: Option<u64>,
+    ) -> Result<Vec<RemoteNodeStatus>, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/subscriptions/node-status")
+            .maybe_arg("max-age", &max_age)
+            .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    /// Compute a key-to-node assignment proposal. Apply it with
+    /// [`subscription_bulk_assign`].
+    pub async fn subscription_auto_assign(&self) -> Result<AutoAssignProposal, Error> {
+        Ok(self
+            .0
+            .post("/api2/extjs/subscriptions/auto-assign", &json!({}))
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Commit a proposal previously returned by [`subscription_auto_assign`]. The server
+    /// rejects the call with 409 if either the pool or the live node-status has drifted
+    /// since the proposal was computed.
+    pub async fn subscription_bulk_assign(
+        &self,
+        proposal: AutoAssignProposal,
+    ) -> Result<Vec<ProposedAssignment>, Error> {
+        Ok(self
+            .0
+            .post(
+                "/api2/extjs/subscriptions/bulk-assign",
+                &json!({ "proposal": proposal }),
+            )
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Push every pending assignment. Returns the worker UPID, or `None` when there is nothing
+    /// to do.
+    ///
+    /// The optional `digest` rejects the call at the API boundary if the pool changed since the
+    /// caller last loaded it - the at-API-call-time plan is pinned, but the worker re-reads when
+    /// it fires, so a parallel admin edit between API return and worker start is still honoured.
+    pub async fn subscription_apply_pending(
+        &self,
+        digest: Option<ConfigDigest>,
+    ) -> Result<Option<String>, Error> {
+        #[derive(Serialize)]
+        struct Args {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            digest: Option<ConfigDigest>,
+        }
+        Ok(self
+            .0
+            .post("/api2/extjs/subscriptions/apply-pending", &Args { digest })
+            .await?
+            .expect_json()?
+            .data)
+    }
+
+    /// Clear every pending assignment in one bulk transaction; returns the count of cleared
+    /// entries.
+    pub async fn subscription_clear_pending(
+        &self,
+        digest: Option<ConfigDigest>,
+    ) -> Result<u32, Error> {
+        #[derive(Serialize)]
+        struct Args {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            digest: Option<ConfigDigest>,
+        }
+        let result: types::ClearPendingResult = self
+            .0
+            .post("/api2/extjs/subscriptions/clear-pending", &Args { digest })
+            .await?
+            .expect_json()?
+            .data;
+        Ok(result.cleared)
     }
 
     pub async fn pve_list_networks(
