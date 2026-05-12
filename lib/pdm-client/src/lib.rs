@@ -915,6 +915,9 @@ impl<T: HttpApiClient> PdmClient<T> {
     /// server-side wait surface lands this method becomes a single GET with no behaviour change
     /// for callers.
     ///
+    /// No built-in time bound; wrap in `tokio::time::timeout` if needed. Dropping the future
+    /// stops the client-side polling only - the server-side worker keeps running.
+    ///
     /// Native-only: the polling loop relies on `tokio::time::sleep`, which is not available on
     /// the wasm32 target the UI builds for.
     #[cfg(not(target_arch = "wasm32"))]
@@ -1277,6 +1280,64 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await?
             .expect_json()?
             .data)
+    }
+
+    /// Queue a clear for the subscription on `remote`/`node`. Apply Pending later removes the
+    /// subscription from the node so the key can be reassigned elsewhere; Discard Pending undoes
+    /// the queueing without touching the remote.
+    pub async fn subscription_queue_clear(
+        &self,
+        remote: &str,
+        node: &str,
+        digest: Option<ConfigDigest>,
+    ) -> Result<(), Error> {
+        #[derive(Serialize)]
+        struct ClearArgs<'a> {
+            remote: &'a str,
+            node: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            digest: Option<ConfigDigest>,
+        }
+        self.0
+            .post(
+                "/api2/extjs/subscriptions/queue-clear",
+                &ClearArgs {
+                    remote,
+                    node,
+                    digest,
+                },
+            )
+            .await?
+            .nodata()
+    }
+
+    /// Drop a queued Clear Key on `remote`/`node` while keeping the pool binding. Used by the
+    /// per-node Revert action; the global Discard Pending path scrubs every pending change at
+    /// once.
+    pub async fn subscription_revert_pending_clear(
+        &self,
+        remote: &str,
+        node: &str,
+        digest: Option<ConfigDigest>,
+    ) -> Result<(), Error> {
+        #[derive(Serialize)]
+        struct Args<'a> {
+            remote: &'a str,
+            node: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            digest: Option<ConfigDigest>,
+        }
+        self.0
+            .post(
+                "/api2/extjs/subscriptions/revert-pending-clear",
+                &Args {
+                    remote,
+                    node,
+                    digest,
+                },
+            )
+            .await?
+            .nodata()
     }
 
     /// Clear every pending assignment in one bulk transaction; returns the count of cleared

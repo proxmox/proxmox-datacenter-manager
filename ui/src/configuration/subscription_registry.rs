@@ -210,6 +210,14 @@ impl From<SubscriptionRegistryProps> for VNode {
     }
 }
 
+/// What the per-node Revert button should do on the selected entry.
+enum RevertTarget {
+    /// Drop the pool's binding (the key was assigned but never pushed). Carries the pool key.
+    Unassign(String),
+    /// Cancel a queued Clear Key while keeping the binding intact.
+    CancelClear { remote: String, node: String },
+}
+
 pub enum Msg {
     LoadFinished {
         nodes: Vec<RemoteNodeStatus>,
@@ -221,9 +229,11 @@ pub enum Msg {
     BulkAssignApply(AutoAssignProposal),
     ApplyPending,
     ClearPending,
-    /// Revert the pending change on the currently-selected node: drop the unpushed pool
-    /// assignment without touching the remote.
+    /// Revert the pending change on the currently-selected node: drop an unpushed binding or
+    /// cancel a queued Clear Key (dispatched on the [`RevertTarget`] variant).
     RevertSelectedNode,
+    /// Open the confirmation dialog for queueing a clear on the selected node.
+    QueueClearForSelectedNode,
     /// Open the Assign Key dialog for the currently-selected node.
     AssignKeyToSelectedNode,
 }
@@ -237,6 +247,13 @@ pub enum ViewState {
     ConfirmAutoAssign(AutoAssignProposal),
     ConfirmApplyPending,
     ConfirmClearPending,
+    /// Pending confirmation to queue a clear for `(remote, node)`. The current key on the
+    /// node is shown in the dialog body when available.
+    ConfirmQueueClear {
+        remote: String,
+        node: String,
+        current_key: Option<String>,
+    },
     /// Assign a pool key to the given node. Opens from the right panel's Assign Key button.
     AssignKeyToNode(AssignTarget),
 }
@@ -593,22 +610,45 @@ impl LoadableComponent for SubscriptionRegistryComp {
                 });
             }
             Msg::RevertSelectedNode => {
-                let Some(key) = self.clear_assignment_target_key() else {
+                let Some(target) = self.revert_target() else {
                     return false;
                 };
                 let link = ctx.link().clone();
                 let digest = self.pool_digest.clone();
                 ctx.link().spawn(async move {
-                    let url = format!(
-                        "/subscriptions/keys/{}/assignment",
-                        percent_encode_component(&key),
-                    );
-                    let query = digest.map(|d| serde_json::json!({ "digest": d }));
-                    if let Err(err) = http_delete(&url, query).await {
-                        link.show_error(tr!("Revert"), err.to_string(), true);
+                    let err_msg: Option<String> = match target {
+                        RevertTarget::Unassign(key) => {
+                            let url = format!(
+                                "/subscriptions/keys/{}/assignment",
+                                percent_encode_component(&key),
+                            );
+                            let query = digest.map(|d| serde_json::json!({ "digest": d }));
+                            http_delete(&url, query).await.err().map(|e| e.to_string())
+                        }
+                        RevertTarget::CancelClear { remote, node } => {
+                            let digest = digest.map(pdm_client::ConfigDigest::from);
+                            crate::pdm_client()
+                                .subscription_revert_pending_clear(&remote, &node, digest)
+                                .await
+                                .err()
+                                .map(|e| e.to_string())
+                        }
+                    };
+                    if let Some(msg) = err_msg {
+                        link.show_error(tr!("Revert"), msg, true);
                     }
                     link.send_reload();
                 });
+            }
+            Msg::QueueClearForSelectedNode => {
+                let Some((remote, node, current_key)) = self.selected_node_for_clear() else {
+                    return false;
+                };
+                ctx.link().change_view(Some(ViewState::ConfirmQueueClear {
+                    remote,
+                    node,
+                    current_key,
+                }));
             }
             Msg::AssignKeyToSelectedNode => {
                 let Some(target) = self.assign_target_for_selected_node() else {
@@ -795,7 +835,8 @@ impl LoadableComponent for SubscriptionRegistryComp {
                 Some(
                     ConfirmDialog::new(
                         tr!("Discard Pending Changes"),
-                        tr!("Discard all assignments that have not yet been applied to the remote nodes?"),
+                        tr!("Discard all queued assignments and cancel all queued Clear Key actions? \
+                             The remote nodes are not touched."),
                     )
                     .icon_class("fa fa-question-circle")
                     .on_confirm({
@@ -811,6 +852,61 @@ impl LoadableComponent for SubscriptionRegistryComp {
             }
             ViewState::ConfirmAutoAssign(proposal) => {
                 Some(self.render_auto_assign_dialog(ctx, proposal))
+            }
+            ViewState::ConfirmQueueClear {
+                remote,
+                node,
+                current_key,
+            } => {
+                use pwt::widget::ConfirmDialog;
+                let question = match current_key {
+                    Some(k) => tr!(
+                        "Queue a clear of {key} on {remote}/{node}?",
+                        key = k.clone(),
+                        remote = remote.clone(),
+                        node = node.clone(),
+                    ),
+                    None => tr!(
+                        "Queue a clear on {remote}/{node}?",
+                        remote = remote.clone(),
+                        node = node.clone(),
+                    ),
+                };
+                let body = Column::new()
+                    .gap(2)
+                    .with_child(Container::from_tag("p").with_child(question))
+                    .with_child(Container::from_tag("p").with_child(tr!(
+                        "'Apply Pending' will remove the subscription from the node so the key can be reassigned elsewhere; 'Discard Pending' undoes the queueing without touching the remote."
+                    )));
+                let remote_for_cb = remote.clone();
+                let node_for_cb = node.clone();
+                let link = ctx.link().clone();
+                let close_link = ctx.link().clone();
+                let digest_for_cb = self.pool_digest.clone();
+                Some(
+                    ConfirmDialog::default()
+                        .title(tr!("Clear Key"))
+                        .confirm_message(body)
+                        .on_confirm(move |_| {
+                            let link = link.clone();
+                            let remote = remote_for_cb.clone();
+                            let node = node_for_cb.clone();
+                            let digest = digest_for_cb.clone();
+                            link.clone().spawn(async move {
+                                let digest = digest.map(pdm_client::ConfigDigest::from);
+                                if let Err(err) = crate::pdm_client()
+                                    .subscription_queue_clear(&remote, &node, digest)
+                                    .await
+                                {
+                                    link.show_error(tr!("Clear Key"), err.to_string(), true);
+                                }
+                                link.change_view(None);
+                                link.send_reload();
+                            });
+                        })
+                        .on_close(move |_| close_link.change_view(None))
+                        .into(),
+                )
             }
             ViewState::AssignKeyToNode(target) => {
                 let close_link = ctx.link().clone();
@@ -860,7 +956,8 @@ impl SubscriptionRegistryComp {
             .class(FlexFit);
 
         let can_assign_key = self.assign_target_for_selected_node().is_some();
-        let can_revert = self.clear_assignment_target_key().is_some();
+        let can_revert = self.revert_target().is_some();
+        let can_clear_key = self.selected_node_for_clear().is_some();
         let assign_button = Tooltip::new(
             Button::new(tr!("Assign Key"))
                 .icon_class("fa fa-link")
@@ -877,9 +974,17 @@ impl SubscriptionRegistryComp {
                 .disabled(!can_revert)
                 .on_activate(ctx.link().callback(|_| Msg::RevertSelectedNode)),
         )
+        .tip(tr!("Drop the pending pool change on the selected node."));
+        let clear_key_button = Tooltip::new(
+            Button::new(tr!("Clear Key"))
+                .icon_class("fa fa-recycle")
+                .disabled(!can_clear_key)
+                .on_activate(ctx.link().callback(|_| Msg::QueueClearForSelectedNode)),
+        )
         .tip(tr!(
-            "Revert the pending change on the selected node: drop an unpushed pool \
-             assignment without touching the remote."
+            "Queue the live subscription on the selected node for removal at next Apply \
+             Pending, freeing the key for reassignment. Requires the node to be \
+             pool-managed."
         ));
 
         Panel::new()
@@ -890,6 +995,7 @@ impl SubscriptionRegistryComp {
             .title(tr!("Node Subscription Status"))
             .with_tool(assign_button)
             .with_tool(revert_button)
+            .with_tool(clear_key_button)
             .with_child(table)
     }
 
@@ -939,19 +1045,37 @@ impl SubscriptionRegistryComp {
             .find(|n| n.remote == remote && n.node == node)
     }
 
-    /// Returns the assigned key when Revert is appropriate: there is a binding AND it has not
-    /// yet been pushed (different from current_key, or the node is not Active). For an
-    /// already-synced assignment, clearing would orphan the live subscription on the remote,
-    /// so the operator must take a different path (introduced later in the series).
-    fn clear_assignment_target_key(&self) -> Option<String> {
+    /// Resolve the selected node into a Revert action target.
+    ///
+    /// Revertible: an unpushed pool assignment (drop the binding) or a queued Clear Key (drop the
+    /// flag). An already-applied binding - live key matches the assignment, even if the
+    /// subscription is Expired/Invalid - has no pending push to revert; freeing it is Clear Key.
+    fn revert_target(&self) -> Option<RevertTarget> {
         let n = self.selected_node_status()?;
+        if n.pending_clear {
+            return Some(RevertTarget::CancelClear {
+                remote: n.remote.clone(),
+                node: n.node.clone(),
+            });
+        }
         let assigned = n.assigned_key.as_ref()?;
-        let synced = n.status == proxmox_subscription::SubscriptionStatus::Active
-            && n.current_key.as_deref() == Some(assigned.as_str());
-        if synced {
+        if n.current_key.as_deref() == Some(assigned.as_str()) {
             return None;
         }
-        Some(assigned.clone())
+        Some(RevertTarget::Unassign(assigned.clone()))
+    }
+
+    /// Returns `(remote, node, current_key)` when the selected node has a pool-managed
+    /// subscription that can be queued for clear: there is a live key, no clear is already
+    /// queued for it, and a pool entry is bound to (remote, node). The pool-binding gate
+    /// mirrors the server-side refusal so foreign live subscriptions do not offer Clear Key
+    /// (they need Adopt Key first).
+    fn selected_node_for_clear(&self) -> Option<(String, String, Option<String>)> {
+        let n = self.selected_node_status()?;
+        if n.pending_clear || n.current_key.is_none() || n.assigned_key.is_none() {
+            return None;
+        }
+        Some((n.remote.clone(), n.node.clone(), n.current_key.clone()))
     }
 
     /// Returns the [`AssignTarget`] for the right-panel Assign button: selected row is a node, no

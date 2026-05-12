@@ -40,6 +40,14 @@ pub fn cli() -> CommandLineInterface {
         .insert("auto-assign", CliCommand::new(&API_METHOD_AUTO_ASSIGN))
         .insert("apply-pending", CliCommand::new(&API_METHOD_APPLY_PENDING))
         .insert("clear-pending", CliCommand::new(&API_METHOD_CLEAR_PENDING))
+        .insert(
+            "clear-key",
+            CliCommand::new(&API_METHOD_CLEAR_KEY).arg_param(&["remote", "node"]),
+        )
+        .insert(
+            "revert-clear",
+            CliCommand::new(&API_METHOD_REVERT_CLEAR).arg_param(&["remote", "node"]),
+        )
         .into()
 }
 
@@ -149,6 +157,9 @@ async fn list_keys() -> Result<(), Error> {
         let key_width = keys.iter().map(|k| k.key.len()).max().unwrap_or(20);
         for key in &keys {
             let assignment = match (&key.remote, &key.node) {
+                (Some(r), Some(n)) if key.pending_clear => {
+                    format!("{r}/{n} [clear queued]")
+                }
                 (Some(r), Some(n)) => format!("{r}/{n}"),
                 _ => "(unassigned)".to_string(),
             };
@@ -299,6 +310,53 @@ async fn auto_assign(apply: bool) -> Result<(), Error> {
     if applied.is_empty() {
         println!("\nServer rejected the proposal (no entries applied).");
     }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA },
+            digest: {
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Drop a queued Clear Key on a remote node while keeping the pool binding.
+async fn revert_clear(remote: String, node: String, digest: Option<String>) -> Result<(), Error> {
+    let digest = digest.map(ConfigDigest::from);
+    client()?
+        .subscription_revert_pending_clear(&remote, &node, digest)
+        .await?;
+    println!("Reverted pending clear on {remote}/{node}.");
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA },
+            digest: {
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Queue a Clear Key on a remote node so its subscription can be removed at next Apply Pending.
+///
+/// Refuses if no pool entry is bound to (remote, node): foreign live subscriptions must first
+/// be imported via the explicit Adopt Key action, never as a side effect of queueing a clear.
+async fn clear_key(remote: String, node: String, digest: Option<String>) -> Result<(), Error> {
+    let digest = digest.map(ConfigDigest::from);
+    client()?
+        .subscription_queue_clear(&remote, &node, digest)
+        .await?;
+    println!("Queued Clear Key on {remote}/{node}; run apply-pending to commit.");
     Ok(())
 }
 

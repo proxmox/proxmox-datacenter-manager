@@ -336,7 +336,7 @@ impl LoadableComponent for SubscriptionKeyGridComp {
                 });
                 let body = match assignment {
                     Some((remote, node)) => tr!(
-                        "Remove {key} from the key pool? It is still assigned to {remote}/{node}; the assignment is released without removing the subscription on the remote.",
+                        "Remove {key} from the key pool? It is still assigned to {remote}/{node}; the assignment is released without removing any subscription on the remote. Use Clear Key on the Node Subscription Status panel first to release a live subscription on that node too.",
                         key = key.to_string(),
                         remote = remote,
                         node = node,
@@ -364,7 +364,8 @@ impl LoadableComponent for SubscriptionKeyGridComp {
 
 /// Returns true when the pool entry's binding currently runs the same key on the remote and is
 /// Active - meaning a clear-assignment would orphan the live subscription. Mirrors the
-/// server-side gate; the operator must release the live subscription on the remote first.
+/// server-side gate; the operator must run Clear Key on the Node Subscription Status panel
+/// first.
 fn is_synced_assignment(entry: &SubscriptionKeyEntry, statuses: &[RemoteNodeStatus]) -> bool {
     let (Some(remote), Some(node)) = (entry.remote.as_deref(), entry.node.as_deref()) else {
         return false;

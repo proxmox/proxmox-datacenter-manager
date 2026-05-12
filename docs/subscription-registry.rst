@@ -24,22 +24,30 @@ configured remote alongside any pending plan from the pool. Nodes that already h
 registry assigned appear with the live level; nodes with a pending pool assignment show a clock
 icon until the change is pushed to the remote.
 
-From this view an operator can clear a pending assignment or remove the key from the pool entirely,
-which is convenient when a node is known to be wrong without first having to find the matching entry
-on the key list.
+From this view an operator can revert a pending change on the selected node (an unpushed
+assignment or a queued Clear Key) or queue a new Clear Key. Clear Key frees the live
+subscription key from a node so it can be reassigned elsewhere. The action is queued until it
+is committed via Apply Pending or reverted on a per-node basis.
 
-Assignment
-----------
+Assignment and Clearing
+-----------------------
 
 A key can be pinned to a single node manually.
 
 The Auto-Assign action proposes a plan that fills unsubscribed nodes from free pool keys. For
-Proxmox VE, the smallest covering key by socket count is chosen, so a 4-socket key is not used on a
-2-socket host while a larger host stays unsubscribed.
+Proxmox VE, the smallest covering key by socket count is chosen, so a 4-socket key is not used
+on a 2-socket host while a larger host stays unsubscribed.
 
-The proposed plan can be inspected before it is applied. Apply Pending pushes the queued keys to
-their target nodes; if a push fails the remaining queue is kept intact for retry. Discard Pending
-drops the plan without touching any remote.
+The Clear Key action queues the live subscription on the selected node for removal. The
+action requires the (remote, node) to already be tracked by the pool. Apply Pending later
+issues the removal on the remote and releases the pool binding so the key becomes available
+for reassignment. Discard Pending drops the queued clear without touching the remote; the
+binding stays intact and the operator can retry.
+
+The proposed plan can be inspected before it is applied. Apply Pending walks the queue in
+order and attempts every entry; any that fail are reported and stay pending, so one unreachable
+node does not strand the rest and a later Apply Pending retries only the failures. Discard
+Pending drops the plan without touching any remote.
 
 Permissions
 -----------

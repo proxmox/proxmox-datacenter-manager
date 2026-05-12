@@ -51,6 +51,11 @@ const SUBDIRS: SubdirMap = &sorted!([
     ),
     ("keys", &KEYS_ROUTER),
     ("node-status", &Router::new().get(&API_METHOD_NODE_STATUS)),
+    ("queue-clear", &Router::new().post(&API_METHOD_QUEUE_CLEAR)),
+    (
+        "revert-pending-clear",
+        &Router::new().post(&API_METHOD_REVERT_PENDING_CLEAR),
+    ),
 ]);
 
 const KEYS_ROUTER: Router = Router::new()
@@ -303,7 +308,7 @@ fn get_key(key: String, rpcenv: &mut dyn RpcEnvironment) -> Result<SubscriptionK
 /// `PRIV_RESOURCE_MODIFY` on that remote, so an audit-only operator cannot release a key
 /// another admin had pinned. Refuses if the key is currently the live active key on its bound
 /// node, since dropping the pool entry would orphan that subscription on the remote: the
-/// operator must release the live subscription on the remote first.
+/// operator must run Clear Key on the Node Subscription Status panel first.
 async fn delete_key(
     key: String,
     digest: Option<ConfigDigest>,
@@ -383,7 +388,7 @@ async fn delete_key(
             http_bail!(
                 BAD_REQUEST,
                 "key '{key}' is currently bound to a remote node with a live active \
-                 subscription; release it on the remote first"
+                 subscription; run Clear Key on the Node Subscription Status panel first"
             );
         }
 
@@ -529,7 +534,8 @@ async fn set_assignment(
             http_bail!(
                 BAD_REQUEST,
                 "key '{key}' is currently bound to a remote node with a live active \
-                 subscription; release it on the remote before rebinding"
+                 subscription; run Clear Key on the Node Subscription Status panel before \
+                 rebinding"
             );
         }
 
@@ -566,6 +572,13 @@ async fn set_assignment(
             .expect("entry verified to exist under lock above");
         entry.remote = Some(remote);
         entry.node = Some(node);
+        if post_moves {
+            // Drop any clear queued against the previous owner so it does not silently fire on
+            // the new node at the next Apply Pending. Only on an actual move - re-asserting the
+            // same binding must not silently cancel a queued Clear Key (use Revert / Clear
+            // Pending for that).
+            entry.pending_clear = false;
+        }
 
         pdm_config::subscriptions::save_config(&config)
     })
@@ -592,8 +605,8 @@ async fn set_assignment(
 /// Drop the remote-node binding for a pool key.
 ///
 /// Refuses when the binding is currently synced (the assigned key is the live active key on
-/// its remote): unassigning then would orphan that subscription, so the operator must release
-/// the live subscription on the remote first.
+/// its remote): unassigning then would orphan that subscription, so the operator must run
+/// Clear Key on the Node Subscription Status panel first.
 async fn clear_assignment(
     key: String,
     digest: Option<ConfigDigest>,
@@ -673,7 +686,7 @@ async fn clear_assignment(
             http_bail!(
                 BAD_REQUEST,
                 "key '{key}' is currently bound to a remote node with a live active \
-                 subscription; release it on the remote first"
+                 subscription; run Clear Key on the Node Subscription Status panel first"
             );
         }
         // Safe: the earlier `config.get(&key).cloned()` above proved the key exists, and the
@@ -683,6 +696,9 @@ async fn clear_assignment(
             .expect("entry verified to exist under lock above");
         entry.remote = None;
         entry.node = None;
+        // pending_clear without a binding is meaningless - reset so a later reassignment does
+        // not re-trigger a stale teardown.
+        entry.pending_clear = false;
 
         pdm_config::subscriptions::save_config(&config)
     })
@@ -694,9 +710,9 @@ async fn clear_assignment(
 
 /// Pre-lock check for the unassign / delete-key paths ([`clear_assignment`] and [`delete_key`]):
 /// returns the (remote, node) the entry is currently active on, if any, so the lock-protected
-/// branch can refuse the operation and prompt the operator to release the live subscription
-/// on the remote first. Returns `None` for entries with no binding, no live subscription, or
-/// a live subscription whose key does not match the entry.
+/// branch can refuse the operation and prompt the operator to run Clear Key first. Returns
+/// `None` for entries with no binding, no live subscription, or a live subscription whose key
+/// does not match the entry.
 ///
 /// Takes the binding from the caller's pre-read entry rather than re-reading config so the
 /// remote we hit on the network is the one the caller's pre-priv check already covered: a
@@ -765,6 +781,189 @@ async fn push_key_to_remote(remote: &Remote, key: &str, node_name: &str) -> Resu
         redact_key(key),
         remote.id,
     );
+    Ok(())
+}
+
+/// Tear down a node's subscription via the remote's `/nodes/{node}/subscription` endpoint.
+async fn delete_subscription_on_remote(
+    remote: &Remote,
+    product_type: ProductType,
+    node_name: &str,
+) -> Result<(), Error> {
+    match product_type {
+        ProductType::Pve => {
+            let client = crate::connection::make_pve_client(remote)?;
+            client.delete_subscription(node_name).await?;
+        }
+        ProductType::Pbs => {
+            let client = crate::connection::make_pbs_client(remote)?;
+            client.delete_subscription().await?;
+        }
+        ProductType::Pmg | ProductType::Pom => {
+            bail!("PDM cannot clear '{product_type}' keys: no remote support yet");
+        }
+    }
+
+    info!("removed subscription from {}/{node_name}", remote.id);
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            // NODE_SCHEMA rejects path-traversal input before it ends up interpolated into
+            // the remote URL `/api2/extjs/nodes/{node}/subscription`.
+            node: { schema: NODE_SCHEMA },
+            digest: {
+                type: ConfigDigest,
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Queue a clear on a remote node, that is, mark its subscription for removal so the key can
+/// be reassigned elsewhere.
+///
+/// Sets `pending_clear` on the pool entry currently bound to (remote, node). Apply Pending
+/// later issues the DELETE on the remote and clears the binding on success; Discard Pending only
+/// resets the flag and leaves the binding intact so the operator can retry.
+///
+/// Refuses if no pool entry is bound to (remote, node): importing a foreign live subscription
+/// into the pool is the job of the explicit Adopt Key action, not a side effect of queueing a
+/// clear. The split keeps the audit trail honest; queueing a clear should only ever schedule
+/// a removal, never silently materialise new pool state the operator did not ask for.
+///
+/// Per-remote `PRIV_RESOURCE_MODIFY` is enforced inside the handler so an operator with global
+/// system access alone cannot tear down subscriptions on remotes they have no other authority on.
+async fn queue_clear(
+    remote: String,
+    node: String,
+    digest: Option<ConfigDigest>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
+    let user_info = CachedUserInfo::new()?;
+    user_info.check_privs(
+        &auth_id,
+        &["resource", &remote],
+        PRIV_RESOURCE_MODIFY,
+        false,
+    )?;
+
+    // No live fetch: the pool entry's binding is authoritative for queueing the operation; the
+    // worker re-validates against the live remote at apply time and aborts if the remote runs a
+    // different key.
+    //
+    // The lock + sync IO runs on a blocking thread so the async runtime stays free for other
+    // work even when /etc/proxmox-datacenter-manager/subscriptions is on slow storage.
+    let new_digest = tokio::task::spawn_blocking(move || -> Result<ConfigDigest, Error> {
+        let _lock = pdm_config::subscriptions::lock_config()?;
+        let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+        config_digest.detect_modification(digest.as_ref())?;
+
+        let bound_id = config
+            .iter()
+            .find(|(_, e)| {
+                e.remote.as_deref() == Some(remote.as_str())
+                    && e.node.as_deref() == Some(node.as_str())
+            })
+            .map(|(id, _)| id.to_string());
+
+        let Some(id) = bound_id else {
+            http_bail!(
+                BAD_REQUEST,
+                "no pool-managed assignment on {remote}/{node}; \
+                 run Adopt Key first to import a foreign subscription into the pool"
+            );
+        };
+        let entry = config
+            .get_mut(&id)
+            .expect("entry verified to exist under lock above");
+        if entry.pending_clear {
+            http_bail!(BAD_REQUEST, "clear already queued for {remote}/{node}");
+        }
+        entry.pending_clear = true;
+
+        pdm_config::subscriptions::save_config(&config)
+    })
+    .await??;
+    rpcenv["digest"] = new_digest.to_hex().into();
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA },
+            digest: {
+                type: ConfigDigest,
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Drop a queued Clear Key on `remote`/`node` while keeping the binding intact.
+///
+/// Backs out a Queue Clear on a single node without going through the global Discard Pending
+/// path (which scrubs every pending change in the pool). The binding stays so the operator can
+/// retry the queueing or leave the live subscription untouched.
+async fn revert_pending_clear(
+    remote: String,
+    node: String,
+    digest: Option<ConfigDigest>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
+    let user_info = CachedUserInfo::new()?;
+    user_info.check_privs(
+        &auth_id,
+        &["resource", &remote],
+        PRIV_RESOURCE_MODIFY,
+        false,
+    )?;
+
+    let new_digest = tokio::task::spawn_blocking(move || -> Result<ConfigDigest, Error> {
+        let _lock = pdm_config::subscriptions::lock_config()?;
+        let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+        config_digest.detect_modification(digest.as_ref())?;
+
+        let bound_id = config
+            .iter()
+            .find(|(_, e)| {
+                e.remote.as_deref() == Some(remote.as_str())
+                    && e.node.as_deref() == Some(node.as_str())
+            })
+            .map(|(id, _)| id.to_string());
+
+        let Some(id) = bound_id else {
+            http_bail!(BAD_REQUEST, "no pool-managed assignment on {remote}/{node}");
+        };
+        let entry = config
+            .get_mut(&id)
+            .expect("entry verified to exist under lock above");
+        if !entry.pending_clear {
+            http_bail!(BAD_REQUEST, "no pending clear queued on {remote}/{node}");
+        }
+        entry.pending_clear = false;
+
+        pdm_config::subscriptions::save_config(&config)
+    })
+    .await??;
+    rpcenv["digest"] = new_digest.to_hex().into();
     Ok(())
 }
 
@@ -1010,6 +1209,9 @@ async fn bulk_assign(
                     if entry.remote.is_none() {
                         entry.remote = Some(p.remote.clone());
                         entry.node = Some(p.node.clone());
+                        // Mirror set_assignment: stale flags from a prior binding cycle must
+                        // not silently fire against the new target at the next Apply Pending.
+                        entry.pending_clear = false;
                         applied.push(p.clone());
                     }
                 }
@@ -1139,8 +1341,9 @@ fn compute_proposals(
 /// Subscription health (Invalid, Expired, ...) is intentionally not considered pending: the
 /// assigned key already reached the node, re-pushing it would not change the shop's verdict.
 ///
-/// The worker bails on the first failure; the remaining entries stay pending so the operator
-/// can fix the underlying issue (or clear that one assignment) and trigger another apply.
+/// The worker attempts every pending entry rather than bailing on the first failure: a failed
+/// push or clear is collected and its entry stays pending, the worker then exits with an error
+/// summarising the failures, and a later apply retries only those.
 ///
 /// Returns `None` when nothing is pending so the caller can show a short info message instead of
 /// opening a task progress dialog for a no-op worker.
@@ -1190,7 +1393,6 @@ async fn apply_pending(
 async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
     let user_info = CachedUserInfo::new()?;
     let (remotes_config, _) = pdm_config::remotes::config()?;
-    let (config, _) = pdm_config::subscriptions::config()?;
 
     let node_statuses = collect_status_uncached(&remotes_config).await;
     let pending = compute_pending(&user_info, &auth_id, &node_statuses)?;
@@ -1202,38 +1404,164 @@ async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
 
     let total = pending.len();
     let mut ok = 0usize;
+    // Keep going on per-entry errors instead of aborting, so one unreachable node does not strand
+    // the rest; failed entries stay pending and are retried on the next Apply Pending.
+    let mut failures: Vec<String> = Vec::new();
 
     for entry in pending {
-        let Some(remote) = remotes_config.get(&entry.remote) else {
-            bail!(
-                "remote '{}' vanished, aborting after {ok}/{total} successful pushes",
-                entry.remote,
-            );
-        };
-        // Honour the case where the operator unassigned the key while the worker was queued.
+        // Re-read the pool on every iteration: the previous iteration's `save_config` (Clear
+        // branch) makes the at-start snapshot stale, and a parallel admin's Discard Pending
+        // between worker start and this iteration must cancel a planned op rather than have us
+        // execute it against a flag the operator just retracted.
+        let (config, _) = pdm_config::subscriptions::config()?;
         if !pool_assignment_still_valid(&config, &entry) {
             info!(
-                "skipping {}/{}: pool assignment changed before worker ran",
+                "skipping {}/{}: pool entry changed before worker ran",
+                entry.remote, entry.node
+            );
+            continue;
+        }
+        // For each branch, the entry's current `pending_clear` state must still match the planned
+        // op or the operator's intent has changed under us (a Discard Pending fired for Clear, or
+        // a parallel queue_clear fired for Push).
+        let current_pending_clear = config
+            .get(&entry.key)
+            .map(|e| e.pending_clear)
+            .unwrap_or(false);
+        let op_consistent = match entry.op {
+            PendingOp::Push => !current_pending_clear,
+            PendingOp::Clear => current_pending_clear,
+        };
+        if !op_consistent {
+            info!(
+                "skipping {}/{}: pending state changed before this step ran",
                 entry.remote, entry.node
             );
             continue;
         }
 
         let redacted = redact_key(&entry.key);
-        info!("pushing {redacted} to {}/{}...", entry.remote, entry.node);
-        if let Err(err) = push_key_to_remote(remote, &entry.key, &entry.node).await {
-            bail!(
-                "push of {redacted} to {}/{} failed after {ok}/{total} successful pushes: {err}",
-                entry.remote,
-                entry.node,
-            );
+        let remote = remotes_config.get(&entry.remote);
+        match entry.op {
+            PendingOp::Push => {
+                let Some(remote) = remote else {
+                    warn!(
+                        "skipping push of {redacted} to {}/{}: remote vanished",
+                        entry.remote, entry.node
+                    );
+                    failures.push(format!("{}/{}: remote vanished", entry.remote, entry.node));
+                    continue;
+                };
+                info!("pushing {redacted} to {}/{}...", entry.remote, entry.node);
+                if let Err(err) = push_key_to_remote(remote, &entry.key, &entry.node).await {
+                    warn!(
+                        "push of {redacted} to {}/{} failed: {err}",
+                        entry.remote, entry.node
+                    );
+                    failures.push(format!("push to {}/{}: {err}", entry.remote, entry.node));
+                    continue;
+                }
+            }
+            PendingOp::Clear => {
+                let product_type = match ProductType::from_key(&entry.key) {
+                    Some(ty) => ty,
+                    None => {
+                        warn!("skipping clear of {redacted}: unrecognised key format");
+                        failures.push(format!(
+                            "clear on {}/{}: unrecognised key format",
+                            entry.remote, entry.node
+                        ));
+                        continue;
+                    }
+                };
+                // Vanished remote: skip the (moot) delete but still drop the binding below, else
+                // the entry resurfaces on every Apply Pending.
+                if let Some(remote) = remote {
+                    info!(
+                        "clearing {redacted} from {}/{}...",
+                        entry.remote, entry.node
+                    );
+                    if let Err(err) =
+                        delete_subscription_on_remote(remote, product_type, &entry.node).await
+                    {
+                        warn!(
+                            "clear of {redacted} on {}/{} failed: {err}",
+                            entry.remote, entry.node
+                        );
+                        failures.push(format!("clear on {}/{}: {err}", entry.remote, entry.node));
+                        continue;
+                    }
+                } else {
+                    info!(
+                        "remote '{}' vanished; dropping stale pool binding for {redacted} \
+                         without contacting it",
+                        entry.remote
+                    );
+                }
+                // Clear the binding under the config lock. A subsequent compute_pending call must
+                // not propose another push or clear for the same entry. The lock + sync IO run
+                // on a blocking thread so the worker does not park one of the async runtime's
+                // worker threads on file IO.
+                let entry_key = entry.key.clone();
+                let entry_remote = entry.remote.clone();
+                let entry_node = entry.node.clone();
+                let pool_update = tokio::task::spawn_blocking(move || -> Result<(), Error> {
+                    let _lock = pdm_config::subscriptions::lock_config()?;
+                    let (mut updated, _) = pdm_config::subscriptions::config()?;
+                    if let Some(stored) = updated.get_mut(&entry_key) {
+                        if stored.remote.as_deref() == Some(entry_remote.as_str())
+                            && stored.node.as_deref() == Some(entry_node.as_str())
+                        {
+                            stored.remote = None;
+                            stored.node = None;
+                            stored.pending_clear = false;
+                        }
+                    }
+                    // Worker context: no `rpcenv` to set, post-save digest is unused here.
+                    let _ = pdm_config::subscriptions::save_config(&updated)?;
+                    Ok(())
+                })
+                .await
+                .map_err(Error::from)
+                .and_then(|res| res);
+                if let Err(err) = pool_update {
+                    warn!(
+                        "clear of {redacted} on {}/{}: dropping pool binding failed: {err}",
+                        entry.remote, entry.node
+                    );
+                    failures.push(format!(
+                        "clear on {}/{}: pool update failed: {err}",
+                        entry.remote, entry.node
+                    ));
+                    continue;
+                }
+            }
         }
         info!("  success");
         invalidate_subscription_info_for_remote(&entry.remote).await;
         ok += 1;
     }
 
-    info!("finished: {ok}/{total} pushes succeeded");
+    if !failures.is_empty() {
+        let shown = failures
+            .iter()
+            .take(5)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("; ");
+        let more = failures.len().saturating_sub(5);
+        let suffix = if more > 0 {
+            format!(" (and {more} more)")
+        } else {
+            String::new()
+        };
+        bail!(
+            "apply-pending: {ok}/{total} succeeded, {} failed: {shown}{suffix}",
+            failures.len(),
+        );
+    }
+
+    info!("finished: {ok}/{total} operations succeeded");
     Ok(())
 }
 
@@ -1251,14 +1579,19 @@ async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
         permission: &Permission::Privilege(&["system"], PRIV_SYS_MODIFY, false),
     },
 )]
-/// Clear every pending assignment in one bulk transaction.
+/// Drop every queued change in one bulk transaction.
 ///
-/// Pending = pool key bound to a remote node whose live `current_key` does not match the
-/// assigned pool key (a different live key, no key, or no row returned at all because the remote
-/// is unreachable / the node is gone). Clears only those entries the caller has
-/// `PRIV_RESOURCE_MODIFY` on; remotes the caller may only audit are skipped. Mirrors
-/// `apply-pending` but drops the assignments instead of pushing them, so an operator can disown
-/// stuck assignments without first having to bring the target back online.
+/// Two shapes of pending change are discarded:
+///   * pool key bound to a remote node whose live `current_key` does not match the assigned
+///     pool key (a different live key, no key, or no row returned at all because the remote is
+///     unreachable / the node is gone): the binding is dropped, the key returns to the free
+///     pool, and the remote is not touched.
+///   * queued Clear Keys (`pending_clear = true`): the flag is cleared; the binding and the
+///     live key on the remote stay intact.
+///
+/// Only entries the caller has `PRIV_RESOURCE_MODIFY` on are touched; remotes the caller may
+/// only audit are skipped. Mirrors `apply-pending` but drops the queue instead of pushing it,
+/// so an operator can disown stuck changes without first having to bring the target back online.
 ///
 /// The optional `digest` is checked twice: once before the live-state fetch so a stale browser
 /// tab is rejected up-front, and again under the config lock so a parallel admin edit between
@@ -1299,8 +1632,23 @@ async fn clear_pending(
                     if stored.remote.as_deref() == Some(entry.remote.as_str())
                         && stored.node.as_deref() == Some(entry.node.as_str())
                     {
-                        stored.remote = None;
-                        stored.node = None;
+                        match entry.op {
+                            PendingOp::Clear => {
+                                // Only reset the flag - leave the binding so the operator can
+                                // retry the clear without having to re-import a foreign key
+                                // from scratch.
+                                stored.pending_clear = false;
+                            }
+                            PendingOp::Push => {
+                                stored.remote = None;
+                                stored.node = None;
+                                // Defensive: an entry that flipped to pending_clear between
+                                // the pre-lock snapshot and now would otherwise leave a
+                                // meaningless flag on a now-unbound entry. Reset alongside the
+                                // binding clear.
+                                stored.pending_clear = false;
+                            }
+                        }
                         cleared += 1;
                     }
                 }
@@ -1322,12 +1670,21 @@ async fn clear_pending(
     Ok(ClearPendingResult { cleared })
 }
 
-/// Plan entry for one pending push.
+/// Plan entry for one pending push or clear.
 #[derive(Clone, Debug)]
 struct PendingEntry {
     key: String,
     remote: String,
     node: String,
+    op: PendingOp,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PendingOp {
+    /// PUT the assigned key to the remote because the live state does not match.
+    Push,
+    /// DELETE the subscription on the remote and clear the binding on success.
+    Clear,
 }
 
 fn compute_pending(
@@ -1347,6 +1704,15 @@ fn compute_pending(
                 return None;
             }
 
+            if entry.pending_clear {
+                return Some(PendingEntry {
+                    key: entry.key.clone(),
+                    remote: remote.to_string(),
+                    node: node.to_string(),
+                    op: PendingOp::Clear,
+                });
+            }
+
             // Pending push = the live current key on the node does not match the assigned pool
             // key. Subscription health (Invalid, Expired, ...) is a separate axis surfaced via
             // the Status column; re-pushing the same key would not change the shop's verdict.
@@ -1364,6 +1730,7 @@ fn compute_pending(
                 key: entry.key.clone(),
                 remote: remote.to_string(),
                 node: node.to_string(),
+                op: PendingOp::Push,
             })
         })
         .collect())

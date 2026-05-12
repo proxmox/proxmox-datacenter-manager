@@ -349,7 +349,7 @@ pub struct SubscriptionKeyEntry {
     /// to free the key from `remote`/`node` so it can be reassigned to a different node.
     ///
     /// Apply Pending issues a DELETE on the remote and then clears `remote`/`node` on success.
-    /// Clear Pending only resets this flag and leaves the binding untouched so the operator can
+    /// Discard Pending only resets this flag and leaves the binding untouched so the operator can
     /// retry. A bare flag is enough since the (remote, node) binding lives next to it.
     ///
     /// Omitted from the serialised representation when false so the on-disk section and the
@@ -549,7 +549,7 @@ pub struct RemoteNodeStatus {
     /// Current key on the node (from remote query).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_key: Option<String>,
-    /// True when the pool entry bound to this node has a pending clear queued.
+    /// True when the pool has a clear queued for this node. Omitted on the wire when false.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub pending_clear: bool,
 }
@@ -559,7 +559,7 @@ pub struct RemoteNodeStatus {
 #[serde(rename_all = "kebab-case")]
 /// Result of the bulk clear-pending API endpoint.
 pub struct ClearPendingResult {
-    /// Number of pool entries whose pending push or reissue was cleared.
+    /// Number of pool entries whose pending push or clear was cleared.
     pub cleared: u32,
 }
 
