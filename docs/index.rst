@@ -27,6 +27,7 @@ in the section entitled "GNU Free Documentation License".
    remotes.rst
    automated-installations.rst
    views.rst
+   subscription-registry.rst
    access-control.rst
    sysadmin.rst
    faq.rst
