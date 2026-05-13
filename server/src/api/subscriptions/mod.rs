@@ -21,9 +21,9 @@ use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::{Remote, REMOTE_ID_SCHEMA};
 use pdm_api_types::subscription::{
-    pick_best_pve_socket_key, socket_count_from_key, AddKeysResult, AutoAssignProposal,
-    ClearPendingResult, ProductType, ProposedAssignment, RemoteNodeStatus, SubscriptionKeyEntry,
-    SubscriptionKeySource, SubscriptionLevel, SUBSCRIPTION_KEY_SCHEMA,
+    pick_best_pve_socket_key, socket_count_from_key, AddKeysResult, AdoptedEntry,
+    AutoAssignProposal, ClearPendingResult, ProductType, ProposedAssignment, RemoteNodeStatus,
+    SubscriptionKeyEntry, SubscriptionKeySource, SubscriptionLevel, SUBSCRIPTION_KEY_SCHEMA,
 };
 use pdm_api_types::{
     Authid, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
@@ -39,6 +39,8 @@ pub const ROUTER: Router = Router::new()
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
+    ("adopt-all", &Router::new().post(&API_METHOD_ADOPT_ALL)),
+    ("adopt-key", &Router::new().post(&API_METHOD_ADOPT_KEY)),
     (
         "apply-pending",
         &Router::new().post(&API_METHOD_APPLY_PENDING)
@@ -87,6 +89,11 @@ const PANEL_NODE_STATUS_MAX_AGE: u64 = 5 * 60;
 /// Keeps the product prefix and the first/last hex characters of the secret so an operator can
 /// still tell two keys apart in a tail of `journalctl`, but the full key never lands in a log
 /// file readable by anyone other than the priv user.
+///
+/// Uses `chars()` rather than byte slicing so a hostile remote returning a non-ASCII subscription
+/// key cannot trigger a slice-on-non-char-boundary panic; schema-validated pool keys are pure
+/// ASCII per `PRODUCT_KEY_REGEX`, but `redact_key` is also reached by the adoption path on a
+/// live key the remote owned, which can be any string.
 fn redact_key(key: &str) -> String {
     let Some((prefix, secret)) = key.split_once('-') else {
         return "<malformed-key>".to_string();
@@ -970,6 +977,317 @@ async fn revert_pending_clear(
 #[api(
     input: {
         properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            // NODE_SCHEMA rejects path-traversal input before it ends up interpolated into the
+            // remote URL `/api2/extjs/nodes/{node}/subscription`.
+            node: { schema: NODE_SCHEMA },
+            digest: {
+                type: ConfigDigest,
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Adopt the live subscription on a remote node into the pool.
+///
+/// Reads the live current key from `remote`/`node` and brings the pool under management of it
+/// without touching the remote (no DELETE / push). Three sub-cases for the live key:
+///
+/// - Not in the pool: a fresh `Adopted` entry is inserted, bound to (remote, node).
+/// - In the pool, unbound: rebound to (remote, node); the source is left untouched so a key
+///   that was originally added manually keeps its `Manual` label even after a remote re-import.
+/// - In the pool, bound elsewhere: refused; the operator has to reconcile the binding first.
+///
+/// Refuses if a pool entry is already bound to (remote, node): adopting a node that is already
+/// pool-managed would either be a no-op or a footgun (rebinding the same node to a different
+/// key in the pool), so the caller has to pick the right Assign/Clear path explicitly.
+///
+/// Per-remote `PRIV_RESOURCE_MODIFY` is enforced inside the handler so an operator with global
+/// system access alone cannot pull subscriptions off remotes they have no other authority on
+/// (an adopted key bound to (remote, node) is itself an audit-side surface against that node).
+async fn adopt_key(
+    remote: String,
+    node: String,
+    digest: Option<ConfigDigest>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
+    let user_info = CachedUserInfo::new()?;
+    user_info.check_privs(
+        &auth_id,
+        &["resource", &remote],
+        PRIV_RESOURCE_MODIFY,
+        false,
+    )?;
+
+    // Pre-fetch digest to catch a parallel set_assignment during the live read below.
+    let (_pre_config, pre_digest) = pdm_config::subscriptions::config()?;
+
+    // Fetch live state before grabbing the config lock so the network call does not pin the
+    // lock for the duration of a remote query.
+    let (remotes_config, _) = pdm_config::remotes::config()?;
+    let remote_entry = remotes_config
+        .get(&remote)
+        .ok_or_else(|| http_err!(NOT_FOUND, "remote '{remote}' not found"))?;
+    let live = get_subscription_info_for_remote(remote_entry, FRESH_NODE_STATUS_MAX_AGE)
+        .await
+        .map_err(|err| {
+            http_err!(
+                BAD_REQUEST,
+                "could not read subscription on {remote}/{node}: {err}"
+            )
+        })?;
+    let live_current_key: String = live
+        .get(&node)
+        .and_then(|info| info.as_ref())
+        .and_then(|info| info.key.clone())
+        .ok_or_else(|| {
+            http_err!(
+                NOT_FOUND,
+                "no live subscription on {remote}/{node} to adopt"
+            )
+        })?;
+
+    // The lock + sync IO runs on a blocking thread so the async runtime stays free for other
+    // work even when /etc/proxmox-datacenter-manager/subscriptions is on slow storage.
+    let new_digest = tokio::task::spawn_blocking(move || -> Result<ConfigDigest, Error> {
+        let _lock = pdm_config::subscriptions::lock_config()?;
+        let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+        config_digest.detect_modification(digest.as_ref())?;
+        if config_digest != pre_digest {
+            http_bail!(
+                CONFLICT,
+                "pool config changed during live fetch; refresh and retry adopt of \
+                 {remote}/{node}"
+            );
+        }
+
+        let target_bound = config.iter().any(|(_, e)| {
+            e.remote.as_deref() == Some(remote.as_str()) && e.node.as_deref() == Some(node.as_str())
+        });
+        if target_bound {
+            http_bail!(
+                BAD_REQUEST,
+                "{remote}/{node} is already pool-managed; adopt only applies to foreign \
+                 subscriptions"
+            );
+        }
+
+        if let Some(existing) = config.get_mut(&live_current_key) {
+            if existing.remote.is_some() || existing.node.is_some() {
+                http_bail!(
+                    CONFLICT,
+                    "key '{}' is in the pool but bound elsewhere; resolve manually first",
+                    redact_key(&live_current_key),
+                );
+            }
+            existing.remote = Some(remote.clone());
+            existing.node = Some(node.clone());
+        } else {
+            // Schema-validate the live key before letting it touch the on-disk pool. The
+            // remote claimed it via /nodes/{node}/subscription, but that surface is not a
+            // strict-schema gate (older PVE versions accept whatever the operator typed at
+            // setup time), so re-validate here against the same schema that manual entry
+            // uses.
+            SUBSCRIPTION_KEY_SCHEMA
+                .parse_simple_value(&live_current_key)
+                .map_err(|err| {
+                    http_err!(
+                        BAD_REQUEST,
+                        "key '{}' rejected: {err}",
+                        redact_key(&live_current_key),
+                    )
+                })?;
+            let product_type = ProductType::from_key(&live_current_key).ok_or_else(|| {
+                http_err!(
+                    BAD_REQUEST,
+                    "unrecognised key prefix: {}",
+                    redact_key(&live_current_key),
+                )
+            })?;
+            let entry = SubscriptionKeyEntry {
+                key: live_current_key.clone(),
+                product_type,
+                level: SubscriptionLevel::from_key(Some(&live_current_key)),
+                source: SubscriptionKeySource::Adopted,
+                remote: Some(remote.clone()),
+                node: Some(node.clone()),
+                ..Default::default()
+            };
+            config.insert(live_current_key, entry);
+        }
+
+        pdm_config::subscriptions::save_config(&config)
+    })
+    .await??;
+    rpcenv["digest"] = new_digest.to_hex().into();
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            digest: {
+                type: ConfigDigest,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "List of (remote, node, key) tuples that were adopted into the pool.",
+        items: { type: AdoptedEntry },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Adopt every foreign live subscription in one transaction.
+///
+/// Walks the node-status view (so only remotes the caller can audit are considered), collects
+/// every (remote, node) that has a live current key but no pool entry bound to it, and imports
+/// each one into the pool with source = `Adopted`. Candidates are skipped (not adopted, not an
+/// error) when:
+///
+/// - The caller has no `PRIV_RESOURCE_MODIFY` on the candidate's remote: an audit-only operator
+///   should not be able to materialise pool state for a remote they cannot manage.
+/// - The live key is already in the pool but bound elsewhere: leaving the rebind as a manual
+///   step keeps the bulk action from silently competing with a deliberate prior assignment.
+/// - The live key fails schema validation or its prefix is unknown: a buggy or malicious
+///   remote should not be able to inject garbage into the pool through a bulk shortcut.
+///
+/// Successfully-adopted entries are returned so the caller (CLI / UI) can summarise the outcome
+/// without needing a separate refresh round-trip.
+async fn adopt_all(
+    digest: Option<ConfigDigest>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<AdoptedEntry>, Error> {
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
+
+    // Use a fresh node-status snapshot: a cached entry from minutes ago could miss a live
+    // subscription that was just installed on a remote, or vice-versa, claim a subscription
+    // that has since been removed. Adopting bogus or already-cleared keys would be a footgun.
+    let node_statuses = collect_node_status(FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
+
+    // Lock + sync IO under spawn_blocking. The closure re-resolves the candidate set under the
+    // lock: a parallel admin's Assign / Adopt between the network read above and the lock
+    // acquisition here would otherwise let us race-import a key that has just been bound by
+    // them.
+    let (adopted, new_digest_opt) = tokio::task::spawn_blocking(
+        move || -> Result<(Vec<AdoptedEntry>, Option<ConfigDigest>), Error> {
+            let user_info = CachedUserInfo::new()?;
+            let _lock = pdm_config::subscriptions::lock_config()?;
+            let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+            config_digest.detect_modification(digest.as_ref())?;
+
+            let mut adopted: Vec<AdoptedEntry> = Vec::new();
+            for n in &node_statuses {
+                let Some(current_key) = n.current_key.as_deref() else {
+                    continue;
+                };
+                if n.assigned_key.is_some() {
+                    continue;
+                }
+                if user_info.lookup_privs(&auth_id, &["resource", &n.remote]) & PRIV_RESOURCE_MODIFY
+                    == 0
+                {
+                    continue;
+                }
+                // Re-validate foreign node name: later interpolated into remote URL.
+                if NODE_SCHEMA.parse_simple_value(&n.node).is_err() {
+                    warn!(
+                        "skipping adopt-all candidate on {}/{}: node name fails schema",
+                        n.remote, n.node,
+                    );
+                    continue;
+                }
+                // Re-check binding state under the lock - between the network read and here a
+                // parallel Adopt / Assign on the same target could have created a pool entry
+                // bound to (remote, node) that the cached node-status snapshot did not see.
+                let target_bound = config.iter().any(|(_, e)| {
+                    e.remote.as_deref() == Some(n.remote.as_str())
+                        && e.node.as_deref() == Some(n.node.as_str())
+                });
+                if target_bound {
+                    continue;
+                }
+
+                if let Some(existing) = config.get_mut(current_key) {
+                    if existing.remote.is_some() || existing.node.is_some() {
+                        // Bound elsewhere: leave the rebind as an explicit operator decision.
+                        continue;
+                    }
+                    existing.remote = Some(n.remote.clone());
+                    existing.node = Some(n.node.clone());
+                } else {
+                    if SUBSCRIPTION_KEY_SCHEMA
+                        .parse_simple_value(current_key)
+                        .is_err()
+                    {
+                        warn!(
+                            "skipping adopt-all candidate on {}/{}: key '{}' fails schema",
+                            n.remote,
+                            n.node,
+                            redact_key(current_key),
+                        );
+                        continue;
+                    }
+                    let Some(product_type) = ProductType::from_key(current_key) else {
+                        warn!(
+                            "skipping adopt-all candidate on {}/{}: unrecognised key prefix \
+                             '{}'",
+                            n.remote,
+                            n.node,
+                            redact_key(current_key),
+                        );
+                        continue;
+                    };
+                    let entry = SubscriptionKeyEntry {
+                        key: current_key.to_string(),
+                        product_type,
+                        level: SubscriptionLevel::from_key(Some(current_key)),
+                        source: SubscriptionKeySource::Adopted,
+                        remote: Some(n.remote.clone()),
+                        node: Some(n.node.clone()),
+                        ..Default::default()
+                    };
+                    config.insert(current_key.to_string(), entry);
+                }
+                adopted.push(AdoptedEntry {
+                    remote: n.remote.clone(),
+                    node: n.node.clone(),
+                    key: current_key.to_string(),
+                });
+            }
+
+            let new_digest = if adopted.is_empty() {
+                None
+            } else {
+                Some(pdm_config::subscriptions::save_config(&config)?)
+            };
+            Ok((adopted, new_digest))
+        },
+    )
+    .await??;
+
+    if let Some(new_digest) = new_digest_opt {
+        rpcenv["digest"] = new_digest.to_hex().into();
+    }
+    Ok(adopted)
+}
+
+#[api(
+    input: {
+        properties: {
             "max-age": {
                 type: u64,
                 optional: true,
@@ -1802,6 +2120,15 @@ mod tests {
     #[test]
     fn redact_key_handles_standard_pbs_key() {
         assert_eq!(redact_key("pbsc-abcdef0123"), "pbsc-a...3");
+    }
+
+    #[test]
+    fn redact_key_safe_on_non_ascii_secret() {
+        // Slicing by byte index on a UTF-8 boundary would panic; chars()-based redaction must
+        // tolerate hostile / buggy remote inputs in the foreign-key adoption path.
+        let key = "pve4b-1\u{1F600}";
+        let redacted = redact_key(key);
+        assert!(redacted.starts_with("pve4b-1..."));
     }
 
     #[test]

@@ -1282,9 +1282,66 @@ impl<T: HttpApiClient> PdmClient<T> {
             .data)
     }
 
+    /// Adopt the live subscription on `remote`/`node` into the pool: imports the live key as a
+    /// new pool entry bound to (remote, node) without touching the remote. Refuses if (remote,
+    /// node) already has a pool entry bound to it. See the server endpoint docs for the full
+    /// per-sub-case semantics (existing-unbound, existing-bound-elsewhere, not-in-pool).
+    pub async fn subscription_adopt_key(
+        &self,
+        remote: &str,
+        node: &str,
+        digest: Option<ConfigDigest>,
+    ) -> Result<(), Error> {
+        #[derive(Serialize)]
+        struct AdoptArgs<'a> {
+            remote: &'a str,
+            node: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            digest: Option<ConfigDigest>,
+        }
+        self.0
+            .post(
+                "/api2/extjs/subscriptions/adopt-key",
+                &AdoptArgs {
+                    remote,
+                    node,
+                    digest,
+                },
+            )
+            .await?
+            .nodata()
+    }
+
+    /// Adopt every foreign live subscription that the caller can modify, in one transaction.
+    /// Returns the list of `(remote, node, key)` tuples that were imported into the pool;
+    /// candidates the caller has no `PRIV_RESOURCE_MODIFY` on (or that fail validation, or that
+    /// are already bound elsewhere in the pool) are silently skipped. See the server endpoint
+    /// docs for the full skip rules.
+    pub async fn subscription_adopt_all(
+        &self,
+        digest: Option<ConfigDigest>,
+    ) -> Result<Vec<pdm_api_types::subscription::AdoptedEntry>, Error> {
+        #[derive(Serialize)]
+        struct AdoptAllArgs {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            digest: Option<ConfigDigest>,
+        }
+        Ok(self
+            .0
+            .post(
+                "/api2/extjs/subscriptions/adopt-all",
+                &AdoptAllArgs { digest },
+            )
+            .await?
+            .expect_json()?
+            .data)
+    }
+
     /// Queue a clear for the subscription on `remote`/`node`. Apply Pending later removes the
-    /// subscription from the node so the key can be reassigned elsewhere; Discard Pending undoes
-    /// the queueing without touching the remote.
+    /// subscription from the node so the key can be reassigned elsewhere; Discard Pending
+    /// undoes the queueing without touching the remote. Returns `BAD_REQUEST` if no pool entry
+    /// is bound to (remote, node); callers must run Adopt Key first to import a foreign
+    /// subscription.
     pub async fn subscription_queue_clear(
         &self,
         remote: &str,

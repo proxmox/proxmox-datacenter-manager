@@ -41,6 +41,35 @@ fn entry_roundtrip() {
 }
 
 #[test]
+fn adopted_entry_roundtrip() {
+    // Ensure SubscriptionKeySource::Adopted serializes to its kebab-case form `adopted` and
+    // parses back to the same variant, so an in-place upgrade does not silently rewrite
+    // adopted pool entries to Manual on the next save.
+    let mut config = SectionConfigData::<SubscriptionKeyEntry>::default();
+    config.insert(
+        "pbsc-1122334455".to_string(),
+        SubscriptionKeyEntry {
+            key: "pbsc-1122334455".to_string(),
+            product_type: ProductType::Pbs,
+            source: SubscriptionKeySource::Adopted,
+            remote: Some("backup-cluster".to_string()),
+            node: Some("pbs-1".to_string()),
+            ..Default::default()
+        },
+    );
+
+    let raw = SubscriptionKeyEntry::write_section_config("test", &config).expect("write failed");
+    assert!(
+        raw.contains("\tsource adopted"),
+        "expected kebab-case `adopted` in serialised form, got:\n{raw}",
+    );
+    let parsed = SubscriptionKeyEntry::parse_section_config("test", &raw).expect("parse failed");
+    let back = parsed.get("pbsc-1122334455").expect("key not found");
+    assert_eq!(back.source, SubscriptionKeySource::Adopted);
+    assert_eq!(back.remote.as_deref(), Some("backup-cluster"));
+}
+
+#[test]
 fn shadow_roundtrip() {
     let mut shadow = SectionConfigData::<SubscriptionKeyShadow>::default();
 

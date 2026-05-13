@@ -6,7 +6,7 @@ use anyhow::Error;
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::subscription::{
-    AddKeysResult, ProductType, RemoteNodeStatus, SubscriptionKeyEntry,
+    AddKeysResult, ProductType, RemoteNodeStatus, SubscriptionKeyEntry, SubscriptionKeySource,
 };
 use yew::virtual_dom::{Key, VComp, VNode};
 
@@ -115,8 +115,9 @@ impl SubscriptionKeyGridComp {
         Rc::new(vec![
             DataTableColumn::new(tr!("Key"))
                 .flex(2)
-                .get_property(|entry: &SubscriptionKeyEntry| entry.key.as_str())
+                .sorter(|a: &SubscriptionKeyEntry, b: &SubscriptionKeyEntry| a.key.cmp(&b.key))
                 .sort_order(true)
+                .render(|entry: &SubscriptionKeyEntry| entry.key.as_str().into())
                 .into(),
             DataTableColumn::new(tr!("Product"))
                 .width("80px")
@@ -129,6 +130,17 @@ impl SubscriptionKeyGridComp {
                 .width("100px")
                 .sorter(|a: &SubscriptionKeyEntry, b: &SubscriptionKeyEntry| a.level.cmp(&b.level))
                 .render(|entry: &SubscriptionKeyEntry| entry.level.to_string().into())
+                .into(),
+            DataTableColumn::new(tr!("Source"))
+                .width("90px")
+                .hidden(true)
+                .sorter(|a: &SubscriptionKeyEntry, b: &SubscriptionKeyEntry| {
+                    (a.source as u8).cmp(&(b.source as u8))
+                })
+                .render(|entry: &SubscriptionKeyEntry| match entry.source {
+                    SubscriptionKeySource::Manual => tr!("Manual").into(),
+                    SubscriptionKeySource::Adopted => tr!("Adopted").into(),
+                })
                 .into(),
             DataTableColumn::new(tr!("Assignment"))
                 .flex(2)

@@ -307,6 +307,9 @@ pub enum SubscriptionKeySource {
     /// UI or CLI, and as the `serde(default)` for entries that predate this field.
     #[default]
     Manual,
+    /// Imported from a remote node's live subscription via the Adopt Key action, that is, a key
+    /// that was already installed on a remote before PDM took over its pool management.
+    Adopted,
 }
 
 #[api(
@@ -561,6 +564,23 @@ pub struct RemoteNodeStatus {
 pub struct ClearPendingResult {
     /// Number of pool entries whose pending push or clear was cleared.
     pub cleared: u32,
+}
+
+#[api(
+    properties: {
+        "key": { schema: SUBSCRIPTION_KEY_SCHEMA },
+    },
+)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+/// One entry imported by the bulk Adopt-All endpoint.
+pub struct AdoptedEntry {
+    /// Remote the live subscription was running on.
+    pub remote: String,
+    /// Node within the remote.
+    pub node: String,
+    /// The adopted subscription key.
+    pub key: String,
 }
 
 #[api]

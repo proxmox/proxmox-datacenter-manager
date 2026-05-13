@@ -100,6 +100,14 @@ fn pending_badge(push_count: u32, clear_count: u32) -> Row {
     row
 }
 
+/// Row shape for the Adopt All preview table.
+#[derive(Clone, PartialEq)]
+struct AdoptCandidate {
+    remote: String,
+    node: String,
+    key: String,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 enum NodeTreeEntry {
     Root,
@@ -236,6 +244,11 @@ pub enum Msg {
     QueueClearForSelectedNode,
     /// Open the Assign Key dialog for the currently-selected node.
     AssignKeyToSelectedNode,
+    /// Open the confirmation dialog for adopting the live subscription on the selected node
+    /// into the pool.
+    AdoptKeyForSelectedNode,
+    /// Open the confirmation dialog for adopting every foreign live subscription into the pool.
+    AdoptAllPreview,
 }
 
 #[derive(PartialEq)]
@@ -254,6 +267,19 @@ pub enum ViewState {
         node: String,
         current_key: Option<String>,
     },
+    /// Pending confirmation to adopt the live subscription on `(remote, node)` into the pool.
+    /// The live key is captured here so the dialog body can show what will be imported.
+    ConfirmAdoptKey {
+        remote: String,
+        node: String,
+        current_key: String,
+    },
+    /// Pending confirmation to bulk-adopt every foreign live subscription. The candidate list
+    /// is captured at view-open time so the dialog body can show the operator exactly what
+    /// will be imported; the server re-computes the set under the lock at commit time.
+    ConfirmAdoptAll {
+        candidates: Vec<(String, String, String)>,
+    },
     /// Assign a pool key to the given node. Opens from the right panel's Assign Key button.
     AssignKeyToNode(AssignTarget),
 }
@@ -264,6 +290,7 @@ pub struct SubscriptionRegistryComp {
     tree_store: TreeStore<NodeTreeEntry>,
     tree_columns: Rc<Vec<DataTableHeader<NodeTreeEntry>>>,
     proposal_columns: Rc<Vec<DataTableHeader<ProposedAssignment>>>,
+    adopt_columns: Rc<Vec<DataTableHeader<AdoptCandidate>>>,
     node_selection: Selection,
     last_node_data: Vec<RemoteNodeStatus>,
     /// Canonical pool snapshot. Passed down to the key grid (display) and shared with the
@@ -448,6 +475,23 @@ impl SubscriptionRegistryComp {
                 .into(),
         ])
     }
+
+    fn adopt_columns() -> Rc<Vec<DataTableHeader<AdoptCandidate>>> {
+        Rc::new(vec![
+            DataTableColumn::new(tr!("Remote / Node"))
+                .flex(2)
+                .show_menu(false)
+                .resizable(false)
+                .render(|c: &AdoptCandidate| format!("{} / {}", c.remote, c.node).into())
+                .into(),
+            DataTableColumn::new(tr!("Key"))
+                .flex(2)
+                .show_menu(false)
+                .resizable(false)
+                .render(|c: &AdoptCandidate| c.key.clone().into())
+                .into(),
+        ])
+    }
 }
 
 fn key_cell(n: &RemoteNodeStatus) -> Html {
@@ -494,6 +538,18 @@ fn key_cell(n: &RemoteNodeStatus) -> Html {
                     .with_child(Fa::new("clock-o").class(FontColor::Warning))
                     .with_child(text)
                     .into()
+            } else if assigned.is_none() && current.is_some() {
+                Tooltip::new(
+                    Row::new()
+                        .class(AlignItems::Baseline)
+                        .gap(2)
+                        .with_child(Fa::new("download").class(FontColor::Primary))
+                        .with_child(text),
+                )
+                .tip(tr!(
+                    "Not in pool - Adopt Key imports this live subscription."
+                ))
+                .into()
             } else {
                 text.into()
             }
@@ -520,6 +576,7 @@ impl LoadableComponent for SubscriptionRegistryComp {
             tree_store: store.clone(),
             tree_columns: Self::tree_columns(store),
             proposal_columns: Self::proposal_columns(),
+            adopt_columns: Self::adopt_columns(),
             node_selection,
             last_node_data: Vec::new(),
             pool_keys: Rc::new(Vec::new()),
@@ -657,6 +714,24 @@ impl LoadableComponent for SubscriptionRegistryComp {
                 ctx.link()
                     .change_view(Some(ViewState::AssignKeyToNode(target)));
             }
+            Msg::AdoptKeyForSelectedNode => {
+                let Some((remote, node, current_key)) = self.selected_node_for_adopt() else {
+                    return false;
+                };
+                ctx.link().change_view(Some(ViewState::ConfirmAdoptKey {
+                    remote,
+                    node,
+                    current_key,
+                }));
+            }
+            Msg::AdoptAllPreview => {
+                let candidates = self.adopt_all_candidates();
+                if candidates.is_empty() {
+                    return false;
+                }
+                ctx.link()
+                    .change_view(Some(ViewState::ConfirmAdoptAll { candidates }));
+            }
         }
         true
     }
@@ -664,6 +739,7 @@ impl LoadableComponent for SubscriptionRegistryComp {
     fn toolbar(&self, ctx: &LoadableComponentContext<Self>) -> Option<Html> {
         let link = ctx.link();
         let (push_count, clear_count) = self.pending_counts();
+        let adopt_all_count = self.adopt_all_candidates().len();
         let mut toolbar = Toolbar::new()
             .border_bottom(true)
             .with_child(
@@ -675,6 +751,18 @@ impl LoadableComponent for SubscriptionRegistryComp {
                 .tip(tr!(
                     "Propose a one-key-per-node assignment for nodes that have no active \
                      subscription, then queue it pending Apply."
+                )),
+            )
+            .with_child(
+                Tooltip::new(
+                    Button::new(tr!("Adopt All"))
+                        .icon_class("fa fa-download")
+                        .disabled(adopt_all_count == 0)
+                        .on_activate(link.callback(|_| Msg::AdoptAllPreview)),
+                )
+                .tip(tr!(
+                    "Import every foreign live subscription that is not yet tracked by the \
+                     pool. The remote is not contacted; only the pool config is updated."
                 )),
             )
             .with_spacer()
@@ -853,6 +941,58 @@ impl LoadableComponent for SubscriptionRegistryComp {
             ViewState::ConfirmAutoAssign(proposal) => {
                 Some(self.render_auto_assign_dialog(ctx, proposal))
             }
+            ViewState::ConfirmAdoptAll { candidates } => {
+                Some(self.render_adopt_all_dialog(ctx, candidates))
+            }
+            ViewState::ConfirmAdoptKey {
+                remote,
+                node,
+                current_key,
+            } => {
+                use pwt::widget::ConfirmDialog;
+                let question = tr!(
+                    "Adopt {key} from {remote}/{node} into the pool?",
+                    key = current_key.clone(),
+                    remote = remote.clone(),
+                    node = node.clone(),
+                );
+                let body = Column::new()
+                    .gap(2)
+                    .with_child(Container::from_tag("p").with_child(question))
+                    .with_child(Container::from_tag("p").with_child(tr!(
+                        "The live subscription is imported as a pool entry bound to this node; the remote is not contacted. After adoption the key participates in pool operations such as Clear Key and Auto-Assign."
+                    )));
+                let remote_for_cb = remote.clone();
+                let node_for_cb = node.clone();
+                let link = ctx.link().clone();
+                let close_link = ctx.link().clone();
+                let digest_for_cb = self.pool_digest.clone();
+                Some(
+                    ConfirmDialog::default()
+                        .title(tr!("Adopt Key"))
+                        .icon_class("fa fa-question-circle")
+                        .confirm_message(body)
+                        .on_confirm(move |_| {
+                            let link = link.clone();
+                            let remote = remote_for_cb.clone();
+                            let node = node_for_cb.clone();
+                            let digest = digest_for_cb.clone();
+                            link.clone().spawn(async move {
+                                let digest = digest.map(pdm_client::ConfigDigest::from);
+                                if let Err(err) = crate::pdm_client()
+                                    .subscription_adopt_key(&remote, &node, digest)
+                                    .await
+                                {
+                                    link.show_error(tr!("Adopt Key"), err.to_string(), true);
+                                }
+                                link.change_view(None);
+                                link.send_reload();
+                            });
+                        })
+                        .on_close(move |_| close_link.change_view(None))
+                        .into(),
+                )
+            }
             ViewState::ConfirmQueueClear {
                 remote,
                 node,
@@ -958,6 +1098,7 @@ impl SubscriptionRegistryComp {
         let can_assign_key = self.assign_target_for_selected_node().is_some();
         let can_revert = self.revert_target().is_some();
         let can_clear_key = self.selected_node_for_clear().is_some();
+        let can_adopt_key = self.selected_node_for_adopt().is_some();
         let assign_button = Tooltip::new(
             Button::new(tr!("Assign Key"))
                 .icon_class("fa fa-link")
@@ -984,7 +1125,16 @@ impl SubscriptionRegistryComp {
         .tip(tr!(
             "Queue the live subscription on the selected node for removal at next Apply \
              Pending, freeing the key for reassignment. Requires the node to be \
-             pool-managed."
+             pool-managed; for foreign subscriptions, run Adopt Key first."
+        ));
+        let adopt_key_button = Tooltip::new(
+            Button::new(tr!("Adopt Key"))
+                .icon_class("fa fa-download")
+                .disabled(!can_adopt_key)
+                .on_activate(ctx.link().callback(|_| Msg::AdoptKeyForSelectedNode)),
+        )
+        .tip(tr!(
+            "Import the live subscription on the selected node into the pool."
         ));
 
         Panel::new()
@@ -994,6 +1144,7 @@ impl SubscriptionRegistryComp {
             .min_width(400)
             .title(tr!("Node Subscription Status"))
             .with_tool(assign_button)
+            .with_tool(adopt_key_button)
             .with_tool(revert_button)
             .with_tool(clear_key_button)
             .with_child(table)
@@ -1078,6 +1229,38 @@ impl SubscriptionRegistryComp {
         Some((n.remote.clone(), n.node.clone(), n.current_key.clone()))
     }
 
+    /// Returns `(remote, node, current_key)` when the selected node has a foreign live
+    /// subscription eligible for Adopt Key: a current key is set on the node and no pool entry
+    /// is bound to (remote, node) yet. Mutually exclusive with `selected_node_for_clear` so the
+    /// toolbar can offer exactly one of Clear Key / Adopt Key for any given selection.
+    fn selected_node_for_adopt(&self) -> Option<(String, String, String)> {
+        let n = self.selected_node_status()?;
+        if n.assigned_key.is_some() {
+            return None;
+        }
+        let current_key = n.current_key.clone()?;
+        Some((n.remote.clone(), n.node.clone(), current_key))
+    }
+
+    /// Iterate the loaded node-status snapshot and return every `(remote, node, current_key)`
+    /// eligible for bulk Adopt-All (live key set, no pool binding). Used both for the toolbar
+    /// disabled gate and for the preview list in the confirm dialog; the authoritative set is
+    /// recomputed by the server under the lock at commit time, so this view is a hint, not a
+    /// contract.
+    fn adopt_all_candidates(&self) -> Vec<(String, String, String)> {
+        self.last_node_data
+            .iter()
+            .filter_map(|n| {
+                if n.assigned_key.is_some() {
+                    return None;
+                }
+                n.current_key
+                    .clone()
+                    .map(|k| (n.remote.clone(), n.node.clone(), k))
+            })
+            .collect()
+    }
+
     /// Returns the [`AssignTarget`] for the right-panel Assign button: selected row is a node, no
     /// assigned key in the pool yet, and no live active subscription. Refusing earlier than the
     /// server keeps the button-disable affordance honest.
@@ -1144,6 +1327,86 @@ impl SubscriptionRegistryComp {
             );
 
         Dialog::new(tr!("Auto-Assign Proposal"))
+            .resizable(true)
+            .width(700)
+            .min_width(500)
+            .min_height(300)
+            .max_height("80vh")
+            .on_close({
+                let link = ctx.link().clone();
+                move |_| link.change_view(None)
+            })
+            .with_child(body)
+            .into()
+    }
+
+    fn render_adopt_all_dialog(
+        &self,
+        ctx: &LoadableComponentContext<Self>,
+        candidates: &[(String, String, String)],
+    ) -> Html {
+        use pwt::widget::Dialog;
+
+        let rows: Vec<AdoptCandidate> = candidates
+            .iter()
+            .map(|(r, n, k)| AdoptCandidate {
+                remote: r.clone(),
+                node: n.clone(),
+                key: k.clone(),
+            })
+            .collect();
+        let n = rows.len();
+        let store: Store<AdoptCandidate> =
+            Store::with_extract_key(|c: &AdoptCandidate| format!("{}/{}", c.remote, c.node).into());
+        store.set_data(rows);
+
+        let link_close = ctx.link().clone();
+        let link_apply = ctx.link().clone();
+        let digest = self.pool_digest.clone();
+        let body = Column::new()
+            .class(Flex::Fill)
+            .class(Overflow::Hidden)
+            .min_height(0)
+            .padding(2)
+            .gap(2)
+            .min_width(600)
+            .with_child(Container::from_tag("p").with_child(tr!(
+                "The following {n} live subscription(s) will be imported into the pool; \
+                 the remote is not contacted.",
+                n = n,
+            )))
+            .with_child(
+                DataTable::new(self.adopt_columns.clone(), store)
+                    .striped(true)
+                    .class(FlexFit)
+                    .min_height(140),
+            )
+            .with_child(
+                Row::new()
+                    .class(JustifyContent::FlexEnd)
+                    .gap(2)
+                    .padding_top(2)
+                    .with_child(
+                        Button::new(tr!("Cancel"))
+                            .on_activate(move |_| link_close.change_view(None)),
+                    )
+                    .with_child(Button::new(tr!("Adopt")).on_activate(move |_| {
+                        let link = link_apply.clone();
+                        let digest = digest.clone();
+                        link.clone().spawn(async move {
+                            let digest = digest.map(pdm_client::ConfigDigest::from);
+                            if let Err(err) =
+                                crate::pdm_client().subscription_adopt_all(digest).await
+                            {
+                                link.show_error(tr!("Adopt All"), err.to_string(), true);
+                            }
+                            link.change_view(None);
+                            link.send_reload();
+                        });
+                    })),
+            );
+
+        Dialog::new(tr!("Adopt All"))
             .resizable(true)
             .width(700)
             .min_width(500)

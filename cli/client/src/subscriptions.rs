@@ -48,6 +48,11 @@ pub fn cli() -> CommandLineInterface {
             "revert-clear",
             CliCommand::new(&API_METHOD_REVERT_CLEAR).arg_param(&["remote", "node"]),
         )
+        .insert(
+            "adopt-key",
+            CliCommand::new(&API_METHOD_ADOPT_KEY).arg_param(&["remote", "node"]),
+        )
+        .insert("adopt-all", CliCommand::new(&API_METHOD_ADOPT_ALL))
         .into()
 }
 
@@ -309,6 +314,61 @@ async fn auto_assign(apply: bool) -> Result<(), Error> {
     let applied = client.subscription_bulk_assign(proposal).await?;
     if applied.is_empty() {
         println!("\nServer rejected the proposal (no entries applied).");
+    }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA },
+            digest: {
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Adopt the live subscription on a remote node into the pool.
+///
+/// Brings a foreign subscription under PDM management without touching the remote: the live
+/// current key on `remote`/`node` is imported as a pool entry bound to that node. Refuses if
+/// the (remote, node) target already has a pool-managed binding.
+async fn adopt_key(remote: String, node: String, digest: Option<String>) -> Result<(), Error> {
+    let digest = digest.map(ConfigDigest::from);
+    client()?
+        .subscription_adopt_key(&remote, &node, digest)
+        .await?;
+    println!("Adopted live subscription on {remote}/{node} into the pool.");
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            digest: {
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Adopt every foreign live subscription into the pool in one transaction.
+///
+/// Walks all remotes the caller can audit, imports any (remote, node) with a live current key
+/// and no pool binding. Candidates the caller has no modify privilege on, or whose key is
+/// already bound elsewhere in the pool, are silently skipped.
+async fn adopt_all(digest: Option<String>) -> Result<(), Error> {
+    let digest = digest.map(ConfigDigest::from);
+    let adopted = client()?.subscription_adopt_all(digest).await?;
+    if adopted.is_empty() {
+        println!("No foreign live subscriptions to adopt.");
+        return Ok(());
+    }
+    println!("Adopted {} live subscription(s):", adopted.len());
+    for e in &adopted {
+        println!("  {}/{} -> {}", e.remote, e.node, e.key);
     }
     Ok(())
 }
