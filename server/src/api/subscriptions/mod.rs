@@ -47,6 +47,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     ),
     ("auto-assign", &Router::new().post(&API_METHOD_AUTO_ASSIGN)),
     ("bulk-assign", &Router::new().post(&API_METHOD_BULK_ASSIGN)),
+    ("check", &Router::new().post(&API_METHOD_CHECK_SUBSCRIPTION)),
     (
         "clear-pending",
         &Router::new().post(&API_METHOD_CLEAR_PENDING)
@@ -815,6 +816,38 @@ async fn delete_subscription_on_remote(
     Ok(())
 }
 
+/// Trigger a fresh shop-side subscription check on `remote`/`node` and return once the remote
+/// has stored the result. Equivalent to the per-product "Check" button, just driven through PDM.
+async fn check_subscription_on_remote(
+    remote: &Remote,
+    product_type: ProductType,
+    node_name: &str,
+) -> Result<(), Error> {
+    match product_type {
+        ProductType::Pve => {
+            let client = crate::connection::make_pve_client(remote)?;
+            client
+                .update_subscription(
+                    node_name,
+                    pve_api_types::UpdateSubscription { force: Some(true) },
+                )
+                .await?;
+        }
+        ProductType::Pbs => {
+            let client = crate::connection::make_pbs_client(remote)?;
+            client
+                .check_subscription(proxmox_subscription::UpdateSubscription { force: Some(true) })
+                .await?;
+        }
+        ProductType::Pmg | ProductType::Pom => {
+            bail!("PDM cannot check '{product_type}' keys: no remote support yet");
+        }
+    }
+
+    info!("re-checked subscription on {}/{node_name}", remote.id);
+    Ok(())
+}
+
 #[api(
     input: {
         properties: {
@@ -971,6 +1004,63 @@ async fn revert_pending_clear(
     })
     .await??;
     rpcenv["digest"] = new_digest.to_hex().into();
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            // NODE_SCHEMA rejects path-traversal input before it ends up interpolated into the
+            // remote URL `/api2/extjs/nodes/{node}/subscription`.
+            node: { schema: NODE_SCHEMA },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Trigger a fresh shop-side subscription check on `remote`/`node`.
+///
+/// Mirrors the per-product "Check" button on PVE / PBS: drives the remote's
+/// `update_subscription(force=true)` endpoint so a status that went stale at the shop (Invalid,
+/// Expired) gets re-verified without waiting for the next periodic check. The cached
+/// subscription state for the remote is invalidated so the next node-status read reflects the
+/// fresh verdict instead of a 5-minute-stale snapshot.
+///
+/// Per-remote `PRIV_RESOURCE_MODIFY` is enforced inside the handler since the call costs an
+/// outbound HTTPS request to the shop.
+async fn check_subscription(
+    remote: String,
+    node: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
+    let user_info = CachedUserInfo::new()?;
+    user_info.check_privs(
+        &auth_id,
+        &["resource", &remote],
+        PRIV_RESOURCE_MODIFY,
+        false,
+    )?;
+
+    let (remotes_config, _) = pdm_config::remotes::config()?;
+    let remote_entry = remotes_config
+        .get(&remote)
+        .ok_or_else(|| http_err!(NOT_FOUND, "remote '{remote}' not found"))?;
+
+    let product_type = match remote_entry.ty {
+        pdm_api_types::remotes::RemoteType::Pve => ProductType::Pve,
+        pdm_api_types::remotes::RemoteType::Pbs => ProductType::Pbs,
+    };
+
+    check_subscription_on_remote(remote_entry, product_type, &node)
+        .await
+        .map_err(|err| http_err!(BAD_REQUEST, "check failed on {remote}/{node}: {err}"))?;
+    invalidate_subscription_info_for_remote(&remote).await;
     Ok(())
 }
 
@@ -1356,11 +1446,20 @@ async fn collect_node_status(
         };
 
         for (node_name, node_info) in &node_infos {
-            let (status, level, sockets, current_key) = match node_info {
-                Some(info) => (info.status, info.level, info.sockets, info.key.clone()),
+            let (status, level, sockets, current_key, check_time, next_due_date) = match node_info {
+                Some(info) => (
+                    info.status,
+                    info.level,
+                    info.sockets,
+                    info.key.clone(),
+                    info.check_time,
+                    info.next_due_date.clone(),
+                ),
                 None => (
                     proxmox_subscription::SubscriptionStatus::NotFound,
                     SubscriptionLevel::None,
+                    None,
+                    None,
                     None,
                     None,
                 ),
@@ -1385,6 +1484,8 @@ async fn collect_node_status(
                 assigned_key,
                 current_key,
                 pending_clear,
+                check_time,
+                next_due_date,
             });
         }
     }
@@ -2080,11 +2181,20 @@ async fn collect_status_uncached(
     for (remote_name, remote_ty, result) in results {
         let Ok(node_infos) = result else { continue };
         for (node_name, node_info) in &node_infos {
-            let (status, level, sockets, current_key) = match node_info {
-                Some(info) => (info.status, info.level, info.sockets, info.key.clone()),
+            let (status, level, sockets, current_key, check_time, next_due_date) = match node_info {
+                Some(info) => (
+                    info.status,
+                    info.level,
+                    info.sockets,
+                    info.key.clone(),
+                    info.check_time,
+                    info.next_due_date.clone(),
+                ),
                 None => (
                     proxmox_subscription::SubscriptionStatus::NotFound,
                     SubscriptionLevel::None,
+                    None,
+                    None,
                     None,
                     None,
                 ),
@@ -2099,6 +2209,8 @@ async fn collect_status_uncached(
                 assigned_key: None,
                 current_key,
                 pending_clear: false,
+                check_time,
+                next_due_date,
             });
         }
     }
@@ -2182,6 +2294,8 @@ mod tests {
             assigned_key: None,
             current_key: None,
             pending_clear: false,
+            check_time: None,
+            next_due_date: None,
         }
     }
 

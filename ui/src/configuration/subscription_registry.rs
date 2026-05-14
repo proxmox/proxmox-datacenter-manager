@@ -7,6 +7,7 @@ use anyhow::Error;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
+use proxmox_yew_comp::utils::render_epoch;
 use proxmox_yew_comp::{http_delete, http_get, http_get_full, http_post};
 use proxmox_yew_comp::{
     LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
@@ -62,6 +63,26 @@ fn subscription_status_label(status: proxmox_subscription::SubscriptionStatus) -
         S::Invalid => tr!("Invalid"),
         S::Expired => tr!("Expired"),
         S::Suspended => tr!("Suspended"),
+    }
+}
+
+/// Build a multi-line Status-column tooltip listing the last-check timestamp and the
+/// next-due-date when the remote provides them. Returns None if neither is set so the caller
+/// can skip wrapping the cell in a tooltip entirely.
+fn status_tooltip_lines(n: &RemoteNodeStatus) -> Option<String> {
+    let mut lines: Vec<String> = Vec::new();
+    if let Some(ts) = n.check_time {
+        lines.push(tr!("Last checked: {when}", when = render_epoch(ts)));
+    }
+    if let Some(due) = n.next_due_date.as_deref() {
+        if !due.is_empty() {
+            lines.push(tr!("Next due: {date}", date = due.to_string()));
+        }
+    }
+    if lines.is_empty() {
+        None
+    } else {
+        Some(lines.join("\n"))
     }
 }
 
@@ -249,6 +270,9 @@ pub enum Msg {
     AdoptKeyForSelectedNode,
     /// Open the confirmation dialog for adopting every foreign live subscription into the pool.
     AdoptAllPreview,
+    /// Re-check the subscription on the currently-selected node against the shop. Pure refresh
+    /// path; no confirmation dialog since the action is read-only from the pool's perspective.
+    CheckSubscriptionForSelectedNode,
 }
 
 #[derive(PartialEq)]
@@ -385,12 +409,16 @@ impl SubscriptionRegistryComp {
                     node_field_sorter(a, b, |n| subscription_status_label(n.status))
                 })
                 .render(|entry: &NodeTreeEntry| match entry {
-                    NodeTreeEntry::Node { data: n, .. } => Row::new()
-                        .class(AlignItems::Baseline)
-                        .gap(2)
-                        .with_child(subscription_status_icon(n.status))
-                        .with_child(subscription_status_label(n.status))
-                        .into(),
+                    NodeTreeEntry::Node { data: n, .. } => {
+                        let row = Row::new()
+                            .class(AlignItems::Baseline)
+                            .gap(2)
+                            .with_child(subscription_status_icon(n.status))
+                            .with_child(subscription_status_label(n.status));
+                        status_tooltip_lines(n)
+                            .map(|tip| Tooltip::new(row.clone()).tip(tip).into())
+                            .unwrap_or_else(|| row.into())
+                    }
                     NodeTreeEntry::Remote { active, total, .. } => {
                         let icon = if active == total {
                             Fa::new("check-circle").class(FontColor::Success)
@@ -732,82 +760,22 @@ impl LoadableComponent for SubscriptionRegistryComp {
                 ctx.link()
                     .change_view(Some(ViewState::ConfirmAdoptAll { candidates }));
             }
+            Msg::CheckSubscriptionForSelectedNode => {
+                let Some(n) = self.selected_node_status() else {
+                    return false;
+                };
+                let remote = n.remote.clone();
+                let node = n.node.clone();
+                let link = ctx.link().clone();
+                ctx.link().spawn(async move {
+                    if let Err(err) = crate::pdm_client().subscription_check(&remote, &node).await {
+                        link.show_error(tr!("Check Subscription"), err.to_string(), true);
+                    }
+                    link.send_reload();
+                });
+            }
         }
         true
-    }
-
-    fn toolbar(&self, ctx: &LoadableComponentContext<Self>) -> Option<Html> {
-        let link = ctx.link();
-        let (push_count, clear_count) = self.pending_counts();
-        let adopt_all_count = self.adopt_all_candidates().len();
-        let mut toolbar = Toolbar::new()
-            .border_bottom(true)
-            .with_child(
-                Tooltip::new(
-                    Button::new(tr!("Auto-Assign"))
-                        .icon_class("fa fa-magic")
-                        .on_activate(link.callback(|_| Msg::AutoAssignPreview)),
-                )
-                .tip(tr!(
-                    "Propose a one-key-per-node assignment for nodes that have no active \
-                     subscription, then queue it pending Apply."
-                )),
-            )
-            .with_child(
-                Tooltip::new(
-                    Button::new(tr!("Adopt All"))
-                        .icon_class("fa fa-download")
-                        .disabled(adopt_all_count == 0)
-                        .on_activate(link.callback(|_| Msg::AdoptAllPreview)),
-                )
-                .tip(tr!(
-                    "Import every foreign live subscription that is not yet tracked by the \
-                     pool. The remote is not contacted; only the pool config is updated."
-                )),
-            )
-            .with_spacer()
-            .with_child(
-                Tooltip::new(
-                    Button::new(tr!("Apply Pending"))
-                        .icon_class("fa fa-play")
-                        .disabled(push_count + clear_count == 0)
-                        .on_activate(
-                            link.change_view_callback(|_| Some(ViewState::ConfirmApplyPending)),
-                        ),
-                )
-                .tip(tr!(
-                    "Push every queued assignment to its remote node and remove the \
-                     subscription from nodes pending clear."
-                )),
-            )
-            .with_child(
-                Tooltip::new(
-                    Button::new(tr!("Discard Pending"))
-                        .icon_class("fa fa-eraser")
-                        .disabled(push_count + clear_count == 0)
-                        .on_activate(
-                            link.change_view_callback(|_| Some(ViewState::ConfirmClearPending)),
-                        ),
-                )
-                .tip(tr!(
-                    "Discard queued assignments without touching the remote nodes."
-                )),
-            )
-            .with_flex_spacer();
-
-        if push_count + clear_count > 0 {
-            toolbar = toolbar.with_child(pending_badge(push_count, clear_count));
-        }
-
-        Some(
-            toolbar
-                .with_flex_spacer()
-                .with_child(Button::refresh(self.loading()).on_activate({
-                    let link = link.clone();
-                    move |_| link.send_reload()
-                }))
-                .into(),
-        )
     }
 
     fn load(
@@ -1066,21 +1034,27 @@ impl LoadableComponent for SubscriptionRegistryComp {
 
 impl SubscriptionRegistryComp {
     fn render_key_pool_panel(&self, ctx: &LoadableComponentContext<Self>) -> Panel {
+        let statuses = Rc::new(self.last_node_data.clone());
         // Reload the right-side node tree whenever the left-side key pool mutates, so a fresh
         // assignment shows up as pending without forcing the operator to re-navigate.
-        let link = ctx.link().clone();
-        // Pass the current node-status snapshot into the grid so its Clear button can be
-        // disabled for synced bindings (orphan-prevention - mirrors the server-side refusal).
-        let statuses = Rc::new(self.last_node_data.clone());
+        let reload = ctx.link().clone();
+        // Both panels share one fetch, so this refresh reloads the whole view; each panel still
+        // carries its own so the control sits where the operator expects it.
+        let refresh = Button::refresh(self.loading()).on_activate({
+            let link = ctx.link().clone();
+            move |_| link.send_reload()
+        });
         Panel::new()
             .class(FlexFit)
             .border(true)
             .style("flex", "3 1 0")
             .min_width(300)
             .title(tr!("Key Pool"))
+            .with_tool(refresh)
             .with_child(
                 SubscriptionKeyGrid::new()
-                    .on_change(Callback::from(move |_| link.send_reload()))
+                    .on_change(Callback::from(move |_| reload.send_reload()))
+                    .on_auto_assign(ctx.link().callback(|_| Msg::AutoAssignPreview))
                     .node_status(statuses)
                     .pool_keys(self.pool_keys.clone())
                     .pool_digest(self.pool_digest.clone()),
@@ -1099,6 +1073,15 @@ impl SubscriptionRegistryComp {
         let can_revert = self.revert_target().is_some();
         let can_clear_key = self.selected_node_for_clear().is_some();
         let can_adopt_key = self.selected_node_for_adopt().is_some();
+        let adopt_all_count = self.adopt_all_candidates().len();
+        let (push_count, clear_count) = self.pending_counts();
+        let pending = push_count + clear_count;
+        // Check Subscription is a no-op on the remote when no key is installed (PVE / PBS
+        // `update_subscription` returns early without contacting the shop), so disable the
+        // button to keep the UI honest about what clicking it will do.
+        let can_check = self
+            .selected_node_status()
+            .is_some_and(|n| n.status != proxmox_subscription::SubscriptionStatus::NotFound);
         let assign_button = Tooltip::new(
             Button::new(tr!("Assign Key"))
                 .icon_class("fa fa-link")
@@ -1136,6 +1119,84 @@ impl SubscriptionRegistryComp {
         .tip(tr!(
             "Import the live subscription on the selected node into the pool."
         ));
+        let check_button = Tooltip::new(
+            Button::new(tr!("Check Subscription"))
+                .icon_class("fa fa-refresh")
+                .disabled(!can_check)
+                .on_activate(
+                    ctx.link()
+                        .callback(|_| Msg::CheckSubscriptionForSelectedNode),
+                ),
+        )
+        .tip(if can_check {
+            tr!("Re-verify the live subscription against the shop, refreshing the status.")
+        } else {
+            tr!("No subscription installed on the selected node; assign or adopt one first.")
+        });
+
+        let adopt_all_button = Tooltip::new(
+            Button::new(tr!("Adopt All"))
+                .icon_class("fa fa-download")
+                .disabled(adopt_all_count == 0)
+                .on_activate(ctx.link().callback(|_| Msg::AdoptAllPreview)),
+        )
+        .tip(tr!(
+            "Import every foreign live subscription that is not yet tracked by the \
+             pool. The remote is not contacted; only the pool config is updated."
+        ));
+        let apply_pending_button = Tooltip::new(
+            Button::new(tr!("Apply Pending"))
+                .icon_class("fa fa-play")
+                .disabled(pending == 0)
+                .on_activate(
+                    ctx.link()
+                        .change_view_callback(|_| Some(ViewState::ConfirmApplyPending)),
+                ),
+        )
+        .tip(tr!(
+            "Push every queued assignment to its remote node and remove the \
+             subscription from nodes pending clear."
+        ));
+        let discard_pending_button = Tooltip::new(
+            Button::new(tr!("Discard Pending"))
+                .icon_class("fa fa-eraser")
+                .disabled(pending == 0)
+                .on_activate(
+                    ctx.link()
+                        .change_view_callback(|_| Some(ViewState::ConfirmClearPending)),
+                ),
+        )
+        .tip(tr!(
+            "Discard queued assignments without touching the remote nodes."
+        ));
+
+        let refresh_button = Button::refresh(self.loading()).on_activate({
+            let link = ctx.link().clone();
+            move |_| link.send_reload()
+        });
+
+        // Left: per-node actions on the selected row, grouped add-key / undo-or-remove / verify.
+        // Right: bulk and queue actions over all nodes. The pending badge is fenced off from the
+        // queue verbs by its own rule so the verb cluster keeps its position when it is absent.
+        let mut toolbar = Toolbar::new()
+            .border_bottom(true)
+            .with_child(assign_button)
+            .with_child(adopt_key_button)
+            .with_spacer()
+            .with_child(revert_button)
+            .with_child(clear_key_button)
+            .with_spacer()
+            .with_child(check_button)
+            .with_flex_spacer();
+        if pending > 0 {
+            toolbar = toolbar
+                .with_child(pending_badge(push_count, clear_count))
+                .with_spacer();
+        }
+        toolbar = toolbar
+            .with_child(adopt_all_button)
+            .with_child(apply_pending_button)
+            .with_child(discard_pending_button);
 
         Panel::new()
             .class(FlexFit)
@@ -1143,11 +1204,13 @@ impl SubscriptionRegistryComp {
             .style("flex", "4 1 0")
             .min_width(400)
             .title(tr!("Node Subscription Status"))
-            .with_tool(assign_button)
-            .with_tool(adopt_key_button)
-            .with_tool(revert_button)
-            .with_tool(clear_key_button)
-            .with_child(table)
+            .with_tool(refresh_button)
+            .with_child(
+                Column::new()
+                    .class(FlexFit)
+                    .with_child(toolbar)
+                    .with_child(table),
+            )
     }
 
     /// Return `(pending pushes, pending clears)` mirroring the server's `compute_pending`

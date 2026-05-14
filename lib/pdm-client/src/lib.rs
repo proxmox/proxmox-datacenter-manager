@@ -1397,6 +1397,22 @@ impl<T: HttpApiClient> PdmClient<T> {
             .nodata()
     }
 
+    /// Trigger a fresh shop-side subscription check on `remote`/`node`. Equivalent to the
+    /// per-product "Check" button: drives `update_subscription(force=true)` and invalidates the
+    /// remote's cached subscription state so the next `subscription_node_status` reflects the
+    /// new verdict.
+    pub async fn subscription_check(&self, remote: &str, node: &str) -> Result<(), Error> {
+        #[derive(Serialize)]
+        struct Args<'a> {
+            remote: &'a str,
+            node: &'a str,
+        }
+        self.0
+            .post("/api2/extjs/subscriptions/check", &Args { remote, node })
+            .await?
+            .nodata()
+    }
+
     /// Clear every pending assignment in one bulk transaction; returns the count of cleared
     /// entries.
     pub async fn subscription_clear_pending(

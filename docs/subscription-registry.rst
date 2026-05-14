@@ -64,6 +64,13 @@ order and attempts every entry; any that fail are reported and stay pending, so 
 node does not strand the rest and a later Apply Pending retries only the failures. Discard
 Pending drops the plan without touching any remote.
 
+The Check Subscription action triggers a fresh shop-side verification of the live subscription
+on the selected node, equivalent to the per-product "Check" button on PVE / PBS. Useful for
+promoting a stale ``Invalid`` or ``Expired`` verdict to ``Active`` once the underlying issue is
+fixed at the shop, without having to wait for the next periodic check. The Status column tooltip
+surfaces the last-checked timestamp and the next-due-date as reported by the remote, where
+available.
+
 Permissions
 -----------
 

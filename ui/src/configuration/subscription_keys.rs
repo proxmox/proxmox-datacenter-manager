@@ -261,48 +261,60 @@ impl LoadableComponent for SubscriptionKeyGridComp {
             .unwrap_or(false);
         let link = ctx.link();
 
-        Some(
-            Toolbar::new()
-                .border_bottom(true)
-                .with_child(
-                    Tooltip::new(
-                        Button::new(tr!("Add"))
-                            .icon_class("fa fa-plus")
-                            .on_activate(link.change_view_callback(|_| Some(ViewState::Add))),
-                    )
-                    .tip(tr!(
-                        "Add one or more subscription keys to the pool; the Assign step \
-                         happens later."
-                    )),
+        let mut toolbar = Toolbar::new()
+            .border_bottom(true)
+            .with_child(
+                Tooltip::new(
+                    Button::new(tr!("Add"))
+                        .icon_class("fa fa-plus")
+                        .on_activate(link.change_view_callback(|_| Some(ViewState::Add))),
                 )
-                .with_spacer()
-                .with_child(
-                    Tooltip::new(
-                        Button::new(tr!("Remove Key"))
-                            .icon_class("fa fa-trash-o")
-                            .disabled(!has_selection || synced_assignment)
-                            .on_activate(link.change_view_callback(|_| Some(ViewState::Remove))),
-                    )
-                    .tip(tr!(
-                        "Remove the selected key from the pool. Disabled while the key is \
-                         live on a remote node."
-                    )),
+                .tip(tr!(
+                    "Add one or more subscription keys to the pool; the Assign step \
+                     happens later."
+                )),
+            )
+            .with_spacer()
+            .with_child(
+                Tooltip::new(
+                    Button::new(tr!("Assign"))
+                        .icon_class("fa fa-link")
+                        .disabled(!has_selection || is_assigned || !assignable)
+                        .on_activate(link.change_view_callback(|_| Some(ViewState::Assign))),
                 )
-                .with_spacer()
-                .with_child(
-                    Tooltip::new(
-                        Button::new(tr!("Assign"))
-                            .icon_class("fa fa-link")
-                            .disabled(!has_selection || is_assigned || !assignable)
-                            .on_activate(link.change_view_callback(|_| Some(ViewState::Assign))),
-                    )
-                    .tip(tr!(
-                        "Pin the selected key to a remote node; Apply Pending pushes the \
-                         assignment to the remote."
-                    )),
+                .tip(tr!(
+                    "Pin the selected key to a remote node; Apply Pending pushes the \
+                     assignment to the remote."
+                )),
+            )
+            .with_child(
+                Tooltip::new(
+                    Button::new(tr!("Remove Key"))
+                        .icon_class("fa fa-trash-o")
+                        .disabled(!has_selection || synced_assignment)
+                        .on_activate(link.change_view_callback(|_| Some(ViewState::Remove))),
                 )
-                .into(),
-        )
+                .tip(tr!(
+                    "Remove the selected key from the pool. Disabled while the key is \
+                     live on a remote node."
+                )),
+            );
+
+        if let Some(cb) = ctx.props().on_auto_assign.clone() {
+            toolbar = toolbar.with_flex_spacer().with_child(
+                Tooltip::new(
+                    Button::new(tr!("Auto-Assign"))
+                        .icon_class("fa fa-magic")
+                        .on_activate(move |_| cb.emit(())),
+                )
+                .tip(tr!(
+                    "Propose a one-key-per-node assignment for nodes that have no active \
+                     subscription, then queue it pending Apply."
+                )),
+            );
+        }
+
+        Some(toolbar.into())
     }
 
     fn changed(

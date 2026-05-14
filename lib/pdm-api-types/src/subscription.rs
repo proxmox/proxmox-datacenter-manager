@@ -120,6 +120,14 @@ pub struct NodeSubscriptionInfo {
     /// Serverid of the node, if accessible
     #[serde(skip_serializing)]
     pub serverid: Option<String>,
+
+    /// Epoch of the last successful subscription check on the node.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub check_time: Option<i64>,
+
+    /// Next due date of the subscription, as reported by the remote.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_due_date: Option<String>,
 }
 
 #[api(
@@ -555,6 +563,12 @@ pub struct RemoteNodeStatus {
     /// True when the pool has a clear queued for this node. Omitted on the wire when false.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub pending_clear: bool,
+    /// Epoch of the last successful subscription check on the node.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub check_time: Option<i64>,
+    /// Next due date of the subscription, as reported by the remote.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_due_date: Option<String>,
 }
 
 #[api]

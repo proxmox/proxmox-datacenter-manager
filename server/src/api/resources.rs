@@ -954,6 +954,8 @@ async fn fetch_remote_subscription_info(
                                 .level
                                 .and_then(|level| level.parse().ok())
                                 .unwrap_or_default(),
+                            check_time: info.checktime,
+                            next_due_date: info.nextduedate,
                         }
                     }),
                 );
@@ -970,6 +972,8 @@ async fn fetch_remote_subscription_info(
                     key: info.key,
                     level,
                     serverid: info.serverid,
+                    check_time: info.checktime,
+                    next_due_date: info.nextduedate,
                 }
             });
 

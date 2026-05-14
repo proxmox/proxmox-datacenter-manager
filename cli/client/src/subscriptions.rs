@@ -53,6 +53,10 @@ pub fn cli() -> CommandLineInterface {
             CliCommand::new(&API_METHOD_ADOPT_KEY).arg_param(&["remote", "node"]),
         )
         .insert("adopt-all", CliCommand::new(&API_METHOD_ADOPT_ALL))
+        .insert(
+            "check",
+            CliCommand::new(&API_METHOD_CHECK_SUBSCRIPTION).arg_param(&["remote", "node"]),
+        )
         .into()
 }
 
@@ -370,6 +374,25 @@ async fn adopt_all(digest: Option<String>) -> Result<(), Error> {
     for e in &adopted {
         println!("  {}/{} -> {}", e.remote, e.node, e.key);
     }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA },
+        },
+    },
+)]
+/// Trigger a fresh shop-side subscription check on a remote node.
+///
+/// Equivalent to the per-product "Check" button: re-verifies the live subscription status
+/// against the shop. Useful for promoting a stale Invalid/Expired verdict to Active once the
+/// underlying issue is fixed at the shop, without waiting for the next periodic check.
+async fn check_subscription(remote: String, node: String) -> Result<(), Error> {
+    client()?.subscription_check(&remote, &node).await?;
+    println!("Re-checked subscription on {remote}/{node}.");
     Ok(())
 }
 
