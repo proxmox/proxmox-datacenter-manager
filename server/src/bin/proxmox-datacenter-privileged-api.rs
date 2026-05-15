@@ -14,7 +14,7 @@ use proxmox_rest_server::{ApiConfig, RestServer};
 use proxmox_router::RpcEnvironmentType;
 use proxmox_sys::fs::CreateOptions;
 
-use server::auth;
+use server::{api_cache, auth};
 
 use pdm_buildcfg::configdir;
 
@@ -100,6 +100,13 @@ fn create_directories() -> Result<(), Error> {
         api_user.uid,
         api_user.gid,
         0o755,
+    )?;
+
+    pdm_config::setup::mkdir_perms(
+        api_cache::PDM_API_CACHE_PATH,
+        api_user.uid,
+        api_user.gid,
+        0o750,
     )?;
 
     server::jobstate::create_jobstate_dir()?;

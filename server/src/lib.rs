@@ -2,6 +2,7 @@
 
 pub mod acl;
 pub mod api;
+pub mod api_cache;
 pub mod auth;
 pub mod context;
 pub mod env;
