@@ -1,4 +1,4 @@
-proxmox-datacenter-manager-ui (1.0.4) UNRELEASED; urgency=medium
+proxmox-datacenter-manager-ui (1.0.4) trixie; urgency=medium
 
   * header bar search field: show finger pointer cursor when hovering the
     clear trigger.
@@ -12,9 +12,20 @@ proxmox-datacenter-manager-ui (1.0.4) UNRELEASED; urgency=medium
   * notes view: allow a curated subset of presentation MathML so that admins
     can embed the calculations they used to derive a configuration.
 
+  * notes view: auto-derive heading anchor IDs from heading text, enabling
+    intra-document links between sections.
+
   * node status: show graphs for various metrics of the local PDM node,
     including CPU usage, load average, memory usage, pressure stall
     information, network and disk utilization.
+
+  * node status: increase padding and gap between RRD graph panels for a
+    more readable layout, and fix the size observer so panels resize
+    correctly when their container changes.
+
+  * realm edit dialog: openid: expose an advanced 'audiences' field to
+    declare additional trusted audiences besides the configured client-id,
+    matching the new server-side support for fix #5076.
 
   * remotes: add new "Automated Installations" tab with three panels for
     integrating with the Proxmox auto-installer: an installations overview
@@ -23,7 +34,7 @@ proxmox-datacenter-manager-ui (1.0.4) UNRELEASED; urgency=medium
     for issuing and revoking the bearer tokens that authenticate answer
     retrieval.
 
- -- Proxmox Support Team <support@proxmox.com>  Thu, 16 Apr 2026 15:01:16 +0200
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 15 May 2026 11:09:28 +0200
 
 proxmox-datacenter-manager-ui (1.0.3) trixie; urgency=medium
 
