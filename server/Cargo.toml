@@ -29,6 +29,7 @@ openssl.workspace = true
 percent-encoding.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 tokio = { workspace = true, features = [ "fs", "io-util", "io-std", "macros", "net", "parking_lot", "process", "rt", "rt-multi-thread", "signal", "time" ] }
 tracing.workspace = true
 url.workspace = true
@@ -86,6 +87,9 @@ pdm-search.workspace = true
 
 pve-api-types = { workspace = true, features = [ "client" ] }
 pbs-api-types.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints.rust.unexpected_cfgs]
 level = "warn"

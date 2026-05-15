@@ -7,6 +7,7 @@ pub mod context;
 pub mod env;
 pub mod jobstate;
 pub mod metric_collection;
+pub mod namespaced_cache;
 pub mod parallel_fetcher;
 pub mod remote_cache;
 pub mod remote_tasks;
