@@ -588,8 +588,8 @@ pub async fn get_options(remote: String) -> Result<serde_json::Value, Error> {
     },
 )]
 /// Return the cached update information about a remote.
-pub fn get_updates(remote: String) -> Result<RemoteUpdateSummary, Error> {
-    let update_summary = get_available_updates_for_remote(&remote)?;
+pub async fn get_updates(remote: String) -> Result<RemoteUpdateSummary, Error> {
+    let update_summary = get_available_updates_for_remote(&remote).await?;
 
     Ok(update_summary)
 }

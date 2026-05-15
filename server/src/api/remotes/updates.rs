@@ -42,7 +42,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     returns: { type: UpdateSummary }
 )]
 /// Return available update summary for managed remote nodes.
-pub fn update_summary(rpcenv: &mut dyn RpcEnvironment) -> Result<UpdateSummary, Error> {
+pub async fn update_summary(rpcenv: &mut dyn RpcEnvironment) -> Result<UpdateSummary, Error> {
     let auth_id = rpcenv
         .get_auth_id()
         .context("no authid available")?
@@ -53,7 +53,7 @@ pub fn update_summary(rpcenv: &mut dyn RpcEnvironment) -> Result<UpdateSummary, 
         http_bail!(FORBIDDEN, "user has no access to resources");
     }
 
-    let mut update_summary = remote_updates::get_available_updates_summary()?;
+    let mut update_summary = remote_updates::get_available_updates_summary().await?;
 
     update_summary.remotes.retain(|remote_name, _| {
         user_info
@@ -136,7 +136,7 @@ async fn apt_update_available(remote: String, node: String) -> Result<Vec<APTUpd
     let (config, _digest) = pdm_config::remotes::config()?;
     let remote = get_remote(&config, &remote)?;
 
-    let updates = remote_updates::list_available_updates(remote.clone(), &node).await?;
+    let updates = remote_updates::list_available_updates(remote.clone(), node).await?;
 
     Ok(updates)
 }

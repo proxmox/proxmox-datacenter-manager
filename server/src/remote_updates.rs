@@ -1,6 +1,3 @@
-use std::fs::File;
-use std::io::ErrorKind;
-
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
@@ -12,12 +9,13 @@ use pdm_api_types::remote_updates::{
 };
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::RemoteUpid;
-use pdm_buildcfg::PDM_CACHE_DIR_M;
 
-use crate::connection;
 use crate::parallel_fetcher::ParallelFetcher;
+use crate::{api_cache, connection};
 
-pub const UPDATE_CACHE: &str = concat!(PDM_CACHE_DIR_M!(), "/remote-updates.json");
+const OLD_CACHEFILE: &str = concat!(pdm_buildcfg::PDM_CACHE_DIR_M!(), "/remote-updates.json");
+
+const UPDATE_SUMMARY_CACHE_KEY: &str = "remote-updates";
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -28,14 +26,14 @@ struct NodeUpdateInfo {
     repository_status: ProductRepositoryStatus,
 }
 
-impl From<NodeUpdateInfo> for NodeUpdateSummary {
-    fn from(value: NodeUpdateInfo) -> Self {
+impl From<&NodeUpdateInfo> for NodeUpdateSummary {
+    fn from(value: &NodeUpdateInfo) -> Self {
         Self {
             number_of_updates: value.updates.len() as u32,
             last_refresh: value.last_refresh,
             status: NodeUpdateStatus::Success,
             status_message: None,
-            versions: value.versions,
+            versions: value.versions.clone(),
             repository_status: value.repository_status,
         }
     }
@@ -44,11 +42,18 @@ impl From<NodeUpdateInfo> for NodeUpdateSummary {
 /// Return a list of available updates for a given remote node.
 pub async fn list_available_updates(
     remote: Remote,
-    node: &str,
+    node: String,
 ) -> Result<Vec<APTUpdateInfo>, Error> {
-    let updates = fetch_available_updates((), remote.clone(), node.to_string()).await?;
+    let updates = fetch_available_updates((), remote.clone(), node.clone()).await?;
 
-    update_cached_summary_for_node(remote, node.into(), updates.clone().into()).await?;
+    let summary = NodeUpdateSummary::from(&updates);
+
+    // Update cache entry asynchronously, no need to wait for it.
+    tokio::task::spawn(async move {
+        if let Err(err) = update_cached_summary_for_node(remote, node, summary).await {
+            log::error!("could not update 'remote-updates' API cache entry: {err}");
+        }
+    });
 
     Ok(updates.updates)
 }
@@ -106,10 +111,10 @@ pub async fn get_changelog(remote: &Remote, node: &str, package: String) -> Resu
 }
 
 /// Get update summary for all managed remotes.
-pub fn get_available_updates_summary() -> Result<UpdateSummary, Error> {
+pub async fn get_available_updates_summary() -> Result<UpdateSummary, Error> {
     let (config, _digest) = pdm_config::remotes::config()?;
 
-    let cache_content = get_cached_summary_or_default()?;
+    let cache_content = get_cached_summary_or_default().await?;
 
     let mut summary = UpdateSummary::default();
 
@@ -137,11 +142,11 @@ pub fn get_available_updates_summary() -> Result<UpdateSummary, Error> {
 }
 
 /// Return cached update information from specific remote
-pub fn get_available_updates_for_remote(remote: &str) -> Result<RemoteUpdateSummary, Error> {
+pub async fn get_available_updates_for_remote(remote: &str) -> Result<RemoteUpdateSummary, Error> {
     let (config, _digest) = pdm_config::remotes::config()?;
 
     if let Some(remote) = config.get(remote) {
-        let cache_content = get_cached_summary_or_default()?;
+        let cache_content = get_cached_summary_or_default().await?;
         Ok(cache_content
             .remotes
             .get(&remote.id)
@@ -156,22 +161,24 @@ pub fn get_available_updates_for_remote(remote: &str) -> Result<RemoteUpdateSumm
     }
 }
 
-fn get_cached_summary_or_default() -> Result<UpdateSummary, Error> {
-    match File::open(UPDATE_CACHE) {
-        Ok(file) => {
-            let content = match serde_json::from_reader(file) {
-                Ok(cache_content) => cache_content,
-                Err(err) => {
-                    log::error!("failed to deserialize remote update cache: {err:#}");
-                    Default::default()
-                }
-            };
+/// Read the cached summary from the API cache, or return a default, empty summary.
+///
+/// Note: This does not return an error if the cache entry could not be read (e.g. due to
+/// a deserialization error), but also returns the default, empty summary.
+/// This ensures that the cache self-heals if an entry got corrupted for some reason.
+async fn get_cached_summary_or_default() -> Result<UpdateSummary, Error> {
+    let guard = api_cache::read_global().await?;
 
-            Ok(content)
-        }
-        Err(err) if err.kind() == ErrorKind::NotFound => Ok(Default::default()),
-        Err(err) => Err(err.into()),
-    }
+    let summary = guard
+        .get::<UpdateSummary>(UPDATE_SUMMARY_CACHE_KEY)
+        .await
+        .inspect_err(|err| {
+            log::error!("could not read 'remote-updates' entry from API cache: {err}")
+        })
+        .unwrap_or_default()
+        .unwrap_or_default();
+
+    Ok(summary)
 }
 
 async fn update_cached_summary_for_node(
@@ -179,8 +186,12 @@ async fn update_cached_summary_for_node(
     node: String,
     node_data: NodeUpdateSummary,
 ) -> Result<(), Error> {
-    let mut file = File::open(UPDATE_CACHE)?;
-    let mut cache_content: UpdateSummary = serde_json::from_reader(&mut file)?;
+    let cache = api_cache::write_global().await?;
+    let mut cache_content = cache
+        .get::<UpdateSummary>(UPDATE_SUMMARY_CACHE_KEY)
+        .await?
+        .unwrap_or_default();
+
     let remote_entry =
         cache_content
             .remotes
@@ -192,14 +203,7 @@ async fn update_cached_summary_for_node(
             });
 
     remote_entry.nodes.insert(node, node_data);
-
-    let options = proxmox_product_config::default_create_options();
-    proxmox_sys::fs::replace_file(
-        UPDATE_CACHE,
-        &serde_json::to_vec(&cache_content)?,
-        options,
-        true,
-    )?;
+    cache.set(UPDATE_SUMMARY_CACHE_KEY, cache_content).await?;
 
     Ok(())
 }
@@ -212,7 +216,15 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
         .do_for_all_remote_nodes(remotes.clone().into_iter(), fetch_available_updates)
         .await;
 
-    let mut content = get_cached_summary_or_default()?;
+    let cache = api_cache::write_global().await?;
+    let mut content = cache
+        .get::<UpdateSummary>(UPDATE_SUMMARY_CACHE_KEY)
+        .await
+        .inspect_err(|err| {
+            log::error!("could not read 'remote-updates' entry from API cache: {err}")
+        })
+        .unwrap_or_default()
+        .unwrap_or_default();
 
     // Clean out any remotes that might have been removed from the remote config in the meanwhile.
     content
@@ -245,7 +257,7 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
 
                     match node_response.data() {
                         Ok(update_info) => {
-                            entry.nodes.insert(node_name, update_info.clone().into());
+                            entry.nodes.insert(node_name, update_info.into());
                         }
                         Err(err) => {
                             // Could not fetch updates from node
@@ -275,8 +287,27 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
         }
     }
 
-    let options = proxmox_product_config::default_create_options();
-    proxmox_sys::fs::replace_file(UPDATE_CACHE, &serde_json::to_vec(&content)?, options, true)?;
+    cache.set(UPDATE_SUMMARY_CACHE_KEY, content).await?;
+
+    cleanup_old_cachefile().await?;
+
+    Ok(())
+}
+
+// FIXME: We can remove this pretty soon.
+async fn cleanup_old_cachefile() -> Result<(), Error> {
+    tokio::task::spawn_blocking(|| {
+        if let Err(err) = std::fs::remove_file(OLD_CACHEFILE) {
+            if err.kind() != std::io::ErrorKind::NotFound {
+                log::error!(
+                    "could not clean up old remote update cache file {OLD_CACHEFILE}: {err}"
+                );
+            }
+        } else {
+            log::info!("removed obsolete remote update cachefile {OLD_CACHEFILE}")
+        }
+    })
+    .await?;
 
     Ok(())
 }
