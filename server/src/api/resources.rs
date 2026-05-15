@@ -30,9 +30,10 @@ use proxmox_schema::{api, parse_boolean};
 use proxmox_sortable_macro::sortable;
 use proxmox_subscription::SubscriptionStatus;
 use pve_api_types::{ClusterResource, ClusterResourceNetworkType, ClusterResourceType};
+use serde::{Deserialize, Serialize};
 
 use crate::metric_collection::top_entities;
-use crate::{connection, views};
+use crate::{api_cache, connection, views};
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -798,14 +799,10 @@ async fn get_top_entities(
     Ok(res)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 struct CachedSubscriptionState {
     node_info: HashMap<String, Option<NodeSubscriptionInfo>>,
-    timestamp: i64,
 }
-
-static SUBSCRIPTION_CACHE: LazyLock<RwLock<HashMap<String, CachedSubscriptionState>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 /// Get the subscription state for a given remote.
 ///
@@ -815,66 +812,59 @@ pub async fn get_subscription_info_for_remote(
     remote: &Remote,
     max_age: u64,
 ) -> Result<HashMap<String, Option<NodeSubscriptionInfo>>, Error> {
-    if let Some(cached_subscription) = get_cached_subscription_info(&remote.id, max_age) {
+    if let Some(cached_subscription) = get_cached_subscription_info(&remote.id, max_age).await? {
         Ok(cached_subscription.node_info)
     } else {
         let node_info = fetch_remote_subscription_info(remote).await?;
         let now = proxmox_time::epoch_i64();
-        update_cached_subscription_info(&remote.id, &node_info, now);
+
+        if let Some(existing_state) =
+            update_cached_subscription_info(&remote.id, node_info.clone(), now).await?
+        {
+            // Somebody else updated the cache while we performed the API request,
+            // return the more recent data instead of the data we just fetched.
+            return Ok(existing_state.node_info);
+        }
         Ok(node_info)
     }
 }
 
-fn get_cached_subscription_info(remote: &str, max_age: u64) -> Option<CachedSubscriptionState> {
-    let cache = SUBSCRIPTION_CACHE
-        .read()
-        .expect("subscription mutex poisoned");
+const SUBSCRIPTION_STATE_CACHE_KEY: &str = "subscription-state";
 
-    if max_age == 0 {
-        return None;
-    }
-    if let Some(cached_subscription) = cache.get(remote) {
-        let now = proxmox_time::epoch_i64();
-        let diff = now - cached_subscription.timestamp;
+async fn get_cached_subscription_info(
+    remote: &str,
+    max_age: u64,
+) -> Result<Option<CachedSubscriptionState>, Error> {
+    let cache = api_cache::read_remote(remote).await?;
+    let subscription_state = cache
+        .get_with_max_age(SUBSCRIPTION_STATE_CACHE_KEY, max_age as i64)
+        .await
+        .inspect_err(|err| log::error!("could not read subscription-state from API cache: {err}"))
+        .ok()
+        .flatten();
 
-        if diff >= max_age as i64 || diff < 0 {
-            // value is too old or from the future
-            None
-        } else {
-            Some(cached_subscription.clone())
-        }
-    } else {
-        None
-    }
+    Ok(subscription_state)
 }
 
 /// Update cached subscription data.
 ///
-/// If the cache already contains more recent data we don't insert the passed resources.
-fn update_cached_subscription_info(
+/// If the cache already contains more recent data, this function returns the already
+/// stored state as `Ok(Some(state))`. If the data that was passed in replaced the cache
+/// entry, `Ok(None)` is returned.
+async fn update_cached_subscription_info(
     remote: &str,
-    node_info: &HashMap<String, Option<NodeSubscriptionInfo>>,
+    node_info: HashMap<String, Option<NodeSubscriptionInfo>>,
     now: i64,
-) {
-    // there is no good way to recover from this, so panicking should be fine
-    let mut cache = SUBSCRIPTION_CACHE
-        .write()
-        .expect("subscription mutex poisoned");
+) -> Result<Option<CachedSubscriptionState>, Error> {
+    let cache = api_cache::write_remote(remote).await?;
 
-    if let Some(cached_resource) = cache.get(remote) {
-        // skip updating if the data is new enough
-        if cached_resource.timestamp >= now {
-            return;
-        }
-    }
-
-    cache.insert(
-        remote.into(),
-        CachedSubscriptionState {
-            node_info: node_info.clone(),
-            timestamp: now,
-        },
-    );
+    Ok(cache
+        .set_if_newer_with_timestamp(
+            SUBSCRIPTION_STATE_CACHE_KEY,
+            CachedSubscriptionState { node_info },
+            now,
+        )
+        .await?)
 }
 
 /// Maps a list of node subscription infos into a single [`RemoteSubscriptionState`]
