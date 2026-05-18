@@ -10,6 +10,7 @@ use pdm_api_types::remote_updates::{
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::RemoteUpid;
 
+use crate::namespaced_cache::CacheError;
 use crate::parallel_fetcher::ParallelFetcher;
 use crate::{api_cache, connection};
 
@@ -161,23 +162,24 @@ pub async fn get_available_updates_for_remote(remote: &str) -> Result<RemoteUpda
     }
 }
 
-/// Read the cached summary from the API cache, or return a default, empty summary.
+/// Turn a cache-read result into a summary, falling back to the default on any error.
 ///
-/// Note: This does not return an error if the cache entry could not be read (e.g. due to
-/// a deserialization error), but also returns the default, empty summary.
-/// This ensures that the cache self-heals if an entry got corrupted for some reason.
-async fn get_cached_summary_or_default() -> Result<UpdateSummary, Error> {
-    let guard = api_cache::read_global().await?;
-
-    let summary = guard
-        .get::<UpdateSummary>(UPDATE_SUMMARY_CACHE_KEY)
-        .await
+/// This ensures that the cache self-heals if an entry got corrupted for some reason,
+/// instead of leaving the surrounding code path stuck on a read error it has no way to
+/// recover from.
+fn summary_or_default(result: Result<Option<UpdateSummary>, CacheError>) -> UpdateSummary {
+    result
         .inspect_err(|err| {
             log::error!("could not read 'remote-updates' entry from API cache: {err}")
         })
         .unwrap_or_default()
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
 
+/// Read the cached summary from the API cache, or return a default, empty summary.
+async fn get_cached_summary_or_default() -> Result<UpdateSummary, Error> {
+    let guard = api_cache::read_global().await?;
+    let summary = summary_or_default(guard.get::<UpdateSummary>(UPDATE_SUMMARY_CACHE_KEY).await);
     Ok(summary)
 }
 
@@ -187,10 +189,8 @@ async fn update_cached_summary_for_node(
     node_data: NodeUpdateSummary,
 ) -> Result<(), Error> {
     let cache = api_cache::write_global().await?;
-    let mut cache_content = cache
-        .get::<UpdateSummary>(UPDATE_SUMMARY_CACHE_KEY)
-        .await?
-        .unwrap_or_default();
+    let mut cache_content =
+        summary_or_default(cache.get::<UpdateSummary>(UPDATE_SUMMARY_CACHE_KEY).await);
 
     let remote_entry =
         cache_content
@@ -217,14 +217,8 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
         .await;
 
     let cache = api_cache::write_global().await?;
-    let mut content = cache
-        .get::<UpdateSummary>(UPDATE_SUMMARY_CACHE_KEY)
-        .await
-        .inspect_err(|err| {
-            log::error!("could not read 'remote-updates' entry from API cache: {err}")
-        })
-        .unwrap_or_default()
-        .unwrap_or_default();
+    let mut content =
+        summary_or_default(cache.get::<UpdateSummary>(UPDATE_SUMMARY_CACHE_KEY).await);
 
     // Clean out any remotes that might have been removed from the remote config in the meanwhile.
     content
