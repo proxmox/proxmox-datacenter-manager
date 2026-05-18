@@ -173,7 +173,7 @@ pub fn update_view(
 
     let entry = config
         .get_mut(&id)
-        .ok_or_else(|| http_err!(NOT_FOUND, "no such remote {id}"))?;
+        .ok_or_else(|| http_err!(NOT_FOUND, "no such view '{id}'"))?;
 
     let ViewConfigEntry::View(conf) = entry;
 
