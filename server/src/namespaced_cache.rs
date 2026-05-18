@@ -600,24 +600,10 @@ fn set_if_newer_impl<T: Serialize + DeserializeOwned>(
             // the cache file anyways.
             log::error!("could not deserialize existing cache file in set_if_newer, overwriting anyways: {err}");
         }
-        Err(err) => {
-            // Any other error will be bubbled up
-            return Err(err);
-        }
+        Err(err) => return Err(err),
     }
 
-    proxmox_sys::fs::create_path(
-        path.parent().unwrap(),
-        Some(inner.dir_options),
-        Some(inner.dir_options),
-    )?;
-
-    let entry = CacheEntry { timestamp, value };
-
-    let data = serde_json::to_vec(&entry)?;
-    proxmox_sys::fs::replace_file(path, &data, inner.file_options, true)?;
-
-    Ok(None)
+    set_impl(inner, key, value, timestamp).map(|()| None)
 }
 
 fn set_impl<T: Serialize + DeserializeOwned>(
