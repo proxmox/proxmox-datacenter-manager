@@ -603,7 +603,7 @@ fn set_if_newer_impl<T: Serialize + DeserializeOwned>(
         Err(err) => return Err(err),
     }
 
-    set_impl(inner, key, value, timestamp).map(|()| None)
+    set_at_path(inner, &path, value, timestamp).map(|()| None)
 }
 
 fn set_impl<T: Serialize + DeserializeOwned>(
@@ -615,8 +615,21 @@ fn set_impl<T: Serialize + DeserializeOwned>(
     ensure_valid_key(key)?;
     let path = get_path(&inner.base_path, &inner.namespace, key);
 
+    set_at_path(inner, &path, value, timestamp)
+}
+
+fn set_at_path<T: Serialize + DeserializeOwned>(
+    inner: &WritableInner,
+    path: &Path,
+    value: T,
+    timestamp: i64,
+) -> Result<(), CacheError> {
+    // unwrap: A namespace directory is always a subdirectory of the base directory that was passed
+    // when initializing `NamespacedCache`, so `.parent()` always returns Some(...)
+    let namespace_dir = path.parent().unwrap();
+
     proxmox_sys::fs::create_path(
-        path.parent().unwrap(),
+        namespace_dir,
         Some(inner.dir_options),
         Some(inner.dir_options),
     )?;
