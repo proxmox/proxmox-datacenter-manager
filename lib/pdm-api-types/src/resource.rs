@@ -25,12 +25,19 @@ pub const PBS_DATASTORE_HIGH_USAGE_THRESHOLD: f64 = 0.80;
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
 pub enum Resource {
+    /// Storage resource in PVE.
     PveStorage(PveStorageResource),
+    /// QEMU guest resource in PVE.
     PveQemu(PveQemuResource),
+    /// LXC guest resource in PVE.
     PveLxc(PveLxcResource),
+    /// A PVE node.
     PveNode(PveNodeResource),
+    /// Network in PVE.
     PveNetwork(PveNetworkResource),
+    /// A PBS node.
     PbsNode(PbsNodeResource),
+    /// Datastore on a PBS node.
     PbsDatastore(PbsDatastoreResource),
 }
 
@@ -210,10 +217,15 @@ impl std::str::FromStr for ResourceType {
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
 pub enum PveResource {
+    /// Storage resource in PVE.
     Storage(PveStorageResource),
+    /// QEMU guest resource in PVE.
     Qemu(PveQemuResource),
+    /// LXC guest resource in PVE.
     Lxc(PveLxcResource),
+    /// A PVE node.
     Node(PveNodeResource),
+    /// Network in PVE.
     Network(PveNetworkResource),
 }
 
