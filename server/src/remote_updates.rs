@@ -494,7 +494,12 @@ mod tests {
             // has_ceph_* and summary.unrecognized. The planned follow-up will surface a
             // dedicated Unknown status; until then these rows make any silent change loud.
             ("ceph-only host", vec![&ceph_ent], true, NoProductRepository),
-            ("unrecognized only", vec!["future-channel"], true, NoProductRepository),
+            (
+                "unrecognized only",
+                vec!["future-channel"],
+                true,
+                NoProductRepository,
+            ),
         ] {
             let r = repos_result(&enabled);
             assert_eq!(check_repository_status(&r, sub), want, "{label}");
