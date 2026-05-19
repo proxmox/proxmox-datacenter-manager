@@ -139,7 +139,7 @@ async fn get_remote_subscriptions(
             first = false;
             println!("{ln}Remote {} subscription status: {state}", entry.remote);
             if let Some(error) = entry.error {
-                println!("    Errror: {error}");
+                println!("    Error: {error}");
             }
             if let Some(node_status) = entry.node_status {
                 for (node, status) in &node_status {

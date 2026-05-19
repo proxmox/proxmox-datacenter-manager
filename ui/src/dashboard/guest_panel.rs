@@ -170,7 +170,7 @@ fn create_list_tile(
                     .with_child(count),
             )
             .with_child(Fa::new("search"))
-            // FIXME: repalce with on_activate for `ListTile` when implemented
+            // FIXME: replace with on_activate for `ListTile` when implemented
             .onclick(link.callback(move |_| create_guest_search_term(guest_type, status, template)))
             .onkeydown(link.batch_callback(
                 move |event: KeyboardEvent| match event.key().as_str() {

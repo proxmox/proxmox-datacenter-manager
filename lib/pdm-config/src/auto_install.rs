@@ -434,7 +434,7 @@ fn migrate_legacy_installations_file() -> Result<()> {
         None => return Ok(()),
     };
 
-    // If the legacy file is unparseable, set it aside under a .broken suffix
+    // If the legacy file is unparsable, set it aside under a .broken suffix
     // so subsequent reads succeed instead of looping over the same failure
     // forever. The file still exists on disk for forensics.
     let installations: Vec<Installation> = match serde_json::from_str(&raw) {

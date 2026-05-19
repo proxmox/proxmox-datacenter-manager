@@ -32,7 +32,7 @@ pub const SDN_CONTROLLER_ID_SCHEMA: Schema = StringSchema::new("The name for an 
         },
     }
 )]
-/// Describes the remote-specific informations for creating a new zone.
+/// Describes the remote-specific information for creating a new zone.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct CreateZoneRemote {
@@ -78,7 +78,7 @@ pub struct CreateZoneParams {
         },
     }
 )]
-/// Describes the remote-specific informations for creating a new vnet.
+/// Describes the remote-specific information for creating a new vnet.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct CreateVnetRemote {

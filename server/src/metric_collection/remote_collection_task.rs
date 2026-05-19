@@ -358,7 +358,7 @@ impl RemoteMetricCollectionTask {
             }
             Err(err) => {
                 status.error = Some(err.to_string());
-                log::error!("coud not fetch metrics from '{}': {err}", remote.id);
+                log::error!("could not fetch metrics from '{}': {err}", remote.id);
             }
         }
 

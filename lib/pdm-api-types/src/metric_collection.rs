@@ -11,7 +11,7 @@ use proxmox_schema::api;
 pub struct RemoteMetricCollectionStatus {
     /// The remote's name.
     pub remote: String,
-    /// Any error that occured during the last collection attempt.
+    /// Any error that occurred during the last collection attempt.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     /// Timestamp of last successful collection.

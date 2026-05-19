@@ -261,7 +261,7 @@ impl<C> LockedSdnClients<C> {
         for result in join_all(futures).await {
             match result {
                 Ok(remote_id) => {
-                    proxmox_log::info!("succcessfully executed transaction on remote {remote_id}");
+                    proxmox_log::info!("successfully executed transaction on remote {remote_id}");
                 }
                 Err((error, remote_id)) => {
                     proxmox_log::error!(

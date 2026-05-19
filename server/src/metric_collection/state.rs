@@ -24,7 +24,7 @@ pub struct RemoteStatus {
     /// Last successful metric collection - timestamp based on PDM's time
     pub last_collection: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    /// Any error that occured during the last metric collection attempt.
+    /// Any error that occurred during the last metric collection attempt.
     pub error: Option<String>,
 }
 

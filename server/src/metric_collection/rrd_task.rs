@@ -21,7 +21,7 @@ pub(super) enum RrdStoreRequest {
         metrics: ClusterMetrics,
         /// Oneshot channel to return the [`RrdStoreResult`].
         channel: oneshot::Sender<RrdStoreResult>,
-        /// Reponse time in ms for the API request.
+        /// Response time in ms for the API request.
         response_time: f64,
         /// Timestamp at which the request was done (UNIX epoch).
         request_at: i64,
@@ -34,7 +34,7 @@ pub(super) enum RrdStoreRequest {
         metrics: Metrics,
         /// Oneshot channel to return the [`RrdStoreResult`].
         channel: oneshot::Sender<RrdStoreResult>,
-        /// Reponse time in ms for the API request.
+        /// Response time in ms for the API request.
         response_time: f64,
         /// Timestamp at which the request was done (UNIX epoch).
         request_at: i64,

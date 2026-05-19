@@ -40,7 +40,7 @@ pub fn set_cache(cache: Arc<RrdCache>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Wrapper for proxmox_rrd::Cache to accomodate helper methods.
+/// Wrapper for proxmox_rrd::Cache to accommodate helper methods.
 pub struct RrdCache {
     cache: Cache,
 }

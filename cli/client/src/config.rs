@@ -335,7 +335,7 @@ pub enum ConfigEntry {
 // FIXME: api macro needs a way to generate this from a section-config compatible enum!
 impl ApiType for ConfigEntry {
     const API_SCHEMA: Schema = OneOfSchema::new(
-        "A clent configuration entry.",
+        "A client configuration entry.",
         &(
             "type",
             false,

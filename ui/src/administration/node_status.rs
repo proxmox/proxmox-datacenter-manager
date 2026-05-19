@@ -110,7 +110,7 @@ impl PdmNodeStatus {
 
     fn create_system_report_dialog(&self, ctx: &yew::Context<Self>) -> Html {
         // copied over from subscription_panel in proxmox-yew-comp; TODO: create own component and
-        // provide download functionallity.
+        // provide download functionality.
         proxmox_yew_comp::DataViewWindow::new(tr!("System Report"))
             .width(800)
             .height(640)
@@ -178,7 +178,7 @@ impl PdmNodeStatus {
 
                 let mut text = String::new();
                 if let Some(pkgs) = versions.as_array() {
-                    // loosly adapted from our JS code in proxmox-widget-toolkit
+                    // loosely adapted from our JS code in proxmox-widget-toolkit
                     for pkg in pkgs {
                         let old_version =
                             pkg.get("OldVersion").and_then(|v| v.as_str()).unwrap_or("");

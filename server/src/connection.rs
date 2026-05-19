@@ -257,7 +257,7 @@ pub trait ClientFactory {
     /// Note: currently does not support two factor authentication.
     async fn make_pbs_client_and_login(&self, remote: &Remote) -> Result<Box<PbsClient>, Error>;
 
-    /// Create a new API client for raw acess to the given remote
+    /// Create a new API client for raw access to the given remote
     fn make_raw_client(&self, remote: &Remote) -> Result<Box<Client>, Error>;
 }
 

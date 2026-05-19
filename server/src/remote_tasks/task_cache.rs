@@ -520,7 +520,7 @@ impl WritableTaskCache {
         let files = self
             .cache
             .archive_files(&self.lock)
-            .context("failed to read achive files")?;
+            .context("failed to read archive files")?;
 
         let mut files = files.iter().peekable();
 
@@ -1093,7 +1093,7 @@ impl ArchiveFile {
             .set_extension(format!("{}{ZSTD_EXTENSION_WITH_DOT}", self.starttime));
 
         std::fs::rename(&temp_file_path, &new_path_for_compressed)
-            .context("failed to move compressed task achive file")?;
+            .context("failed to move compressed task archive file")?;
         std::fs::remove_file(uncompressed_file_path)
             .context("failed to remove uncompressed archive file")?;
 

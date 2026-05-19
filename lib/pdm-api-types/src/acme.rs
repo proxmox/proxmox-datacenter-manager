@@ -6,7 +6,7 @@ use proxmox_schema::{api, ApiStringFormat, ArraySchema, Schema, StringSchema};
 use crate::EMAIL_SCHEMA;
 
 pub const ACME_CONTACT_LIST_SCHEMA: Schema =
-    StringSchema::new("List of email addresses, comma seperated.")
+    StringSchema::new("List of email addresses, comma separated.")
         .format(&ApiStringFormat::PropertyString(
             &ArraySchema::new("Contact list.", &EMAIL_SCHEMA).schema(),
         ))

@@ -198,7 +198,7 @@ pub(crate) fn lookup_authenticator(
             } else if domains.lookup::<OpenIdRealmConfig>("openid", realm).is_ok() {
                 Ok(Box::new(OpenIdAuthenticator()))
             } else {
-                bail!("unknwon realm {realm}");
+                bail!("unknown realm {realm}");
             }
         }
     }
@@ -238,7 +238,7 @@ impl LockedTfaConfig for PdmLockedTfaConfig {
 struct OpenIdAuthenticator();
 /// When a user is manually added, the lookup_authenticator is called to verify that
 /// the realm exists. Thus, it is necessary to have an (empty) implementation for
-/// OpendID as well.
+/// OpenID as well.
 impl Authenticator for OpenIdAuthenticator {
     fn authenticate_user<'a>(
         &'a self,

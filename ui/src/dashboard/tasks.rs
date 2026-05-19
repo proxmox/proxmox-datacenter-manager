@@ -80,7 +80,7 @@ impl TaskSummary {
 }
 
 pub enum Msg {
-    ShowFilteredTasks(Option<(TaskWorkerType, TaskStatusClass)>), // task_tyope
+    ShowFilteredTasks(Option<(TaskWorkerType, TaskStatusClass)>), // task_type
 }
 
 #[doc(hidden)]
