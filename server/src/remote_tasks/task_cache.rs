@@ -502,7 +502,7 @@ impl WritableTaskCache {
             .context("failed to truncate journal file")?;
 
         log::info!(
-            "commited {count} tasks in {:.3}.s to task cache archive",
+            "committed {count} tasks in {:.3}.s to task cache archive",
             start.elapsed().as_secs_f32()
         );
 
