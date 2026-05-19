@@ -430,3 +430,74 @@ fn check_repository_status(
     }
     ProductRepositoryStatus::Ok
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proxmox_apt_api_types::APTStandardRepository;
+
+    use ProductRepositoryStatus::{
+        MissingSubscriptionForEnterprise, NoProductRepository, NonProductionReady,
+    };
+
+    fn repos_result(enabled: &[&str]) -> APTRepositoriesResult {
+        APTRepositoriesResult {
+            files: Vec::new(),
+            digest: [0u8; 32].into(),
+            infos: Vec::new(),
+            errors: Vec::new(),
+            standard_repos: enabled
+                .iter()
+                .map(|h| APTStandardRepository {
+                    handle: h.parse().expect("test wire string must parse"),
+                    status: Some(true),
+                    name: String::new(),
+                    description: String::new(),
+                })
+                .collect(),
+        }
+    }
+
+    // Ceph variant used by the test rows below. Picked once so a release rotation
+    // (Squid EOL, Tentacle EOL, Umbrella added, ...) only needs a single line change here.
+    // api-types' `is_ceph_release` drift guard pins the per-variant bucketing already, so PDM
+    // tests do not need to enumerate Ceph variants themselves.
+    const CEPH_REL: &str = "ceph-tentacle";
+
+    /// Rows here are limited to the cases not covered by the function structure itself.
+    /// Trivial happy-path / single-field assertions just restate the if-statements and are
+    /// omitted; api-types' `standard_repo_summary_buckets` already pins the summary helper.
+    #[test]
+    fn check_repository_status_arms() {
+        let ceph_ent = format!("{CEPH_REL}-enterprise");
+        let ceph_nosub = format!("{CEPH_REL}-no-subscription");
+        for (label, enabled, sub, want) in [
+            // (label, enabled handles, has-subscription, expected status)
+
+            // The `has_enterprise || has_ceph_enterprise` OR: Ceph alone must still demand a sub.
+            (
+                "ceph enterprise without product sub",
+                vec!["enterprise", &ceph_ent],
+                false,
+                MissingSubscriptionForEnterprise,
+            ),
+            // Cross-channel interaction: a Ceph no-subscription line dampens an otherwise-okay
+            // product to NonProductionReady even with an active subscription.
+            (
+                "enterprise dampened by ceph no-sub",
+                vec!["enterprise", &ceph_nosub],
+                true,
+                NonProductionReady,
+            ),
+            // Pin pre-existing limitations: a ceph-only / unknown-only host degrades to
+            // NoProductRepository because the "has any product repo" predicate ignores both
+            // has_ceph_* and summary.unrecognized. The planned follow-up will surface a
+            // dedicated Unknown status; until then these rows make any silent change loud.
+            ("ceph-only host", vec![&ceph_ent], true, NoProductRepository),
+            ("unrecognized only", vec!["future-channel"], true, NoProductRepository),
+        ] {
+            let r = repos_result(&enabled);
+            assert_eq!(check_repository_status(&r, sub), want, "{label}");
+        }
+    }
+}
