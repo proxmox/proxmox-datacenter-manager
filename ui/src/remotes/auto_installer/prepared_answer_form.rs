@@ -182,7 +182,7 @@ pub fn render_global_options_form(
                 .required(true),
         )
         .with_field(
-            tr!("Root password"),
+            tr!("Root Password"),
             Field::new()
                 .name("root-password")
                 .input_type(InputType::Password)
@@ -210,7 +210,7 @@ pub fn render_global_options_form(
                 .required(true),
         )
         .with_field(
-            tr!("Administrator email address"),
+            tr!("Administrator Email Address"),
             Field::new()
                 .name("mailto")
                 .placeholder(EMAIL_DEFAULT_PLACEHOLDER.to_owned())
@@ -227,7 +227,7 @@ pub fn render_global_options_form(
                 .required(true),
         )
         .with_field(
-            tr!("Root SSH public keys"),
+            tr!("Root SSH Public Keys"),
             TextArea::new()
                 .name("root-ssh-keys")
                 .class("pwt-w-100")
@@ -237,11 +237,11 @@ pub fn render_global_options_form(
                 .value(config.root_ssh_keys.join("\n")),
         )
         .with_field(
-            tr!("Reboot on error"),
+            tr!("Reboot on Error"),
             Checkbox::new().name("reboot-on-error"),
         )
         .with_field(
-            tr!("Post-Installation action"),
+            tr!("Post-Installation Action"),
             Combobox::new()
                 .name("reboot-mode")
                 .items(Rc::new(
@@ -287,7 +287,7 @@ pub fn render_network_options_form(
             Checkbox::new().name("use-dhcp-network").default(true),
         )
         .with_field(
-            tr!("IP address (CIDR)"),
+            tr!("IP Address (CIDR)"),
             Field::new()
                 .name("cidr")
                 .placeholder(tr!("E.g. 192.168.0.100/24"))
@@ -296,7 +296,7 @@ pub fn render_network_options_form(
                 .required(!use_dhcp_network),
         )
         .with_field(
-            tr!("Gateway address"),
+            tr!("Gateway Address"),
             Field::new()
                 .name("gateway")
                 .placeholder(tr!("E.g. 192.168.0.1"))
@@ -305,7 +305,7 @@ pub fn render_network_options_form(
                 .required(!use_dhcp_network),
         )
         .with_field(
-            tr!("DNS server address"),
+            tr!("DNS Server Address"),
             Field::new()
                 .name("dns")
                 .placeholder(tr!("E.g. 192.168.0.254"))
@@ -318,7 +318,7 @@ pub fn render_network_options_form(
             Checkbox::new().name("use-dhcp-fqdn").default(false),
         )
         .with_right_field(
-            tr!("Fully-qualified domain name (FQDN)"),
+            tr!("Fully-Qualified Domain Name (FQDN)"),
             Field::new()
                 .name("fqdn")
                 .placeholder("{{product.product}}{{installation_nr}}.example.com")
@@ -331,14 +331,14 @@ pub fn render_network_options_form(
         )
         .with_right_field("", DisplayField::new().key("dummy"))
         .with_right_field(
-            tr!("Pin network interfaces"),
+            tr!("Pin Network Interfaces"),
             Checkbox::new()
                 .name("netif-name-pinning-enabled")
                 .default(config.netif_name_pinning_enabled),
         )
         .with_advanced_spacer()
         .with_large_advanced_field(
-            tr!("Network device filters"),
+            tr!("Network Device Filters"),
             KeyValueList::new()
                 .value(
                     config
@@ -402,7 +402,7 @@ pub fn render_disk_setup_form(
                 .show_filter(false),
         )
         .with_right_field(
-            tr!("Disk selection mode"),
+            tr!("Disk Selection Mode"),
             Combobox::new()
                 .name("disk-mode")
                 .with_item("fixed")
@@ -417,7 +417,7 @@ pub fn render_disk_setup_form(
                 .value(serde_variant_name(config.disk_mode)),
         )
         .with_field(
-            tr!("Disk names"),
+            tr!("Disk Names"),
             Field::new()
                 .name("disk-list")
                 .placeholder("sda, sdb")
@@ -428,7 +428,7 @@ pub fn render_disk_setup_form(
         )
         .with_spacer()
         .with_field(
-            tr!("Disk udev filter mode"),
+            tr!("Disk udev Filter Mode"),
             Combobox::new()
                 .name("disk-filter-match")
                 .items(Rc::new(
@@ -447,7 +447,7 @@ pub fn render_disk_setup_form(
                 .disabled(disk_mode != DiskSelectionMode::Filter),
         )
         .with_large_field(
-            tr!("Disk udev filters"),
+            tr!("Disk udev Filters"),
             KeyValueList::new()
                 .value(
                     config
@@ -716,7 +716,7 @@ pub fn render_target_filter_form(
 
     panel
         .with_field(
-            tr!("Default answer"),
+            tr!("Default Answer"),
             Checkbox::new()
                 .name("is-default")
                 .tip(tr!(
@@ -726,7 +726,7 @@ pub fn render_target_filter_form(
         )
         .with_spacer()
         .with_large_field(
-            tr!("Target filters"),
+            tr!("Target Filters"),
             KeyValueList::new()
                 .value(
                     config
@@ -824,7 +824,7 @@ pub fn render_auth_form(
             Container::from_tag("span")
                 .key("authorized-tokens-title")
                 .class("pwt-font-title-medium")
-                .with_child(tr!("Authorized tokens")),
+                .with_child(tr!("Authorized Tokens")),
         )
         .with_large_custom_child(
             TokenSelector::new(tokens)
@@ -849,7 +849,7 @@ pub fn render_auth_form(
     panel
         .with_spacer()
         .with_large_field(
-            tr!("Proxmox Datacenter Manager base URL"),
+            tr!("Proxmox Datacenter Manager Base URL"),
             Field::new()
                 .name("post-hook-base-url")
                 .tip(tr!(
@@ -859,7 +859,7 @@ pub fn render_auth_form(
                 .value(config.post_hook_base_url.clone()),
         )
         .with_large_field(
-            tr!("SHA256 certificate fingerprint"),
+            tr!("SHA256 Certificate Fingerprint"),
             Field::new()
                 .name("post-hook-cert-fp")
                 .tip(tr!("Optional certificate fingerprint"))

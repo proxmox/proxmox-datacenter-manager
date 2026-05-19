@@ -145,12 +145,12 @@ impl LoadableComponent for InstallationsPanelComponent {
             .class(Overflow::Hidden)
             .class("pwt-border-bottom")
             .with_child(
-                Button::new(tr!("System information"))
+                Button::new(tr!("System Information"))
                     .disabled(self.selection.is_empty())
                     .onclick(link.change_view_callback(|_| Some(ViewState::ShowRawSystemInfo))),
             )
             .with_child(
-                Button::new(tr!("Post-installation webhook data"))
+                Button::new(tr!("Post-Installation Webhook Data"))
                     .disabled(self.selection.is_empty() || !selection_has_post_hook_data)
                     .onclick(link.change_view_callback(|_| Some(ViewState::ShowRawPostHookData))),
             )
@@ -197,7 +197,7 @@ impl LoadableComponent for InstallationsPanelComponent {
             .clone();
 
         Some(match view_state {
-            Self::ViewState::ShowRawSystemInfo => DataViewWindow::new(tr!("System information"))
+            Self::ViewState::ShowRawSystemInfo => DataViewWindow::new(tr!("System Information"))
                 .on_done(on_done)
                 .loader({
                     move || {
@@ -213,7 +213,7 @@ impl LoadableComponent for InstallationsPanelComponent {
                 .resizable(true)
                 .into(),
             Self::ViewState::ShowRawPostHookData => {
-                DataViewWindow::new(tr!("Post-installation webhook data"))
+                DataViewWindow::new(tr!("Post-Installation Webhook Data"))
                     .on_done(on_done)
                     .loader({
                         move || {
@@ -291,7 +291,7 @@ fn columns() -> Vec<DataTableHeader<Installation>> {
             })
             .sorter(|a: &Installation, b: &Installation| a.status.cmp(&b.status))
             .into(),
-        DataTableColumn::new(tr!("Matched answer"))
+        DataTableColumn::new(tr!("Matched Answer"))
             .flex(1)
             .render(|item: &Installation| match &item.answer_id {
                 Some(s) => s.into(),

@@ -190,11 +190,11 @@ fn render_tabpanel(
         .class(FlexFit)
         .force_render_all(true)
         .with_item(
-            TabBarItem::new().label(tr!("Global options")),
+            TabBarItem::new().label(tr!("Global Options")),
             render_global_options_form(&props.config, false),
         )
         .with_item(
-            TabBarItem::new().label(tr!("Network options")),
+            TabBarItem::new().label(tr!("Network Options")),
             render_network_options_form(form_ctx, &props.config),
         )
         .with_item(
@@ -202,7 +202,7 @@ fn render_tabpanel(
             render_disk_setup_form(form_ctx, &props.config),
         )
         .with_item(
-            TabBarItem::new().label(tr!("Target filter")),
+            TabBarItem::new().label(tr!("Target Filter")),
             render_target_filter_form(form_ctx, &props.config),
         )
         .with_item(

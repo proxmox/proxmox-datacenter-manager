@@ -56,7 +56,7 @@ impl Component for AutoInstallerPanelComponent {
             .gap(2)
             .class(AlignItems::Baseline)
             .with_child(Fa::new("key"))
-            .with_child(tr!("Authentication tokens"))
+            .with_child(tr!("Authentication Tokens"))
             .into();
 
         Container::new()

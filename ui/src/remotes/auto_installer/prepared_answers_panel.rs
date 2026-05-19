@@ -303,7 +303,7 @@ fn columns() -> Vec<DataTableHeader<PreparedInstallationConfig>> {
                 }
             })
             .into(),
-        DataTableColumn::new(tr!("Authorized tokens"))
+        DataTableColumn::new(tr!("Authorized Tokens"))
             .flex(1)
             .render(|item: &PreparedInstallationConfig| item.authorized_tokens.join(", ").into())
             .into(),

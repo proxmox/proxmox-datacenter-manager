@@ -169,11 +169,11 @@ impl LoadableComponent for AddAnswerWizardComponent {
                 }
             })
             .on_close(props.on_close.clone())
-            .with_page(TabBarItem::new().label(tr!("Global options")), {
+            .with_page(TabBarItem::new().label(tr!("Global Options")), {
                 let config = props.config.clone();
                 move |_: &WizardPageRenderInfo| render_global_options_form(&config, true)
             })
-            .with_page(TabBarItem::new().label(tr!("Network options")), {
+            .with_page(TabBarItem::new().label(tr!("Network Options")), {
                 let config = props.config.clone();
                 move |p: &WizardPageRenderInfo| render_network_options_form(&p.form_ctx, &config)
             })
@@ -181,7 +181,7 @@ impl LoadableComponent for AddAnswerWizardComponent {
                 let config = props.config.clone();
                 move |p: &WizardPageRenderInfo| render_disk_setup_form(&p.form_ctx, &config)
             })
-            .with_page(TabBarItem::new().label(tr!("Target filter")), {
+            .with_page(TabBarItem::new().label(tr!("Target Filter")), {
                 let config = props.config.clone();
                 move |p: &WizardPageRenderInfo| render_target_filter_form(&p.form_ctx, &config)
             })

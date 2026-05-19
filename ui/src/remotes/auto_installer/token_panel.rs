@@ -270,7 +270,7 @@ fn columns() -> Vec<DataTableHeader<AnswerToken>> {
             .sorter(|a: &AnswerToken, b: &AnswerToken| a.id.cmp(&b.id))
             .sort_order(true)
             .into(),
-        DataTableColumn::new(tr!("Created by"))
+        DataTableColumn::new(tr!("Created By"))
             .width("150px")
             .render(|item: &AnswerToken| html! { &item.created_by })
             .sorter(|a: &AnswerToken, b: &AnswerToken| a.created_by.cmp(&b.created_by))
