@@ -1,7 +1,7 @@
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox_apt_api_types::{APTRepositoriesResult, APTRepositoryHandle, APTUpdateInfo};
+use proxmox_apt_api_types::{APTRepositoriesResult, APTStandardRepoSummary, APTUpdateInfo};
 
 use pdm_api_types::remote_updates::{
     NodeUpdateStatus, NodeUpdateSummary, NodeUpdateSummaryWrapper, PackageVersion,
@@ -410,49 +410,23 @@ fn check_repository_status(
         return ProductRepositoryStatus::Error;
     }
 
-    let mut has_enterprise = false;
-    let mut has_no_subscription = false;
-    let mut has_test = false;
-    let mut has_ceph_enterprise = false;
-    let mut has_ceph_no_subscription = false;
-    let mut has_ceph_test = false;
-
-    for repo in &config.standard_repos {
-        if repo.status != Some(true) {
-            continue;
-        }
-        match repo.handle {
-            APTRepositoryHandle::CephSquidEnterprise => has_ceph_enterprise = true,
-            APTRepositoryHandle::CephSquidNoSubscription => has_ceph_no_subscription = true,
-            APTRepositoryHandle::CephSquidTest => has_ceph_test = true,
-            APTRepositoryHandle::Enterprise => has_enterprise = true,
-            APTRepositoryHandle::NoSubscription => has_no_subscription = true,
-            APTRepositoryHandle::Test => has_test = true,
-            APTRepositoryHandle::UnknownEnumValue(s) => {
-                log::warn!("encountered unknown APT repository handle variant {s}");
-            }
-        }
+    let summary = APTStandardRepoSummary::from_repos(&config.standard_repos);
+    for handle in &summary.unrecognized {
+        log::warn!("encountered unknown APT repository handle variant '{handle}'");
     }
 
-    if !(has_enterprise | has_no_subscription | has_test) {
+    if !(summary.has_enterprise || summary.has_no_subscription || summary.has_test) {
         return ProductRepositoryStatus::NoProductRepository;
     }
-
-    if has_enterprise && !active_subscription {
+    if (summary.has_enterprise || summary.has_ceph_enterprise) && !active_subscription {
         return ProductRepositoryStatus::MissingSubscriptionForEnterprise;
     }
-
-    if has_ceph_enterprise && !active_subscription {
-        return ProductRepositoryStatus::MissingSubscriptionForEnterprise;
-    }
-
-    if has_test || has_no_subscription {
+    if summary.has_test
+        || summary.has_no_subscription
+        || summary.has_ceph_no_subscription
+        || summary.has_ceph_test
+    {
         return ProductRepositoryStatus::NonProductionReady;
     }
-
-    if has_ceph_no_subscription || has_ceph_test {
-        return ProductRepositoryStatus::NonProductionReady;
-    }
-
     ProductRepositoryStatus::Ok
 }

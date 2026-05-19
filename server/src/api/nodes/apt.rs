@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use proxmox_apt_api_types::{
     APTChangeRepositoryOptions, APTGetChangelogOptions, APTRepositoriesResult, APTRepositoryHandle,
-    APTUpdateInfo, APTUpdateOptions,
+    APTUpdateInfo, APTUpdateOptions, HostProduct,
 };
 use proxmox_http::ProxyConfig;
 use proxmox_rest_server::WorkerTask;
@@ -202,7 +202,7 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
 )]
 /// Get APT repository information.
 pub fn get_repositories() -> Result<APTRepositoriesResult, Error> {
-    proxmox_apt::list_repositories("pdm")
+    proxmox_apt::list_repositories(&HostProduct::Pdm)
 }
 
 #[api(
@@ -233,7 +233,7 @@ pub fn add_repository(
     handle: APTRepositoryHandle,
     digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
-    proxmox_apt::add_repository_handle("pdm", handle, digest)
+    proxmox_apt::add_repository_handle(&HostProduct::Pdm, handle, digest)
 }
 
 #[api(
