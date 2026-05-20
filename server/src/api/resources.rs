@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
-use std::sync::{LazyLock, RwLock};
 
 use anyhow::{bail, Context, Error};
 use futures::future::join_all;
@@ -748,7 +747,7 @@ pub async fn get_subscription_status(
     returns: { type: TopEntities }
 )]
 /// Returns the top X entities regarding the chosen type
-async fn get_top_entities(
+fn get_top_entities(
     timeframe: Option<RrdTimeframe>,
     view: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
@@ -959,72 +958,100 @@ async fn fetch_remote_subscription_info(
     Ok(list)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
+/// Per-remote entry in the resource cache.
 pub struct CachedResources {
+    /// Resources for this remote.
     pub resources: Vec<Resource>,
+    /// Unix timestamp at which the list of resources was polled.
     pub timestamp: i64,
 }
-
-static CACHE: LazyLock<RwLock<HashMap<String, CachedResources>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 /// Get resources for a given remote.
 ///
 /// If recent enough cached data is available, it is returned
 /// instead of calling out to the remote.
 async fn get_resources_for_remote(remote: &Remote, max_age: u64) -> Result<Vec<Resource>, Error> {
-    let remote_name = remote.id.to_owned();
-    if let Some(cached_resource) = get_cached_resources(&remote_name, max_age) {
-        Ok(cached_resource.resources)
+    if let Some(cached_resources) = get_cached_resources(&remote.id, max_age).await? {
+        Ok(cached_resources.resources)
     } else {
         let resources = fetch_remote_resource(remote).await?;
         let now = proxmox_time::epoch_i64();
-        update_cached_resources(&remote_name, &resources, now);
+
+        if let Some(existing_state) =
+            update_cached_resources(&remote.id, resources.clone(), now).await?
+        {
+            // Somebody else updated the cache while we performed the API request,
+            // return the more recent data instead of the data we just fetched.
+            return Ok(existing_state.resources);
+        }
         Ok(resources)
     }
 }
 
+const REMOTE_RESOURCES_CACHE_KEY: &str = "resources";
+
 /// Read cached resource data from the cache
-pub fn get_cached_resources(remote: &str, max_age: u64) -> Option<CachedResources> {
-    // there is no good way to recover from this, so panicking should be fine
-    let cache = CACHE.read().expect("mutex poisoned");
+async fn get_cached_resources(
+    remote: &str,
+    max_age: u64,
+) -> Result<Option<CachedResources>, Error> {
+    let cache = api_cache::read_remote(remote).await?;
+    let resources = cache
+        .get_with_max_age(REMOTE_RESOURCES_CACHE_KEY, max_age as i64)
+        .await
+        .inspect_err(|err| {
+            log::error!(
+                "could not read remote resources for remote '{remote}' from API cache: {err}"
+            )
+        })
+        .ok()
+        .flatten();
 
-    if let Some(cached_resource) = cache.get(remote) {
-        let now = proxmox_time::epoch_i64();
-        let diff = now - cached_resource.timestamp;
+    Ok(resources)
+}
 
-        if diff > max_age as i64 || diff < 0 {
-            // value is too old or from the future
-            None
-        } else {
-            Some(cached_resource.clone())
-        }
-    } else {
-        None
-    }
+/// Read cached resource data from the cache (blocking).
+pub fn get_cached_resources_blocking(
+    remote: &str,
+    max_age: u64,
+) -> Result<Option<CachedResources>, Error> {
+    let cache = api_cache::read_remote_blocking(remote)?;
+    let resources = cache
+        .get_with_max_age(REMOTE_RESOURCES_CACHE_KEY, max_age as i64)
+        .inspect_err(|err| {
+            log::error!(
+                "could not read remote resources for remote '{remote}' from API cache: {err}"
+            )
+        })
+        .ok()
+        .flatten();
+
+    Ok(resources)
 }
 
 /// Update cached resource data.
 ///
-/// If the cache already contains more recent data we don't insert the passed resources.
-fn update_cached_resources(remote: &str, resources: &[Resource], now: i64) {
-    // there is no good way to recover from this, so panicking should be fine
-    let mut cache = CACHE.write().expect("mutex poisoned");
+/// If the cache already contains more recent data, this function returns the already
+/// stored state as `Ok(Some(state))`. If the data that was passed in replaced the cache
+/// entry, `Ok(None)` is returned.
+async fn update_cached_resources(
+    remote: &str,
+    resources: Vec<Resource>,
+    now: i64,
+) -> Result<Option<CachedResources>, Error> {
+    let cache = api_cache::write_remote(remote).await?;
 
-    if let Some(cached_resource) = cache.get(remote) {
-        // skip updating if existing data is newer
-        if cached_resource.timestamp >= now {
-            return;
-        }
-    }
-
-    cache.insert(
-        remote.into(),
-        CachedResources {
-            timestamp: now,
-            resources: resources.into(),
-        },
-    );
+    Ok(cache
+        .set_if_newer_with_timestamp(
+            REMOTE_RESOURCES_CACHE_KEY,
+            CachedResources {
+                resources,
+                timestamp: now,
+            },
+            now,
+        )
+        .await?)
 }
 
 /// Fetch remote resources and map to pdm-native data types.

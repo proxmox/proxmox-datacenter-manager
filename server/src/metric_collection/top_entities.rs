@@ -48,8 +48,8 @@ pub fn calculate_top(
             continue;
         }
 
-        if let Some(data) =
-            crate::api::resources::get_cached_resources(remote_name, i64::MAX as u64)
+        if let Ok(Some(data)) =
+            crate::api::resources::get_cached_resources_blocking(remote_name, i64::MAX as u64)
         {
             for res in data.resources {
                 if !is_resource_included(remote_name, &res) {
