@@ -102,6 +102,8 @@ pub use openid::*;
 
 pub mod auto_installer;
 
+pub mod ceph;
+
 pub mod firewall;
 
 pub mod remotes;
