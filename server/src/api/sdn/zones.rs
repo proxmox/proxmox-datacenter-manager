@@ -164,6 +164,7 @@ async fn create_zone(
                     zone: zone.clone(),
                     vrf_vxlan,
                     controller: Some(ctx.data().controller.clone()),
+                    secondary_controllers: None,
                     ty: ListZonesType::Evpn,
                     advertise_subnets: None,
                     bridge: None,
