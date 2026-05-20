@@ -97,6 +97,20 @@ impl<T: HttpApiClient> std::ops::DerefMut for PdmClient<T> {
     }
 }
 
+/// Filter for [`PdmClient::pve_list_storages`].
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PveListStoragesFilter {
+    /// Only list stores which support this content type.
+    pub content: Vec<StorageContent>,
+    /// Only list stores which are enabled (not disabled in config).
+    pub enabled: Option<bool>,
+    /// Only list status for  specified storage
+    pub storage: Option<String>,
+    // If target is different to 'node', we only list shared storages which are accessible on
+    // this 'node' and the specified 'target' node.
+    pub target: Option<String>,
+}
+
 impl<T: HttpApiClient> PdmClient<T> {
     pub async fn list_remotes(&self) -> Result<Vec<Remote>, Error> {
         Ok(self
@@ -1103,28 +1117,31 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
+    /// List storages for a given PVE remote node.
+    ///
+    /// The storages can be filtered using the `filter` parameter, for details see
+    /// [`PveListStoragesFilter`]. If `include_supported_disk_image_formats` is set
+    /// to true, the result will include information about supported disk image types
+    /// for each storage.
     pub async fn pve_list_storages(
         &self,
         remote: &str,
         node: &str,
-        content: Option<Vec<StorageContent>>,
-        enabled: Option<bool>,
-        format: Option<bool>,
-        storage: Option<String>,
-        target: Option<String>,
+        filter: PveListStoragesFilter,
+        include_supported_disk_image_formats: bool,
     ) -> Result<Vec<StorageInfo>, Error> {
         let mut builder = ApiPathBuilder::new(format!(
             "/api2/extjs/pve/remotes/{remote}/nodes/{node}/storage"
         ))
-        .maybe_arg("enabled", &enabled)
-        .maybe_arg("format", &format)
-        .maybe_arg("storage", &storage)
-        .maybe_arg("target", &target);
-        if let Some(content) = content {
-            for ty in content {
-                builder = builder.arg("content", ty);
-            }
+        .arg("format", include_supported_disk_image_formats)
+        .maybe_arg("enabled", &filter.enabled)
+        .maybe_arg("storage", &filter.storage)
+        .maybe_arg("target", &filter.target);
+
+        for ty in filter.content {
+            builder = builder.arg("content", ty);
         }
+
         let path = builder.build();
 
         Ok(self.0.get(&path).await?.expect_json()?.data)

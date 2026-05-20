@@ -22,7 +22,10 @@ use pwt::{
 };
 use pwt_macros::{builder, widget};
 
-use pdm_client::types::{StorageContent, StorageInfo};
+use pdm_client::{
+    types::{StorageContent, StorageInfo},
+    PveListStoragesFilter,
+};
 
 #[widget(comp=PveStorageSelectorComp, @input)]
 #[derive(Clone, Properties, PartialEq)]
@@ -85,15 +88,19 @@ impl PveStorageSelectorComp {
         content: Option<Vec<StorageContent>>,
         target: Option<AttrValue>,
     ) -> Result<Vec<StorageInfo>, Error> {
+        let filter = PveListStoragesFilter {
+            content: content.unwrap_or_default(),
+            enabled: Some(true),
+            target: target.as_ref().map(AttrValue::to_string),
+            ..Default::default()
+        };
+
         let mut storages = crate::pdm_client()
             .pve_list_storages(
                 &remote,
                 &node.unwrap_or(AttrValue::from("localhost")),
-                content,
-                Some(true),
-                Some(true),
-                None,
-                target.as_ref().map(AttrValue::to_string),
+                filter,
+                true,
             )
             .await?;
 
