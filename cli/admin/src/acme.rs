@@ -181,11 +181,11 @@ async fn register_account(
     let (eab_kid, eab_hmac_key) = eab_creds.unzip();
     let parameters = AcmeRegistrationParams {
         name: Some(name),
-        contact: contact,
-        tos_url: tos_url,
+        contact,
+        tos_url,
         directory: Some(directory_url),
-        eab_kid: eab_kid,
-        eab_hmac_key: eab_hmac_key,
+        eab_kid,
+        eab_hmac_key,
     };
     let param = serde_json::to_value(parameters)?;
 
