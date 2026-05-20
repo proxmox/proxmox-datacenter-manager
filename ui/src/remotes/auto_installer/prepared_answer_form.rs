@@ -347,8 +347,8 @@ pub fn render_network_options_form(
                         .map(|(k, v)| (k.clone(), Value::String(v.clone())))
                         .collect(),
                 )
-                .key_label(tr!("Property name"))
-                .value_label(tr!("Value to match"))
+                .key_label(tr!("Property Name"))
+                .value_label(tr!("Value To Match"))
                 .key_placeholder(tr!("udev property name, e.g. ID_NET_DRIVER"))
                 .value_renderer(render_udev_filter_value.into())
                 .submit_validate(kv_list_to_udev_filter_map_validate)
@@ -409,8 +409,8 @@ pub fn render_disk_setup_form(
                 .with_item("filter")
                 .default("fixed")
                 .render_value(|v: &AttrValue| match v.parse::<DiskSelectionMode>() {
-                    Ok(DiskSelectionMode::Fixed) => tr!("Fixed list of disk names").into(),
-                    Ok(DiskSelectionMode::Filter) => tr!("Dynamically by udev filter").into(),
+                    Ok(DiskSelectionMode::Fixed) => tr!("Fixed List of Disk Names").into(),
+                    Ok(DiskSelectionMode::Filter) => tr!("Dynamically by udev Filter").into(),
                     _ => v.into(),
                 })
                 .required(true)
@@ -438,8 +438,8 @@ pub fn render_disk_setup_form(
                         .collect(),
                 ))
                 .render_value(|v: &AttrValue| match v.parse::<FilterMatch>() {
-                    Ok(FilterMatch::Any) => tr!("Match any filter").into(),
-                    Ok(FilterMatch::All) => tr!("Match all filters").into(),
+                    Ok(FilterMatch::Any) => tr!("Match Any Filter").into(),
+                    Ok(FilterMatch::All) => tr!("Match All Filters").into(),
                     _ => v.into(),
                 })
                 .default(serde_variant_name(FilterMatch::default()))
@@ -456,9 +456,9 @@ pub fn render_disk_setup_form(
                         .map(|(k, v)| (k.clone(), Value::String(v.clone())))
                         .collect(),
                 )
-                .key_label(tr!("Property name"))
-                .value_label(tr!("Value to match"))
-                .key_placeholder(tr!("udev property name, e.g. ID_MODEL"))
+                .key_label(tr!("Property Name"))
+                .value_label(tr!("Value To Match"))
+                .key_placeholder(tr!("udev Property Name, e.g. ID_MODEL"))
                 .value_renderer(render_udev_filter_value.into())
                 .submit_validate(kv_list_to_udev_filter_map_validate)
                 .submit_empty(false)
@@ -508,7 +508,7 @@ fn add_lvm_advanced_form_fields(panel: &mut InputPanel, fs_opts: &LvmOptions) {
         FieldPosition::Left,
         true,
         false,
-        tr!("Harddisk size to use (GB)"),
+        tr!("Harddisk Size To Use (GB)"),
         Number::new()
             .name("hdsize")
             .min(4.)
@@ -521,7 +521,7 @@ fn add_lvm_advanced_form_fields(panel: &mut InputPanel, fs_opts: &LvmOptions) {
         FieldPosition::Left,
         true,
         false,
-        tr!("Swap size (GB)"),
+        tr!("Swap Size (GB)"),
         Number::new()
             .name("swapsize")
             .min(0.)
@@ -534,7 +534,7 @@ fn add_lvm_advanced_form_fields(panel: &mut InputPanel, fs_opts: &LvmOptions) {
         FieldPosition::Right,
         true,
         false,
-        tr!("Maximum root volume size (GB)"),
+        tr!("Maximum root Volume Size (GB)"),
         Number::new()
             .name("maxroot")
             .min(0.)
@@ -547,7 +547,7 @@ fn add_lvm_advanced_form_fields(panel: &mut InputPanel, fs_opts: &LvmOptions) {
         FieldPosition::Right,
         true,
         false,
-        tr!("Maximum data volume size (GB)"),
+        tr!("Maximum data Volume Size (GB)"),
         Number::new()
             .name("maxvz")
             .min(0.)
@@ -560,7 +560,7 @@ fn add_lvm_advanced_form_fields(panel: &mut InputPanel, fs_opts: &LvmOptions) {
         FieldPosition::Right,
         true,
         false,
-        tr!("Minimum free space in LVM volume group (GB)"),
+        tr!("Minimum Free Space in LVM Volume Group (GB)"),
         Number::new()
             .name("minfree")
             .min(0.)
@@ -589,7 +589,7 @@ fn add_zfs_advanced_form_fields(panel: &mut InputPanel, fs_opts: &ZfsOptions) {
         FieldPosition::Left,
         true,
         false,
-        tr!("ARC maximum size (MiB)"),
+        tr!("ARC Maximum Size (MiB)"),
         Number::new()
             .name("arc-max")
             .min(64.)
@@ -601,7 +601,7 @@ fn add_zfs_advanced_form_fields(panel: &mut InputPanel, fs_opts: &ZfsOptions) {
         FieldPosition::Right,
         true,
         false,
-        tr!("Checksumming algorithm"),
+        tr!("Checksumming Algorithm"),
         Combobox::new()
             .name("checksum")
             .items(Rc::new(
@@ -623,7 +623,7 @@ fn add_zfs_advanced_form_fields(panel: &mut InputPanel, fs_opts: &ZfsOptions) {
         FieldPosition::Right,
         true,
         false,
-        tr!("Compression algorithm"),
+        tr!("Compression Algorithm"),
         Combobox::new()
             .name("compress")
             .items(Rc::new(
@@ -661,7 +661,7 @@ fn add_btrfs_advanced_form_fields(panel: &mut InputPanel, fs_opts: &BtrfsOptions
         FieldPosition::Right,
         true,
         false,
-        tr!("Compression algorithm"),
+        tr!("Compression Algorithm"),
         Combobox::new()
             .name("compress")
             .items(Rc::new(
@@ -735,8 +735,8 @@ pub fn render_target_filter_form(
                         .map(|(k, v)| (k.clone(), Value::String(v.clone())))
                         .collect(),
                 )
-                .key_label(tr!("JSON pointer"))
-                .value_label(tr!("Value to match"))
+                .key_label(tr!("JSON Pointer"))
+                .value_label(tr!("Value To Match"))
                 .key_placeholder("/json/pointer")
                 .submit_validate(|v: &Vec<(String, Value)>| {
                     let map: BTreeMap<String, String> = v
@@ -795,7 +795,7 @@ pub fn render_templating_form(config: &PreparedInstallationConfig) -> yew::Html 
                         .map(|(k, v)| (k.clone(), Value::Number((*v).into())))
                         .collect(),
                 )
-                .value_label(tr!("Current value"))
+                .value_label(tr!("Current Value"))
                 .value_renderer(render_template_counter_value.into())
                 .submit_validate(kv_list_to_template_counter_map_validate)
                 .submit_empty(false)
@@ -919,7 +919,7 @@ pub fn render_show_secret_dialog(
 
     let copy_commandline_view = Container::new()
         .class("pwt-form-grid-col4")
-        .with_child(FieldLabel::new(tr!("Command line")))
+        .with_child(FieldLabel::new(tr!("Command Line")))
         .with_child(
             Row::new()
                 .class("pwt-fill-grid-row")
