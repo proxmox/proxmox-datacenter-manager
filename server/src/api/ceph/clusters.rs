@@ -11,13 +11,20 @@ use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::ceph::{CephClusterListEntry, CEPH_CLUSTER_ID_SCHEMA};
+use pdm_api_types::ceph::{CephClusterListEntry, CephMember, CEPH_CLUSTER_ID_SCHEMA};
 use pdm_api_types::{Authid, PRIV_RESOURCE_AUDIT};
 
 use pve_api_types::{CephFlagInfo, CephMon, CephPool};
 
 use crate::ceph::dispatch::{self, CephMemberClient};
-use crate::ceph::registry;
+use crate::ceph::{cache, registry};
+
+/// Default freshness window for the cluster status read when the caller does
+/// not pass `max-age`.
+const DEFAULT_STATUS_MAX_AGE: u64 = 30;
+/// Freshness window for the status the cluster list overlays (health, quorum).
+/// Generous, since the list is a cheap overview and never fetches live.
+const LIST_STATUS_MAX_AGE: i64 = 60;
 
 fn auth_id(rpcenv: &dyn RpcEnvironment) -> Result<Authid, Error> {
     rpcenv
@@ -27,14 +34,18 @@ fn auth_id(rpcenv: &dyn RpcEnvironment) -> Result<Authid, Error> {
         .map_err(Error::from)
 }
 
-/// Enforce audit access on the cluster and connect through one of its PVE
-/// members. Every cluster read goes through here, so the access check cannot be
-/// skipped.
-fn connect(auth_id: &Authid, cluster: &str) -> Result<CephMemberClient, Error> {
+/// Enforce audit access on the cluster and return its members. Every cluster
+/// read goes through here, so the access check cannot be skipped.
+fn access_checked_members(auth_id: &Authid, cluster: &str) -> Result<Vec<CephMember>, Error> {
     let (config, _) = pdm_config::ceph::config()?;
     let (_cluster, members) =
         registry::lookup_cluster(auth_id, &config, cluster, PRIV_RESOURCE_AUDIT)?;
-    dispatch::connect_cluster(&members)
+    Ok(members)
+}
+
+/// Access-check the cluster and connect through one of its PVE members.
+fn connect(auth_id: &Authid, cluster: &str) -> Result<CephMemberClient, Error> {
+    dispatch::connect_cluster(&access_checked_members(auth_id, cluster)?)
 }
 
 #[api(
@@ -56,38 +67,71 @@ pub async fn list_clusters(
     let (config, _) = pdm_config::ceph::config()?;
     let accessible = registry::accessible_clusters(&auth_id, &config, PRIV_RESOURCE_AUDIT)?;
 
-    Ok(accessible
-        .into_iter()
-        .map(|(cluster, members)| {
-            let display_name = cluster.display_name.clone().unwrap_or_else(|| {
-                format!("ceph-{}", cluster.id.get(..8).unwrap_or(&cluster.id))
-            });
-            CephClusterListEntry {
-                cluster: cluster.id,
-                display_name,
-                state: cluster.state.unwrap_or_default(),
-                member_count: members.len() as i64,
-                // Live reachability and health come from the status cache, which
-                // is not wired yet; reported as unknown for now.
-                reachable_member_count: 0,
-                health: None,
-            }
-        })
-        .collect())
+    let mut out = Vec::with_capacity(accessible.len());
+    for (cluster, members) in accessible {
+        // Overlay the cached status (populated by detection and status reads);
+        // never fetch live here. Absent/stale cache -> health unknown.
+        let status = cache::cached_status(&cluster.id, LIST_STATUS_MAX_AGE)
+            .await
+            .ok()
+            .flatten();
+        let health = status.as_ref().and_then(cache::health_from_status);
+        // Monitors currently in quorum, as a cluster-liveness proxy. True
+        // per-member reachability arrives with the sweep's per-member probing.
+        let reachable_member_count = status.as_ref().map_or(0, cache::quorum_count_from_status);
+
+        let display_name = cluster
+            .display_name
+            .clone()
+            .unwrap_or_else(|| format!("ceph-{}", cluster.id.get(..8).unwrap_or(&cluster.id)));
+        out.push(CephClusterListEntry {
+            cluster: cluster.id,
+            display_name,
+            state: cluster.state.unwrap_or_default(),
+            member_count: members.len() as i64,
+            reachable_member_count,
+            health,
+        });
+    }
+    Ok(out)
 }
 
 #[api(
-    input: { properties: { cluster: { schema: CEPH_CLUSTER_ID_SCHEMA } } },
+    input: {
+        properties: {
+            cluster: { schema: CEPH_CLUSTER_ID_SCHEMA },
+            "max-age": {
+                type: Integer,
+                optional: true,
+                minimum: 0,
+                description: "Serve a cached status if it is younger than this many seconds.",
+            },
+        },
+    },
     returns: { type: Object, description: "Raw `ceph status` output.", properties: {} },
     access: { permission: &Permission::Anybody },
 )]
-/// Cluster-wide Ceph status (the raw `ceph status` object).
-pub async fn get_status(cluster: String, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-    let conn = connect(&auth_id(rpcenv)?, &cluster)?;
-    conn.client
+/// Cluster-wide Ceph status (the raw `ceph status` object), served from the
+/// cache within `max-age` seconds or fetched fresh and cached.
+pub async fn get_status(
+    cluster: String,
+    max_age: Option<u64>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+    let members = access_checked_members(&auth_id(rpcenv)?, &cluster)?;
+
+    let max_age = max_age.unwrap_or(DEFAULT_STATUS_MAX_AGE) as i64;
+    if let Some(cached) = cache::cached_status(&cluster, max_age).await? {
+        return Ok(cached);
+    }
+
+    let status = dispatch::connect_cluster(&members)?
+        .client
         .cluster_ceph_status()
         .await
-        .with_context(|| format!("ceph cluster {cluster}: failed to read status"))
+        .with_context(|| format!("ceph cluster {cluster}: failed to read status"))?;
+    cache::store_status(&cluster, &status).await?;
+    Ok(status)
 }
 
 #[api(

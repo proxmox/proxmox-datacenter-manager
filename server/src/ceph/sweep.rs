@@ -43,6 +43,13 @@ async fn probe_remote(remote_id: &str) -> Result<Option<Detected>, Error> {
     let Some(fsid) = status.get("fsid").and_then(|v| v.as_str()) else {
         return Ok(None);
     };
+
+    // Populate the status cache as a side effect so the cluster list has
+    // health and quorum data without a separate fetch. Best-effort.
+    if let Err(e) = super::cache::store_status(fsid, &status).await {
+        log::warn!("failed to cache ceph status for {fsid}: {e}");
+    }
+
     let nodes = status
         .get("quorum_names")
         .and_then(|v| v.as_array())

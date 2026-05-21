@@ -16,6 +16,7 @@
 //! keeps the path component identical to the registry key, and stays within
 //! `ACL_PATH_SCHEMA`'s length limit.
 
+pub mod cache;
 pub mod dispatch;
 pub mod registry;
 pub mod sweep;
