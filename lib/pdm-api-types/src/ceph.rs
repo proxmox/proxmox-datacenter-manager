@@ -274,6 +274,137 @@ pub struct CephClusterListEntry {
     pub health: Option<String>,
 }
 
+#[api]
+/// A single active Ceph health check.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct CephHealthCheck {
+    /// Check identifier, e.g. `OSD_DOWN`.
+    pub code: String,
+    /// Severity (`HEALTH_WARN` / `HEALTH_ERR`).
+    pub severity: String,
+    /// One-line human-readable summary.
+    pub summary: String,
+}
+
+#[api]
+/// PG count for one placement-group state combination.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct CephPgStateGroup {
+    /// State name, e.g. `active+clean`.
+    pub state_name: String,
+    /// Number of placement groups in this state.
+    pub count: i64,
+}
+
+#[api(
+    properties: {
+        fsid: { type: String },
+        health: { type: String },
+        checks: {
+            type: Array,
+            optional: true,
+            items: { type: CephHealthCheck },
+        },
+        "bytes-total": { type: Integer },
+        "bytes-used": { type: Integer },
+        "bytes-avail": { type: Integer },
+        "num-pools": { type: Integer },
+        "num-pgs": { type: Integer },
+        "pgs-by-state": {
+            type: Array,
+            optional: true,
+            items: { type: CephPgStateGroup },
+        },
+        "osds-total": { type: Integer },
+        "osds-up": { type: Integer },
+        "osds-in": { type: Integer },
+        "mons-total": { type: Integer },
+        "mons-in-quorum": { type: Integer },
+        "mgr-active": { type: String, optional: true },
+        "mgr-standbys": {
+            type: Array,
+            optional: true,
+            items: { type: String, description: "Standby manager name." },
+        },
+        "client-read-bytes-sec": { type: Integer, optional: true },
+        "client-write-bytes-sec": { type: Integer, optional: true },
+        "client-read-ops-sec": { type: Integer, optional: true },
+        "client-write-ops-sec": { type: Integer, optional: true },
+        "recovery-bytes-sec": { type: Integer, optional: true },
+        "misplaced-ratio": { type: Number, optional: true },
+        "degraded-ratio": { type: Number, optional: true },
+    },
+    additional_properties: true,
+)]
+/// Typed, summarized Ceph cluster status for the dashboard.
+///
+/// Computed server-side from the raw `ceph status` object so the UI binds to
+/// typed fields instead of digging through an untyped JSON blob. Returned by
+/// `GET /ceph/clusters/{cluster}/summary`.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct CephClusterStatus {
+    /// Cluster fsid.
+    pub fsid: String,
+    /// Overall health (`HEALTH_OK` / `HEALTH_WARN` / `HEALTH_ERR`).
+    pub health: String,
+    /// Active health checks.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub checks: Vec<CephHealthCheck>,
+    /// Total raw capacity in bytes.
+    pub bytes_total: i64,
+    /// Used capacity in bytes.
+    pub bytes_used: i64,
+    /// Available capacity in bytes.
+    pub bytes_avail: i64,
+    /// Number of pools.
+    pub num_pools: i64,
+    /// Total number of placement groups.
+    pub num_pgs: i64,
+    /// PG counts grouped by state.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pgs_by_state: Vec<CephPgStateGroup>,
+    /// Total OSDs known to the cluster.
+    pub osds_total: i64,
+    /// OSDs currently up.
+    pub osds_up: i64,
+    /// OSDs currently in.
+    pub osds_in: i64,
+    /// Total monitors.
+    pub mons_total: i64,
+    /// Monitors currently in quorum.
+    pub mons_in_quorum: i64,
+    /// Active manager, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mgr_active: Option<String>,
+    /// Standby managers.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mgr_standbys: Vec<String>,
+    /// Client read throughput (bytes/s), when reported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_read_bytes_sec: Option<i64>,
+    /// Client write throughput (bytes/s), when reported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_write_bytes_sec: Option<i64>,
+    /// Client read ops/s, when reported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_read_ops_sec: Option<i64>,
+    /// Client write ops/s, when reported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_write_ops_sec: Option<i64>,
+    /// Recovery throughput (bytes/s), when a recovery is active.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_bytes_sec: Option<i64>,
+    /// Fraction of objects misplaced, when rebalancing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub misplaced_ratio: Option<f64>,
+    /// Fraction of objects degraded, when degraded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub degraded_ratio: Option<f64>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

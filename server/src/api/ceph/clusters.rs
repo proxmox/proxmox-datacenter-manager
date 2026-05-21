@@ -11,7 +11,9 @@ use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::ceph::{CephClusterListEntry, CephMember, CEPH_CLUSTER_ID_SCHEMA};
+use pdm_api_types::ceph::{
+    CephClusterListEntry, CephClusterStatus, CephMember, CEPH_CLUSTER_ID_SCHEMA,
+};
 use pdm_api_types::{Authid, PRIV_RESOURCE_AUDIT};
 
 use pve_api_types::{CephFlagInfo, CephMon, CephPool};
@@ -95,6 +97,25 @@ pub async fn list_clusters(
     Ok(out)
 }
 
+/// The raw `ceph status` for a cluster, served from the cache within `max_age`
+/// seconds or fetched through a member and cached.
+async fn cached_or_fetch_status(
+    cluster: &str,
+    members: &[CephMember],
+    max_age: i64,
+) -> Result<Value, Error> {
+    if let Some(cached) = cache::cached_status(cluster, max_age).await? {
+        return Ok(cached);
+    }
+    let status = dispatch::connect_cluster(members)?
+        .client
+        .cluster_ceph_status()
+        .await
+        .with_context(|| format!("ceph cluster {cluster}: failed to read status"))?;
+    cache::store_status(cluster, &status).await?;
+    Ok(status)
+}
+
 #[api(
     input: {
         properties: {
@@ -118,19 +139,37 @@ pub async fn get_status(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let members = access_checked_members(&auth_id(rpcenv)?, &cluster)?;
-
     let max_age = max_age.unwrap_or(DEFAULT_STATUS_MAX_AGE) as i64;
-    if let Some(cached) = cache::cached_status(&cluster, max_age).await? {
-        return Ok(cached);
-    }
+    cached_or_fetch_status(&cluster, &members, max_age).await
+}
 
-    let status = dispatch::connect_cluster(&members)?
-        .client
-        .cluster_ceph_status()
-        .await
-        .with_context(|| format!("ceph cluster {cluster}: failed to read status"))?;
-    cache::store_status(&cluster, &status).await?;
-    Ok(status)
+#[api(
+    input: {
+        properties: {
+            cluster: { schema: CEPH_CLUSTER_ID_SCHEMA },
+            "max-age": {
+                type: Integer,
+                optional: true,
+                minimum: 0,
+                description: "Serve a cached status if it is younger than this many seconds.",
+            },
+        },
+    },
+    returns: { type: CephClusterStatus },
+    access: { permission: &Permission::Anybody },
+)]
+/// Typed, summarized Ceph cluster status (health, capacity, OSD/MON/MGR/PG
+/// counts) for the dashboard. Computed server-side from the cached `ceph
+/// status`, so the UI binds typed fields instead of parsing a raw blob.
+pub async fn get_summary(
+    cluster: String,
+    max_age: Option<u64>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<CephClusterStatus, Error> {
+    let members = access_checked_members(&auth_id(rpcenv)?, &cluster)?;
+    let max_age = max_age.unwrap_or(DEFAULT_STATUS_MAX_AGE) as i64;
+    let raw = cached_or_fetch_status(&cluster, &members, max_age).await?;
+    Ok(cache::summarize_status(&cluster, &raw))
 }
 
 #[api(
@@ -235,6 +274,7 @@ const CLUSTER_SUBDIRS: SubdirMap = &sorted!([
     ("osd-tree", &Router::new().get(&API_METHOD_GET_OSD_TREE)),
     ("pools", &Router::new().get(&API_METHOD_LIST_POOLS)),
     ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
+    ("summary", &Router::new().get(&API_METHOD_GET_SUMMARY)),
 ]);
 
 const CLUSTER_ROUTER: Router = Router::new()
