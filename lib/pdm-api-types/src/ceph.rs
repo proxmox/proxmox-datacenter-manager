@@ -248,7 +248,6 @@ pub struct CephMember {
         "display-name": { type: String },
         state: { type: CephClusterState },
         "member-count": { type: Integer },
-        "reachable-member-count": { type: Integer },
         health: { type: String, optional: true },
     },
     additional_properties: true,
@@ -269,10 +268,8 @@ pub struct CephClusterListEntry {
     pub state: CephClusterState,
     /// Total members registered for the cluster.
     pub member_count: i64,
-    /// Subset of members that responded on the most recent probe.
-    pub reachable_member_count: i64,
     /// Last known Ceph health string (HEALTH_OK / HEALTH_WARN / HEALTH_ERR),
-    /// if any probe response is cached.
+    /// from the cached status; absent if nothing is cached yet.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub health: Option<String>,
 }

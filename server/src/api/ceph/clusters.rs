@@ -69,16 +69,16 @@ pub async fn list_clusters(
 
     let mut out = Vec::with_capacity(accessible.len());
     for (cluster, members) in accessible {
-        // Overlay the cached status (populated by detection and status reads);
-        // never fetch live here. Absent/stale cache -> health unknown.
-        let status = cache::cached_status(&cluster.id, LIST_STATUS_MAX_AGE)
+        // Overlay the cached health (populated by detection and status reads);
+        // never fetch live here. Absent/stale cache -> health unknown. Richer
+        // live data (quorum, OSD counts, capacity) lives in the dashboard
+        // summary, not this at-a-glance row.
+        let health = cache::cached_status(&cluster.id, LIST_STATUS_MAX_AGE)
             .await
             .ok()
-            .flatten();
-        let health = status.as_ref().and_then(cache::health_from_status);
-        // Monitors currently in quorum, as a cluster-liveness proxy. True
-        // per-member reachability arrives with the sweep's per-member probing.
-        let reachable_member_count = status.as_ref().map_or(0, cache::quorum_count_from_status);
+            .flatten()
+            .as_ref()
+            .and_then(cache::health_from_status);
 
         let display_name = cluster
             .display_name
@@ -89,7 +89,6 @@ pub async fn list_clusters(
             display_name,
             state: cluster.state.unwrap_or_default(),
             member_count: members.len() as i64,
-            reachable_member_count,
             health,
         });
     }
