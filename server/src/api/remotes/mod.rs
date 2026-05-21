@@ -322,12 +322,24 @@ pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Resu
     }
 
     let name = entry.id.clone();
+    let is_pve = entry.ty == RemoteType::Pve;
     remotes.insert(entry.id.to_owned(), entry);
 
     pdm_config::remotes::save_config(remotes)?;
 
-    if let Err(e) = trigger_remote_metric_collection(Some(name), false).await {
+    if let Err(e) = trigger_remote_metric_collection(Some(name.clone()), false).await {
         log::error!("could not trigger metric collection after adding remote: {e}");
+    }
+
+    // Fire-and-forget Ceph auto-detection for the new PVE remote so the registry
+    // picks up any Ceph cluster it backs. A periodic sweep is a later refinement.
+    if is_pve {
+        tokio::spawn(async move {
+            if let Err(e) = crate::ceph::sweep::detect_and_upsert(std::slice::from_ref(&name)).await
+            {
+                log::error!("ceph auto-detection after adding remote {name} failed: {e}");
+            }
+        });
     }
 
     Ok(())
@@ -474,6 +486,13 @@ pub async fn remove_remote(id: String, delete_token: bool) -> Result<(), Error> 
     }
 
     pdm_config::remotes::save_config(remotes)?;
+
+    // Drop any Ceph members that referenced this remote (and clusters left
+    // empty). Best-effort: the remote is already gone, so a cleanup failure
+    // must not fail the removal.
+    if let Err(e) = crate::ceph::sweep::on_remote_removed(&id) {
+        log::error!("failed to clean up ceph registry after removing remote {id}: {e}");
+    }
 
     Ok(())
 }
