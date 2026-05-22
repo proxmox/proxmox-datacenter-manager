@@ -701,6 +701,12 @@ pub struct CpuStatistics {
             items: {
                 type: FailedRemote,
             },
+        },
+        "remote-list": {
+            type: Array,
+            items: {
+                type: RemoteInfo,
+            },
         }
     }
 )]
@@ -741,6 +747,51 @@ pub struct ResourcesStatus {
     /// List of the failed remotes including type and error
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub failed_remotes_list: Vec<FailedRemote>,
+
+    /// List of remote info
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(rename = "remote-list")]
+    pub remote_list: Vec<RemoteInfo>,
+}
+
+#[api]
+#[derive(Clone, PartialEq, Serialize, Deserialize, Default)]
+/// Basic remote status
+pub enum RemoteStatus {
+    /// Remote is healthy and reachable
+    Good,
+    /// Remote has at least one (non-fatal) issue
+    Warning,
+    /// Remote can't be reached or has a fatal error
+    Error,
+    #[default]
+    /// Unknown status of a remote
+    Unknown,
+}
+
+#[api(
+    properties: {
+        messages: {
+            type: Array,
+            items: {
+                description: "A warning or error message",
+                type: String,
+            },
+        },
+    },
+)]
+#[derive(Clone, PartialEq, Serialize, Deserialize, Default)]
+/// Basic information about a remote
+pub struct RemoteInfo {
+    /// The name of the remote
+    pub name: String,
+    /// The type of remote
+    pub ty: RemoteType,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// The error or warning messages when the state is not good.
+    pub messages: Vec<String>,
+    /// The overall status of the remote
+    pub status: RemoteStatus,
 }
 
 #[api]

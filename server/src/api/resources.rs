@@ -12,8 +12,8 @@ use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
     FailedRemote, NetworkFabricResource, NetworkZoneResource, PbsDatastoreResource,
     PbsNodeResource, PveLxcResource, PveNetworkResource, PveNodeResource, PveQemuResource,
-    PveStorageResource, RemoteResources, Resource, ResourceType, ResourcesStatus, SdnStatus,
-    TopEntities, PBS_DATASTORE_HIGH_USAGE_THRESHOLD,
+    PveStorageResource, RemoteInfo, RemoteResources, RemoteStatus, Resource, ResourceType,
+    ResourcesStatus, SdnStatus, TopEntities, PBS_DATASTORE_HIGH_USAGE_THRESHOLD,
 };
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
@@ -497,16 +497,27 @@ pub async fn get_status(
     let mut counts = ResourcesStatus::default();
     let mut pve_cpu_allocated = 0.0;
     for remote_with_resources in remotes_with_resources {
-        if let Some(err) = remote_with_resources.error {
+        if let Some(err) = &remote_with_resources.error {
             counts.failed_remotes += 1;
             counts.failed_remotes_list.push(FailedRemote {
-                name: remote_with_resources.remote_name,
+                name: remote_with_resources.remote_name.clone(),
                 error: err.to_string(),
                 remote_type: remote_with_resources.remote.ty,
             });
         } else {
             counts.remotes += 1;
         }
+
+        let mut remote_status = if remote_with_resources.error.is_some() {
+            RemoteStatus::Error
+        } else {
+            RemoteStatus::Good
+        };
+        let mut remote_messages = match remote_with_resources.error {
+            Some(error) => vec![error],
+            None => Vec::new(),
+        };
+
         let mut seen_storages = HashSet::new();
         for resource in remote_with_resources.resources {
             match resource {
@@ -543,7 +554,13 @@ pub async fn get_status(
                 Resource::PveNode(r) => {
                     match r.status.as_str() {
                         "online" => counts.pve_nodes.online += 1,
-                        "offline" => counts.pve_nodes.offline += 1,
+                        "offline" => {
+                            if remote_status == RemoteStatus::Good {
+                                remote_status = RemoteStatus::Warning;
+                            }
+                            remote_messages.push(format!("Node '{}' is offline", r.node));
+                            counts.pve_nodes.offline += 1
+                        }
                         _ => counts.pve_nodes.unknown += 1,
                     }
                     counts.pve_cpu_stats.used += r.cpu * r.maxcpu;
@@ -560,6 +577,11 @@ pub async fn get_status(
                                 counts.sdn_zones.available += 1;
                             }
                             SdnStatus::Error => {
+                                if remote_status == RemoteStatus::Good {
+                                    remote_status = RemoteStatus::Warning;
+                                }
+                                remote_messages
+                                    .push(format!("SDN zone '{}' has an error", zone.network));
                                 counts.sdn_zones.error += 1;
                             }
                             SdnStatus::Pending => {
@@ -613,6 +635,13 @@ pub async fn get_status(
                 }
             }
         }
+
+        counts.remote_list.push(RemoteInfo {
+            name: remote_with_resources.remote_name,
+            ty: remote_with_resources.remote.ty,
+            status: remote_status,
+            messages: remote_messages,
+        });
     }
 
     counts.pve_cpu_stats.allocated = Some(pve_cpu_allocated);
