@@ -350,6 +350,9 @@ impl MapPointData for PoiInfo {
         let mut points = args.points.to_vec();
         points.sort_by(|a, b| a.data.render_title().cmp(&b.data.render_title()));
         Column::new()
+            // keep the card from overflowing the viewport when a cluster holds many remotes
+            .max_height(400)
+            .class(css::Overflow::Auto)
             .children(
                 points
                     .iter()
