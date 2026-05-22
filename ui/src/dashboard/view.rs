@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use anyhow::Error;
@@ -24,10 +25,10 @@ use crate::dashboard::refresh_config_edit::{
 use crate::dashboard::subscription_info::create_subscriptions_dialog;
 use crate::dashboard::tasks::get_task_options;
 use crate::dashboard::{
-    create_gauge_panel, create_guest_panel, create_node_panel, create_pbs_datastores_panel,
-    create_refresh_config_edit_window, create_remote_panel, create_resource_tree, create_sdn_panel,
-    create_subscription_panel, create_task_summary_panel, create_top_entities_panel,
-    DashboardStatusRow,
+    create_gauge_panel, create_guest_panel, create_map_panel, create_node_panel,
+    create_pbs_datastores_panel, create_refresh_config_edit_window, create_remote_panel,
+    create_resource_tree, create_sdn_panel, create_subscription_panel, create_task_summary_panel,
+    create_top_entities_panel, DashboardStatusRow,
 };
 use crate::remotes::AddWizard;
 use crate::widget::RedrawController;
@@ -39,7 +40,7 @@ use pdm_api_types::subscription::RemoteSubscriptions;
 use pdm_api_types::views::{
     RowWidget, TaskSummaryGrouping, ViewConfig, ViewLayout, ViewTemplate, WidgetType,
 };
-use pdm_api_types::TaskStatistics;
+use pdm_api_types::{CachedLocationInfo, TaskStatistics};
 use pdm_client::types::TopEntities;
 use pdm_search::{Search, SearchTerm};
 
@@ -84,6 +85,7 @@ pub enum LoadingResult {
     TopEntities(Result<pdm_client::types::TopEntities, proxmox_client::Error>),
     TaskStatistics(Result<TaskStatistics, Error>),
     SubscriptionInfo(Result<Vec<RemoteSubscriptions>, Error>),
+    Locations(Result<HashMap<String, CachedLocationInfo>, Error>),
     All,
 }
 
@@ -123,6 +125,7 @@ struct WidgetRenderArgs {
     subscriptions: SharedState<LoadResult<Vec<RemoteSubscriptions>, Error>>,
     top_entities: SharedState<LoadResult<TopEntities, proxmox_client::Error>>,
     statistics: SharedState<LoadResult<TaskStatistics, Error>>,
+    locations: SharedState<LoadResult<HashMap<String, CachedLocationInfo>, Error>>,
     redraw_controller: RedrawController,
 }
 
@@ -137,6 +140,7 @@ fn render_widget(
         subscriptions,
         top_entities,
         statistics,
+        locations,
         redraw_controller,
     } = render_args;
 
@@ -173,6 +177,7 @@ fn render_widget(
             resource,
             remote_type,
         } => create_gauge_panel(*resource, *remote_type, status),
+        WidgetType::Map => create_map_panel(status, locations),
         WidgetType::UnknownWidget { widget_type, .. } => create_unknown_widget_panel(widget_type),
     };
 
@@ -251,7 +256,27 @@ impl ViewComp {
                     link.send_message(Msg::LoadingResult(LoadingResult::SubscriptionInfo(res)));
                 };
 
-                join!(status_future, entities_future, tasks_future, subs_future);
+                let location_future = async {
+                    if required.locations {
+                        let mut params = json!({});
+                        // max-age for location has a sensible backend default and does not need to be
+                        // updated as often, except if forced
+                        if max_age == 0 {
+                            params["max-age"] = 0.into();
+                        }
+                        add_view_filter(&mut params);
+                        let res = http_get("/resources/location-info", Some(params)).await;
+                        link.send_message(Msg::LoadingResult(LoadingResult::Locations(res)));
+                    }
+                };
+
+                join!(
+                    status_future,
+                    entities_future,
+                    tasks_future,
+                    subs_future,
+                    location_future
+                );
                 link.send_message(Msg::LoadingResult(LoadingResult::All));
             });
         } else {
@@ -266,6 +291,7 @@ struct RequiredApiCalls {
     status: bool,
     top_entities: bool,
     task_statistics: bool,
+    locations: bool,
 }
 
 fn required_api_calls(layout: &ViewLayout) -> RequiredApiCalls {
@@ -290,6 +316,10 @@ fn required_api_calls(layout: &ViewLayout) -> RequiredApiCalls {
                         WidgetType::TaskSummary { .. } => api_calls.task_statistics = true,
                         WidgetType::ResourceTree => {
                             // each list must do it itself
+                        }
+                        WidgetType::Map => {
+                            api_calls.status = true;
+                            api_calls.locations = true;
                         }
                         WidgetType::UnknownWidget { .. } => {}
                     }
@@ -338,6 +368,7 @@ impl Component for ViewComp {
                 top_entities: SharedState::new(LoadResult::new()),
                 statistics: SharedState::new(LoadResult::new()),
                 subscriptions: SharedState::new(LoadResult::new()),
+                locations: SharedState::new(LoadResult::new()),
                 redraw_controller: RedrawController::new(),
             },
         }
@@ -359,6 +390,9 @@ impl Component for ViewComp {
                 }
                 LoadingResult::SubscriptionInfo(subscriptions) => {
                     self.render_args.subscriptions.write().update(subscriptions);
+                }
+                LoadingResult::Locations(locations) => {
+                    self.render_args.locations.write().update(locations);
                 }
                 LoadingResult::All => {
                     self.loading = false;

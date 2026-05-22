@@ -333,6 +333,8 @@ pub enum WidgetType {
         #[serde(skip_serializing_if = "Option::is_none")]
         remote_type: Option<RemoteType>,
     },
+    /// A simple map
+    Map,
     #[serde(untagged)]
     #[serde(rename_all = "kebab-case")]
     /// Catches all widgets for unknown types.

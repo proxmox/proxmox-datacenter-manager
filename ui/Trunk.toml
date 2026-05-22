@@ -20,3 +20,8 @@ command_arguments= ["css/material-yew-style.scss", "dist/.stage/material-yew-sty
 stage="build"
 command="rust-grass"
 command_arguments= ["css/desktop-yew-style.scss", "dist/.stage/desktop-yew-style.css"]
+
+[[hooks]]
+stage="build"
+command="sh"
+command_arguments= ["-c", "mkdir -p ./dist/.stage/geojson && cp /usr/share/proxmox-geojson-data/world-map.json ./dist/.stage/geojson/"]

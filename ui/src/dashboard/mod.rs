@@ -20,6 +20,9 @@ pub use gauge_panel::create_gauge_panel;
 mod guest_panel;
 pub use guest_panel::create_guest_panel;
 
+mod map;
+pub use map::create_map_panel;
+
 mod node_status_panel;
 use node_status_panel::create_node_panel;
 
