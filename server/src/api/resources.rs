@@ -18,7 +18,7 @@ use pdm_api_types::resource::{
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
 };
-use pdm_api_types::{Authid, PRIV_RESOURCE_AUDIT, VIEW_ID_SCHEMA};
+use pdm_api_types::{Authid, CachedLocationInfo, PRIV_RESOURCE_AUDIT, VIEW_ID_SCHEMA};
 use pdm_search::{Search, SearchTerm};
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
@@ -41,6 +41,10 @@ pub const ROUTER: Router = Router::new()
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("list", &Router::new().get(&API_METHOD_GET_RESOURCES)),
+    (
+        "location-info",
+        &Router::new().get(&API_METHOD_GET_LOCATION_INFO)
+    ),
     ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
     (
         "top-entities",
@@ -212,6 +216,29 @@ impl From<RemoteWithResources> for RemoteResources {
             error: val.error,
         }
     }
+}
+
+fn check_remote_priv(user_info: &CachedUserInfo, auth_id: &Authid, remote: &str) -> bool {
+    user_info
+        .check_privs(auth_id, &["resource", remote], PRIV_RESOURCE_AUDIT, false)
+        .is_ok()
+}
+
+/// When returning true, all remotes are allowed and no per-remote permission check should be
+/// necessary
+fn check_all_remotes_allowed(
+    user_info: &CachedUserInfo,
+    auth_id: &Authid,
+    view: Option<&str>,
+) -> Result<bool, Error> {
+    Ok(if let Some(view) = view {
+        user_info.check_privs(auth_id, &["view", view], PRIV_RESOURCE_AUDIT, false)?;
+        false
+    } else {
+        user_info
+            .check_privs(auth_id, &["resource"], PRIV_RESOURCE_AUDIT, false)
+            .is_ok()
+    })
 }
 
 #[api(
@@ -641,34 +668,16 @@ pub async fn get_subscription_status(
         .parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let allow_all = if let Some(view) = &view {
-        user_info.check_privs(&auth_id, &["view", view], PRIV_RESOURCE_AUDIT, false)?;
-        false
-    } else {
-        user_info
-            .check_privs(&auth_id, &["resource"], PRIV_RESOURCE_AUDIT, false)
-            .is_ok()
-    };
+    let allow_all = check_all_remotes_allowed(&user_info, &auth_id, view.as_deref())?;
 
     let view = views::get_optional_view(view.as_deref())?;
-
-    let check_priv = |remote_name: &str| -> bool {
-        user_info
-            .check_privs(
-                &auth_id,
-                &["resource", remote_name],
-                PRIV_RESOURCE_AUDIT,
-                false,
-            )
-            .is_ok()
-    };
 
     for (remote_name, remote) in remotes_config {
         if let Some(view) = &view {
             if view.can_skip_remote(&remote_name) {
                 continue;
             }
-        } else if !allow_all && !check_priv(&remote_name) {
+        } else if !allow_all && !check_remote_priv(&user_info, &auth_id, &remote_name) {
             continue;
         }
 
@@ -1364,6 +1373,75 @@ fn map_pbs_datastore_status(
             ..Default::default()
         })
     }
+}
+
+#[api(
+    // FIXME:: see list-like API calls in resource routers, we probably want more fine-grained
+    // checks..
+    access: {
+        permission: &Permission::Anybody,
+    },
+    input: {
+        properties: {
+            "max-age": {
+                description: "Maximum age (in seconds) of cached remote resources. If remote is not \
+reachable or returns an error for the location, the last value from the cache will be returned in \
+any case",
+                default: 24*60*60,
+                optional: true,
+            },
+            view: {
+                schema: VIEW_ID_SCHEMA,
+                optional: true,
+            },
+        }
+    },
+)]
+/// Get the location info of the selected view (or all remotes)
+async fn get_location_info(
+    max_age: u64,
+    view: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<HashMap<String, CachedLocationInfo>, Error> {
+    let (remotes_config, _) = pdm_config::remotes::config()?;
+
+    let mut futures = Vec::new();
+
+    let auth_id = rpcenv
+        .get_auth_id()
+        .context("no authid available")?
+        .parse()?;
+    let user_info = CachedUserInfo::new()?;
+
+    let allow_all = check_all_remotes_allowed(&user_info, &auth_id, view.as_deref())?;
+
+    let view = views::get_optional_view(view.as_deref())?;
+
+    for (remote_name, remote) in remotes_config {
+        if let Some(view) = &view {
+            if view.can_skip_remote(&remote_name) {
+                continue;
+            }
+        } else if !allow_all && !check_remote_priv(&user_info, &auth_id, &remote_name) {
+            continue;
+        }
+
+        let future = async move {
+            match crate::location_cache::get_location_info_for_remote(&remote, max_age).await {
+                Ok(Some(info)) => Some((remote_name, info)),
+                Ok(None) => None,
+                Err(err) => {
+                    log::debug!("error on getting location data from cache: {err}");
+                    None
+                }
+            }
+        };
+
+        futures.push(future);
+    }
+
+    let res = join_all(futures).await;
+    Ok(res.into_iter().flatten().collect())
 }
 
 #[cfg(test)]

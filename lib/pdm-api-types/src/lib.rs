@@ -521,3 +521,37 @@ pub const TASKLOG_DOWNLOAD_PARAM_SCHEMA: Schema = proxmox_schema::BooleanSchema:
 )
 .default(false)
 .schema();
+
+#[api(
+    properties: {
+        latitude: {
+            type: Number,
+            minimum: -90.0,
+            maximum: 90.0,
+        },
+        longitude: {
+            type: Number,
+            minimum: -180.0,
+            maximum: 180.0,
+        },
+    },
+)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Represents a physical location
+pub struct Location {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// An optional short name/description of the location.
+    pub name: Option<String>,
+    /// The latitude of the location
+    pub latitude: f64,
+    /// The longitude of the location
+    pub longitude: f64,
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+/// Contains (cached) location information about a remote.
+pub struct CachedLocationInfo {
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    /// The locations of the individual nodes (if not all the same).
+    pub node_locations: HashMap<String, Location>,
+}

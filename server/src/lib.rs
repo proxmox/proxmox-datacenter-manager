@@ -8,6 +8,7 @@ pub mod ceph;
 pub mod context;
 pub mod env;
 pub mod jobstate;
+pub mod location_cache;
 pub mod metric_collection;
 pub mod namespaced_cache;
 pub mod parallel_fetcher;
