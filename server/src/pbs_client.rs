@@ -297,6 +297,12 @@ impl PbsClient {
         Ok(self.0.post_without_body(path).await?.expect_json()?.data)
     }
 
+    /// Return the node config of the Proxmox Backup Server instance
+    pub async fn node_config(&self) -> Result<pbs_api_types::NodeConfig, Error> {
+        let path = "/api2/extjs/nodes/localhost/config";
+        Ok(self.0.get(path).await?.expect_json()?.data)
+    }
+
     /// Return the datastore status
     pub async fn datastore_status(
         &self,
