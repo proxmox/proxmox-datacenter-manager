@@ -138,7 +138,7 @@ For example:
      --answer-auth-token 'mytoken:ee2a5901-1910-4eb0-b0a2-c914f4adbb75'
 
 .. _JSON Pointers: https://www.rfc-editor.org/rfc/rfc6901
-.. _fetch an answer via HTTP: https://pve.proxmox.com/edwiki/Automated_Installation#Answer_Fetched_via_HTTP
+.. _fetch an answer via HTTP: https://pve.proxmox.com/wiki/Automated_Installation#Answer_Fetched_via_HTTP
 .. _Filters: https://pve.proxmox.com/wiki/Automated_Installation#Filters
 .. _target URL: https://pve.proxmox.com/wiki/Automated_Installation#Answer_Fetched_via_HTTP
 .. _system information data: https://pve.proxmox.com/wiki/Automated_Installation#System_information_POST_data
