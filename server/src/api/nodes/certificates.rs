@@ -13,7 +13,7 @@ use proxmox_acme_api::{AcmeDomain, CertificateInfo};
 use proxmox_rest_server::WorkerTask;
 use proxmox_schema::api_types::NODE_SCHEMA;
 
-use pdm_api_types::PRIV_SYS_MODIFY;
+use pdm_api_types::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
 use crate::auth::certs::{API_CERT_FN, API_KEY_FN};
 
@@ -60,7 +60,7 @@ fn get_certificate_info() -> Result<CertificateInfo, Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&["system", "certificates"], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "certificates"], PRIV_SYS_AUDIT, false),
     },
     returns: {
         type: Array,
