@@ -198,7 +198,7 @@ impl ViewComp {
         if let Some(data) = self.template.data.as_ref() {
             let link = ctx.link().clone();
             let (_, since) = get_task_options(self.refresh_config.task_last_hours);
-            let (status, top_entities, tasks) = required_api_calls(&data.layout);
+            let required = required_api_calls(&data.layout);
 
             self.loading = true;
             let view = ctx.props().view.clone();
@@ -209,7 +209,7 @@ impl ViewComp {
                     }
                 };
                 let status_future = async {
-                    if status {
+                    if required.status {
                         let mut params = json!({
                             "max-age": max_age,
                         });
@@ -220,7 +220,7 @@ impl ViewComp {
                 };
 
                 let entities_future = async {
-                    if top_entities {
+                    if required.top_entities {
                         let client: pdm_client::PdmClient<Rc<proxmox_yew_comp::HttpClientWasm>> =
                             pdm_client();
                         let res = client
@@ -231,7 +231,7 @@ impl ViewComp {
                 };
 
                 let tasks_future = async {
-                    if tasks {
+                    if required.task_statistics {
                         let mut params = json!({
                             "since": since,
                             "limit": 0,
@@ -261,11 +261,15 @@ impl ViewComp {
     }
 }
 
-// returns which api calls are required: status, top_entities, task statistics
-fn required_api_calls(layout: &ViewLayout) -> (bool, bool, bool) {
-    let mut status = false;
-    let mut top_entities = false;
-    let mut task_statistics = false;
+#[derive(Default)]
+struct RequiredApiCalls {
+    status: bool,
+    top_entities: bool,
+    task_statistics: bool,
+}
+
+fn required_api_calls(layout: &ViewLayout) -> RequiredApiCalls {
+    let mut api_calls = RequiredApiCalls::default();
     match layout {
         ViewLayout::Rows { rows } => {
             for row in rows {
@@ -277,13 +281,13 @@ fn required_api_calls(layout: &ViewLayout) -> (bool, bool, bool) {
                         | WidgetType::Sdn
                         | WidgetType::PbsDatastores
                         | WidgetType::NodeResourceGauge { .. } => {
-                            status = true;
+                            api_calls.status = true;
                         }
                         WidgetType::Subscription => {
                             // panel does it itself, it's always required anyway
                         }
-                        WidgetType::Leaderboard { .. } => top_entities = true,
-                        WidgetType::TaskSummary { .. } => task_statistics = true,
+                        WidgetType::Leaderboard { .. } => api_calls.top_entities = true,
+                        WidgetType::TaskSummary { .. } => api_calls.task_statistics = true,
                         WidgetType::ResourceTree => {
                             // each list must do it itself
                         }
@@ -294,7 +298,7 @@ fn required_api_calls(layout: &ViewLayout) -> (bool, bool, bool) {
         }
     }
 
-    (status, top_entities, task_statistics)
+    api_calls
 }
 
 impl Component for ViewComp {
