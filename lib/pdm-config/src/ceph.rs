@@ -12,14 +12,23 @@
 //! [`open_api_lockfile`]; never lock in-process around mutations.
 //!
 //! Forward-compat policy: the schemas must NOT use
-//! `#[serde(deny_unknown_fields)]` so older PDM instances reading newer
-//! `ceph-clusters.cfg` files survive (codified in `parse_unknown_key_preserved`).
+//! `#[serde(deny_unknown_fields)]`, so an older PDM can *read* a newer
+//! `ceph-clusters.cfg` without erroring (codified in
+//! `ceph_clusters_cfg_parses_unknown_key_cleanly`). Beyond parse tolerance,
+//! unknown keys are also *preserved* across a rewrite: [`parse`] stashes any
+//! key the typed struct does not model into [`CephClustersConfig::extras`], and
+//! [`write`] merges them back into the section before serialising (codified in
+//! `roundtrip_preserves_unknown_keys`). This keeps a downgrade / mixed-version
+//! edit from silently dropping fields a newer PDM wrote. The typed structs
+//! still carry no extras bag - the preservation lives here, in the one layer
+//! that owns the raw section values.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use anyhow::{format_err, Error};
 use serde::Deserialize;
+use serde_json::{Map, Value};
 
 use proxmox_config_digest::ConfigDigest;
 use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard};
@@ -59,6 +68,13 @@ fn ceph_section_config() -> &'static SectionConfig {
 pub struct CephClustersConfig {
     pub clusters: HashMap<String, CephCluster>,
     pub members: HashMap<String, CephMember>,
+    /// Per-section keys present in the parsed file that no typed field models,
+    /// keyed by section id. Re-emitted verbatim on [`write`] so a rewrite by
+    /// this (possibly older) PDM does not drop fields a newer PDM wrote. Only
+    /// populated by [`parse`]; mutators that drop a section leave its orphaned
+    /// entry here, which is harmless since [`write`] only merges extras for
+    /// sections it actually emits.
+    extras: HashMap<String, Map<String, Value>>,
 }
 
 impl CephClustersConfig {
@@ -118,13 +134,19 @@ fn untyped_to_typed(cfg: SectionConfigData) -> Result<CephClustersConfig, Error>
     for (id, (section_type, value)) in cfg.sections {
         match section_type.as_str() {
             "ceph-cluster" => {
-                let cluster = CephCluster::deserialize(value)
+                let cluster = CephCluster::deserialize(&value)
                     .map_err(|e| format_err!("failed to parse ceph-cluster '{id}': {e}"))?;
+                if let Some(extras) = unknown_keys(&value, &cluster) {
+                    out.extras.insert(id.clone(), extras);
+                }
                 out.clusters.insert(id, cluster);
             }
             "ceph-member" => {
-                let member = CephMember::deserialize(value)
+                let member = CephMember::deserialize(&value)
                     .map_err(|e| format_err!("failed to parse ceph-member '{id}': {e}"))?;
+                if let Some(extras) = unknown_keys(&value, &member) {
+                    out.extras.insert(id.clone(), extras);
+                }
                 out.members.insert(id, member);
             }
             other => {
@@ -137,6 +159,24 @@ fn untyped_to_typed(cfg: SectionConfigData) -> Result<CephClustersConfig, Error>
     Ok(out)
 }
 
+/// The keys present in the raw section `value` that the typed struct does not
+/// model, found by diffing the raw object against the re-serialised typed value
+/// (a known field always round-trips to the same kebab-case key, so what is left
+/// is exactly the unknown keys). Returns `None` when there is nothing to keep.
+fn unknown_keys<T: serde::Serialize>(raw: &Value, typed: &T) -> Option<Map<String, Value>> {
+    let Value::Object(raw) = raw else {
+        return None;
+    };
+    let typed = serde_json::to_value(typed).ok()?;
+    let known = typed.as_object()?;
+    let extras: Map<String, Value> = raw
+        .iter()
+        .filter(|(key, _)| !known.contains_key(*key))
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect();
+    (!extras.is_empty()).then_some(extras)
+}
+
 /// Render the typed view back to section-config text.
 pub fn write(filename: &str, data: &CephClustersConfig) -> Result<String, Error> {
     let mut raw = SectionConfigData::default();
@@ -147,7 +187,7 @@ pub fn write(filename: &str, data: &CephClustersConfig) -> Result<String, Error>
     let mut cluster_ids: Vec<&String> = data.clusters.keys().collect();
     cluster_ids.sort();
     for id in cluster_ids {
-        let value = serde_json::to_value(&data.clusters[id])?;
+        let value = data.merge_extras(id, serde_json::to_value(&data.clusters[id])?);
         raw.sections
             .insert(id.clone(), ("ceph-cluster".to_string(), value));
         raw.record_order(id);
@@ -155,12 +195,26 @@ pub fn write(filename: &str, data: &CephClustersConfig) -> Result<String, Error>
     let mut member_ids: Vec<&String> = data.members.keys().collect();
     member_ids.sort();
     for id in member_ids {
-        let value = serde_json::to_value(&data.members[id])?;
+        let value = data.merge_extras(id, serde_json::to_value(&data.members[id])?);
         raw.sections
             .insert(id.clone(), ("ceph-member".to_string(), value));
         raw.record_order(id);
     }
     ceph_section_config().write(filename, &raw)
+}
+
+impl CephClustersConfig {
+    /// Fold the preserved unknown keys for section `id` back into its serialised
+    /// `value`. Typed keys always win, so a field that became known in a newer
+    /// schema is not shadowed by a stale extra.
+    fn merge_extras(&self, id: &str, mut value: Value) -> Value {
+        if let (Some(extras), Value::Object(obj)) = (self.extras.get(id), &mut value) {
+            for (key, extra) in extras {
+                obj.entry(key.clone()).or_insert_with(|| extra.clone());
+            }
+        }
+        value
+    }
 }
 
 pub fn lock_config() -> Result<ApiLockGuard, Error> {
@@ -270,6 +324,49 @@ ceph-cluster: {FSID}
         let dropped = cfg.drop_clusters_without_members();
         assert_eq!(dropped, vec![FSID.to_string()]);
         assert!(cfg.clusters.is_empty());
+    }
+
+    #[test]
+    fn roundtrip_preserves_unknown_keys() {
+        // Forward-compat: a key written by a newer PDM that this code does not
+        // model must survive a parse -> write cycle, so a downgrade edit does
+        // not silently drop it. Asserts the writer re-emits it (the section
+        // value carries it and the schema allows additional properties).
+        let raw = format!(
+            r#"
+ceph-cluster: {FSID}
+    display-name prod-east
+    future-cluster-knob enabled
+
+ceph-member: {FSID}-pve-host1
+    cluster {FSID}
+    kind pve
+    remote pve-cluster-east
+    node host1
+    future-member-knob 42
+"#
+        );
+        let parsed = parse("ceph-clusters.cfg", &raw).expect("parse must succeed");
+        // The unknown keys are stashed, not modeled on the typed structs.
+        assert_eq!(parsed.extras.len(), 2);
+
+        let written = write("ceph-clusters.cfg", &parsed).expect("write must succeed");
+        assert!(
+            written.contains("future-cluster-knob enabled"),
+            "unknown cluster key dropped on rewrite:\n{written}"
+        );
+        assert!(
+            written.contains("future-member-knob 42"),
+            "unknown member key dropped on rewrite:\n{written}"
+        );
+
+        // And the typed fields still round-trip alongside the preserved extras.
+        let reparsed = parse("ceph-clusters.cfg", &written).expect("reparse must succeed");
+        assert_eq!(
+            reparsed.clusters.get(FSID).unwrap().display_name.as_deref(),
+            Some("prod-east")
+        );
+        assert_eq!(reparsed.extras.len(), 2);
     }
 
     #[test]
