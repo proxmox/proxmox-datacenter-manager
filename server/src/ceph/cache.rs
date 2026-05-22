@@ -121,10 +121,18 @@ pub fn summarize_status(fsid: &str, raw: &Value) -> CephClusterStatus {
     let osdmap = raw.get("osdmap").map(|o| o.get("osdmap").unwrap_or(o));
     let osd = |key: &str| osdmap.and_then(|o| o.get(key)).and_then(value_i64).unwrap_or(0);
 
-    let mons_total = raw
-        .get("monmap")
+    // `num_mons` is absent in current Ceph `status` output; fall back to the
+    // length of the `mons` array (the actual monitor list).
+    let monmap = raw.get("monmap");
+    let mons_total = monmap
         .and_then(|m| m.get("num_mons"))
         .and_then(value_i64)
+        .or_else(|| {
+            monmap
+                .and_then(|m| m.get("mons"))
+                .and_then(|v| v.as_array())
+                .map(|a| a.len() as i64)
+        })
         .unwrap_or(0);
 
     let mgrmap = raw.get("mgrmap");
@@ -167,6 +175,14 @@ pub fn summarize_status(fsid: &str, raw: &Value) -> CephClusterStatus {
         recovery_bytes_sec: pg_opt("recovering_bytes_per_sec"),
         misplaced_ratio: pg_f("misplaced_ratio"),
         degraded_ratio: pg_f("degraded_ratio"),
+        // Filled in by the endpoint layer from a live pool/mon read; `ceph
+        // status` alone carries neither.
+        fullest_pool: None,
+        fullest_pool_used: None,
+        version: None,
+        version_mixed: false,
+        // Filled in by the endpoint layer from the registry, not the status.
+        members: Vec::new(),
     }
 }
 
@@ -233,5 +249,18 @@ mod tests {
         assert_eq!(s.bytes_total, 0);
         assert!(s.checks.is_empty());
         assert_eq!(s.mons_in_quorum, 0);
+    }
+
+    #[test]
+    fn mons_total_falls_back_to_mons_array_len() {
+        // Current Ceph `status` omits `num_mons`; the count must come from the
+        // `mons` list, and the quorum count from `quorum_names`.
+        let raw = json!({
+            "health": { "status": "HEALTH_WARN" },
+            "monmap": { "mons": [{ "name": "uno" }, { "name": "tre" }, { "name": "due" }] },
+            "quorum_names": ["uno", "tre", "due"],
+        });
+        let s = summarize_status("fsid", &raw);
+        assert_eq!((s.mons_total, s.mons_in_quorum), (3, 3));
     }
 }

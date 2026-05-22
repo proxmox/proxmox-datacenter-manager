@@ -249,6 +249,10 @@ pub struct CephMember {
         state: { type: CephClusterState },
         "member-count": { type: Integer },
         health: { type: String, optional: true },
+        remote: { type: String, optional: true },
+        "bytes-used": { type: Integer, optional: true },
+        "bytes-total": { type: Integer, optional: true },
+        "problem-count": { type: Integer, optional: true },
     },
     additional_properties: true,
 )]
@@ -272,6 +276,20 @@ pub struct CephClusterListEntry {
     /// from the cached status; absent if nothing is cached yet.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub health: Option<String>,
+    /// A representative PVE remote backing the cluster, used to deep-link into
+    /// the cluster's native PVE web UI. Absent if no PVE member is known.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub remote: Option<String>,
+    /// Used raw capacity in bytes, from the cached status; absent if uncached.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub bytes_used: Option<i64>,
+    /// Total raw capacity in bytes, from the cached status; absent if uncached.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub bytes_total: Option<i64>,
+    /// Number of active Ceph health checks, from the cached status; lets the
+    /// list show a problem count without a per-cluster fetch.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub problem_count: Option<i64>,
 }
 
 #[api]
@@ -296,6 +314,33 @@ pub struct CephPgStateGroup {
     pub state_name: String,
     /// Number of placement groups in this state.
     pub count: i64,
+}
+
+#[api(
+    properties: {
+        kind: { type: CephMemberKind },
+        remote: { type: String, optional: true },
+        node: { type: String, optional: true },
+        site: { type: String, optional: true },
+    },
+    additional_properties: true,
+)]
+/// A registered cluster member as shown on the dashboard: a compact projection
+/// of the registry's [`CephMember`] without any connection secrets.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct CephClusterMember {
+    /// Whether this member is PVE-backed or standalone-daemon-backed.
+    pub kind: CephMemberKind,
+    /// For `kind = pve`: the PDM remote id backing this member.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote: Option<String>,
+    /// The node name (PVE node, or standalone host).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node: Option<String>,
+    /// Optional site label (stretch topology).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub site: Option<String>,
 }
 
 #[api(
@@ -335,6 +380,15 @@ pub struct CephPgStateGroup {
         "recovery-bytes-sec": { type: Integer, optional: true },
         "misplaced-ratio": { type: Number, optional: true },
         "degraded-ratio": { type: Number, optional: true },
+        "fullest-pool": { type: String, optional: true },
+        "fullest-pool-used": { type: Number, optional: true },
+        version: { type: String, optional: true },
+        "version-mixed": { type: Boolean, optional: true },
+        members: {
+            type: Array,
+            optional: true,
+            items: { type: CephClusterMember },
+        },
     },
     additional_properties: true,
 )]
@@ -403,6 +457,25 @@ pub struct CephClusterStatus {
     /// Fraction of objects degraded, when degraded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub degraded_ratio: Option<f64>,
+    /// Name of the most-utilized pool, to surface a near-full pool that the
+    /// cluster-wide capacity figure would otherwise hide.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fullest_pool: Option<String>,
+    /// Used percentage (0-100) of [`Self::fullest_pool`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fullest_pool_used: Option<f64>,
+    /// Representative Ceph version of the cluster (from the monitors).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// Whether the monitors report more than one distinct Ceph version
+    /// (a mid-upgrade / version-skew signal).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub version_mixed: bool,
+    /// The cluster's registered members (the PVE remotes / nodes backing it).
+    /// From the PDM registry, not the live status; surfaces cross-remote
+    /// membership on the overview. Filled by the summary endpoint.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub members: Vec<CephClusterMember>,
 }
 
 #[cfg(test)]

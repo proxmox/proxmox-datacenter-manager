@@ -12,11 +12,11 @@ use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::ceph::{
-    CephClusterListEntry, CephClusterStatus, CephMember, CEPH_CLUSTER_ID_SCHEMA,
+    CephClusterListEntry, CephClusterMember, CephClusterStatus, CephMember, CEPH_CLUSTER_ID_SCHEMA,
 };
 use pdm_api_types::{Authid, PRIV_RESOURCE_AUDIT};
 
-use pve_api_types::{CephFlagInfo, CephMon, CephPool};
+use pve_api_types::{CephFlagInfo, CephFs, CephMds, CephMgr, CephMon, CephPool};
 
 use crate::ceph::dispatch::{self, CephMemberClient};
 use crate::ceph::{cache, registry};
@@ -25,8 +25,10 @@ use crate::ceph::{cache, registry};
 /// not pass `max-age`.
 const DEFAULT_STATUS_MAX_AGE: u64 = 30;
 /// Freshness window for the status the cluster list overlays (health, quorum).
-/// Generous, since the list is a cheap overview and never fetches live.
-const LIST_STATUS_MAX_AGE: i64 = 60;
+/// The list never fetches live; it shows last-known health refreshed by the
+/// periodic detection sweep. Kept above twice the sweep interval (300s) so a
+/// single missed sweep does not blank a cluster's health to "unknown".
+const LIST_STATUS_MAX_AGE: i64 = 660;
 
 fn auth_id(rpcenv: &dyn RpcEnvironment) -> Result<Authid, Error> {
     rpcenv
@@ -71,27 +73,35 @@ pub async fn list_clusters(
 
     let mut out = Vec::with_capacity(accessible.len());
     for (cluster, members) in accessible {
-        // Overlay the cached health (populated by detection and status reads);
-        // never fetch live here. Absent/stale cache -> health unknown. Richer
-        // live data (quorum, OSD counts, capacity) lives in the dashboard
-        // summary, not this at-a-glance row.
-        let health = cache::cached_status(&cluster.id, LIST_STATUS_MAX_AGE)
+        // Overlay the cached status (populated by detection and status reads);
+        // never fetch live here. Absent/stale cache -> unknown. The summary
+        // gives the at-a-glance triage signals (health, capacity, problem
+        // count) without a per-cluster fetch.
+        let summary = cache::cached_status(&cluster.id, LIST_STATUS_MAX_AGE)
             .await
             .ok()
             .flatten()
-            .as_ref()
-            .and_then(cache::health_from_status);
+            .map(|raw| cache::summarize_status(&cluster.id, &raw));
+        let health = summary.as_ref().map(|s| s.health.clone());
+        let bytes_used = summary.as_ref().map(|s| s.bytes_used);
+        let bytes_total = summary.as_ref().map(|s| s.bytes_total);
+        let problem_count = summary.as_ref().map(|s| s.checks.len() as i64);
 
         let display_name = cluster
             .display_name
             .clone()
             .unwrap_or_else(|| format!("ceph-{}", cluster.id.get(..8).unwrap_or(&cluster.id)));
+        let remote = members.iter().find_map(|m| m.remote.clone());
         out.push(CephClusterListEntry {
             cluster: cluster.id,
             display_name,
             state: cluster.state.unwrap_or_default(),
             member_count: members.len() as i64,
             health,
+            remote,
+            bytes_used,
+            bytes_total,
+            problem_count,
         });
     }
     Ok(out)
@@ -159,8 +169,10 @@ pub async fn get_status(
     access: { permission: &Permission::Anybody },
 )]
 /// Typed, summarized Ceph cluster status (health, capacity, OSD/MON/MGR/PG
-/// counts) for the dashboard. Computed server-side from the cached `ceph
-/// status`, so the UI binds typed fields instead of parsing a raw blob.
+/// counts) for the dashboard. Most fields come from the cached `ceph status`
+/// (so the UI binds typed fields instead of parsing a raw blob); the
+/// fullest-pool and version fields are enriched from a live, best-effort member
+/// read (see [`enrich_summary`]).
 pub async fn get_summary(
     cluster: String,
     max_age: Option<u64>,
@@ -169,7 +181,66 @@ pub async fn get_summary(
     let members = access_checked_members(&auth_id(rpcenv)?, &cluster)?;
     let max_age = max_age.unwrap_or(DEFAULT_STATUS_MAX_AGE) as i64;
     let raw = cached_or_fetch_status(&cluster, &members, max_age).await?;
-    Ok(cache::summarize_status(&cluster, &raw))
+    let mut summary = cache::summarize_status(&cluster, &raw);
+    enrich_summary(&cluster, &members, &mut summary).await;
+    // Surface the registered membership on the overview; the members are
+    // already loaded above for the access check, so this is free.
+    summary.members = members
+        .iter()
+        .map(|m| CephClusterMember {
+            kind: m.kind,
+            remote: m.remote.clone(),
+            node: m.node.clone(),
+            site: m.site.clone(),
+        })
+        .collect();
+    Ok(summary)
+}
+
+/// Add the fullest-pool and Ceph-version signals to a dashboard summary.
+///
+/// Both need a live member call (the cached `ceph status` carries neither), so
+/// this is best-effort: a failure must not blank the dashboard, it just leaves
+/// the extra fields unset. The cluster list never calls this, so the cheap
+/// overview stays fetch-free.
+async fn enrich_summary(cluster: &str, members: &[CephMember], summary: &mut CephClusterStatus) {
+    let conn = match dispatch::connect_cluster(members) {
+        Ok(conn) => conn,
+        Err(_) => return,
+    };
+    let Some(node) = conn.member.node.as_deref() else {
+        return;
+    };
+
+    match conn.client.list_ceph_pools(node).await {
+        Ok(pools) => {
+            if let Some((name, used)) = pools
+                .iter()
+                .filter_map(|p| {
+                    p.percent_used
+                        .filter(|u| u.is_finite())
+                        .map(|u| (p.pool_name.clone(), u * 100.0))
+                })
+                .max_by(|a, b| a.1.total_cmp(&b.1))
+            {
+                summary.fullest_pool = Some(name);
+                summary.fullest_pool_used = Some(used);
+            }
+        }
+        Err(e) => log::warn!("ceph cluster {cluster}: fullest-pool lookup failed: {e}"),
+    }
+
+    match conn.client.list_ceph_mon(node).await {
+        Ok(mons) => {
+            let versions: std::collections::BTreeSet<String> = mons
+                .iter()
+                .filter_map(|m| m.ceph_version_short.clone())
+                .collect();
+            summary.version_mixed = versions.len() > 1;
+            summary.version = versions.into_iter().next_back();
+        }
+        Err(e) => log::warn!("ceph cluster {cluster}: version lookup failed: {e}"),
+    }
 }
 
 #[api(
@@ -223,6 +294,84 @@ pub async fn list_mon(
     input: { properties: { cluster: { schema: CEPH_CLUSTER_ID_SCHEMA } } },
     returns: {
         type: Array,
+        description: "Ceph managers of the cluster.",
+        items: { type: CephMgr },
+    },
+    access: { permission: &Permission::Anybody },
+)]
+/// List the cluster's Ceph managers.
+pub async fn list_mgr(
+    cluster: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<CephMgr>, Error> {
+    let conn = connect(&auth_id(rpcenv)?, &cluster)?;
+    let node = conn
+        .member
+        .node
+        .as_deref()
+        .context("pve ceph member has no node")?;
+    conn.client
+        .list_ceph_mgr(node)
+        .await
+        .with_context(|| format!("ceph cluster {cluster}: failed to list managers"))
+}
+
+#[api(
+    input: { properties: { cluster: { schema: CEPH_CLUSTER_ID_SCHEMA } } },
+    returns: {
+        type: Array,
+        description: "Ceph metadata servers of the cluster.",
+        items: { type: CephMds },
+    },
+    access: { permission: &Permission::Anybody },
+)]
+/// List the cluster's Ceph metadata servers (MDS).
+pub async fn list_mds(
+    cluster: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<CephMds>, Error> {
+    let conn = connect(&auth_id(rpcenv)?, &cluster)?;
+    let node = conn
+        .member
+        .node
+        .as_deref()
+        .context("pve ceph member has no node")?;
+    conn.client
+        .list_ceph_mds(node)
+        .await
+        .with_context(|| format!("ceph cluster {cluster}: failed to list metadata servers"))
+}
+
+#[api(
+    input: { properties: { cluster: { schema: CEPH_CLUSTER_ID_SCHEMA } } },
+    returns: {
+        type: Array,
+        description: "CephFS file systems of the cluster.",
+        items: { type: CephFs },
+    },
+    access: { permission: &Permission::Anybody },
+)]
+/// List the cluster's CephFS file systems.
+pub async fn list_fs(
+    cluster: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<CephFs>, Error> {
+    let conn = connect(&auth_id(rpcenv)?, &cluster)?;
+    let node = conn
+        .member
+        .node
+        .as_deref()
+        .context("pve ceph member has no node")?;
+    conn.client
+        .list_ceph_fs(node)
+        .await
+        .with_context(|| format!("ceph cluster {cluster}: failed to list file systems"))
+}
+
+#[api(
+    input: { properties: { cluster: { schema: CEPH_CLUSTER_ID_SCHEMA } } },
+    returns: {
+        type: Array,
         description: "Ceph pools of the cluster.",
         items: { type: CephPool },
     },
@@ -270,6 +419,9 @@ pub async fn get_osd_tree(
 #[sortable]
 const CLUSTER_SUBDIRS: SubdirMap = &sorted!([
     ("flags", &Router::new().get(&API_METHOD_LIST_FLAGS)),
+    ("fs", &Router::new().get(&API_METHOD_LIST_FS)),
+    ("mds", &Router::new().get(&API_METHOD_LIST_MDS)),
+    ("mgr", &Router::new().get(&API_METHOD_LIST_MGR)),
     ("mon", &Router::new().get(&API_METHOD_LIST_MON)),
     ("osd-tree", &Router::new().get(&API_METHOD_GET_OSD_TREE)),
     ("pools", &Router::new().get(&API_METHOD_LIST_POOLS)),
