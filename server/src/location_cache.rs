@@ -113,8 +113,16 @@ async fn fetch_remote_location_info(remote: &Remote) -> Result<Option<CachedLoca
 
             for (node_name, remote_info) in join_all(futures).await {
                 let mut node_location = None;
-                let remote_info = remote_info?;
-                if let Some(location) = remote_info.location {
+                // don't fail the whole remote if a single node is unreachable, just fall back to
+                // the datacenter location for that node below
+                let node_config = match remote_info {
+                    Ok(config) => Some(config),
+                    Err(err) => {
+                        log::debug!("could not get node config for '{node_name}': {err}");
+                        None
+                    }
+                };
+                if let Some(location) = node_config.and_then(|config| config.location) {
                     if let Ok(location) = location.parse::<PropertyString<NodeConfigLocation>>() {
                         let location = location.into_inner();
                         node_location = Some(Location {
