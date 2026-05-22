@@ -912,9 +912,12 @@ pub fn render_show_secret_dialog(
                 ),
         );
 
+    let answer_url = format!(
+        "{}/api2/json/auto-install/answer",
+        pdm_origin().unwrap_or_else(|| "https://pdm.example.com:8443".to_owned())
+    );
     let commandline = format!(
-        "proxmox-auto-install-assistant prepare-iso --fetch-from http --url {} --answer-auth-token {token}",
-        pdm_origin().unwrap_or_else(|| "https://pdm.example.com:8443".to_owned()),
+        "proxmox-auto-install-assistant prepare-iso --fetch-from http --url {answer_url} --answer-auth-token {token}",
     );
 
     let copy_commandline_view = Container::new()
