@@ -85,6 +85,23 @@ pub async fn list_clusters(
         let health = summary.as_ref().map(|s| s.health.clone());
         let bytes_used = summary.as_ref().map(|s| s.bytes_used);
         let bytes_total = summary.as_ref().map(|s| s.bytes_total);
+        let bytes_avail = summary.as_ref().map(|s| s.bytes_avail);
+        let osds_up = summary.as_ref().map(|s| s.osds_up);
+        let osds_in = summary.as_ref().map(|s| s.osds_in);
+        let osds_total = summary.as_ref().map(|s| s.osds_total);
+        let mons_in_quorum = summary.as_ref().map(|s| s.mons_in_quorum);
+        let mons_total = summary.as_ref().map(|s| s.mons_total);
+        // Activity signals for at-a-glance triage: recovery/backfill running,
+        // reduced redundancy, or storage pressure (any *FULL* check).
+        let recovering = summary
+            .as_ref()
+            .map(|s| s.recovery_bytes_sec.is_some() || s.misplaced_ratio.is_some_and(|r| r > 0.0));
+        let degraded = summary
+            .as_ref()
+            .map(|s| s.degraded_ratio.is_some_and(|r| r > 0.0));
+        let nearfull = summary
+            .as_ref()
+            .map(|s| s.checks.iter().any(|c| c.code.contains("FULL")));
         let problem_count = summary.as_ref().map(|s| s.checks.len() as i64);
 
         let display_name = cluster
@@ -92,6 +109,13 @@ pub async fn list_clusters(
             .clone()
             .unwrap_or_else(|| format!("ceph-{}", cluster.id.get(..8).unwrap_or(&cluster.id)));
         let remote = members.iter().find_map(|m| m.remote.clone());
+        // A node on that representative remote, to deep-link into its Ceph panel.
+        let node = remote.as_deref().and_then(|r| {
+            members
+                .iter()
+                .find(|m| m.remote.as_deref() == Some(r))
+                .and_then(|m| m.node.clone())
+        });
         out.push(CephClusterListEntry {
             cluster: cluster.id,
             display_name,
@@ -99,8 +123,18 @@ pub async fn list_clusters(
             member_count: members.len() as i64,
             health,
             remote,
+            node,
             bytes_used,
             bytes_total,
+            bytes_avail,
+            osds_up,
+            osds_in,
+            osds_total,
+            mons_in_quorum,
+            mons_total,
+            recovering,
+            degraded,
+            nearfull,
             problem_count,
         });
     }

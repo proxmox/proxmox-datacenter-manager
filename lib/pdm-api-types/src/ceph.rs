@@ -250,8 +250,18 @@ pub struct CephMember {
         "member-count": { type: Integer },
         health: { type: String, optional: true },
         remote: { type: String, optional: true },
+        node: { type: String, optional: true },
         "bytes-used": { type: Integer, optional: true },
         "bytes-total": { type: Integer, optional: true },
+        "bytes-avail": { type: Integer, optional: true },
+        "osds-up": { type: Integer, optional: true },
+        "osds-in": { type: Integer, optional: true },
+        "osds-total": { type: Integer, optional: true },
+        "mons-in-quorum": { type: Integer, optional: true },
+        "mons-total": { type: Integer, optional: true },
+        recovering: { type: Boolean, optional: true },
+        degraded: { type: Boolean, optional: true },
+        nearfull: { type: Boolean, optional: true },
         "problem-count": { type: Integer, optional: true },
     },
     additional_properties: true,
@@ -280,12 +290,43 @@ pub struct CephClusterListEntry {
     /// the cluster's native PVE web UI. Absent if no PVE member is known.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub remote: Option<String>,
+    /// A representative member node on [`Self::remote`], used to deep-link
+    /// straight to that node's Ceph panel. Absent if no PVE member is known.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub node: Option<String>,
     /// Used raw capacity in bytes, from the cached status; absent if uncached.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub bytes_used: Option<i64>,
     /// Total raw capacity in bytes, from the cached status; absent if uncached.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub bytes_total: Option<i64>,
+    /// Available raw capacity in bytes, from the cached status; absent if uncached.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub bytes_avail: Option<i64>,
+    /// OSDs currently up, from the cached status; absent if uncached.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub osds_up: Option<i64>,
+    /// OSDs currently in, from the cached status; absent if uncached.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub osds_in: Option<i64>,
+    /// Total OSDs known to the cluster, from the cached status; absent if uncached.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub osds_total: Option<i64>,
+    /// Monitors currently in quorum, from the cached status; absent if uncached.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub mons_in_quorum: Option<i64>,
+    /// Total monitors, from the cached status; absent if uncached.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub mons_total: Option<i64>,
+    /// Whether recovery or backfill is in progress (a transient activity).
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub recovering: Option<bool>,
+    /// Whether objects are degraded (reduced redundancy).
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub degraded: Option<bool>,
+    /// Whether a near-full / full health check is active (storage pressure).
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub nearfull: Option<bool>,
     /// Number of active Ceph health checks, from the cached status; lets the
     /// list show a problem count without a per-cluster fetch.
     #[serde(skip_serializing_if = "Option::is_none", default)]
