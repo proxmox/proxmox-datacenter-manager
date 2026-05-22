@@ -62,8 +62,11 @@ async fn get_cached_location_info(
     max_age: u64,
 ) -> Result<Option<CachedLocationInfo>, Error> {
     let cache = api_cache::read_remote(remote).await?;
+    // the cache uses an i64 internally and treats negative ages as expired, so clamp here to avoid
+    // u64::MAX (our "unlimited" sentinel) wrapping to -1 and discarding every cached entry
+    let max_age = max_age.min(i64::MAX as u64) as i64;
     let location_state = cache
-        .get_with_max_age(LOCATION_STATE_CACHE_KEY, max_age as i64)
+        .get_with_max_age(LOCATION_STATE_CACHE_KEY, max_age)
         .await
         .inspect_err(|err| log::error!("could not read location-state from API cache: {err}"))
         .ok()
