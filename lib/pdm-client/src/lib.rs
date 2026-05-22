@@ -72,6 +72,10 @@ pub mod types {
     };
     pub use pve_api_types::{ListControllersType, ListZonesType, SdnObjectState};
 
+    pub use pve_api_types::{
+        CephFlagInfo, CephFlagInfoName, CephFs, CephMds, CephMgr, CephMon, CephPool,
+    };
+
     pub use pve_api_types::ClusterResourceNetworkType;
 
     pub use pve_api_types::StorageStatus as PveStorageStatus;
