@@ -168,6 +168,7 @@ async fn run(debug: bool) -> Result<(), Error> {
             ("xtermjs", "/usr/share/pve-xtermjs"),
             ("locale", "/usr/share/pdm-i18n"),
             ("docs", "/usr/share/doc/proxmox-datacenter-manager/html"),
+            ("geojson", "/usr/share/proxmox-geojson-data"),
         ])
         .formatted_router(&["api2"], &server::api::ROUTER)
         // FIXME: disabled for testing on pure debian
