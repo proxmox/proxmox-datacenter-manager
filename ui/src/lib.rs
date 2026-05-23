@@ -46,6 +46,8 @@ use yew_router::prelude::RouterScopeExt;
 
 mod widget;
 
+pub mod ceph;
+
 pub mod pbs;
 pub mod pve;
 

@@ -95,12 +95,29 @@
     display: inline-block;
 }
 
+// Ceph logo as a mask so it inherits the text color (monochrome, adapts to
+// light/dark theme and the accent color when active). Sized in em so the one
+// class serves both the 16px nav icon and the large empty-state icon.
+.fa-ceph:before {
+    content: " ";
+    mask-image: url(../images/ceph-logo.svg);
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    background-color: var(--pwt-color);
+    width: 1em;
+    height: 1em;
+    vertical-align: middle;
+    display: inline-block;
+}
+
 .pwt-nav-menu .pwt-nav-link.active{
     .fa-cdrom:before,
     .fa-memory:before,
     .fa-cpu:before,
     .fa-sdn:before,
-    .fa-sdn-vnet:before {
+    .fa-sdn-vnet:before,
+    .fa-ceph:before {
         background-color: var(--pwt-accent-color);
     }
 }
@@ -110,7 +127,8 @@
     .fa-memory:before,
     .fa-cpu:before,
     .fa-sdn:before,
-    .fa-sdn-vnet:before {
+    .fa-sdn-vnet:before,
+    .fa-ceph:before {
       background-color: var(--pwt-accent-color-background);
     }
 }
