@@ -343,7 +343,10 @@ impl MapPointData for PoiInfo {
                 "primary"
             }
         };
-        render_point_default(&args).style("--pwt-location-color", format!("var(--pwt-color-{txt})"))
+        render_point_default(&args).style(
+            "--pwt-map-location-color",
+            format!("var(--pwt-color-{txt})"),
+        )
     }
 
     fn render_info(args: &PointsRenderArgs<Self>) -> Html {
