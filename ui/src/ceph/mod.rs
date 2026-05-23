@@ -8,6 +8,7 @@ pub mod cephfs;
 pub mod cluster;
 pub mod clusters;
 pub mod dashboard;
+pub mod flags;
 pub mod managers;
 pub mod monitors;
 pub mod osds;

@@ -16,6 +16,7 @@ use pwt::widget::{Button, Fa, MiniScrollMode, Row, TabBarItem, TabPanel};
 
 use super::cephfs::CephFsPanel;
 use super::dashboard::CephDashboardPanel;
+use super::flags::CephFlagsPanel;
 use super::managers::CephManagersPanel;
 use super::monitors::CephMonitorsPanel;
 use super::osds::CephOsdsPanel;
@@ -159,6 +160,16 @@ impl yew::Component for PdmCephClusterPanel {
                 {
                     let cluster = props.cluster.clone();
                     move |_| CephFsPanel::new(cluster.clone()).into()
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("flags")
+                    .label(tr!("Flags"))
+                    .icon_class("fa fa-flag"),
+                {
+                    let cluster = props.cluster.clone();
+                    move |_| CephFlagsPanel::new(cluster.clone()).into()
                 },
             )
             .into()
