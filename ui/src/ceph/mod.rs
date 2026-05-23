@@ -7,6 +7,7 @@
 pub mod cluster;
 pub mod clusters;
 pub mod dashboard;
+pub mod managers;
 pub mod monitors;
 pub mod osds;
 pub mod renderer;
