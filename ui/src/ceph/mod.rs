@@ -10,6 +10,7 @@ pub mod dashboard;
 pub mod managers;
 pub mod monitors;
 pub mod osds;
+pub mod pools;
 pub mod renderer;
 pub mod view;
 

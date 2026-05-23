@@ -18,6 +18,7 @@ use super::dashboard::CephDashboardPanel;
 use super::managers::CephManagersPanel;
 use super::monitors::CephMonitorsPanel;
 use super::osds::CephOsdsPanel;
+use super::pools::CephPoolsPanel;
 use crate::get_deep_url;
 
 #[derive(PartialEq, Properties)]
@@ -137,6 +138,16 @@ impl yew::Component for PdmCephClusterPanel {
                 {
                     let cluster = props.cluster.clone();
                     move |_| CephOsdsPanel::new(cluster.clone()).into()
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("pools")
+                    .label(tr!("Pools"))
+                    .icon_class("fa fa-database"),
+                {
+                    let cluster = props.cluster.clone();
+                    move |_| CephPoolsPanel::new(cluster.clone()).into()
                 },
             )
             .into()
