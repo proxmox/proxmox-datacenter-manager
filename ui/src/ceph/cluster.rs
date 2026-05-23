@@ -15,6 +15,7 @@ use pwt::prelude::*;
 use pwt::widget::{Button, Fa, MiniScrollMode, Row, TabBarItem, TabPanel};
 
 use super::dashboard::CephDashboardPanel;
+use super::monitors::CephMonitorsPanel;
 use super::osds::CephOsdsPanel;
 use crate::get_deep_url;
 
@@ -105,6 +106,16 @@ impl yew::Component for PdmCephClusterPanel {
                 {
                     let cluster = props.cluster.clone();
                     move |_| CephDashboardPanel::new(cluster.clone()).into()
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("monitors")
+                    .label(tr!("Monitors"))
+                    .icon_class("fa fa-television"),
+                {
+                    let cluster = props.cluster.clone();
+                    move |_| CephMonitorsPanel::new(cluster.clone()).into()
                 },
             )
             .with_item_builder(
