@@ -28,6 +28,11 @@ pub fn usage_cell(text: String, pct: f64) -> Html {
     }
 }
 
+/// Convenience for a plain "X.X%" usage cell.
+pub fn usage_pct_cell(pct: f64) -> Html {
+    usage_cell(format!("{pct:.1}%"), pct)
+}
+
 /// Map a Ceph health string (`HEALTH_OK` / `HEALTH_WARN` / `HEALTH_ERR`) to a
 /// status icon severity. Anything unknown or absent maps to [`Status::Unknown`].
 pub fn ceph_health_status(health: Option<&str>) -> Status {
