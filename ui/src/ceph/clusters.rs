@@ -17,7 +17,7 @@ use pwt::css::{AlignItems, FontColor};
 use pwt::prelude::*;
 use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
-use pwt::widget::{Button, Container, Fa, Row, Toolbar};
+use pwt::widget::{Button, Container, Fa, Meter, Row, Toolbar};
 
 use proxmox_yew_comp::{
     LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
@@ -28,7 +28,6 @@ use pdm_api_types::ceph::{CephClusterListEntry, CephClusterState};
 
 use super::renderer::{
     ceph_cluster_state_label, ceph_health_label, ceph_health_severity, ceph_health_status,
-    usage_cell,
 };
 
 /// Icon severity and label for the Health cell. A non-`Detected` cluster shows
@@ -64,6 +63,87 @@ fn usage_ratio(item: &CephClusterListEntry) -> f64 {
         (Some(used), Some(total)) if total > 0 => used as f64 / total as f64,
         _ => 0.0,
     }
+}
+
+/// A daemon "up / total" cell (OSDs up, monitors in quorum). Error-colored when
+/// fewer are up than exist, since a down OSD or an out-of-quorum monitor is an
+/// availability risk that should stand out; "-" when uncached.
+fn daemon_cell(up: Option<i64>, total: Option<i64>) -> Html {
+    match (up, total) {
+        (Some(up), Some(total)) => {
+            let text = format!("{up} / {total}");
+            if up < total {
+                Container::new()
+                    .class(FontColor::Error)
+                    .with_child(text)
+                    .into()
+            } else {
+                html! { { text } }
+            }
+        }
+        _ => html! { {"-"} },
+    }
+}
+
+/// An OSD "up / in / total" cell. Red when any OSD is down (data availability
+/// risk), amber when all are up but some are out (drained/rebalancing).
+fn osd_cell(up: Option<i64>, in_cluster: Option<i64>, total: Option<i64>) -> Html {
+    match (up, in_cluster, total) {
+        (Some(up), Some(in_cluster), Some(total)) => {
+            let text = format!("{up} / {in_cluster} / {total}");
+            let color = if up < total {
+                Some(FontColor::Error)
+            } else if in_cluster < total {
+                Some(FontColor::Warning)
+            } else {
+                None
+            };
+            match color {
+                Some(color) => Container::new().class(color).with_child(text).into(),
+                None => html! { { text } },
+            }
+        }
+        _ => html! { {"-"} },
+    }
+}
+
+/// The most significant ongoing activity for triage: storage pressure outranks
+/// reduced redundancy, which outranks transient recovery; blank when idle.
+fn activity_cell(item: &CephClusterListEntry) -> Html {
+    let (label, color) = if item.nearfull == Some(true) {
+        (tr!("Near full"), FontColor::Error)
+    } else if item.degraded == Some(true) {
+        (tr!("Degraded"), FontColor::Warning)
+    } else if item.recovering == Some(true) {
+        (tr!("Recovering"), FontColor::Warning)
+    } else {
+        return html! { {"-"} };
+    };
+    Container::new().class(color).with_child(label).into()
+}
+
+/// A usage cell: a threshold-colored fill bar plus the percentage.
+fn usage_meter(used: i64, total: i64) -> Html {
+    let ratio = if total > 0 {
+        (used as f64 / total as f64) as f32
+    } else {
+        0.0
+    };
+    Row::new()
+        .gap(2)
+        .class(AlignItems::Center)
+        .with_child(
+            Container::new().width("46px").with_child(
+                Meter::new()
+                    .low(0.7)
+                    .high(0.85)
+                    .optimum(0.0)
+                    .value(ratio)
+                    .animated(true),
+            ),
+        )
+        .with_child(html! { { format!("{:.1}%", ratio * 100.0) } })
+        .into()
 }
 
 async fn load_clusters() -> Result<Vec<CephClusterListEntry>, Error> {
@@ -180,9 +260,16 @@ impl From<CephClusterListPanel> for VNode {
 fn columns() -> Rc<Vec<DataTableHeader<CephClusterListEntry>>> {
     Rc::new(vec![
         DataTableColumn::new(tr!("Health"))
-            .width("95px")
+            .width("122px")
             .render(|item: &CephClusterListEntry| {
-                let (status, label) = health_cell(item);
+                let (status, mut label) = health_cell(item);
+                // Fold the active health-check count into the label rather than
+                // a separate column that just restates the icon.
+                if let Some(n) = item.problem_count {
+                    if n > 0 {
+                        label = tr!("{0} ({1})", label, n);
+                    }
+                }
                 Row::new()
                     .gap(2)
                     .class(AlignItems::Center)
@@ -196,8 +283,12 @@ fn columns() -> Rc<Vec<DataTableHeader<CephClusterListEntry>>> {
             })
             .sort_order(false)
             .into(),
+        // Fixed (not flex): a fixed total column width lets the DataTable scroll
+        // horizontally when the master pane is narrow, so no column is pushed
+        // off-screen out of reach, which a flex column (absorbing all slack)
+        // would cause.
         DataTableColumn::new(tr!("Name"))
-            .flex(1)
+            .width("160px")
             .get_property(|item: &CephClusterListEntry| &item.display_name)
             .into(),
         DataTableColumn::new(tr!("Remote"))
@@ -206,43 +297,63 @@ fn columns() -> Rc<Vec<DataTableHeader<CephClusterListEntry>>> {
                 html! { { item.remote.clone().unwrap_or_default() } }
             })
             .into(),
-        DataTableColumn::new(tr!("Usage"))
-            .width("210px")
-            .render(|item: &CephClusterListEntry| match (item.bytes_used, item.bytes_total) {
-                (Some(used), Some(total)) if total > 0 => {
-                    let pct = used as f64 / total as f64 * 100.0;
-                    // 1-decimal byte precision keeps the cell compact enough to
-                    // fit the cluster-list pane (e.g. "94.5 GiB", not "94.547").
-                    usage_cell(
-                        tr!(
-                            "{0}% ({1} of {2})",
-                            format!("{pct:.1}"),
-                            format!("{:.1}", HumanByte::from(used.max(0) as u64)),
-                            format!("{:.1}", HumanByte::from(total.max(0) as u64))
-                        ),
-                        pct,
-                    )
+        DataTableColumn::new(tr!("Capacity"))
+            .width("82px")
+            .justify("right")
+            .render(|item: &CephClusterListEntry| match item.bytes_total {
+                Some(total) if total > 0 => {
+                    html! { { format!("{:.1}", HumanByte::from(total.max(0) as u64)) } }
                 }
+                _ => html! { {"-"} },
+            })
+            .sorter(|a: &CephClusterListEntry, b: &CephClusterListEntry| {
+                a.bytes_total.unwrap_or(0).cmp(&b.bytes_total.unwrap_or(0))
+            })
+            .into(),
+        DataTableColumn::new(tr!("Available"))
+            .width("82px")
+            .justify("right")
+            .render(|item: &CephClusterListEntry| match item.bytes_avail {
+                Some(avail) => html! { { format!("{:.1}", HumanByte::from(avail.max(0) as u64)) } },
+                None => html! { {"-"} },
+            })
+            .sorter(|a: &CephClusterListEntry, b: &CephClusterListEntry| {
+                a.bytes_avail.unwrap_or(0).cmp(&b.bytes_avail.unwrap_or(0))
+            })
+            .into(),
+        DataTableColumn::new(tr!("Usage"))
+            .width("120px")
+            .render(|item: &CephClusterListEntry| match (item.bytes_used, item.bytes_total) {
+                (Some(used), Some(total)) if total > 0 => usage_meter(used, total),
                 _ => html! { {"-"} },
             })
             .sorter(|a: &CephClusterListEntry, b: &CephClusterListEntry| {
                 usage_ratio(a).total_cmp(&usage_ratio(b))
             })
             .into(),
-        DataTableColumn::new(tr!("Problems"))
-            .width("100px")
+        DataTableColumn::new(tr!("OSDs"))
+            .width("95px")
             .justify("right")
-            .render(|item: &CephClusterListEntry| match item.problem_count {
-                Some(n) if n > 0 => Container::new()
-                    .class(FontColor::Warning)
-                    .with_child(n.to_string())
-                    .into(),
-                Some(n) => html! { { n.to_string() } },
-                None => html! { {"-"} },
+            .render(|item: &CephClusterListEntry| {
+                osd_cell(item.osds_up, item.osds_in, item.osds_total)
             })
             .sorter(|a: &CephClusterListEntry, b: &CephClusterListEntry| {
-                a.problem_count.unwrap_or(0).cmp(&b.problem_count.unwrap_or(0))
+                a.osds_up.unwrap_or(0).cmp(&b.osds_up.unwrap_or(0))
             })
+            .into(),
+        DataTableColumn::new(tr!("Monitors"))
+            .width("86px")
+            .justify("right")
+            .render(|item: &CephClusterListEntry| {
+                daemon_cell(item.mons_in_quorum, item.mons_total)
+            })
+            .sorter(|a: &CephClusterListEntry, b: &CephClusterListEntry| {
+                a.mons_in_quorum.unwrap_or(0).cmp(&b.mons_in_quorum.unwrap_or(0))
+            })
+            .into(),
+        DataTableColumn::new(tr!("Activity"))
+            .width("105px")
+            .render(activity_cell)
             .into(),
     ])
 }
