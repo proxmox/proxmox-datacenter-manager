@@ -14,6 +14,7 @@ use pwt::css::{AlignItems, ColorScheme, FlexFit};
 use pwt::prelude::*;
 use pwt::widget::{Button, Fa, MiniScrollMode, Row, TabBarItem, TabPanel};
 
+use super::cephfs::CephFsPanel;
 use super::dashboard::CephDashboardPanel;
 use super::managers::CephManagersPanel;
 use super::monitors::CephMonitorsPanel;
@@ -148,6 +149,16 @@ impl yew::Component for PdmCephClusterPanel {
                 {
                     let cluster = props.cluster.clone();
                     move |_| CephPoolsPanel::new(cluster.clone()).into()
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("cephfs")
+                    .label(tr!("CephFS"))
+                    .icon_class("fa fa-folder-open-o"),
+                {
+                    let cluster = props.cluster.clone();
+                    move |_| CephFsPanel::new(cluster.clone()).into()
                 },
             )
             .into()

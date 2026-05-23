@@ -4,6 +4,7 @@
 //! this lives parallel to Remotes/SDN rather than under a single remote).
 //! Phase 1b is read-only.
 
+pub mod cephfs;
 pub mod cluster;
 pub mod clusters;
 pub mod dashboard;
