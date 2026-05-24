@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
@@ -24,8 +24,8 @@ use pwt::widget::form::Combobox;
 use pwt::widget::{Button, Column, Container, Fa, Mask, Panel, Row, Toolbar, Tooltip};
 
 use pdm_api_types::subscription::{
-    AutoAssignProposal, ProposedAssignment, RemoteNodeStatus, SubscriptionKeyEntry,
-    SubscriptionLevel,
+    socket_count_from_key, AutoAssignProposal, ProposedAssignment, RemoteNodeStatus,
+    SubscriptionKeyEntry, SubscriptionLevel,
 };
 
 use super::subscription_assign::{AssignKeyToNodeDialog, AssignTarget};
@@ -150,6 +150,15 @@ struct AdoptCandidate {
     remote: String,
     node: String,
     key: String,
+}
+
+/// Per-row picker state for one Auto-Assign proposal row: the keys the operator may choose from
+/// (its own current key plus every free pool key not claimed by another row, so no two rows can
+/// pick the same key) and the socket count of the currently chosen key.
+struct ProposalRowChoice {
+    options: Rc<Vec<yew::AttrValue>>,
+    current: String,
+    key_sockets: Option<u32>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -279,6 +288,9 @@ pub enum Msg {
     AutoAssignPreview,
     /// Open the proposal dialog with every row pre-selected.
     ShowProposal(AutoAssignProposal),
+    /// Pin a different free pool key to one proposal row. Carries the row key "{remote}/{node}",
+    /// the chosen key (empty when the picker was cleared), and the row's auto-picked key.
+    OverrideProposalKey(Key, String, String),
     /// Commit a previously-fetched proposal via the bulk-assign endpoint.
     BulkAssignApply(AutoAssignProposal),
     ApplyPending,
@@ -340,10 +352,16 @@ pub struct SubscriptionRegistryComp {
     state: LoadableComponentState<ViewState>,
     tree_store: TreeStore<NodeTreeEntry>,
     tree_columns: Rc<Vec<DataTableHeader<NodeTreeEntry>>>,
-    proposal_columns: Rc<Vec<DataTableHeader<ProposedAssignment>>>,
     /// Multi-select state for the Auto-Assign proposal: every row starts ticked, and the operator
     /// can untick a few before applying. Held here so toggling survives the dialog re-render.
     proposal_selection: Selection,
+    /// Per-row key overrides for the Auto-Assign proposal, keyed by "{remote}/{node}". Empty means
+    /// every row keeps its auto-picked key. Cleared whenever a fresh proposal is shown.
+    proposal_overrides: HashMap<Key, String>,
+    /// Per-row counter bumped each time a proposal row's key picker is cleared. Folded into the
+    /// picker's vdom key so a clear rebuilds the cell from the effective key instead of leaving
+    /// the controlled field stuck on the empty value it cannot resync from.
+    proposal_clear_nonce: HashMap<Key, u32>,
     adopt_columns: Rc<Vec<DataTableHeader<AdoptCandidate>>>,
     node_selection: Selection,
     last_node_data: Vec<RemoteNodeStatus>,
@@ -504,9 +522,73 @@ impl SubscriptionRegistryComp {
         ])
     }
 
-    // The leading checkbox column drives the per-row opt-out; menu and resize are independent
-    // flags, disable both on the data columns.
-    fn proposal_columns() -> Rc<Vec<DataTableHeader<ProposedAssignment>>> {
+    /// Build the Auto-Assign proposal columns for the current proposal and overrides. The leading
+    /// checkbox column drives the per-row opt-out, and the Key column is a dropdown for pinning a
+    /// specific free pool key; both depend on live state, so the columns are rebuilt per render.
+    /// Menu and resize are independent flags, disable both on the data columns.
+    fn proposal_columns(
+        &self,
+        ctx: &LoadableComponentContext<Self>,
+        proposal: &AutoAssignProposal,
+    ) -> Rc<Vec<DataTableHeader<ProposedAssignment>>> {
+        // Free pool keys split by product. A row may pick any free key of its product that no
+        // other row currently holds, plus its own current key, so two rows can never claim the
+        // same key and the result needs no conflict check.
+        let mut free_pve: Vec<String> = Vec::new();
+        let mut free_pbs: Vec<String> = Vec::new();
+        for e in self.pool_keys.iter() {
+            if e.remote.is_some() {
+                continue;
+            }
+            if e.key.starts_with("pbs") {
+                free_pbs.push(e.key.clone());
+            } else if e.key.starts_with("pve") {
+                free_pve.push(e.key.clone());
+            }
+        }
+        free_pve.sort();
+        free_pbs.sort();
+
+        let effective = |p: &ProposedAssignment| -> String {
+            let rk = Key::from(format!("{}/{}", p.remote, p.node));
+            self.proposal_overrides
+                .get(&rk)
+                .cloned()
+                .unwrap_or_else(|| p.key.clone())
+        };
+        let taken: HashSet<String> = proposal.assignments.iter().map(|p| effective(p)).collect();
+
+        let mut row_data: HashMap<Key, ProposalRowChoice> = HashMap::new();
+        for p in &proposal.assignments {
+            let rk = Key::from(format!("{}/{}", p.remote, p.node));
+            let current = effective(p);
+            let bucket = if p.key.starts_with("pbs") {
+                &free_pbs
+            } else {
+                &free_pve
+            };
+            let options: Vec<yew::AttrValue> = bucket
+                .iter()
+                .filter(|k| !taken.contains(*k) || **k == current)
+                .map(|k| yew::AttrValue::from(k.clone()))
+                .collect();
+            let key_sockets = socket_count_from_key(&current);
+            row_data.insert(
+                rk,
+                ProposalRowChoice {
+                    options: Rc::new(options),
+                    current,
+                    key_sockets,
+                },
+            );
+        }
+        let row_data = Rc::new(row_data);
+
+        let key_rows = row_data.clone();
+        let link = ctx.link().clone();
+        let nonces = Rc::new(self.proposal_clear_nonce.clone());
+        let sock_rows = row_data;
+
         Rc::new(vec![
             DataTableColumn::selection_indicator().into(),
             DataTableColumn::new(tr!("Remote / Node"))
@@ -519,14 +601,38 @@ impl SubscriptionRegistryComp {
                 .flex(2)
                 .show_menu(false)
                 .resizable(false)
-                .render(|p: &ProposedAssignment| p.key.clone().into())
+                .render(move |p: &ProposedAssignment| {
+                    let rk_str = format!("{}/{}", p.remote, p.node);
+                    let rk = Key::from(rk_str.clone());
+                    let Some(choice) = key_rows.get(&rk) else {
+                        return p.key.clone().into();
+                    };
+                    let nonce = nonces.get(&rk).copied().unwrap_or(0);
+                    let vkey = Key::from(format!("{rk_str}#{nonce}"));
+                    let link = link.clone();
+                    let rk_cb = rk.clone();
+                    let auto = p.key.clone();
+                    Combobox::new()
+                        .items(choice.options.clone())
+                        // Controlled value: the model is the source of truth, so the cell shows
+                        // the effective key and does not emit a spurious change on mount. A clear
+                        // bumps the row nonce in `vkey` to remount the field on the effective key.
+                        .value(Some(yew::AttrValue::from(choice.current.clone())))
+                        .key(vkey)
+                        .on_change(link.callback(move |val: String| {
+                            Msg::OverrideProposalKey(rk_cb.clone(), val, auto.clone())
+                        }))
+                        .into()
+                })
                 .into(),
             DataTableColumn::new(tr!("Sockets (node / key)"))
                 .width("160px")
                 .show_menu(false)
                 .resizable(false)
-                .render(|p: &ProposedAssignment| {
-                    let label = match (p.node_sockets, p.key_sockets) {
+                .render(move |p: &ProposedAssignment| {
+                    let rk = Key::from(format!("{}/{}", p.remote, p.node));
+                    let key_sockets = sock_rows.get(&rk).and_then(|c| c.key_sockets);
+                    let label = match (p.node_sockets, key_sockets) {
                         (Some(ns), Some(ks)) => format!("{ns} / {ks}"),
                         (Some(ns), None) => format!("{ns} / -"),
                         (None, Some(ks)) => format!("- / {ks}"),
@@ -642,8 +748,9 @@ impl LoadableComponent for SubscriptionRegistryComp {
             state: LoadableComponentState::new(),
             tree_store: store.clone(),
             tree_columns: Self::tree_columns(store),
-            proposal_columns: Self::proposal_columns(),
             proposal_selection,
+            proposal_overrides: HashMap::new(),
+            proposal_clear_nonce: HashMap::new(),
             adopt_columns: Self::adopt_columns(),
             node_selection,
             last_node_data: Vec::new(),
@@ -695,8 +802,25 @@ impl LoadableComponent for SubscriptionRegistryComp {
                     .map(|p| Key::from(format!("{}/{}", p.remote, p.node)))
                     .collect();
                 self.proposal_selection.bulk_select(all_keys);
+                self.proposal_overrides.clear();
+                self.proposal_clear_nonce.clear();
                 ctx.link()
                     .change_view(Some(ViewState::ConfirmAutoAssign(proposal)));
+            }
+            Msg::OverrideProposalKey(row, key, auto_pick) => {
+                if key.is_empty() {
+                    // Clearing the picker empties the field without changing the effective key, so
+                    // the controlled value cannot resync; bump the row nonce to rebuild the cell
+                    // from the auto-pick instead of leaving it blank.
+                    *self.proposal_clear_nonce.entry(row.clone()).or_default() += 1;
+                    self.proposal_overrides.remove(&row);
+                } else if key == auto_pick {
+                    // Re-picking the auto-pick (or the resync echo after a revert) just drops the
+                    // override, keeping the map limited to genuine overrides.
+                    self.proposal_overrides.remove(&row);
+                } else {
+                    self.proposal_overrides.insert(row, key);
+                }
             }
             Msg::BulkAssignApply(proposal) => {
                 let link = ctx.link().clone();
@@ -1461,6 +1585,7 @@ impl SubscriptionRegistryComp {
         let link_close = ctx.link().clone();
         let link_apply = ctx.link().clone();
         let selection = self.proposal_selection.clone();
+        let overrides = self.proposal_overrides.clone();
         let proposal_for_apply = proposal.clone();
         let body = Column::new()
             .class(Flex::Fill)
@@ -1470,12 +1595,12 @@ impl SubscriptionRegistryComp {
             .gap(2)
             .min_width(600)
             .with_child(Container::from_tag("p").with_child(tr!(
-                "{selected} of {total} assignments selected. Untick any node you want to skip, then click Assign.",
+                "{selected} of {total} assignments selected. Untick any node to skip it or pick a different key, then click Assign.",
                 selected = selected_count,
                 total = total,
             )))
             .with_child(
-                DataTable::new(self.proposal_columns.clone(), store)
+                DataTable::new(self.proposal_columns(ctx, proposal), store)
                     .selection(self.proposal_selection.clone())
                     .multiselect_mode(MultiSelectMode::Simple)
                     .striped(true)
@@ -1501,6 +1626,15 @@ impl SubscriptionRegistryComp {
                                 filtered.assignments.retain(|p| {
                                     selected.contains(&Key::from(format!("{}/{}", p.remote, p.node)))
                                 });
+                                // Swap in any pinned key so the override, not the auto-pick, is
+                                // what gets bound. bulk-assign keys off remote/node/key only, so
+                                // the stale key_sockets does not matter.
+                                for a in filtered.assignments.iter_mut() {
+                                    let rk = Key::from(format!("{}/{}", a.remote, a.node));
+                                    if let Some(key) = overrides.get(&rk) {
+                                        a.key = key.clone();
+                                    }
+                                }
                                 link_apply.send_message(Msg::BulkAssignApply(filtered));
                             }),
                     ),
