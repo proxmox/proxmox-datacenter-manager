@@ -21,7 +21,7 @@ use super::managers::CephManagersPanel;
 use super::monitors::CephMonitorsPanel;
 use super::osds::CephOsdsPanel;
 use super::pools::CephPoolsPanel;
-use crate::get_deep_url;
+use crate::{get_deep_url, get_deep_url_low_level};
 
 #[derive(PartialEq, Properties)]
 pub struct CephClusterPanel {
@@ -30,6 +30,10 @@ pub struct CephClusterPanel {
     /// A representative PVE remote, for the "Open Web UI" escalation link.
     #[prop_or_default]
     pub remote: Option<String>,
+    /// A node on `remote` that backs the cluster, so the escalation link can
+    /// open that node's Ceph panel directly rather than the remote root.
+    #[prop_or_default]
+    pub node: Option<String>,
 }
 
 impl CephClusterPanel {
@@ -42,6 +46,11 @@ impl CephClusterPanel {
 
     pub fn remote(mut self, remote: Option<String>) -> Self {
         self.remote = remote;
+        self
+    }
+
+    pub fn node(mut self, node: Option<String>) -> Self {
+        self.node = node;
         self
     }
 }
@@ -80,10 +89,24 @@ impl yew::Component for PdmCephClusterPanel {
         // the cluster; a standalone-only cluster has no PVE UI to open.
         let open_web_ui = props.remote.clone().map(|remote| {
             let link = ctx.link().clone();
+            let node = props.node.clone();
             Button::new(tr!("Open Web UI"))
                 .icon_class("fa fa-external-link")
                 .onclick(move |_| {
-                    if let Some(url) = get_deep_url(&link, &remote, None, "") {
+                    // Deep-link straight to a backing node's Ceph panel when we
+                    // know one: the PVE fragment route for it is
+                    // `v1::=node/<node>::38` (38 is the node Ceph tab). Fall
+                    // back to the remote root if no representative node is known.
+                    let url = match &node {
+                        Some(node) => get_deep_url_low_level(
+                            &link,
+                            &remote,
+                            Some(node),
+                            &format!("v1::=node/{node}::38"),
+                        ),
+                        None => get_deep_url(&link, &remote, None, ""),
+                    };
+                    if let Some(url) = url {
                         let _ = window().open_with_url(&url.href());
                     }
                 })

@@ -69,7 +69,9 @@ impl yew::Component for PdmCephView {
 
         let list = Panel::new()
             .min_width(360)
-            .style("flex", "1 1 0")
+            // The list carries the at-a-glance overview (health, remote,
+            // capacity, usage, OSD/mon counts), so give it the larger share.
+            .style("flex", "3 1 0")
             .class(FlexFit)
             .border(true)
             .title(list_title)
@@ -78,15 +80,16 @@ impl yew::Component for PdmCephView {
         let detail_content: Html = match &self.selected {
             Some(entry) => CephClusterPanel::new(entry.cluster.clone(), entry.display_name.clone())
                 .remote(entry.remote.clone())
+                .node(entry.node.clone())
                 .into(),
             None => placeholder(),
         };
 
         let detail = Panel::new()
             .min_width(400)
-            // Even split: the list now carries remote + capacity columns and
-            // the detail pane's dense tables (OSDs, pools) scroll if needed.
-            .style("flex", "1 1 0")
+            // Narrower share than the list; the tab bar scrolls and the dense
+            // tables (OSDs, pools) scroll horizontally if needed.
+            .style("flex", "2 1 0")
             .class(FlexFit)
             .border(true)
             .with_child(NavigationContainer::new().with_child(detail_content));
