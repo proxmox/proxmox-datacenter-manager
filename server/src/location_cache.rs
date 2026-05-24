@@ -7,8 +7,7 @@ use proxmox_schema::PropertyString;
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::{CachedLocationInfo, Location};
-use pve_api_types::{NodeConfigLocation, NodeConfigProperty};
-use serde::Deserialize;
+use pve_api_types::{NodeConfigProperty, PveNodeLocation};
 
 use crate::{api_cache, connection};
 
@@ -87,9 +86,17 @@ async fn update_cached_location_info(
         .await?)
 }
 
-#[derive(Deserialize)]
-struct DataCenterOptions {
-    location: Option<PropertyString<Location>>,
+/// Parse a PVE location property string (from the datacenter or a node config) into our [Location].
+fn parse_pve_location(value: Option<String>) -> Option<Location> {
+    let location = value?
+        .parse::<PropertyString<PveNodeLocation>>()
+        .ok()?
+        .into_inner();
+    Some(Location {
+        name: location.name,
+        latitude: location.latitude,
+        longitude: location.longitude,
+    })
 }
 
 async fn fetch_remote_location_info(remote: &Remote) -> Result<Option<CachedLocationInfo>, Error> {
@@ -97,10 +104,8 @@ async fn fetch_remote_location_info(remote: &Remote) -> Result<Option<CachedLoca
         RemoteType::Pve => {
             let client = connection::make_pve_client(remote)?;
 
-            // first, get datacenter location
-            let cluster_options: DataCenterOptions =
-                serde_json::from_value(client.cluster_options().await?)?;
-            let location = cluster_options.location.map(|loc| loc.into_inner());
+            // first, get the datacenter-wide default location
+            let location = parse_pve_location(client.cluster_options().await?.location);
 
             // then get the individual node locations
             let mut node_locations = HashMap::new();
@@ -112,7 +117,6 @@ async fn fetch_remote_location_info(remote: &Remote) -> Result<Option<CachedLoca
             }
 
             for (node_name, remote_info) in join_all(futures).await {
-                let mut node_location = None;
                 // don't fail the whole remote if a single node is unreachable, just fall back to
                 // the datacenter location for that node below
                 let node_config = match remote_info {
@@ -122,16 +126,8 @@ async fn fetch_remote_location_info(remote: &Remote) -> Result<Option<CachedLoca
                         None
                     }
                 };
-                if let Some(location) = node_config.and_then(|config| config.location) {
-                    if let Ok(location) = location.parse::<PropertyString<NodeConfigLocation>>() {
-                        let location = location.into_inner();
-                        node_location = Some(Location {
-                            name: location.name,
-                            latitude: location.latitude,
-                            longitude: location.longitude,
-                        });
-                    }
-                }
+                let node_location =
+                    parse_pve_location(node_config.and_then(|config| config.location));
 
                 match (node_location, &location) {
                     (Some(location), _) => {

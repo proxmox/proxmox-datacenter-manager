@@ -573,7 +573,7 @@ pub async fn list_realm_remote_pve(
 pub async fn get_options(remote: String) -> Result<serde_json::Value, Error> {
     let options = connect_to_remote_by_id(&remote)?.cluster_options().await?;
 
-    Ok(options)
+    Ok(serde_json::to_value(options)?)
 }
 
 #[api(
