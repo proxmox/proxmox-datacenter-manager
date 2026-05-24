@@ -110,6 +110,7 @@ impl From<PveTree> for VNode {
 pub enum Action {
     Start,
     Shutdown,
+    Resume,
 }
 
 impl std::fmt::Display for Action {
@@ -117,6 +118,7 @@ impl std::fmt::Display for Action {
         let text = match self {
             Action::Start => tr!("Start"),
             Action::Shutdown => tr!("Shutdown"),
+            Action::Resume => tr!("Resume"),
         };
         f.write_str(&text)
     }
@@ -353,6 +355,8 @@ impl LoadableComponent for PveTreeComp {
                                     .pve_lxc_shutdown(&remote, Some(&r.node), r.vmid)
                                     .await
                             }
+                            // LXC resume is not exposed yet; the UI never offers it.
+                            Action::Resume => return,
                         };
 
                         match res {
@@ -370,6 +374,11 @@ impl LoadableComponent for PveTreeComp {
                             Action::Shutdown => {
                                 crate::pdm_client()
                                     .pve_qemu_shutdown(&remote, Some(&r.node), r.vmid)
+                                    .await
+                            }
+                            Action::Resume => {
+                                crate::pdm_client()
+                                    .pve_qemu_resume(&remote, Some(&r.node), r.vmid)
                                     .await
                             }
                         };
@@ -696,12 +705,19 @@ fn columns(
                         .tip(tr!("Shutdown"));
                         Some(icon)
                     }))
-                    .with_optional_child(guest_info.and_then(|(_, status, template)| {
+                    .with_optional_child(guest_info.and_then(|(info, status, template)| {
                         if template {
                             return None;
                         }
-                        // only a non-live (stopped) guest can be started
-                        let disabled = utils::guest_is_live(status);
+                        // resume is QEMU-only; LXC keeps its disabled Start button
+                        let resume = info.guest_type == GuestType::Qemu
+                            && matches!(status, "paused" | "prelaunch" | "suspended");
+                        let (action, scheme, label) = if resume {
+                            (Action::Resume, ColorScheme::Warning, tr!("Resume"))
+                        } else {
+                            (Action::Start, ColorScheme::Success, tr!("Start"))
+                        };
+                        let disabled = !resume && utils::guest_is_live(status);
                         let icon = Tooltip::new(
                             ActionIcon::new("fa fa-fw fa-play")
                                 .disabled(disabled)
@@ -710,14 +726,14 @@ fn columns(
                                     let link = link.clone();
                                     move |_| {
                                         link.change_view(Some(ViewState::Confirm(
-                                            Action::Start,
+                                            action.clone(),
                                             id.to_string(),
                                         )));
                                     }
                                 })
-                                .class((!disabled).then_some(ColorScheme::Success)),
+                                .class((!disabled).then_some(scheme)),
                         )
-                        .tip(tr!("Start"));
+                        .tip(label);
                         Some(icon)
                     }))
                     .with_optional_child(guest_info.map(|(guest_info, _, _)| {

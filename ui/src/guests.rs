@@ -191,6 +191,7 @@ impl ExtractPrimaryKey for GuestTreeNode {
 pub enum Action {
     Start,
     Shutdown,
+    Resume,
 }
 
 #[derive(PartialEq)]
@@ -359,6 +360,11 @@ impl LoadableComponent for GuestPanelComp {
                         (GuestType::Lxc, Action::Shutdown) => {
                             client.pve_lxc_shutdown(&remote, Some(&node), vmid).await
                         }
+                        (GuestType::Qemu, Action::Resume) => {
+                            client.pve_qemu_resume(&remote, Some(&node), vmid).await
+                        }
+                        // LXC resume isn't exposed yet, so the UI never offers it for LXC
+                        (GuestType::Lxc, Action::Resume) => return,
                     };
                     match res {
                         Ok(upid) => link.send_message(Msg::ShowTask(upid)),
@@ -533,6 +539,7 @@ impl LoadableComponent for GuestPanelComp {
                     Action::Shutdown => {
                         tr!("Are you sure you want to shut down guest '{0}'?", label)
                     }
+                    Action::Resume => tr!("Are you sure you want to resume guest '{0}'?", label),
                 };
                 let action = action.clone();
                 let key = key.clone();
@@ -709,6 +716,7 @@ fn guest_actions(link: &LoadableComponentScope<GuestPanelComp>, entry: &GuestEnt
     let node = entry.node().to_string();
     let local_id = entry.resource.id();
     let guest_info = entry.guest_info();
+    let is_qemu = entry.guest_type() == GuestType::Qemu;
 
     Row::new()
         .gap(1)
@@ -735,22 +743,28 @@ fn guest_actions(link: &LoadableComponentScope<GuestPanelComp>, entry: &GuestEnt
             .tip(tr!("Shutdown"))
         }))
         .with_optional_child((!template).then(|| {
-            // only a non-live (stopped) guest can be started
-            let disabled = guest_is_live(&status);
+            // resume is QEMU-only; LXC keeps its disabled Start button
+            let resume = is_qemu && matches!(status.as_str(), "paused" | "prelaunch" | "suspended");
+            let (action, scheme, label) = if resume {
+                (Action::Resume, ColorScheme::Warning, tr!("Resume"))
+            } else {
+                (Action::Start, ColorScheme::Success, tr!("Start"))
+            };
+            let disabled = !resume && guest_is_live(&status);
             Tooltip::new(
                 ActionIcon::new("fa fa-fw fa-play")
                     .disabled(disabled)
-                    .class((!disabled).then_some(ColorScheme::Success))
-                    .attribute("aria-label", AttrValue::from(tr!("Start")))
+                    .class((!disabled).then_some(scheme))
+                    .attribute("aria-label", AttrValue::from(label.clone()))
                     .on_activate({
                         let link = link.clone();
                         let key = key.clone();
                         move |_| {
-                            link.change_view(Some(ViewState::Confirm(Action::Start, key.clone())))
+                            link.change_view(Some(ViewState::Confirm(action.clone(), key.clone())))
                         }
                     }),
             )
-            .tip(tr!("Start"))
+            .tip(label)
         }))
         .with_optional_child((!template).then(|| {
             let remote = remote.clone();
