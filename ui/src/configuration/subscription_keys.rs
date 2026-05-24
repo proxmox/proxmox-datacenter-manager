@@ -7,6 +7,7 @@ use anyhow::Error;
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::subscription::{
     AddKeysResult, ProductType, RemoteNodeStatus, SubscriptionKeyEntry, SubscriptionKeySource,
+    SUBSCRIPTION_KEY_SCHEMA,
 };
 use yew::virtual_dom::{Key, VComp, VNode};
 
@@ -17,7 +18,7 @@ use proxmox_yew_comp::{
     LoadableComponentScopeExt, LoadableComponentState,
 };
 
-use pwt::css::{FontStyle, Opacity};
+use pwt::css::{FontColor, FontStyle, Opacity};
 use pwt::prelude::*;
 use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
@@ -165,7 +166,7 @@ impl SubscriptionKeyGridComp {
     fn create_add_dialog(&self, ctx: &LoadableComponentContext<Self>) -> Html {
         let digest = ctx.props().pool_digest.clone();
         EditWindow::new(tr!("Add Subscription Keys"))
-            .renderer(|_form_ctx| add_input_panel())
+            .renderer(|form_ctx| add_input_panel(form_ctx))
             .on_submit(move |form| submit_add_keys(form, digest.clone()))
             .on_done(ctx.link().clone().callback(|_| Msg::Reload))
             .into()
@@ -404,7 +405,7 @@ fn is_synced_assignment(entry: &SubscriptionKeyEntry, statuses: &[RemoteNodeStat
         .unwrap_or(false)
 }
 
-fn add_input_panel() -> Html {
+fn add_input_panel(form_ctx: &FormContext) -> Html {
     let hint = Container::new()
         .class(FontStyle::TitleSmall)
         .class(Opacity::ThreeQuarters)
@@ -413,9 +414,19 @@ fn add_input_panel() -> Html {
             "One key per line, or comma-separated. Only Proxmox VE and Proxmox Backup Server keys are accepted."
         ));
 
+    // A TextArea only toggles a red border on invalid input, so surface the validator's message
+    // ourselves. Gate on non-empty input so the dialog does not greet the operator with a
+    // "may not be empty" error before they have typed anything.
+    let guard = form_ctx.read();
+    let error = match guard.get_field_valid("keys") {
+        Some(Err(msg)) if !guard.get_field_text("keys").trim().is_empty() => Some(msg),
+        _ => None,
+    };
+    drop(guard);
+
     // The textarea opts into `width: 100%` so it fills the InputPanel's grid cell instead of
     // shrinking to browser-default cols.
-    InputPanel::new()
+    let mut panel = InputPanel::new()
         .padding(4)
         .min_width(500)
         .with_large_custom_child(
@@ -423,13 +434,66 @@ fn add_input_panel() -> Html {
                 .name("keys")
                 .submit_empty(false)
                 .required(true)
+                // Validate each pasted key against the shared schema so a typo lands inline here
+                // instead of as a server-side rejection after submit. Split exactly like
+                // `submit_add_keys` so the field and the request agree on token boundaries, and
+                // report every offending token at once so a bulk paste does not turn into a
+                // fix-one-resubmit loop.
+                .validate(|value: &String| {
+                    let mut found = false;
+                    let mut bad: Vec<&str> = Vec::new();
+                    for token in value.split(|c: char| c.is_whitespace() || c == ',') {
+                        let token = token.trim();
+                        if token.is_empty() {
+                            continue;
+                        }
+                        found = true;
+                        if SUBSCRIPTION_KEY_SCHEMA.parse_simple_value(token).is_err() {
+                            bad.push(token);
+                        }
+                    }
+                    if !found {
+                        anyhow::bail!(tr!("no keys provided"));
+                    }
+                    if !bad.is_empty() {
+                        let shown = bad.iter().take(5).copied().collect::<Vec<_>>().join(", ");
+                        let extra = bad.len().saturating_sub(5);
+                        let msg = if extra == 0 {
+                            tr!(
+                                "not a valid Proxmox VE or Proxmox Backup Server key: {0}"
+                                    | "not valid Proxmox VE or Proxmox Backup Server keys: {0}"
+                                    % bad.len() as u64,
+                                shown
+                            )
+                        } else {
+                            tr!(
+                                "not valid Proxmox VE or Proxmox Backup Server keys: {0} (and {1} more)",
+                                shown,
+                                extra
+                            )
+                        };
+                        anyhow::bail!(msg);
+                    }
+                    Ok(())
+                })
                 .attribute("rows", "8")
                 .attribute("placeholder", tr!("Subscription key(s)"))
                 .style("width", "100%")
                 .style("box-sizing", "border-box"),
         )
-        .with_large_custom_child(hint)
-        .into()
+        .with_large_custom_child(hint);
+
+    if let Some(msg) = error {
+        panel = panel.with_large_custom_child(
+            Container::new()
+                .class(FontStyle::TitleSmall)
+                .class(FontColor::Error)
+                .padding_top(1)
+                .with_child(msg),
+        );
+    }
+
+    panel.into()
 }
 
 async fn submit_add_keys(form_ctx: FormContext, digest: Option<String>) -> Result<(), Error> {
