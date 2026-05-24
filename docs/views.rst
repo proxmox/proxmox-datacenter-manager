@@ -77,6 +77,21 @@ The following widgets are available:
 - The `node-resource-gauge` widget displays a single node resource, such as
   CPU, memory, or storage, as a gauge chart, and can be limited to a single
   remote type.
+- The `map` widget plots the remotes on an interactive world map at their
+  configured geographic location. Markers are colored by the remote's status,
+  and markers that are close together are clustered as you zoom out.
+
+Map Widget
+^^^^^^^^^^
+
+The locations shown by the `map` widget come from the remotes and cannot be
+edited in Proxmox Datacenter Manager. Configure them on the remote side: on
+Proxmox VE in the datacenter configuration as a cluster-wide default, optionally
+overridden per node, and on Proxmox Backup Server in the node configuration.
+
+The map background is drawn from public-domain vector data by `Natural Earth
+<https://www.naturalearthdata.com/>`_, shipped in the `proxmox-geojson-data`
+package.
 
 
 Access Control
