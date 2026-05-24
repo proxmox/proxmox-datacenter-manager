@@ -676,7 +676,8 @@ fn columns(
                         if template {
                             return None;
                         }
-                        let disabled = status != "running";
+                        // a paused guest is still live and can be shut down
+                        let disabled = !utils::guest_is_live(status);
                         let icon = Tooltip::new(
                             ActionIcon::new("fa fa-fw fa-power-off")
                                 .disabled(disabled)
@@ -699,7 +700,8 @@ fn columns(
                         if template {
                             return None;
                         }
-                        let disabled = status == "running";
+                        // only a non-live (stopped) guest can be started
+                        let disabled = utils::guest_is_live(status);
                         let icon = Tooltip::new(
                             ActionIcon::new("fa fa-fw fa-play")
                                 .disabled(disabled)
