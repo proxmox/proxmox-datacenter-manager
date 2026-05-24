@@ -132,14 +132,17 @@ fn usage_meter(used: i64, total: i64) -> Html {
     Row::new()
         .gap(2)
         .class(AlignItems::Center)
+        // Let the meter grow to fill the cell; the percentage text keeps its content width, so the
+        // bar takes whatever is left.
         .with_child(
-            Container::new().width("46px").with_child(
+            Container::new().style("flex", "1").with_child(
                 Meter::new()
                     .low(0.7)
                     .high(0.85)
                     .optimum(0.0)
                     .value(ratio)
-                    .animated(true),
+                    .animated(true)
+                    .width("100%"),
             ),
         )
         .with_child(html! { { format!("{:.1}%", ratio * 100.0) } })
@@ -250,17 +253,16 @@ impl LoadableComponent for PdmCephClusterListPanel {
 
 impl From<CephClusterListPanel> for VNode {
     fn from(val: CephClusterListPanel) -> Self {
-        VNode::from(VComp::new::<LoadableComponentMaster<PdmCephClusterListPanel>>(
-            Rc::new(val),
-            None,
-        ))
+        VNode::from(
+            VComp::new::<LoadableComponentMaster<PdmCephClusterListPanel>>(Rc::new(val), None),
+        )
     }
 }
 
 fn columns() -> Rc<Vec<DataTableHeader<CephClusterListEntry>>> {
     Rc::new(vec![
         DataTableColumn::new(tr!("Health"))
-            .width("122px")
+            .width("minmax(80px,2fr)")
             .render(|item: &CephClusterListEntry| {
                 let (status, mut label) = health_cell(item);
                 // Fold the active health-check count into the label rather than
@@ -283,22 +285,18 @@ fn columns() -> Rc<Vec<DataTableHeader<CephClusterListEntry>>> {
             })
             .sort_order(false)
             .into(),
-        // Fixed (not flex): a fixed total column width lets the DataTable scroll
-        // horizontally when the master pane is narrow, so no column is pushed
-        // off-screen out of reach, which a flex column (absorbing all slack)
-        // would cause.
         DataTableColumn::new(tr!("Name"))
-            .width("160px")
+            .width("minmax(125px,3fr)")
             .get_property(|item: &CephClusterListEntry| &item.display_name)
             .into(),
         DataTableColumn::new(tr!("Remote"))
-            .width("110px")
+            .width("minmax(100px,3fr)")
             .render(|item: &CephClusterListEntry| {
                 html! { { item.remote.clone().unwrap_or_default() } }
             })
             .into(),
         DataTableColumn::new(tr!("Capacity"))
-            .width("82px")
+            .width("minmax(75px,1fr)")
             .justify("right")
             .render(|item: &CephClusterListEntry| match item.bytes_total {
                 Some(total) if total > 0 => {
@@ -311,7 +309,7 @@ fn columns() -> Rc<Vec<DataTableHeader<CephClusterListEntry>>> {
             })
             .into(),
         DataTableColumn::new(tr!("Available"))
-            .width("82px")
+            .width("minmax(75px,1fr)")
             .justify("right")
             .render(|item: &CephClusterListEntry| match item.bytes_avail {
                 Some(avail) => html! { { format!("{:.1}", HumanByte::from(avail.max(0) as u64)) } },
@@ -322,17 +320,19 @@ fn columns() -> Rc<Vec<DataTableHeader<CephClusterListEntry>>> {
             })
             .into(),
         DataTableColumn::new(tr!("Usage"))
-            .width("120px")
-            .render(|item: &CephClusterListEntry| match (item.bytes_used, item.bytes_total) {
-                (Some(used), Some(total)) if total > 0 => usage_meter(used, total),
-                _ => html! { {"-"} },
-            })
+            .width("minmax(100px,3fr)")
+            .render(
+                |item: &CephClusterListEntry| match (item.bytes_used, item.bytes_total) {
+                    (Some(used), Some(total)) if total > 0 => usage_meter(used, total),
+                    _ => html! { {"-"} },
+                },
+            )
             .sorter(|a: &CephClusterListEntry, b: &CephClusterListEntry| {
                 usage_ratio(a).total_cmp(&usage_ratio(b))
             })
             .into(),
         DataTableColumn::new(tr!("OSDs"))
-            .width("95px")
+            .width("minmax(100px,2fr)")
             .justify("right")
             .render(|item: &CephClusterListEntry| {
                 osd_cell(item.osds_up, item.osds_in, item.osds_total)
@@ -342,17 +342,17 @@ fn columns() -> Rc<Vec<DataTableHeader<CephClusterListEntry>>> {
             })
             .into(),
         DataTableColumn::new(tr!("Monitors"))
-            .width("86px")
+            .width("minmax(75px,2fr)")
             .justify("right")
-            .render(|item: &CephClusterListEntry| {
-                daemon_cell(item.mons_in_quorum, item.mons_total)
-            })
+            .render(|item: &CephClusterListEntry| daemon_cell(item.mons_in_quorum, item.mons_total))
             .sorter(|a: &CephClusterListEntry, b: &CephClusterListEntry| {
-                a.mons_in_quorum.unwrap_or(0).cmp(&b.mons_in_quorum.unwrap_or(0))
+                a.mons_in_quorum
+                    .unwrap_or(0)
+                    .cmp(&b.mons_in_quorum.unwrap_or(0))
             })
             .into(),
         DataTableColumn::new(tr!("Activity"))
-            .width("105px")
+            .width("minmax(50px,2fr)")
             .render(activity_cell)
             .into(),
     ])

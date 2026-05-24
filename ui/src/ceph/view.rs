@@ -71,7 +71,7 @@ impl yew::Component for PdmCephView {
             .min_width(360)
             // The list carries the at-a-glance overview (health, remote,
             // capacity, usage, OSD/mon counts), so give it the larger share.
-            .style("flex", "3 1 0")
+            .style("flex", "4 1 0")
             .class(FlexFit)
             .border(true)
             .title(list_title)
@@ -89,7 +89,7 @@ impl yew::Component for PdmCephView {
             .min_width(400)
             // Narrower share than the list; the tab bar scrolls and the dense
             // tables (OSDs, pools) scroll horizontally if needed.
-            .style("flex", "2 1 0")
+            .style("flex", "3 1 0")
             .class(FlexFit)
             .border(true)
             .with_child(NavigationContainer::new().with_child(detail_content));
