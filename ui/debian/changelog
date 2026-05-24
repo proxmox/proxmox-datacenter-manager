@@ -1,3 +1,35 @@
+proxmox-datacenter-manager-ui (1.0.5) trixie; urgency=medium
+
+  * ceph: add Ceph cluster views: a cluster list and a per-cluster dashboard
+    with panels for the OSD tree, monitors, managers, metadata servers,
+    pools, CephFS and OSD flags, capacity and usage columns in the list, and
+    a button that deep-links into the node's Ceph panel in the Proxmox VE
+    web interface.
+
+  * guests: add a central, cross-remote list of all virtual guests (QEMU and
+    LXC), shown either as a flat sortable table or as a tree grouped by
+    remote, with text filtering and the common per-guest actions.
+
+  * guests: a paused or suspended guest can now be shut down, and a QEMU
+    guest in such a state is offered an orange Resume action in place of the
+    disabled Start. Applies to both the per-remote resource tree and the new
+    cross-remote guest list.
+
+  * views: add a world map widget that plots a remote's nodes by their
+    configured geographic location.
+
+  * views: submit the configuration digest when updating a view, to avoid
+    overwriting concurrent edits.
+
+  * registry: add a subscription key pool view listing pooled keys and
+    per-node subscription status, with actions to check, adopt and clear
+    subscription keys.
+
+  * automated installations: show the full URL in the access-token secrets
+    dialog.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 24 May 2026 04:14:27 +0200
+
 proxmox-datacenter-manager-ui (1.0.4) trixie; urgency=medium
 
   * header bar search field: show finger pointer cursor when hovering the
