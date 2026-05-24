@@ -39,6 +39,7 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
     ("status", &Router::new().get(&API_METHOD_QEMU_GET_STATUS)),
     ("stop", &Router::new().post(&API_METHOD_QEMU_STOP)),
     ("shutdown", &Router::new().post(&API_METHOD_QEMU_SHUTDOWN)),
+    ("resume", &Router::new().post(&API_METHOD_QEMU_RESUME)),
     (
         "migrate",
         &Router::new()
@@ -305,6 +306,39 @@ pub async fn qemu_shutdown(
         .await?;
 
     (remote, upid.to_string()).try_into()
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
+)]
+/// Resume a paused or suspended remote qemu vm.
+pub async fn qemu_resume(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+) -> Result<RemoteUpid, Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+
+    let upid = pve
+        .resume_qemu_async(&node, vmid, Default::default())
+        .await?;
+
+    new_remote_upid(remote, upid).await
 }
 
 #[api(
