@@ -5,6 +5,12 @@ The subscription registry maintains a central pool of Proxmox VE and Proxmox Bac
 subscription keys and lets an administrator assign them to remote nodes from a single place, without
 having to select and configure a key for all remote nodes individually.
 
+.. image:: images/screenshots/pdm-gui-subscription-registry.png
+  :target: _images/pdm-gui-subscription-registry.png
+  :align: center
+  :width: 800px
+  :alt: Subscription Registry with the key pool and node subscription status
+
 Key Pool
 --------
 
@@ -33,6 +39,11 @@ Assignment and Clearing
 -----------------------
 
 A key can be pinned to a single node manually.
+
+.. image:: images/screenshots/pdm-gui-subscription-registry-auto-assign.png
+  :target: _images/pdm-gui-subscription-registry-auto-assign.png
+  :align: right
+  :alt: Auto-Assign proposal before it is applied
 
 The Auto-Assign action proposes a plan that fills unsubscribed nodes from free pool keys. For
 Proxmox VE, the smallest covering key by socket count is chosen, so a 4-socket key is not used
