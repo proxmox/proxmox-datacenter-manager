@@ -1,8 +1,7 @@
 //! CephFS tab: the file systems from `GET /ceph/clusters/{id}/fs`.
 //!
-//! The metadata servers backing these file systems live in the Managers tab
-//! (alongside the managers), so this tab focuses on the file systems and their
-//! data/metadata pools.
+//! The metadata servers backing these file systems live in the Managers tab (alongside the
+//! managers), so this tab focuses on the file systems and their data/metadata pools.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -106,8 +105,8 @@ impl From<CephFsPanel> for VNode {
     }
 }
 
-/// The data pools of a file system: prefer the full `data_pools` list, falling
-/// back to the single `data_pool` field.
+/// The data pools of a file system: prefer the full `data_pools` list, falling back to the single
+/// `data_pool` field.
 fn data_pools(fs: &CephFs) -> String {
     match &fs.data_pools {
         Some(pools) if !pools.is_empty() => pools.join(", "),

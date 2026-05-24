@@ -1,9 +1,8 @@
-//! Top-level Ceph view: a master/detail split with the cluster list on the
-//! left and the selected cluster's detail panel on the right.
+//! Top-level Ceph view: a master/detail split with the cluster list on the left and the selected
+//! cluster's detail panel on the right.
 //!
-//! Mirrors the PVE remote view (`crate::pve`): both panes are always visible,
-//! selecting a cluster in the list updates the right pane. Selection is
-//! component-local state, no router route.
+//! Mirrors the PVE remote view (`crate::pve`): both panes are always visible, selecting a cluster
+//! in the list updates the right pane. Selection is component-local state, no router route.
 
 use std::rc::Rc;
 
@@ -69,8 +68,8 @@ impl yew::Component for PdmCephView {
 
         let list = Panel::new()
             .min_width(360)
-            // The list carries the at-a-glance overview (health, remote,
-            // capacity, usage, OSD/mon counts), so give it the larger share.
+            // The list carries the at-a-glance overview (health, remote, capacity, usage, OSD/mon
+            // counts), so give it the larger share.
             .style("flex", "4 1 0")
             .class(FlexFit)
             .border(true)
@@ -87,8 +86,8 @@ impl yew::Component for PdmCephView {
 
         let detail = Panel::new()
             .min_width(400)
-            // Narrower share than the list; the tab bar scrolls and the dense
-            // tables (OSDs, pools) scroll horizontally if needed.
+            // Narrower share than the list; the tab bar scrolls and the dense tables (OSDs, pools)
+            // scroll horizontally if needed.
             .style("flex", "3 1 0")
             .class(FlexFit)
             .border(true)

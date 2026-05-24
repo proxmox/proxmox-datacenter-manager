@@ -1,21 +1,18 @@
 //! Access-checked view over the Ceph cluster registry (`ceph-clusters.cfg`).
 //!
-//! Access is derived from the underlying PVE remote (see [`super`] module
-//! docs): a member is accessible when the caller holds the required privilege
-//! on `/resource/<remote>` via [`CachedUserInfo::any_privs_below`] - the same
-//! predicate the resource list uses to decide remote visibility, so "if you can
-//! see the remote you can see its Ceph" holds - and a cluster is accessible when
-//! at least one of its members is. The privilege is a parameter so the same
-//! checks back read (`Resource.Audit`) and, later, write (`Resource.Modify`)
-//! flows; when a dedicated `/ceph` ACL path family is introduced, only the
-//! bodies of [`check_cluster_access`] / [`check_member_access`] change.
+//! Access is derived from the underlying PVE remote (see [`super`] module docs): a member is
+//! accessible when the caller holds the required privilege on `/resource/<remote>` via
+//! [`CachedUserInfo::any_privs_below`] - the same predicate the resource list uses to decide remote
+//! visibility, so "if you can see the remote you can see its Ceph" holds - and a cluster is
+//! accessible when at least one of its members is. The privilege is a parameter so the same checks
+//! back both read (`Resource.Audit`) and write (`Resource.Modify`) flows; [`check_cluster_access`]
+//! and [`check_member_access`] are the only two places that map a cluster or member to a privilege
+//! check.
 //!
-//! Known limitation, intentional for the read-only phase: a Ceph cluster can
-//! span several PVE remotes, and cluster-wide reads (`ceph status`, mon/osd
-//! lists) describe the whole cluster. A caller who can audit one member's
-//! remote therefore sees cluster-wide state that includes nodes on remotes they
-//! cannot audit. The plan's per-member intersection filtering is a later
-//! refinement that arrives with the dedicated `/ceph` ACL paths.
+//! Known limitation: a Ceph cluster can span several PVE remotes, and cluster-wide reads
+//! (`ceph status`, mon/osd lists) describe the whole cluster. A caller who can audit one member's
+//! remote therefore sees cluster-wide state that includes nodes on remotes they cannot audit; reads
+//! are not filtered per member.
 
 use anyhow::Error;
 
@@ -28,8 +25,8 @@ use pdm_config::ceph::CephClustersConfig;
 
 /// Whether the caller holds `privs` on the remote backing `member`.
 ///
-/// Standalone members have no remote to derive from and are inaccessible until
-/// the dedicated `/ceph` ACL path family lands.
+/// Standalone members have no remote to derive access from, so they are inaccessible: there is no
+/// `/ceph` ACL path to grant them directly.
 fn member_accessible(
     user_info: &CachedUserInfo,
     auth_id: &Authid,
@@ -60,8 +57,8 @@ pub fn cluster_accessible(
     Ok(false)
 }
 
-/// Enforce that the caller holds `privs` on the cluster (via any member's
-/// remote). `404` when the cluster is unknown, `403` when it is not accessible.
+/// Enforce that the caller holds `privs` on the cluster (via any member's remote). `404` when the
+/// cluster is unknown, `403` when it is not accessible.
 pub fn check_cluster_access(
     auth_id: &Authid,
     config: &CephClustersConfig,
@@ -87,16 +84,16 @@ pub fn check_member_access(auth_id: &Authid, member: &CephMember, privs: u64) ->
     Ok(())
 }
 
-/// Members of a cluster, cloned and sorted by id so dispatch and listing are
-/// deterministic (the backing store is a `HashMap`).
+/// Members of a cluster, cloned and sorted by id so dispatch and listing are deterministic (the
+/// backing store is a `HashMap`).
 fn sorted_members(config: &CephClustersConfig, cluster_id: &str) -> Vec<CephMember> {
     let mut members: Vec<CephMember> = config.members_of(cluster_id).cloned().collect();
     members.sort_by(|a, b| a.id.cmp(&b.id));
     members
 }
 
-/// Clusters the caller can access with `privs`, each paired with its members.
-/// Clusters and members are sorted by id for deterministic output.
+/// Clusters the caller can access with `privs`, each paired with its members. Clusters and members
+/// are sorted by id for deterministic output.
 pub fn accessible_clusters(
     auth_id: &Authid,
     config: &CephClustersConfig,
@@ -113,8 +110,8 @@ pub fn accessible_clusters(
     Ok(out)
 }
 
-/// Look up a single accessible cluster and its members (sorted), enforcing
-/// `privs`. `404`/`403` as in [`check_cluster_access`].
+/// Look up a single accessible cluster and its members (sorted), enforcing `privs`. `404`/`403` as
+/// in [`check_cluster_access`].
 pub fn lookup_cluster(
     auth_id: &Authid,
     config: &CephClustersConfig,

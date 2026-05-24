@@ -1,7 +1,8 @@
 //! `/ceph/clusters` - the datacenter-wide list of detected Ceph clusters.
 //!
-//! Read-only (phase 1b): each row shows the cluster's health, detection state
-//! and member count. Drill-down into a single cluster's dashboard lands next.
+//! Each row shows the cluster's health, detection state, member count and a usage overview. The
+//! list is keyed by fsid and not tied to a single PVE cluster, so it can also represent a
+//! standalone Ceph cluster or a split stretch cluster, even if only partially.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -30,9 +31,9 @@ use super::renderer::{
     ceph_cluster_state_label, ceph_health_label, ceph_health_severity, ceph_health_status,
 };
 
-/// Icon severity and label for the Health cell. A non-`Detected` cluster shows
-/// its detection state (the health overlay is stale or unknown then), so the
-/// list keeps surfacing unreachable/gone clusters without a separate column.
+/// Icon severity and label for the Health cell. A non-`Detected` cluster shows its detection state
+/// (the health overlay is stale or unknown then), so the list keeps surfacing unreachable/gone
+/// clusters without a separate column.
 fn health_cell(item: &CephClusterListEntry) -> (Status, String) {
     match item.state {
         CephClusterState::Detected => (
@@ -45,8 +46,8 @@ fn health_cell(item: &CephClusterListEntry) -> (Status, String) {
     }
 }
 
-/// Combined triage severity (higher is worse): a gone/unreachable cluster
-/// outranks any health string, so it sorts to the top of the list.
+/// Combined triage severity (higher is worse): a gone/unreachable cluster outranks any health
+/// string, so it sorts to the top of the list.
 fn row_severity(item: &CephClusterListEntry) -> u8 {
     match item.state {
         CephClusterState::Gone => 5,
@@ -56,8 +57,7 @@ fn row_severity(item: &CephClusterListEntry) -> u8 {
     }
 }
 
-/// Used/total capacity ratio for sorting; clusters without cached capacity sort
-/// as 0.
+/// Used/total capacity ratio for sorting; clusters without cached capacity sort as 0.
 fn usage_ratio(item: &CephClusterListEntry) -> f64 {
     match (item.bytes_used, item.bytes_total) {
         (Some(used), Some(total)) if total > 0 => used as f64 / total as f64,
@@ -65,9 +65,9 @@ fn usage_ratio(item: &CephClusterListEntry) -> f64 {
     }
 }
 
-/// A daemon "up / total" cell (OSDs up, monitors in quorum). Error-colored when
-/// fewer are up than exist, since a down OSD or an out-of-quorum monitor is an
-/// availability risk that should stand out; "-" when uncached.
+/// A daemon "up / total" cell (OSDs up, monitors in quorum). Error-colored when fewer are up than
+/// exist, since a down OSD or an out-of-quorum monitor is an availability risk that should stand
+/// out; "-" when uncached.
 fn daemon_cell(up: Option<i64>, total: Option<i64>) -> Html {
     match (up, total) {
         (Some(up), Some(total)) => {
@@ -85,8 +85,8 @@ fn daemon_cell(up: Option<i64>, total: Option<i64>) -> Html {
     }
 }
 
-/// An OSD "up / in / total" cell. Red when any OSD is down (data availability
-/// risk), amber when all are up but some are out (drained/rebalancing).
+/// An OSD "up / in / total" cell. Red when any OSD is down (data availability risk), amber when all
+/// are up but some are out (drained/rebalancing).
 fn osd_cell(up: Option<i64>, in_cluster: Option<i64>, total: Option<i64>) -> Html {
     match (up, in_cluster, total) {
         (Some(up), Some(in_cluster), Some(total)) => {
@@ -107,8 +107,8 @@ fn osd_cell(up: Option<i64>, in_cluster: Option<i64>, total: Option<i64>) -> Htm
     }
 }
 
-/// The most significant ongoing activity for triage: storage pressure outranks
-/// reduced redundancy, which outranks transient recovery; blank when idle.
+/// The most significant ongoing activity for triage: storage pressure outranks reduced redundancy,
+/// which outranks transient recovery; blank when idle.
 fn activity_cell(item: &CephClusterListEntry) -> Html {
     let (label, color) = if item.nearfull == Some(true) {
         (tr!("Near full"), FontColor::Error)
@@ -187,14 +187,12 @@ impl LoadableComponent for PdmCephClusterListPanel {
     type ViewState = ();
 
     fn create(ctx: &LoadableComponentContext<Self>) -> Self {
-        // The list overlays cached health and never fetches live, so most polls
-        // are served from the cache.
+        // The list overlays cached health and never fetches live
         ctx.link().repeated_load(10_000);
         let store =
             Store::with_extract_key(|item: &CephClusterListEntry| Key::from(item.cluster.clone()));
 
-        // Single-click selection drives the master/detail split: forward the
-        // selected cluster to the parent view.
+        // Single-click selection drives the master/detail split.
         let selection = {
             let store = store.clone();
             let on_select = ctx.props().on_select.clone();
@@ -221,9 +219,7 @@ impl LoadableComponent for PdmCephClusterListPanel {
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
         let store = self.store.clone();
         Box::pin(async move {
-            // Resolve the data before taking the store's write borrow: holding
-            // the guard across the await lets a concurrent render read the same
-            // store and panics with "RefCell already borrowed".
+            // Resolve the data before taking the store's write borrow to keep RefCell's contract
             let data = load_clusters().await?;
             store.write().set_data(data);
             Ok(())
@@ -265,8 +261,8 @@ fn columns() -> Rc<Vec<DataTableHeader<CephClusterListEntry>>> {
             .width("minmax(80px,2fr)")
             .render(|item: &CephClusterListEntry| {
                 let (status, mut label) = health_cell(item);
-                // Fold the active health-check count into the label rather than
-                // a separate column that just restates the icon.
+                // Fold the active health-check count into the label rather than a separate column
+                // that just restates the icon.
                 if let Some(n) = item.problem_count {
                     if n > 0 {
                         label = tr!("{0} ({1})", label, n);

@@ -14,12 +14,12 @@ use proxmox_yew_comp::{AclContext, NotesView, XTermJs};
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
+use crate::ceph::CephView;
 use crate::configuration::subscription_panel::SubscriptionPanel;
 use crate::configuration::subscription_registry::SubscriptionRegistryProps;
 use crate::configuration::views::ViewGrid;
 use crate::dashboard::view::View;
 use crate::remotes::RemotesPanel;
-use crate::ceph::CephView;
 use crate::sdn::evpn::EvpnPanel;
 use crate::sdn::ZoneTree;
 use crate::{

@@ -1,26 +1,21 @@
 //! Ceph cluster auto-detection.
 //!
-//! Probes PVE remotes for a configured Ceph cluster, deduplicates the results
-//! by fsid (several remotes can see the same cluster), and upserts
-//! `ceph-clusters.cfg`. Runs as a one-shot probe when a remote is added and,
-//! later, on a periodic sweep.
+//! Probes PVE remotes for a configured Ceph cluster, deduplicates the results by fsid (several
+//! remotes can see the same cluster), and upserts `ceph-clusters.cfg`. Runs as a one-shot probe
+//! when a remote is added and on a periodic sweep.
 //!
-//! A probe classifies each remote three ways: it `Found` a cluster (an fsid is
-//! present), the remote is `Reachable` but reports no Ceph, or it is
-//! `Unreachable` (the request never reached the server). A found cluster is
-//! upserted as `Detected`. The full [`sweep`] additionally reconciles clusters
-//! it did *not* find this cycle, using the outcomes of the remotes backing
-//! their members: all reachable but none reporting the fsid means `Gone` (the
-//! cluster was removed); any member-remote unreachable means `Unreachable` (a
-//! transient connection issue, not a removal). The one-shot [`detect_and_upsert`]
-//! used on remote-add only upserts - it lacks the full-fleet coverage needed to
-//! safely demote a cluster. A tombstoned (`forgotten`) cluster is never touched.
+//! A probe classifies each remote three ways: it `Found` a cluster (an fsid is present), the remote
+//! is `Reachable` but reports no Ceph, or it is `Unreachable` (the request never reached the
+//! server). A found cluster is upserted as `Detected`. The full [`sweep`] additionally reconciles
+//! clusters it did *not* find this cycle, using the outcomes of the remotes backing their members:
+//! all reachable but none reporting the fsid means `Gone` (the cluster was removed); any
+//! member-remote unreachable means `Unreachable` (a transient connection issue, not a removal). The
+//! one-shot [`detect_and_upsert`] used on remote-add only upserts - it lacks the full-fleet
+//! coverage needed to safely demote a cluster. A tombstoned (`forgotten`) cluster is never touched.
 //!
-//! Members are taken from the Ceph mon quorum (`quorum_names` in `ceph status`).
-//! By PVE convention a monitor is named after the node it runs on, so the mon
-//! name doubles as the PVE node name used for node-level dispatch.
-//!
-//! Concurrent probing via `ParallelFetcher` is a later refinement.
+//! Members are taken from the Ceph mon quorum (`quorum_names` in `ceph status`). By PVE convention
+//! a monitor is named after the node it runs on, so the mon name doubles as the PVE node name used
+//! for node-level dispatch.
 
 use std::collections::BTreeMap;
 
@@ -42,20 +37,20 @@ enum ProbeOutcome {
 
 /// Probe one PVE remote for a configured Ceph cluster.
 ///
-/// Infallible by design: a connection failure is a normal outcome
-/// ([`ProbeOutcome::Unreachable`]), not an error that should abort the sweep.
+/// Infallible by design: a connection failure is a normal outcome ([`ProbeOutcome::Unreachable`]),
+/// not an error that should abort the sweep.
 async fn probe_remote(remote_id: &str) -> ProbeOutcome {
     let client = match crate::api::pve::connect_to_remote_by_id(remote_id) {
         Ok(client) => client,
-        // Cannot even build a client (e.g. the remote config is broken); treat
-        // it as unreachable rather than failing the whole sweep.
+        // Cannot even build a client (e.g. the remote config is broken); treat it as unreachable
+        // rather than failing the whole sweep.
         Err(_) => return ProbeOutcome::Unreachable,
     };
 
     let status = match client.cluster_ceph_status().await {
         Ok(status) => status,
-        // An API-level error means we reached the server (it answered, e.g.
-        // "ceph not configured"); only a transport failure is unreachable.
+        // An API-level error means we reached the server (it answered, e.g. "ceph not configured");
+        // only a transport failure is unreachable.
         Err(proxmox_client::Error::Api(..))
         | Err(proxmox_client::Error::Authentication(_))
         | Err(proxmox_client::Error::Ticket(_))
@@ -67,8 +62,8 @@ async fn probe_remote(remote_id: &str) -> ProbeOutcome {
         return ProbeOutcome::Reachable;
     };
 
-    // Populate the status cache as a side effect so the cluster list has
-    // health and quorum data without a separate fetch. Best-effort.
+    // Populate the status cache as a side effect so the cluster list has health and quorum data
+    // without a separate fetch. Best-effort.
     if let Err(e) = super::cache::store_status(fsid, &status).await {
         log::warn!("failed to cache ceph status for {fsid}: {e}");
     }
@@ -90,8 +85,8 @@ async fn probe_remote(remote_id: &str) -> ProbeOutcome {
     }
 }
 
-/// Probe the given remotes, returning the per-remote outcome and the found
-/// clusters (fsid -> the `(remote, node)` members seen this cycle).
+/// Probe the given remotes, returning the per-remote outcome and the found clusters (fsid -> the
+/// `(remote, node)` members seen this cycle).
 async fn probe_all(
     remote_ids: &[String],
 ) -> (
@@ -113,14 +108,12 @@ async fn probe_all(
     (outcomes, found)
 }
 
-/// Probe the given PVE remotes and upsert what was found into
-/// `ceph-clusters.cfg`. Clusters carrying an operator tombstone (`forgotten`)
-/// are left untouched.
+/// Probe the given PVE remotes and upsert what was found into `ceph-clusters.cfg`. Clusters
+/// carrying an operator tombstone (`forgotten`) are left untouched.
 ///
-/// Upsert-only: this is the one-shot probe fired on remote-add, which sees a
-/// single remote and therefore cannot tell a removed cluster from one whose
-/// other members live on remotes it did not probe. State demotion is the full
-/// [`sweep`]'s job.
+/// Upsert-only: this is the one-shot probe fired on remote-add, which sees a single remote and
+/// therefore cannot tell a removed cluster from one whose other members live on remotes it did not
+/// probe. State demotion is the full [`sweep`]'s job.
 pub async fn detect_and_upsert(remote_ids: &[String]) -> Result<(), Error> {
     let (_outcomes, found) = probe_all(remote_ids).await;
 
@@ -140,8 +133,8 @@ pub async fn detect_and_upsert(remote_ids: &[String]) -> Result<(), Error> {
     Ok(())
 }
 
-/// Probe every PVE remote for Ceph, upsert what was found, and reconcile the
-/// state of registered clusters that were not found this cycle.
+/// Probe every PVE remote for Ceph, upsert what was found, and reconcile the state of registered
+/// clusters that were not found this cycle.
 pub async fn sweep() -> Result<(), Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
     let pve_remotes: Vec<String> = remotes
@@ -165,15 +158,14 @@ pub async fn sweep() -> Result<(), Error> {
     Ok(())
 }
 
-/// Demote registered clusters that the sweep did not find this cycle, based on
-/// the probe outcomes of the remotes backing their members.
+/// Demote registered clusters that the sweep did not find this cycle, based on the probe outcomes
+/// of the remotes backing their members.
 ///
-/// A cluster goes `Gone` (stamping `last_seen_missing`) when every probed
-/// member-remote was reachable yet none reported its fsid - it was removed. It
-/// goes `Unreachable` when at least one member-remote could not be reached - a
-/// transient issue, so `last_seen_missing` is left alone. A cluster with no
-/// probed member-remote this cycle (no coverage) and a tombstoned cluster are
-/// both left untouched.
+/// A cluster goes `Gone` (stamping `last_seen_missing`) when every probed member-remote was
+/// reachable yet none reported its fsid - it was removed. It goes `Unreachable` when at least one
+/// member-remote could not be reached - a transient issue, so `last_seen_missing` is left alone. A
+/// cluster with no probed member-remote this cycle (no coverage) and a tombstoned cluster are both
+/// left untouched.
 fn reconcile_unfound(
     config: &mut CephClustersConfig,
     found: &BTreeMap<String, Vec<(String, String)>>,
@@ -245,8 +237,8 @@ fn reconcile_unfound(
     changed
 }
 
-/// Clean up the registry after a PVE remote was removed: drop its Ceph members
-/// and any cluster that is left without members.
+/// Clean up the registry after a PVE remote was removed: drop its Ceph members and any cluster that
+/// is left without members.
 pub fn on_remote_removed(remote_id: &str) -> Result<(), Error> {
     let _lock = pdm_config::ceph::lock_config()?;
     let (mut config, _) = pdm_config::ceph::config()?;
@@ -258,8 +250,8 @@ pub fn on_remote_removed(remote_id: &str) -> Result<(), Error> {
     Ok(())
 }
 
-/// Upsert one detected cluster and its members. Returns whether anything
-/// changed. A tombstoned (`forgotten`) cluster is left untouched.
+/// Upsert one detected cluster and its members. Returns whether anything changed. A tombstoned
+/// (`forgotten`) cluster is left untouched.
 fn upsert_cluster(
     config: &mut CephClustersConfig,
     fsid: &str,
@@ -463,8 +455,8 @@ mod tests {
             &outcomes,
             NOW
         ));
-        // A second cycle while still gone changes nothing and keeps the original
-        // last_seen_missing timestamp.
+        // A second cycle while still gone changes nothing and keeps the original last_seen_missing
+        // timestamp.
         assert!(!reconcile_unfound(
             &mut cfg,
             &BTreeMap::new(),

@@ -1,8 +1,7 @@
 //! Datacenter-wide Ceph management UI.
 //!
-//! Top-level, fsid-keyed view (Ceph clusters can span several PVE remotes, so
-//! this lives parallel to Remotes/SDN rather than under a single remote).
-//! Phase 1b is read-only.
+//! Top-level, fsid-keyed view (Ceph clusters can span several PVE remotes, so this lives parallel
+//! to Remotes and SDN rather than under a single remote).
 
 pub mod cephfs;
 pub mod cluster;

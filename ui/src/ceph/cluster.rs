@@ -1,8 +1,8 @@
 //! Per-cluster Ceph detail view: a tabbed panel over one cluster's resources.
 //!
-//! Rendered in the right-hand pane of the Ceph master/detail view (see
-//! [`super::view`]). Phase 1b ships the read-only "Dashboard" tab; the
-//! monitor/pool/flag/OSD-tree tabs plug into the same shell as they land.
+//! Rendered in the right-hand pane of the Ceph master/detail view (see [`super::view`]). The first
+//! tab is the dashboard; the monitor, manager, OSD, pool, CephFS and flags tabs share the same
+//! shell.
 
 use std::rc::Rc;
 
@@ -30,8 +30,8 @@ pub struct CephClusterPanel {
     /// A representative PVE remote, for the "Open Web UI" escalation link.
     #[prop_or_default]
     pub remote: Option<String>,
-    /// A node on `remote` that backs the cluster, so the escalation link can
-    /// open that node's Ceph panel directly rather than the remote root.
+    /// A node on `remote` that backs the cluster, so the escalation link can open that node's Ceph
+    /// panel directly rather than the remote root.
     #[prop_or_default]
     pub node: Option<String>,
 }
@@ -57,8 +57,8 @@ impl CephClusterPanel {
 
 impl From<CephClusterPanel> for VNode {
     fn from(val: CephClusterPanel) -> Self {
-        // Key by fsid so selecting a different cluster remounts the panel (and
-        // its dashboard), triggering a fresh load instead of reusing stale data.
+        // Key by fsid so selecting a different cluster remounts the panel (and its dashboard),
+        // triggering a fresh load instead of reusing stale data.
         let key = Key::from(val.cluster.to_string());
         VComp::new::<PdmCephClusterPanel>(Rc::new(val), Some(key)).into()
     }
@@ -84,19 +84,18 @@ impl yew::Component for PdmCephClusterPanel {
             .with_child(tr!("Ceph Cluster '{0}'", props.display_name))
             .into();
 
-        // Escalation link into the cluster's native PVE web UI (Ceph is managed
-        // there for ops PDM does not cover). Only shown when a PVE remote backs
-        // the cluster; a standalone-only cluster has no PVE UI to open.
+        // Escalation link into the cluster's native PVE web UI, where the Ceph ops PDM does not
+        // cover are managed. Shown only when a PVE remote backs the cluster; a standalone-only
+        // cluster has no PVE UI to open.
         let open_web_ui = props.remote.clone().map(|remote| {
             let link = ctx.link().clone();
             let node = props.node.clone();
             Button::new(tr!("Open Web UI"))
                 .icon_class("fa fa-external-link")
                 .onclick(move |_| {
-                    // Deep-link straight to a backing node's Ceph panel when we
-                    // know one: the PVE fragment route for it is
-                    // `v1::=node/<node>::38` (38 is the node Ceph tab). Fall
-                    // back to the remote root if no representative node is known.
+                    // The PVE fragment route for a node's Ceph panel is `v1::=node/<node>::38` (38
+                    // is the node Ceph tab); with no representative node, fall back to the remote
+                    // root.
                     let url = match &node {
                         Some(node) => get_deep_url_low_level(
                             &link,
@@ -114,8 +113,8 @@ impl yew::Component for PdmCephClusterPanel {
 
         let mut panel = TabPanel::new()
             .router(true)
-            // Scroll the tab strip when it exceeds the (often half-width) detail
-            // pane, so the tabs + tool never widen the panel and shift content.
+            // Scroll the tab strip when it exceeds the (often half-width) detail pane, so the tabs
+            // + tool never widen the panel and shift content.
             .scroll_mode(MiniScrollMode::Arrow)
             .class(FlexFit)
             .class(ColorScheme::Neutral)

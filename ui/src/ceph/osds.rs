@@ -1,9 +1,9 @@
 //! Ceph OSDs tab: the CRUSH/OSD tree from `GET /ceph/clusters/{id}/osd-tree`.
 //!
-//! The endpoint returns the raw PVE `ceph osd tree` object (`{root, flags}`),
-//! a recursive bucket tree (root -> host -> osd). We parse it defensively into
-//! a [`TreeStore`] so the panel survives Ceph-release shape changes, and render
-//! a host/OSD tree with status, device class, usage and latency.
+//! The endpoint returns the raw PVE `ceph osd tree` object (`{root, flags}`), a recursive bucket
+//! tree (root -> host -> osd). We parse it defensively into a [`TreeStore`] so the panel survives
+//! Ceph-release shape changes, and render a host/OSD tree with status, device class, usage and
+//! latency.
 
 use std::cmp::Ordering;
 use std::future::Future;
@@ -34,8 +34,8 @@ use crate::renderer::render_tree_column;
 #[derive(Clone, PartialEq, Debug)]
 struct OsdData {
     name: String,
-    /// Name of the enclosing `host` CRUSH bucket. Empty in the tree view (the
-    /// hierarchy conveys it); set when flattened for the flat view.
+    /// Name of the enclosing `host` CRUSH bucket. Empty in the tree view (the hierarchy conveys
+    /// it); set when flattened for the flat view.
     host: String,
     status: String,
     in_cluster: bool,
@@ -84,9 +84,9 @@ fn str_field(v: &Value, key: &str) -> Option<String> {
     v.get(key).and_then(|x| x.as_str()).map(String::from)
 }
 
-/// Read a field as a string, accepting either a JSON string or number. CRUSH
-/// bucket ids come through as strings in current PVE output but are integers in
-/// raw `ceph osd tree`; tolerate both so bucket keys stay unique either way.
+/// Read a field as a string, accepting either a JSON string or number. CRUSH bucket ids come
+/// through as strings in current PVE output but are integers in raw `ceph osd tree`; tolerate both
+/// so bucket keys stay unique either way.
 fn id_field(v: &Value, key: &str) -> String {
     match v.get(key) {
         Some(Value::String(s)) => s.clone(),
@@ -146,8 +146,8 @@ fn build_tree(raw: &Value) -> SlabTree<OsdTreeEntry> {
     let mut tree = SlabTree::new();
     let mut root = tree.set_root(OsdTreeEntry::Root);
     root.set_expanded(true);
-    // `root.children` holds the top-level CRUSH buckets (typically a single
-    // `default` root bucket); recurse from there.
+    // `root.children` holds the top-level CRUSH buckets (typically a single `default` root bucket);
+    // recurse from there.
     if let Some(buckets) = raw
         .get("root")
         .and_then(|r| r.get("children"))
@@ -160,9 +160,9 @@ fn build_tree(raw: &Value) -> SlabTree<OsdTreeEntry> {
     tree
 }
 
-/// Flatten the OSD tree into a flat list, tagging each OSD with its enclosing
-/// host. Lets the flat view sort every OSD by latency / usage across all hosts,
-/// which the tree view (sorting only siblings) cannot.
+/// Flatten the OSD tree into a flat list, tagging each OSD with its enclosing host. Lets the flat
+/// view sort every OSD by latency / usage across all hosts, which the tree view (sorting only
+/// siblings) cannot.
 fn flatten_osds(raw: &Value) -> Vec<OsdData> {
     fn collect(node: &Value, host: &str, out: &mut Vec<OsdData>) {
         let kind = str_field(node, "type").unwrap_or_default();
@@ -310,8 +310,8 @@ impl LoadableComponent for PdmCephOsdsPanel {
         let store = self.store.clone();
         let flat_store = self.flat_store.clone();
         Box::pin(async move {
-            // Resolve before taking either store's write borrow (a guard held
-            // across an await panics with "RefCell already borrowed").
+            // Resolve before taking either store's write borrow (a guard held across an await
+            // panics with "RefCell already borrowed").
             let raw = load_tree(&cluster).await?;
             let tree = build_tree(&raw);
             let flat = flatten_osds(&raw);
@@ -367,8 +367,8 @@ impl From<CephOsdsPanel> for VNode {
     }
 }
 
-// Sort keys below sort OSDs within their host (siblings in the tree); buckets
-// return a sentinel so hosts keep their default order regardless of the column.
+// Sort keys below sort OSDs within their host (siblings in the tree); buckets return a sentinel so
+// hosts keep their default order regardless of the column.
 
 /// Status severity for sorting: down > out > healthy. Non-OSD rows sort lowest.
 fn osd_status_rank(e: &OsdTreeEntry) -> i64 {
@@ -410,13 +410,17 @@ fn columns(store: TreeStore<OsdTreeEntry>) -> Rc<Vec<DataTableHeader<OsdTreeEntr
                 let (icon, text) = match e {
                     OsdTreeEntry::Root => ("sitemap", String::new()),
                     OsdTreeEntry::Bucket { name, kind, .. } => {
-                        let icon = if kind == "host" { "building" } else { "sitemap" };
+                        let icon = if kind == "host" {
+                            "building"
+                        } else {
+                            "sitemap"
+                        };
                         (icon, name.clone())
                     }
                     OsdTreeEntry::Osd(o) => ("hdd-o", o.name.clone()),
                 };
-                // Use the shared tree-cell helper so long names get min-width:0
-                // + ellipsis instead of being clipped to a single glyph.
+                // Use the shared tree-cell helper so long names get min-width:0 + ellipsis instead
+                // of being clipped to a single glyph.
                 render_tree_column(Fa::new(icon).into(), text).into()
             })
             .sorter(default_sorter)
@@ -442,9 +446,9 @@ fn columns(store: TreeStore<OsdTreeEntry>) -> Rc<Vec<DataTableHeader<OsdTreeEntr
             .width("90px")
             .justify("right")
             .render(|e: &OsdTreeEntry| match e {
-                // Percentage only: the per-OSD byte sizes don't fit the (often
-                // half-width) detail pane, and % is the key per-disk fullness
-                // signal. Threshold-colored above 70/85%, neutral below.
+                // Percentage only: the per-OSD byte sizes don't fit the (often half-width) detail
+                // pane, and % is the key per-disk fullness signal. Threshold-colored above 70/85%,
+                // neutral below.
                 OsdTreeEntry::Osd(o) => usage_pct_cell(o.percent_used),
                 _ => html! {},
             })
@@ -475,8 +479,8 @@ fn columns(store: TreeStore<OsdTreeEntry>) -> Rc<Vec<DataTableHeader<OsdTreeEntr
     ])
 }
 
-/// Columns for the flat OSD view: every OSD as one row with a `Host` column,
-/// so any column sorts globally across hosts (the tree only sorts siblings).
+/// Columns for the flat OSD view: every OSD as one row with a `Host` column, so any column sorts
+/// globally across hosts (the tree only sorts siblings).
 fn flat_columns() -> Rc<Vec<DataTableHeader<OsdData>>> {
     Rc::new(vec![
         DataTableColumn::new(tr!("Name"))

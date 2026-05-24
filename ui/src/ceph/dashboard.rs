@@ -1,12 +1,10 @@
 //! Per-cluster Ceph dashboard: health, capacity and service overview.
 //!
-//! Binds `GET /ceph/clusters/{cluster}/summary` (the server-summarized
-//! [`CephClusterStatus`]) so the panel reads typed fields rather than parsing
-//! the raw `ceph status` blob. Read-only (phase 1b).
+//! Binds `GET /ceph/clusters/{cluster}/summary` (the server-summarized [`CephClusterStatus`]) so
+//! the panel reads typed fields rather than parsing the raw `ceph status` blob.
 //!
-//! Layout follows the PVE remote-overview convention (section title rows +
-//! separators + meter rows), not bordered sub-panels, so it matches the rest
-//! of PDM's detail panes.
+//! Layout follows the PVE remote-overview convention (section title rows + separators + meter
+//! rows), not bordered sub-panels, so it matches the rest of PDM's detail panes.
 
 use std::cell::RefCell;
 use std::future::Future;
@@ -106,8 +104,8 @@ impl LoadableComponent for PdmCephDashboardPanel {
 
         let mut col = Column::new().class(FlexFit).padding(4).gap(2);
 
-        // Health: humanized state, a plain-language data-at-risk line, then the
-        // active checks (the things actually needing attention).
+        // Health: humanized state, a plain-language data-at-risk line, then the active checks (the
+        // things actually needing attention).
         col = col.with_child(render_title_row(tr!("Health"), "heartbeat"));
         col = col.with_child(health_line(status));
         col = col.with_child(redundancy_line(status));
@@ -122,14 +120,14 @@ impl LoadableComponent for PdmCephDashboardPanel {
         col = col.with_child(separator());
         col = col.with_child(render_title_row(tr!("Capacity"), "database"));
         col = col.with_child(capacity_row(status));
-        // Surface the most-utilized pool: a near-full pool can block writes long
-        // before the cluster-wide figure looks alarming.
+        // Surface the most-utilized pool: a near-full pool can block writes long before the
+        // cluster-wide figure looks alarming.
         if let Some(row) = fullest_pool_line(status) {
             col = col.with_child(row);
         }
 
-        // Services: counts. PG breakdown is folded into one derived line rather
-        // than a noisy per-state table.
+        // Services: counts. PG breakdown is folded into one derived line rather than a noisy
+        // per-state table.
         col = col.with_child(separator());
         col = col.with_child(render_title_row(tr!("Services"), "server"));
         col = col.with_child(kv(
@@ -161,8 +159,8 @@ impl LoadableComponent for PdmCephDashboardPanel {
             col = col.with_child(kv(tr!("Ceph version"), text));
         }
 
-        // Members: which PVE remotes (and their nodes) back this cluster - the
-        // PDM registry view, surfacing cross-remote membership at a glance.
+        // Members: which PVE remotes (and their nodes) back this cluster - the PDM registry view,
+        // surfacing cross-remote membership at a glance.
         let member_rows = members_rows(status);
         if !member_rows.is_empty() {
             col = col.with_child(separator());
@@ -170,8 +168,8 @@ impl LoadableComponent for PdmCephDashboardPanel {
             col = member_rows.into_iter().fold(col, |c, r| c.with_child(r));
         }
 
-        // Performance: only when the cluster actually reports client/recovery
-        // activity, so an idle cluster is not padded with zeros.
+        // Performance: only when the cluster actually reports client/recovery activity, so an idle
+        // cluster is not padded with zeros.
         if let Some(rows) = perf_rows(status) {
             col = col.with_child(separator());
             col = col.with_child(render_title_row(tr!("Performance"), "exchange"));
@@ -188,10 +186,9 @@ impl LoadableComponent for PdmCephDashboardPanel {
 
 impl From<CephDashboardPanel> for VNode {
     fn from(val: CephDashboardPanel) -> Self {
-        VNode::from(VComp::new::<LoadableComponentMaster<PdmCephDashboardPanel>>(
-            Rc::new(val),
-            None,
-        ))
+        VNode::from(
+            VComp::new::<LoadableComponentMaster<PdmCephDashboardPanel>>(Rc::new(val), None),
+        )
     }
 }
 
@@ -204,10 +201,9 @@ fn kv(label: String, value: String) -> Row {
         .with_child(Container::new().with_child(value))
 }
 
-/// One row per backing remote, listing its member nodes; standalone members
-/// (no remote) are grouped under a "Standalone" row. Compact because the
-/// per-node daemon detail lives in the Monitors / Managers / OSDs tabs - this
-/// is just the "which remotes host this cluster" overview.
+/// One row per backing remote, listing its member nodes; standalone members (no remote) are grouped
+/// under a "Standalone" row. Compact because the per-node daemon detail lives in the Monitors /
+/// Managers / OSDs tabs - this is just the "which remotes host this cluster" overview.
 fn members_rows(status: &CephClusterStatus) -> Vec<Row> {
     let mut by_remote: std::collections::BTreeMap<Option<String>, Vec<String>> =
         std::collections::BTreeMap::new();
@@ -217,20 +213,26 @@ fn members_rows(status: &CephClusterStatus) -> Vec<Row> {
             .clone()
             .or_else(|| member.remote.clone())
             .unwrap_or_default();
-        by_remote.entry(member.remote.clone()).or_default().push(node);
+        by_remote
+            .entry(member.remote.clone())
+            .or_default()
+            .push(node);
     }
     by_remote
         .into_iter()
         .map(|(remote, mut nodes)| {
             nodes.sort();
-            kv(remote.unwrap_or_else(|| tr!("Standalone")), nodes.join(", "))
+            kv(
+                remote.unwrap_or_else(|| tr!("Standalone")),
+                nodes.join(", "),
+            )
         })
         .collect()
 }
 
 fn health_line(status: &CephClusterStatus) -> Row {
-    // Humanized label only; the raw HEALTH_* token is redundant with the icon
-    // and the per-check detail below, and is untranslated wire jargon.
+    // Humanized label only; the raw HEALTH_* token is redundant with the icon and the per-check
+    // detail below, and is untranslated wire jargon.
     Row::new()
         .gap(2)
         .class(AlignItems::Center)
@@ -238,8 +240,8 @@ fn health_line(status: &CephClusterStatus) -> Row {
         .with_child(html! { { ceph_health_label(Some(&status.health)) } })
 }
 
-/// Plain-language "is my data at risk?" line: down/out OSDs, incomplete mon
-/// quorum, and degraded objects. The single signal a manager escalates on.
+/// Plain-language "is my data at risk?" line: down/out OSDs, incomplete mon quorum, and degraded
+/// objects. The single signal a manager escalates on.
 fn redundancy_line(status: &CephClusterStatus) -> Row {
     let mut issues: Vec<String> = Vec::new();
     if status.osds_total > status.osds_up {
@@ -277,9 +279,9 @@ fn redundancy_line(status: &CephClusterStatus) -> Row {
         .with_child(html! { { tr!("Redundancy: {0}", text) } })
 }
 
-/// When the cluster is rebalancing/recovering, surface it explicitly: a warning
-/// state may be self-healing rather than stuck, which changes how a manager
-/// reacts. Only shown while recovery is actually happening.
+/// When the cluster is rebalancing/recovering, surface it explicitly: a warning state may be
+/// self-healing rather than stuck, which changes how a manager reacts. Only shown while recovery is
+/// actually happening.
 fn recovery_line(status: &CephClusterStatus) -> Option<Row> {
     let recovery = status.recovery_bytes_sec.unwrap_or(0).max(0);
     let misplaced = status.misplaced_ratio.unwrap_or(0.0);
@@ -326,8 +328,8 @@ fn capacity_row(status: &CephClusterStatus) -> MeterLabel {
     } else {
         used as f64 / total as f64
     };
-    // No icon: the "Capacity" section title already carries the database
-    // glyph, so a second one on the meter row would be redundant.
+    // No icon: the "Capacity" section title already carries the database glyph, so a second one on
+    // the meter row would be redundant.
     MeterLabel::with_zero_optimum(tr!("Usage"))
         .low(0.7)
         .high(0.85)
@@ -342,8 +344,8 @@ fn capacity_row(status: &CephClusterStatus) -> MeterLabel {
         .value(ratio as f32)
 }
 
-/// "Fullest pool" line for the capacity card, threshold-colored like the OSD
-/// and pool usage cells. Absent when no pool usage is known.
+/// "Fullest pool" line for the capacity card, threshold-colored like the OSD and pool usage cells.
+/// Absent when no pool usage is known.
 fn fullest_pool_line(status: &CephClusterStatus) -> Option<Row> {
     let name = status.fullest_pool.clone()?;
     let used = status.fullest_pool_used.unwrap_or(0.0);
@@ -351,7 +353,11 @@ fn fullest_pool_line(status: &CephClusterStatus) -> Option<Row> {
         Row::new()
             .gap(2)
             .class(AlignItems::Baseline)
-            .with_child(Container::new().width("160px").with_child(tr!("Fullest pool")))
+            .with_child(
+                Container::new()
+                    .width("160px")
+                    .with_child(tr!("Fullest pool")),
+            )
             .with_child(usage_cell(
                 tr!("{0} ({1}%)", name, format!("{used:.1}")),
                 used,

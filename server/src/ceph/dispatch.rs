@@ -1,12 +1,9 @@
 //! Forwarding Ceph operations to a cluster's PVE members.
 //!
-//! Phase 1b reaches Ceph through the existing PVE client. Cluster-wide reads
-//! can go to any member; [`connect_cluster`] picks a PVE member and connects to
-//! its remote. There is no reachability cache yet, so members are tried in the
-//! order given (the registry hands them over sorted by id, so selection is
-//! deterministic) and the first one we can build a client for wins;
-//! reachability-aware selection is a later refinement that slots in here without
-//! touching callers.
+//! Reaches Ceph through the existing PVE client. Cluster-wide reads can go to any member;
+//! [`connect_cluster`] picks a PVE member and connects to its remote. Members are tried in the
+//! order the registry provides them (sorted by id, so selection is deterministic), and the first
+//! one a client can be built for wins. There is no reachability-aware selection.
 
 use std::sync::Arc;
 
@@ -18,8 +15,8 @@ use crate::connection::PveClient;
 
 /// A PVE member of the cluster together with a client for its remote.
 pub struct CephMemberClient {
-    /// The member the client connects through (its `node` field is the target
-    /// for node-level Ceph endpoints).
+    /// The member the client connects through (its `node` field is the target for node-level Ceph
+    /// endpoints).
     pub member: CephMember,
     /// PVE client for the member's remote.
     pub client: Arc<PveClient>,
@@ -27,10 +24,10 @@ pub struct CephMemberClient {
 
 /// Connect to a PVE member of the cluster.
 ///
-/// Takes the cluster's members as returned by the registry's `lookup_cluster`
-/// (i.e. already access-checked and sorted), so callers cannot accidentally
-/// dispatch without having run the access check. The remotes config is loaded
-/// once. Errors if the cluster has no PVE member we can reach.
+/// Takes the cluster's members as returned by the registry's `lookup_cluster` (i.e. already
+/// access-checked and sorted), so callers cannot accidentally dispatch without having run the
+/// access check. The remotes config is loaded once. Errors if the cluster has no PVE member we can
+/// reach.
 pub fn connect_cluster(members: &[CephMember]) -> Result<CephMemberClient, Error> {
     let (remotes, _) = pdm_config::remotes::config()?;
     let mut last_err = None;

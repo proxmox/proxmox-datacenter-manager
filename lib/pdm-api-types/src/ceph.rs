@@ -1,13 +1,13 @@
 //! API types for Ceph cluster management in PDM.
 //!
-//! Identity in PDM's Ceph layer is fsid-derived (stable, unique, survives PVE
-//! remote rename) rather than operator-named. The display name is a separate
-//! field maintained on the PDM side and editable by the operator.
+//! Identity in PDM's Ceph layer is fsid-derived (stable, unique, survives PVE remote rename) rather
+//! than operator-named. The display name is a separate field maintained on the PDM side and
+//! editable by the operator.
 //!
-//! PDM's own Ceph config and list types (`CephCluster`, `CephMember`,
-//! `CephClusterListEntry`) serialize kebab-case, matching `remotes.cfg` and the
-//! resource types. The cross-product types shared with the PVE Ceph API
-//! (`CephMon`, `CephPool`, ...) keep that family's snake_case wire format.
+//! PDM's own Ceph config and list types (`CephCluster`, `CephMember`, `CephClusterListEntry`)
+//! serialize kebab-case, matching `remotes.cfg` and the resource types. The cross-product types
+//! shared with the PVE Ceph API (`CephMon`, `CephPool`, ...) keep that family's snake_case wire
+//! format.
 //!
 //! Section-config file layout (`/etc/proxmox-datacenter-manager/ceph-clusters.cfg`):
 //!
@@ -31,10 +31,9 @@ use crate::{Authid, PROXMOX_SAFE_ID_FORMAT};
 
 /// Cluster identifier on the PDM side.
 ///
-/// Holds the cluster fsid (a UUID) verbatim. Picked as identity because it is
-/// stable across PVE remote renames, unique across deployments, and what we
-/// use to deduplicate auto-detection results from multiple PVE remotes that
-/// see the same Ceph cluster.
+/// Holds the cluster fsid (a UUID) verbatim. Picked as identity because it is stable across PVE
+/// remote renames, unique across deployments, and what we use to deduplicate auto-detection results
+/// from multiple PVE remotes that see the same Ceph cluster.
 pub const CEPH_CLUSTER_ID_SCHEMA: Schema = StringSchema::new("Ceph cluster identifier (fsid).")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(8)
@@ -43,12 +42,11 @@ pub const CEPH_CLUSTER_ID_SCHEMA: Schema = StringSchema::new("Ceph cluster ident
 
 /// Member identifier (cluster fsid + "-" + node label).
 ///
-/// Larger maximum than `CEPH_CLUSTER_ID_SCHEMA` because it concatenates the
-/// cluster id with a host or arbiter label. The 80-char cap is chosen so that
-/// `/ceph/<fsid>/<member>` (the deepest ACL path the Ceph layer creates) stays
-/// inside `ACL_PATH_SCHEMA`'s 128-char limit (`1 + 4 + 1 + 64 + 1 + 80 = 151`
-/// would not, but the actual fsid is 36 chars so the realistic worst case is
-/// `1 + 4 + 1 + 36 + 1 + 80 = 123`).
+/// Larger maximum than `CEPH_CLUSTER_ID_SCHEMA` because it concatenates the cluster id with a host
+/// or arbiter label. The 80-char cap is chosen so that `/ceph/<fsid>/<member>` (the deepest ACL
+/// path the Ceph layer creates) stays inside `ACL_PATH_SCHEMA`'s 128-char limit (`1 + 4 + 1 + 64 +
+/// 1 + 80 = 151` would not, but the actual fsid is 36 chars so the realistic worst case is `1 + 4 +
+/// 1 + 36 + 1 + 80 = 123`).
 pub const CEPH_MEMBER_ID_SCHEMA: Schema = StringSchema::new("Ceph cluster member identifier.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(8)
@@ -65,16 +63,15 @@ pub const CEPH_CLUSTER_DISPLAY_NAME_SCHEMA: Schema =
 #[api]
 /// Kind of a Ceph cluster member.
 ///
-/// Determines the transport PDM uses to reach this member: `Pve` members are
-/// reached via the existing PVE remote (in Phase 1b/1c through PVE's Ceph
-/// REST API, eventually via the locally-routed `proxmox-ceph-node-api`
-/// daemon); `Standalone` members are reached via the daemon directly (Phase 5+).
+/// Determines the transport PDM uses to reach this member: `Pve` members are reached via the
+/// existing PVE remote (through PVE's Ceph REST API, or the locally-routed `proxmox-ceph-node-api`
+/// daemon); `Standalone` members are reached via that daemon directly.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CephMemberKind {
     /// A member backed by a PVE remote + node.
     Pve,
-    /// A member backed by a standalone `proxmox-ceph-node-api` daemon (Phase 5+).
+    /// A member backed by a standalone `proxmox-ceph-node-api` daemon.
     Standalone,
 }
 
@@ -84,27 +81,26 @@ serde_plain::derive_fromstr_from_deserialize!(CephMemberKind);
 #[api]
 /// Detection state of a Ceph cluster as observed by the auto-detection sweep.
 ///
-/// `Detected`: at least one probe succeeded this cycle and reported the fsid.
-/// `Unreachable`: at least one probe failed AND no probe succeeded; the cluster
-/// might still be healthy from another vantage point we cannot reach.
-/// `Gone`: every probe succeeded but no remote reports the fsid - the Ceph
-/// install was removed or rebuilt with a different fsid.
-/// `Tombstoned`: operator-driven "Forget cluster"; the sweep ignores re-detection
-/// until an admin runs the tombstone-reset command.
+/// `Detected`: at least one probe succeeded this cycle and reported the fsid. `Unreachable`: at
+/// least one probe failed AND no probe succeeded; the cluster might still be healthy from another
+/// vantage point we cannot reach. `Gone`: every probe succeeded but no remote reports the fsid -
+/// the Ceph install was removed or rebuilt with a different fsid. `Tombstoned`: operator-driven
+/// "Forget cluster"; the sweep ignores re-detection until an admin runs the tombstone-reset
+/// command.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CephClusterState {
     /// The cluster was probed successfully in the most recent sweep cycle.
     #[default]
     Detected,
-    /// All probes failed in the most recent cycle; the cluster may still be
-    /// healthy from another vantage point.
+    /// All probes failed in the most recent cycle; the cluster may still be healthy from another
+    /// vantage point.
     Unreachable,
-    /// Every probe succeeded but no member reports the fsid; the cluster was
-    /// removed or rebuilt under a different fsid.
+    /// Every probe succeeded but no member reports the fsid; the cluster was removed or rebuilt
+    /// under a different fsid.
     Gone,
-    /// Operator-driven "Forget cluster"; re-detection suppressed until the
-    /// tombstone is cleared via the admin CLI.
+    /// Operator-driven "Forget cluster"; re-detection suppressed until the tombstone is cleared via
+    /// the admin CLI.
     Tombstoned,
 }
 
@@ -133,8 +129,8 @@ pub struct CephCluster {
     #[updater(skip)]
     pub id: String,
 
-    /// Operator-visible display name (defaults at detection time to the Ceph
-    /// cluster's own configured name, falling back to "ceph-<short-fsid>").
+    /// Operator-visible display name (defaults at detection time to the Ceph cluster's own
+    /// configured name, falling back to "ceph-<short-fsid>").
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub display_name: Option<String>,
 
@@ -163,15 +159,15 @@ pub struct CephCluster {
     #[updater(skip)]
     pub state: Option<CephClusterState>,
 
-    /// Epoch (seconds) at which the sweep first failed to find this fsid on
-    /// any reachable remote. Only set when `state == Gone`.
+    /// Epoch (seconds) at which the sweep first failed to find this fsid on any reachable remote.
+    /// Only set when `state == Gone`.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     #[updater(skip)]
     pub last_seen_missing: Option<i64>,
 
-    /// Epoch (seconds) at which the operator forgot this cluster. While set
-    /// the auto-detection sweep will not re-add the cluster, even if a probe
-    /// re-discovers the same fsid. Cleared by the admin CLI.
+    /// Epoch (seconds) at which the operator forgot this cluster. While set the auto-detection
+    /// sweep will not re-add the cluster, even if a probe re-discovers the same fsid. Cleared by
+    /// the admin CLI.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     #[updater(skip)]
     pub forgotten: Option<i64>,
@@ -193,13 +189,12 @@ pub struct CephCluster {
 )]
 /// A member of a registered Ceph cluster.
 ///
-/// Two kinds (see `CephMemberKind`): `Pve` members reference an existing PDM
-/// PVE remote + node name; `Standalone` members carry their own connection
-/// details (address, fingerprint, authid).
+/// Two kinds (see `CephMemberKind`): `Pve` members reference an existing PDM PVE remote + node
+/// name; `Standalone` members carry their own connection details (address, fingerprint, authid).
 ///
-/// Only one of the two field groups is populated per row; the schema permits
-/// both as optional, the deserialiser does not enforce the mutual exclusion
-/// (the registry layer at `server/src/ceph/registry.rs` does).
+/// Only one of the two field groups is populated per row; the schema permits both as optional, the
+/// deserialiser does not enforce the mutual exclusion (the registry layer at
+/// `server/src/ceph/registry.rs` does).
 #[derive(Clone, Debug, Deserialize, Serialize, Updater, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct CephMember {
@@ -268,9 +263,8 @@ pub struct CephMember {
 )]
 /// Summary entry for the cluster-list view.
 ///
-/// Aggregates persistent config (display name) with live-derived state
-/// (member count, reachability, last-known health). Returned by
-/// `GET /api2/extjs/ceph/clusters`.
+/// Aggregates persistent config (display name) with live-derived state (member count, reachability,
+/// last-known health). Returned by `GET /api2/extjs/ceph/clusters`.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct CephClusterListEntry {
@@ -282,16 +276,16 @@ pub struct CephClusterListEntry {
     pub state: CephClusterState,
     /// Total members registered for the cluster.
     pub member_count: i64,
-    /// Last known Ceph health string (HEALTH_OK / HEALTH_WARN / HEALTH_ERR),
-    /// from the cached status; absent if nothing is cached yet.
+    /// Last known Ceph health string (HEALTH_OK / HEALTH_WARN / HEALTH_ERR), from the cached
+    /// status; absent if nothing is cached yet.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub health: Option<String>,
-    /// A representative PVE remote backing the cluster, used to deep-link into
-    /// the cluster's native PVE web UI. Absent if no PVE member is known.
+    /// A representative PVE remote backing the cluster, used to deep-link into the cluster's native
+    /// PVE web UI. Absent if no PVE member is known.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub remote: Option<String>,
-    /// A representative member node on [`Self::remote`], used to deep-link
-    /// straight to that node's Ceph panel. Absent if no PVE member is known.
+    /// A representative member node on [`Self::remote`], used to deep-link straight to that node's
+    /// Ceph panel. Absent if no PVE member is known.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub node: Option<String>,
     /// Used raw capacity in bytes, from the cached status; absent if uncached.
@@ -327,8 +321,8 @@ pub struct CephClusterListEntry {
     /// Whether a near-full / full health check is active (storage pressure).
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub nearfull: Option<bool>,
-    /// Number of active Ceph health checks, from the cached status; lets the
-    /// list show a problem count without a per-cluster fetch.
+    /// Number of active Ceph health checks, from the cached status; lets the list show a problem
+    /// count without a per-cluster fetch.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub problem_count: Option<i64>,
 }
@@ -366,8 +360,8 @@ pub struct CephPgStateGroup {
     },
     additional_properties: true,
 )]
-/// A registered cluster member as shown on the dashboard: a compact projection
-/// of the registry's [`CephMember`] without any connection secrets.
+/// A registered cluster member as shown on the dashboard: a compact projection of the registry's
+/// [`CephMember`] without any connection secrets.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct CephClusterMember {
@@ -435,9 +429,8 @@ pub struct CephClusterMember {
 )]
 /// Typed, summarized Ceph cluster status for the dashboard.
 ///
-/// Computed server-side from the raw `ceph status` object so the UI binds to
-/// typed fields instead of digging through an untyped JSON blob. Returned by
-/// `GET /ceph/clusters/{cluster}/summary`.
+/// Computed server-side from the raw `ceph status` object so the UI binds to typed fields instead
+/// of digging through an untyped JSON blob. Returned by `GET /ceph/clusters/{cluster}/summary`.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct CephClusterStatus {
@@ -498,8 +491,8 @@ pub struct CephClusterStatus {
     /// Fraction of objects degraded, when degraded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub degraded_ratio: Option<f64>,
-    /// Name of the most-utilized pool, to surface a near-full pool that the
-    /// cluster-wide capacity figure would otherwise hide.
+    /// Name of the most-utilized pool, to surface a near-full pool that the cluster-wide capacity
+    /// figure would otherwise hide.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fullest_pool: Option<String>,
     /// Used percentage (0-100) of [`Self::fullest_pool`].
@@ -508,13 +501,13 @@ pub struct CephClusterStatus {
     /// Representative Ceph version of the cluster (from the monitors).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
-    /// Whether the monitors report more than one distinct Ceph version
-    /// (a mid-upgrade / version-skew signal).
+    /// Whether the monitors report more than one distinct Ceph version (a mid-upgrade /
+    /// version-skew signal).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub version_mixed: bool,
-    /// The cluster's registered members (the PVE remotes / nodes backing it).
-    /// From the PDM registry, not the live status; surfaces cross-remote
-    /// membership on the overview. Filled by the summary endpoint.
+    /// The cluster's registered members (the PVE remotes / nodes backing it). From the PDM
+    /// registry, not the live status; surfaces cross-remote membership on the overview. Filled by
+    /// the summary endpoint.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub members: Vec<CephClusterMember>,
 }

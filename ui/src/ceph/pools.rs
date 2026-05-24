@@ -28,8 +28,8 @@ async fn load_pools(cluster: &str) -> Result<Vec<CephPool>, Error> {
     proxmox_yew_comp::http_get(format!("/ceph/clusters/{cluster}/pools"), None).await
 }
 
-/// The enabled applications for a pool. Ceph reports these as an object keyed by
-/// application name (`{"rbd": {...}}`), so the keys are the names.
+/// The enabled applications for a pool. Ceph reports these as an object keyed by application name
+/// (`{"rbd": {...}}`), so the keys are the names.
 fn pool_applications(p: &CephPool) -> String {
     p.application_metadata
         .as_ref()

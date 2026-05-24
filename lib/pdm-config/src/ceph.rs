@@ -1,27 +1,24 @@
 //! Read/write the Ceph cluster registry (`ceph-clusters.cfg`).
 //!
-//! The file holds two section types - `ceph-cluster` and `ceph-member` - which
-//! the single-type [`SectionConfigData<T>`] wrapper cannot express, so this is
-//! the one place that builds the combined [`SectionConfig`] (both plugins) and
-//! owns parse/write. The section schemas come from the `#[api]`-derived
-//! `API_SCHEMA` of [`CephCluster`] and [`CephMember`]; the types deliberately
+//! The file holds two section types - `ceph-cluster` and `ceph-member` - which the single-type
+//! [`SectionConfigData<T>`] wrapper cannot express, so this is the one place that builds the
+//! combined [`SectionConfig`] (both plugins) and owns parse/write. The section schemas come from
+//! the `#[api]`-derived `API_SCHEMA` of [`CephCluster`] and [`CephMember`]; the types deliberately
 //! carry no `ApiSectionDataEntry` impl, to avoid a second, drifting definition.
 //!
 //! Lock semantics: cross-process serialisation comes from
-//! `/etc/proxmox-datacenter-manager/.ceph-clusters.lck` via
-//! [`open_api_lockfile`]; never lock in-process around mutations.
+//! `/etc/proxmox-datacenter-manager/.ceph-clusters.lck` via [`open_api_lockfile`]; never lock
+//! in-process around mutations.
 //!
-//! Forward-compat policy: the schemas must NOT use
-//! `#[serde(deny_unknown_fields)]`, so an older PDM can *read* a newer
-//! `ceph-clusters.cfg` without erroring (codified in
-//! `ceph_clusters_cfg_parses_unknown_key_cleanly`). Beyond parse tolerance,
-//! unknown keys are also *preserved* across a rewrite: [`parse`] stashes any
-//! key the typed struct does not model into [`CephClustersConfig::extras`], and
-//! [`write`] merges them back into the section before serialising (codified in
-//! `roundtrip_preserves_unknown_keys`). This keeps a downgrade / mixed-version
-//! edit from silently dropping fields a newer PDM wrote. The typed structs
-//! still carry no extras bag - the preservation lives here, in the one layer
-//! that owns the raw section values.
+//! Forward-compat policy: the schemas must NOT use `#[serde(deny_unknown_fields)]`, so an older PDM
+//! can *read* a newer `ceph-clusters.cfg` without erroring (codified in
+//! `ceph_clusters_cfg_parses_unknown_key_cleanly`). Beyond parse tolerance, unknown keys are also
+//! *preserved* across a rewrite: [`parse`] stashes any key the typed struct does not model into
+//! [`CephClustersConfig::extras`], and [`write`] merges them back into the section before
+//! serialising (codified in `roundtrip_preserves_unknown_keys`). This keeps a downgrade /
+//! mixed-version edit from silently dropping fields a newer PDM wrote. The typed structs still
+//! carry no extras bag - the preservation lives here, in the one layer that owns the raw section
+//! values.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -62,18 +59,17 @@ fn ceph_section_config() -> &'static SectionConfig {
 
 /// Typed view over `ceph-clusters.cfg`.
 ///
-/// The two HashMaps are keyed by their respective section ids. Lookups
-/// from a cluster fsid to its members go via [`Self::members_of`].
+/// The two HashMaps are keyed by their respective section ids. Lookups from a cluster fsid to its
+/// members go via [`Self::members_of`].
 #[derive(Clone, Debug, Default)]
 pub struct CephClustersConfig {
     pub clusters: HashMap<String, CephCluster>,
     pub members: HashMap<String, CephMember>,
-    /// Per-section keys present in the parsed file that no typed field models,
-    /// keyed by section id. Re-emitted verbatim on [`write`] so a rewrite by
-    /// this (possibly older) PDM does not drop fields a newer PDM wrote. Only
-    /// populated by [`parse`]; mutators that drop a section leave its orphaned
-    /// entry here, which is harmless since [`write`] only merges extras for
-    /// sections it actually emits.
+    /// Per-section keys present in the parsed file that no typed field models, keyed by section id.
+    /// Re-emitted verbatim on [`write`] so a rewrite by this (possibly older) PDM does not drop
+    /// fields a newer PDM wrote. Only populated by [`parse`]; mutators that drop a section leave
+    /// its orphaned entry here, which is harmless since [`write`] only merges extras for sections
+    /// it actually emits.
     extras: HashMap<String, Map<String, Value>>,
 }
 
@@ -88,14 +84,13 @@ impl CephClustersConfig {
             .filter(move |m| m.cluster == cluster_id)
     }
 
-    /// Drop every member of type `pve` that references the given remote.
-    /// Returns `true` if any row was removed.
+    /// Drop every member of type `pve` that references the given remote. Returns `true` if any row
+    /// was removed.
     ///
     /// Intended to be called from the PVE-remote-delete path (together with
-    /// [`Self::drop_clusters_without_members`]) so the registry does not keep
-    /// dangling member rows. NOT yet wired into `remove_remote`: that hook
-    /// lands with auto-detection, once the registry is actually populated and
-    /// the cascade can be tested end-to-end.
+    /// [`Self::drop_clusters_without_members`]) so the registry does not keep dangling member rows.
+    /// NOT yet wired into `remove_remote`: that hook lands with auto-detection, once the registry
+    /// is actually populated and the cascade can be tested end-to-end.
     pub fn drop_pve_members_for_remote(&mut self, remote_id: &str) -> bool {
         use pdm_api_types::ceph::CephMemberKind;
         let before = self.members.len();
@@ -105,8 +100,8 @@ impl CephClustersConfig {
         before != self.members.len()
     }
 
-    /// Drop every cluster that no longer has any member rows.
-    /// Returns the set of dropped cluster ids.
+    /// Drop every cluster that no longer has any member rows. Returns the set of dropped cluster
+    /// ids.
     pub fn drop_clusters_without_members(&mut self) -> Vec<String> {
         let alive: std::collections::HashSet<&String> =
             self.members.values().map(|m| &m.cluster).collect();
@@ -159,10 +154,10 @@ fn untyped_to_typed(cfg: SectionConfigData) -> Result<CephClustersConfig, Error>
     Ok(out)
 }
 
-/// The keys present in the raw section `value` that the typed struct does not
-/// model, found by diffing the raw object against the re-serialised typed value
-/// (a known field always round-trips to the same kebab-case key, so what is left
-/// is exactly the unknown keys). Returns `None` when there is nothing to keep.
+/// The keys present in the raw section `value` that the typed struct does not model, found by
+/// diffing the raw object against the re-serialised typed value (a known field always round-trips
+/// to the same kebab-case key, so what is left is exactly the unknown keys). Returns `None` when
+/// there is nothing to keep.
 fn unknown_keys<T: serde::Serialize>(raw: &Value, typed: &T) -> Option<Map<String, Value>> {
     let Value::Object(raw) = raw else {
         return None;
@@ -180,10 +175,9 @@ fn unknown_keys<T: serde::Serialize>(raw: &Value, typed: &T) -> Option<Map<Strin
 /// Render the typed view back to section-config text.
 pub fn write(filename: &str, data: &CephClustersConfig) -> Result<String, Error> {
     let mut raw = SectionConfigData::default();
-    // Emit clusters then members, each in sorted id order, and record that
-    // order explicitly: the section store is a HashMap, so without this the
-    // written file would reorder on every save, churning the digest and
-    // triggering spurious rewrites / optimistic-locking conflicts.
+    // Emit clusters then members, each in sorted id order, and record that order explicitly: the
+    // section store is a HashMap, so without this the written file would reorder on every save,
+    // churning the digest and triggering spurious rewrites / optimistic-locking conflicts.
     let mut cluster_ids: Vec<&String> = data.clusters.keys().collect();
     cluster_ids.sort();
     for id in cluster_ids {
@@ -204,9 +198,9 @@ pub fn write(filename: &str, data: &CephClustersConfig) -> Result<String, Error>
 }
 
 impl CephClustersConfig {
-    /// Fold the preserved unknown keys for section `id` back into its serialised
-    /// `value`. Typed keys always win, so a field that became known in a newer
-    /// schema is not shadowed by a stale extra.
+    /// Fold the preserved unknown keys for section `id` back into its serialised `value`. Typed
+    /// keys always win, so a field that became known in a newer schema is not shadowed by a stale
+    /// extra.
     fn merge_extras(&self, id: &str, mut value: Value) -> Value {
         if let (Some(extras), Value::Object(obj)) = (self.extras.get(id), &mut value) {
             for (key, extra) in extras {
@@ -243,10 +237,8 @@ mod tests {
 
     #[test]
     fn ceph_clusters_cfg_parses_unknown_key_cleanly() {
-        // Phase 1b smoke test. Codifies the forward-compat parser policy:
-        // older PDM must accept a cfg file written by a newer PDM with extra
-        // keys it does not understand. If anyone ever adds
-        // #[serde(deny_unknown_fields)] this test breaks.
+        // Codifies the forward-compat parser policy: an older PDM must accept a cfg file written by
+        // a newer PDM with keys it does not model; adding #[serde(deny_unknown_fields)] breaks it.
         let raw = format!(
             r#"
 ceph-cluster: {FSID}
@@ -315,9 +307,8 @@ ceph-cluster: {FSID}
 
     #[test]
     fn delete_pve_remote_drops_orphaned_ceph_members() {
-        // Phase 1b smoke test. Removing a PVE remote cascades through the
-        // hook to drop ceph-member rows referencing it; if that leaves a
-        // cluster with no members the cluster is dropped too.
+        // Removing a PVE remote cascades through the hook to drop the ceph-member rows referencing
+        // it; if that leaves a cluster with no members the cluster is dropped too.
         let mut cfg = make_cfg();
         assert!(cfg.drop_pve_members_for_remote("pve-cluster-east"));
         assert!(cfg.members.is_empty());
@@ -328,10 +319,9 @@ ceph-cluster: {FSID}
 
     #[test]
     fn roundtrip_preserves_unknown_keys() {
-        // Forward-compat: a key written by a newer PDM that this code does not
-        // model must survive a parse -> write cycle, so a downgrade edit does
-        // not silently drop it. Asserts the writer re-emits it (the section
-        // value carries it and the schema allows additional properties).
+        // Forward-compat: a key written by a newer PDM that this code does not model must survive a
+        // parse -> write cycle, so a downgrade edit does not silently drop it. Asserts the writer
+        // re-emits it (the section value carries it and the schema allows additional properties).
         let raw = format!(
             r#"
 ceph-cluster: {FSID}

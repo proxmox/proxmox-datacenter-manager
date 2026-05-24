@@ -1,9 +1,8 @@
 //! Cached Ceph cluster status, on top of the shared [`crate::api_cache`].
 //!
-//! `ceph status` is a cluster-level fact - identical no matter which member
-//! served it - so it lives in the cache's global namespace keyed by fsid,
-//! cached once per cluster rather than per remote. Used to answer the status
-//! endpoint within a caller-chosen freshness window and to fill the cheap
+//! `ceph status` is a cluster-level fact - identical no matter which member served it - so it lives
+//! in the cache's global namespace keyed by fsid, cached once per cluster rather than per remote.
+//! Used to answer the status endpoint within a caller-chosen freshness window and to fill the cheap
 //! cluster-list overview (health, reachable mon count) without a live fetch.
 
 use anyhow::Error;
@@ -17,8 +16,7 @@ fn status_key(fsid: &str) -> String {
     format!("ceph-status-{fsid}")
 }
 
-/// The cached `ceph status` for a cluster, if present and younger than
-/// `max_age` seconds.
+/// The cached `ceph status` for a cluster, if present and younger than `max_age` seconds.
 pub async fn cached_status(fsid: &str, max_age: i64) -> Result<Option<Value>, Error> {
     let cache = api_cache::read_global().await?;
     Ok(cache.get_with_max_age(&status_key(fsid), max_age).await?)
@@ -31,16 +29,15 @@ pub async fn store_status(fsid: &str, status: &Value) -> Result<(), Error> {
     Ok(())
 }
 
-/// Drop the cached status for a cluster (after it is forgotten or its last
-/// remote is removed).
+/// Drop the cached status for a cluster (after it is forgotten or its last remote is removed).
 pub async fn invalidate(fsid: &str) -> Result<(), Error> {
     let cache = api_cache::write_global().await?;
     cache.remove(&status_key(fsid)).await?;
     Ok(())
 }
 
-/// Ceph health string (`HEALTH_OK` / `HEALTH_WARN` / `HEALTH_ERR`) from a
-/// `ceph status` object, if present.
+/// Ceph health string (`HEALTH_OK` / `HEALTH_WARN` / `HEALTH_ERR`) from a `ceph status` object, if
+/// present.
 pub fn health_from_status(status: &Value) -> Option<String> {
     status
         .get("health")
@@ -65,8 +62,8 @@ fn value_i64(v: &Value) -> Option<i64> {
 
 /// Build a typed [`CephClusterStatus`] from a raw `ceph status` object.
 ///
-/// All field access is defensive: missing or renamed fields default rather than
-/// failing, so the summary survives Ceph-release shape changes (forward-compat).
+/// All field access is defensive: missing or renamed fields default rather than failing, so the
+/// summary survives Ceph-release shape changes (forward-compat).
 pub fn summarize_status(fsid: &str, raw: &Value) -> CephClusterStatus {
     let health = health_from_status(raw).unwrap_or_else(|| "HEALTH_UNKNOWN".to_string());
 
@@ -121,8 +118,8 @@ pub fn summarize_status(fsid: &str, raw: &Value) -> CephClusterStatus {
         })
         .unwrap_or_default();
 
-    // OSD counts are flat under `osdmap` in current Ceph but nested under
-    // `osdmap.osdmap` in older releases; accept either.
+    // OSD counts are flat under `osdmap` in current Ceph but nested under `osdmap.osdmap` in older
+    // releases; accept either.
     let osdmap = raw.get("osdmap").map(|o| o.get("osdmap").unwrap_or(o));
     let osd = |key: &str| {
         osdmap
@@ -131,8 +128,8 @@ pub fn summarize_status(fsid: &str, raw: &Value) -> CephClusterStatus {
             .unwrap_or(0)
     };
 
-    // `num_mons` is absent in current Ceph `status` output; fall back to the
-    // length of the `mons` array (the actual monitor list).
+    // `num_mons` is absent in current Ceph `status` output; fall back to the length of the `mons`
+    // array (the actual monitor list).
     let monmap = raw.get("monmap");
     let mons_total = monmap
         .and_then(|m| m.get("num_mons"))
@@ -185,8 +182,8 @@ pub fn summarize_status(fsid: &str, raw: &Value) -> CephClusterStatus {
         recovery_bytes_sec: pg_opt("recovering_bytes_per_sec"),
         misplaced_ratio: pg_f("misplaced_ratio"),
         degraded_ratio: pg_f("degraded_ratio"),
-        // Filled in by the endpoint layer from a live pool/mon read; `ceph
-        // status` alone carries neither.
+        // Filled in by the endpoint layer from a live pool/mon read; `ceph status` alone carries
+        // neither.
         fullest_pool: None,
         fullest_pool_used: None,
         version: None,
@@ -269,8 +266,8 @@ mod tests {
 
     #[test]
     fn mons_total_falls_back_to_mons_array_len() {
-        // Current Ceph `status` omits `num_mons`; the count must come from the
-        // `mons` list, and the quorum count from `quorum_names`.
+        // Current Ceph `status` omits `num_mons`; the count must come from the `mons` list, and the
+        // quorum count from `quorum_names`.
         let raw = json!({
             "health": { "status": "HEALTH_WARN" },
             "monmap": { "mons": [{ "name": "uno" }, { "name": "tre" }, { "name": "due" }] },

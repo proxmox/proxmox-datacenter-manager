@@ -21,13 +21,12 @@ use pve_api_types::{CephFlagInfo, CephFs, CephMds, CephMgr, CephMon, CephPool};
 use crate::ceph::dispatch::{self, CephMemberClient};
 use crate::ceph::{cache, registry};
 
-/// Default freshness window for the cluster status read when the caller does
-/// not pass `max-age`.
+/// Default freshness window for the cluster status read when the caller does not pass `max-age`.
 const DEFAULT_STATUS_MAX_AGE: u64 = 30;
-/// Freshness window for the status the cluster list overlays (health, quorum).
-/// The list never fetches live; it shows last-known health refreshed by the
-/// periodic detection sweep. Kept above twice the sweep interval (300s) so a
-/// single missed sweep does not blank a cluster's health to "unknown".
+/// Freshness window for the status the cluster list overlays (health, quorum). The list never
+/// fetches live; it shows last-known health refreshed by the periodic detection sweep. Kept above
+/// twice the sweep interval (300s) so a single missed sweep does not blank a cluster's health to
+/// "unknown".
 const LIST_STATUS_MAX_AGE: i64 = 660;
 
 fn auth_id(rpcenv: &dyn RpcEnvironment) -> Result<Authid, Error> {
@@ -73,10 +72,9 @@ pub async fn list_clusters(
 
     let mut out = Vec::with_capacity(accessible.len());
     for (cluster, members) in accessible {
-        // Overlay the cached status (populated by detection and status reads);
-        // never fetch live here. Absent/stale cache -> unknown. The summary
-        // gives the at-a-glance triage signals (health, capacity, problem
-        // count) without a per-cluster fetch.
+        // Overlay the cached status (populated by detection and status reads); never fetch live
+        // here. Absent/stale cache -> unknown. The summary gives the at-a-glance triage signals
+        // (health, capacity, problem count) without a per-cluster fetch.
         let summary = cache::cached_status(&cluster.id, LIST_STATUS_MAX_AGE)
             .await
             .ok()
@@ -91,8 +89,8 @@ pub async fn list_clusters(
         let osds_total = summary.as_ref().map(|s| s.osds_total);
         let mons_in_quorum = summary.as_ref().map(|s| s.mons_in_quorum);
         let mons_total = summary.as_ref().map(|s| s.mons_total);
-        // Activity signals for at-a-glance triage: recovery/backfill running,
-        // reduced redundancy, or storage pressure (any *FULL* check).
+        // Activity signals for at-a-glance triage: recovery/backfill running, reduced redundancy,
+        // or storage pressure (any *FULL* check).
         let recovering = summary
             .as_ref()
             .map(|s| s.recovery_bytes_sec.is_some() || s.misplaced_ratio.is_some_and(|r| r > 0.0));
@@ -141,8 +139,8 @@ pub async fn list_clusters(
     Ok(out)
 }
 
-/// The raw `ceph status` for a cluster, served from the cache within `max_age`
-/// seconds or fetched through a member and cached.
+/// The raw `ceph status` for a cluster, served from the cache within `max_age` seconds or fetched
+/// through a member and cached.
 async fn cached_or_fetch_status(
     cluster: &str,
     members: &[CephMember],
@@ -175,8 +173,8 @@ async fn cached_or_fetch_status(
     returns: { type: Object, description: "Raw `ceph status` output.", properties: {} },
     access: { permission: &Permission::Anybody },
 )]
-/// Cluster-wide Ceph status (the raw `ceph status` object), served from the
-/// cache within `max-age` seconds or fetched fresh and cached.
+/// Cluster-wide Ceph status (the raw `ceph status` object), served from the cache within `max-age`
+/// seconds or fetched fresh and cached.
 pub async fn get_status(
     cluster: String,
     max_age: Option<u64>,
@@ -202,11 +200,10 @@ pub async fn get_status(
     returns: { type: CephClusterStatus },
     access: { permission: &Permission::Anybody },
 )]
-/// Typed, summarized Ceph cluster status (health, capacity, OSD/MON/MGR/PG
-/// counts) for the dashboard. Most fields come from the cached `ceph status`
-/// (so the UI binds typed fields instead of parsing a raw blob); the
-/// fullest-pool and version fields are enriched from a live, best-effort member
-/// read (see [`enrich_summary`]).
+/// Typed, summarized Ceph cluster status (health, capacity, OSD/MON/MGR/PG counts) for the
+/// dashboard. Most fields come from the cached `ceph status` (so the UI binds typed fields instead
+/// of parsing a raw blob); the fullest-pool and version fields are enriched from a live,
+/// best-effort member read (see [`enrich_summary`]).
 pub async fn get_summary(
     cluster: String,
     max_age: Option<u64>,
@@ -217,8 +214,8 @@ pub async fn get_summary(
     let raw = cached_or_fetch_status(&cluster, &members, max_age).await?;
     let mut summary = cache::summarize_status(&cluster, &raw);
     enrich_summary(&cluster, &members, &mut summary).await;
-    // Surface the registered membership on the overview; the members are
-    // already loaded above for the access check, so this is free.
+    // Surface the registered membership on the overview; the members are already loaded above for
+    // the access check, so this is free.
     summary.members = members
         .iter()
         .map(|m| CephClusterMember {
@@ -233,10 +230,9 @@ pub async fn get_summary(
 
 /// Add the fullest-pool and Ceph-version signals to a dashboard summary.
 ///
-/// Both need a live member call (the cached `ceph status` carries neither), so
-/// this is best-effort: a failure must not blank the dashboard, it just leaves
-/// the extra fields unset. The cluster list never calls this, so the cheap
-/// overview stays fetch-free.
+/// Both need a live member call (the cached `ceph status` carries neither), so this is best-effort:
+/// a failure must not blank the dashboard, it just leaves the extra fields unset. The cluster list
+/// never calls this, so the cheap overview stays fetch-free.
 async fn enrich_summary(cluster: &str, members: &[CephMember], summary: &mut CephClusterStatus) {
     let conn = match dispatch::connect_cluster(members) {
         Ok(conn) => conn,

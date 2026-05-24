@@ -8,8 +8,8 @@ use proxmox_yew_comp::Status;
 
 use pdm_api_types::ceph::CephClusterState;
 
-/// Threshold color for a usage percentage (0-100): red at 85%+, amber at 70%+,
-/// and none below (so a healthy value renders as plain text, not link-blue).
+/// Threshold color for a usage percentage (0-100): red at 85%+, amber at 70%+, and none below (so a
+/// healthy value renders as plain text, not link-blue).
 pub fn usage_color(pct: f64) -> Option<FontColor> {
     if pct >= 85.0 {
         Some(FontColor::Error)
@@ -33,8 +33,8 @@ pub fn usage_pct_cell(pct: f64) -> Html {
     usage_cell(format!("{pct:.1}%"), pct)
 }
 
-/// Map a Ceph health string (`HEALTH_OK` / `HEALTH_WARN` / `HEALTH_ERR`) to a
-/// status icon severity. Anything unknown or absent maps to [`Status::Unknown`].
+/// Map a Ceph health string (`HEALTH_OK` / `HEALTH_WARN` / `HEALTH_ERR`) to a status icon severity.
+/// Anything unknown or absent maps to [`Status::Unknown`].
 pub fn ceph_health_status(health: Option<&str>) -> Status {
     match health {
         Some("HEALTH_OK") => Status::Success,
@@ -44,8 +44,8 @@ pub fn ceph_health_status(health: Option<&str>) -> Status {
     }
 }
 
-/// Humanized, translatable health label. The severity icon already conveys the
-/// state, so this gives a plain word rather than the raw `HEALTH_*` token.
+/// Humanized, translatable health label. The severity icon already conveys the state, so this gives
+/// a plain word rather than the raw `HEALTH_*` token.
 pub fn ceph_health_label(health: Option<&str>) -> String {
     match health {
         Some("HEALTH_OK") => tr!("OK"),
@@ -56,8 +56,8 @@ pub fn ceph_health_label(health: Option<&str>) -> String {
     }
 }
 
-/// Severity rank for sorting/triage: higher is worse. Unknown sorts above OK so
-/// a cluster with no cached status is not mistaken for healthy.
+/// Severity rank for sorting/triage: higher is worse. Unknown sorts above OK so a cluster with no
+/// cached status is not mistaken for healthy.
 pub fn ceph_health_severity(health: Option<&str>) -> u8 {
     match health {
         Some("HEALTH_ERR") => 3,

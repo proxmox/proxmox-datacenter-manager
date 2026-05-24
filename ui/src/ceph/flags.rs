@@ -112,8 +112,8 @@ fn columns() -> Rc<Vec<DataTableHeader<CephFlagInfo>>> {
         DataTableColumn::new(tr!("State"))
             .width("110px")
             .render(|f: &CephFlagInfo| {
-                // A set flag is operationally noteworthy (e.g. noout during
-                // maintenance), so draw attention to it rather than mark green.
+                // A set flag is operationally noteworthy (e.g. noout during maintenance), so draw
+                // attention to it rather than mark green.
                 let status = if f.value {
                     Status::Warning
                 } else {

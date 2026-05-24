@@ -1,8 +1,8 @@
 //! Ceph managers + metadata servers tab.
 //!
-//! Mirrors PVE's habit of stacking the smaller service-daemon grids together:
-//! the managers (`/mgr`) and the metadata servers (`/mds`) share this tab as
-//! two grids, since both are lightweight daemons reported the same way.
+//! Mirrors PVE's habit of stacking the smaller service-daemon grids together: the managers (`/mgr`)
+//! and the metadata servers (`/mds`) share this tab as two grids, since both are lightweight
+//! daemons reported the same way.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -27,9 +27,8 @@ use pdm_client::types::{CephMds, CephMgr};
 
 use crate::renderer::render_title_row;
 
-/// tr!-mapped label for a ceph-mgr / ceph-mds daemon state token, keeping the
-/// exact text for any state outside the known set so an unexpected value still
-/// shows.
+/// tr!-mapped label for a ceph-mgr / ceph-mds daemon state token, keeping the exact text for any
+/// state outside the known set so an unexpected value still shows.
 fn daemon_state_label(state: &str) -> String {
     match state {
         "active" => tr!("active"),
@@ -122,16 +121,20 @@ impl LoadableComponent for PdmCephManagersPanel {
     }
 
     fn main_view(&self, _ctx: &LoadableComponentContext<Self>) -> Html {
-        // No FlexFit: let each grid size to its content and stack at the top
-        // (the tab content area scrolls if both lists are large), instead of
-        // each stretching to half the pane and leaving dead space.
+        // No FlexFit: let each grid size to its content and stack at the top (the tab content area
+        // scrolls if both lists are large), instead of each stretching to half the pane and leaving
+        // dead space.
         Column::new()
             .padding(2)
             .gap(2)
             .with_child(render_title_row(tr!("Managers"), "cogs"))
-            .with_child(DataTable::new(Rc::clone(&self.mgr_columns), self.mgr_store.clone()).border(true))
+            .with_child(
+                DataTable::new(Rc::clone(&self.mgr_columns), self.mgr_store.clone()).border(true),
+            )
             .with_child(render_title_row(tr!("Metadata Servers"), "folder-open-o"))
-            .with_child(DataTable::new(Rc::clone(&self.mds_columns), self.mds_store.clone()).border(true))
+            .with_child(
+                DataTable::new(Rc::clone(&self.mds_columns), self.mds_store.clone()).border(true),
+            )
             .into()
     }
 }
@@ -145,8 +148,8 @@ impl From<CephManagersPanel> for VNode {
     }
 }
 
-/// A running manager is healthy whether it is `active` or `standby` (a standby
-/// is ready to take over, not a problem); only an unexpected state is unknown.
+/// A running manager is healthy whether it is `active` or `standby` (a standby is ready to take
+/// over, not a problem); only an unexpected state is unknown.
 fn mgr_columns() -> Rc<Vec<DataTableHeader<CephMgr>>> {
     Rc::new(vec![
         DataTableColumn::new(tr!("Name"))
@@ -206,8 +209,8 @@ fn mds_columns() -> Rc<Vec<DataTableHeader<CephMds>>> {
         DataTableColumn::new(tr!("State"))
             .width("150px")
             .render(|m: &CephMds| {
-                // up:active / up:standby[-replay] are healthy; standby is idle;
-                // anything else (laggy, damaged) is noteworthy.
+                // up:active / up:standby[-replay] are healthy; standby is idle; anything else
+                // (laggy, damaged) is noteworthy.
                 let status = if m.state.contains("active") || m.state.contains("standby") {
                     Status::Success
                 } else {
