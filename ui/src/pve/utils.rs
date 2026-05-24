@@ -142,6 +142,25 @@ pub fn render_guest_tags(tags: &[String]) -> Row {
     row
 }
 
+/// Returns whether a guest in the given status is "live", that is up in some
+/// form (running, paused, prelaunch or suspended) rather than stopped, so it
+/// can be shut down but not started.
+pub fn guest_is_live(status: &str) -> bool {
+    matches!(status, "running" | "paused" | "prelaunch" | "suspended")
+}
+
+/// Translated, human-readable label for a guest status token.
+pub fn guest_status_label(status: &str) -> String {
+    match status {
+        "running" => tr!("Running"),
+        "stopped" => tr!("Stopped"),
+        "paused" => tr!("Paused"),
+        "suspended" => tr!("Suspended"),
+        // unknown backend tokens can't be meaningfully translated; show verbatim
+        other => other.to_string(),
+    }
+}
+
 /// Represents a drive of a QEMU guest
 pub enum PveDriveQemu {
     Sata(QemuConfigSata),
