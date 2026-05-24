@@ -724,6 +724,16 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await
     }
 
+    pub async fn pve_qemu_resume(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+    ) -> Result<RemoteUpid, Error> {
+        self.pve_change_guest_status(remote, node, vmid, "qemu", "resume")
+            .await
+    }
+
     pub async fn pve_qemu_migrate(
         &self,
         remote: &str,
