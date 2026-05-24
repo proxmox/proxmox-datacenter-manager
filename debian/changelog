@@ -1,3 +1,40 @@
+proxmox-datacenter-manager (1.0.5) trixie; urgency=medium
+
+  * add read-only Ceph cluster monitoring for Proxmox VE remotes: auto-detect
+    Ceph clusters, track their state with a periodic detection sweep, and
+    expose cluster status, OSDs, monitors, managers, metadata servers, CephFS
+    instances and pools through new API endpoints, cached via the shared API
+    cache.
+
+  * add backend support for a geographic world map of remotes: serve a
+    geojson world map and a cached per-node location-info API that tolerates
+    unreachable remotes and nodes.
+
+  * add subscription key pool management: store subscription keys centrally
+    and assign them to remotes, with API endpoints, admin CLI subcommands,
+    and actions to check, adopt and clear keys, including per-node revert.
+
+  * api: add an endpoint to resume paused or suspended QEMU guests on a
+    remote, complementing the existing start, stop and shutdown actions.
+
+  * views api: return a configuration digest when retrieving a view, so
+    clients can detect and avoid clobbering concurrent edits; also run the
+    view handlers in the proxy process and improve schema and error messages.
+
+  * rework resource, subscription and remote-update caching onto a new
+    shared, persistent key-value cache, making cached data self-healing and
+    more consistent across these subsystems.
+
+  * api: require only the Audit privilege, instead of Modify, to list
+    certificate information.
+
+  * docs: document the subscription key pool registry and the available
+    custom-view widgets, including the new map widget.
+
+  * backend package: recommend ifupdown2.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 24 May 2026 04:14:27 +0200
+
 proxmox-datacenter-manager (1.0.4) trixie; urgency=medium
 
   * admin cli: add commands to manage ACME certificates, accounts and plugins.
