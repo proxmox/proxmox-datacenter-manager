@@ -37,6 +37,8 @@ use auto_installer::AutoInstallerPanel;
 
 use yew::{function_component, Html};
 
+use crate::guests::GuestPanel;
+
 use pwt::prelude::*;
 use pwt::{
     props::StorageLocation,
@@ -57,6 +59,13 @@ pub fn system_configuration() -> Html {
                 .label(tr!("Configuration"))
                 .icon_class("fa fa-cogs"),
             |_| RemoteConfigPanel::new().into(),
+        )
+        .with_item_builder(
+            TabBarItem::new()
+                .key("guests")
+                .label(tr!("Guests"))
+                .icon_class("fa fa-desktop"),
+            |_| GuestPanel::new().into(),
         )
         .with_item_builder(
             TabBarItem::new()

@@ -39,6 +39,8 @@ pub use search_provider::SearchProvider;
 
 mod dashboard;
 
+mod guests;
+
 use wasm_bindgen::JsValue;
 use yew::html::IntoEventCallback;
 use yew::Html;
