@@ -19,7 +19,7 @@ use pwt::css::{AlignItems, Flex, FlexDirection, FlexFit, FontColor, JustifyConte
 use pwt::prelude::*;
 use pwt::props::{ContainerBuilder, ExtractPrimaryKey, WidgetBuilder};
 use pwt::state::{Selection, SlabTree, Store, TreeStore};
-use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
+use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader, MultiSelectMode};
 use pwt::widget::form::Combobox;
 use pwt::widget::{Button, Column, Container, Fa, Mask, Panel, Row, Toolbar, Tooltip};
 
@@ -277,6 +277,8 @@ pub enum Msg {
         digest: Option<String>,
     },
     AutoAssignPreview,
+    /// Open the proposal dialog with every row pre-selected.
+    ShowProposal(AutoAssignProposal),
     /// Commit a previously-fetched proposal via the bulk-assign endpoint.
     BulkAssignApply(AutoAssignProposal),
     ApplyPending,
@@ -339,6 +341,9 @@ pub struct SubscriptionRegistryComp {
     tree_store: TreeStore<NodeTreeEntry>,
     tree_columns: Rc<Vec<DataTableHeader<NodeTreeEntry>>>,
     proposal_columns: Rc<Vec<DataTableHeader<ProposedAssignment>>>,
+    /// Multi-select state for the Auto-Assign proposal: every row starts ticked, and the operator
+    /// can untick a few before applying. Held here so toggling survives the dialog re-render.
+    proposal_selection: Selection,
     adopt_columns: Rc<Vec<DataTableHeader<AdoptCandidate>>>,
     node_selection: Selection,
     last_node_data: Vec<RemoteNodeStatus>,
@@ -499,9 +504,11 @@ impl SubscriptionRegistryComp {
         ])
     }
 
-    // Read-only preview grid: menu and resize are independent flags, disable both.
+    // The leading checkbox column drives the per-row opt-out; menu and resize are independent
+    // flags, disable both on the data columns.
     fn proposal_columns() -> Rc<Vec<DataTableHeader<ProposedAssignment>>> {
         Rc::new(vec![
+            DataTableColumn::selection_indicator().into(),
             DataTableColumn::new(tr!("Remote / Node"))
                 .flex(2)
                 .show_menu(false)
@@ -626,11 +633,17 @@ impl LoadableComponent for SubscriptionRegistryComp {
             move |_| link.send_redraw()
         });
 
+        let proposal_selection = Selection::new().multiselect(true).on_select({
+            let link = ctx.link().clone();
+            move |_| link.send_redraw()
+        });
+
         Self {
             state: LoadableComponentState::new(),
             tree_store: store.clone(),
             tree_columns: Self::tree_columns(store),
             proposal_columns: Self::proposal_columns(),
+            proposal_selection,
             adopt_columns: Self::adopt_columns(),
             node_selection,
             last_node_data: Vec::new(),
@@ -670,12 +683,20 @@ impl LoadableComponent for SubscriptionRegistryComp {
                                 false,
                             );
                         }
-                        Ok(proposal) => {
-                            link.change_view(Some(ViewState::ConfirmAutoAssign(proposal)));
-                        }
+                        Ok(proposal) => link.send_message(Msg::ShowProposal(proposal)),
                         Err(err) => link.show_error(tr!("Auto-Assign"), err.to_string(), true),
                     }
                 });
+            }
+            Msg::ShowProposal(proposal) => {
+                let all_keys: HashSet<Key> = proposal
+                    .assignments
+                    .iter()
+                    .map(|p| Key::from(format!("{}/{}", p.remote, p.node)))
+                    .collect();
+                self.proposal_selection.bulk_select(all_keys);
+                ctx.link()
+                    .change_view(Some(ViewState::ConfirmAutoAssign(proposal)));
             }
             Msg::BulkAssignApply(proposal) => {
                 let link = ctx.link().clone();
@@ -1434,8 +1455,12 @@ impl SubscriptionRegistryComp {
         });
         store.set_data(proposal.assignments.clone());
 
+        let total = proposal.assignments.len();
+        let selected_count = self.proposal_selection.len();
+
         let link_close = ctx.link().clone();
         let link_apply = ctx.link().clone();
+        let selection = self.proposal_selection.clone();
         let proposal_for_apply = proposal.clone();
         let body = Column::new()
             .class(Flex::Fill)
@@ -1445,11 +1470,14 @@ impl SubscriptionRegistryComp {
             .gap(2)
             .min_width(600)
             .with_child(Container::from_tag("p").with_child(tr!(
-                "The following {n} assignments are proposed. Click Assign to confirm.",
-                n = proposal.assignments.len(),
+                "{selected} of {total} assignments selected. Untick any node you want to skip, then click Assign.",
+                selected = selected_count,
+                total = total,
             )))
             .with_child(
                 DataTable::new(self.proposal_columns.clone(), store)
+                    .selection(self.proposal_selection.clone())
+                    .multiselect_mode(MultiSelectMode::Simple)
                     .striped(true)
                     .class(FlexFit)
                     .min_height(140),
@@ -1463,9 +1491,19 @@ impl SubscriptionRegistryComp {
                         Button::new(tr!("Cancel"))
                             .on_activate(move |_| link_close.change_view(None)),
                     )
-                    .with_child(Button::new(tr!("Assign")).on_activate(move |_| {
-                        link_apply.send_message(Msg::BulkAssignApply(proposal_for_apply.clone()))
-                    })),
+                    .with_child(
+                        Button::new(tr!("Assign"))
+                            .disabled(selected_count == 0)
+                            .on_activate(move |_| {
+                                let selected: HashSet<Key> =
+                                    selection.selected_keys().into_iter().collect();
+                                let mut filtered = proposal_for_apply.clone();
+                                filtered.assignments.retain(|p| {
+                                    selected.contains(&Key::from(format!("{}/{}", p.remote, p.node)))
+                                });
+                                link_apply.send_message(Msg::BulkAssignApply(filtered));
+                            }),
+                    ),
             );
 
         Dialog::new(tr!("Auto-Assign Proposal"))
