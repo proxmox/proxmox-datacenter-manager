@@ -52,6 +52,33 @@ Only resources matching your include minus the ones matching your exclude filter
 in these widgets.
 
 
+Widgets
+^^^^^^^
+
+The following widgets are available:
+
+- The `nodes` widget shows a status overview of the Proxmox VE and Proxmox
+  Backup Server nodes, and can be limited to a single remote type.
+- The `guests` widget shows a status overview of the virtual guests, and can be
+  limited to QEMU virtual machines or LXC containers.
+- The `pbs-datastores` widget shows the usage and status of Proxmox Backup
+  Server datastores.
+- The `remotes` widget lists the configured remotes and their status. It can
+  also show a wizard for adding a new remote.
+- The `subscription` widget shows the subscription status of the remotes.
+- The `sdn` widget shows the status of the Software-Defined Networking (SDN)
+  zones.
+- The `leaderboard` widget ranks resources by a metric, such as guest or node
+  CPU or node memory usage, and lists the top consumers.
+- The `task-summary` widget summarizes recent tasks, grouped by a chosen
+  criterion.
+- The `resource-tree` widget shows the selected resources in a hierarchical
+  tree.
+- The `node-resource-gauge` widget displays a single node resource, such as
+  CPU, memory, or storage, as a gauge chart, and can be limited to a single
+  remote type.
+
+
 Access Control
 --------------
 
