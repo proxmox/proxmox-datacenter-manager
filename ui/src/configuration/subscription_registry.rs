@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
@@ -19,6 +20,7 @@ use pwt::prelude::*;
 use pwt::props::{ContainerBuilder, ExtractPrimaryKey, WidgetBuilder};
 use pwt::state::{Selection, SlabTree, Store, TreeStore};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
+use pwt::widget::form::Combobox;
 use pwt::widget::{Button, Column, Container, Fa, Mask, Panel, Row, Toolbar, Tooltip};
 
 use pdm_api_types::subscription::{
@@ -64,6 +66,27 @@ fn subscription_status_label(status: proxmox_subscription::SubscriptionStatus) -
         S::Expired => tr!("Expired"),
         S::Suspended => tr!("Suspended"),
     }
+}
+
+/// Every subscription status, in the order they appear in the node-status filter.
+fn all_node_statuses() -> [proxmox_subscription::SubscriptionStatus; 6] {
+    use proxmox_subscription::SubscriptionStatus as S;
+    [
+        S::Active,
+        S::New,
+        S::NotFound,
+        S::Invalid,
+        S::Expired,
+        S::Suspended,
+    ]
+}
+
+/// Reverse of [`subscription_status_label`]: map a filter label back to its status. Locale-safe
+/// because both directions go through the same `tr!` at runtime.
+fn status_from_label(label: &str) -> Option<proxmox_subscription::SubscriptionStatus> {
+    all_node_statuses()
+        .into_iter()
+        .find(|s| subscription_status_label(*s) == label)
 }
 
 /// Build a multi-line Status-column tooltip listing the last-check timestamp and the
@@ -273,6 +296,8 @@ pub enum Msg {
     /// Re-check the subscription on the currently-selected node against the shop. Pure refresh
     /// path; no confirmation dialog since the action is read-only from the pool's perspective.
     CheckSubscriptionForSelectedNode,
+    /// Restrict the node tree to a single subscription status, or show all when `None`.
+    SetStatusFilter(Option<proxmox_subscription::SubscriptionStatus>),
 }
 
 #[derive(PartialEq)]
@@ -324,6 +349,8 @@ pub struct SubscriptionRegistryComp {
     /// the server rejects stale-view writes with 409 instead of silently overwriting a parallel
     /// admin's edits.
     pool_digest: Option<String>,
+    /// Active node-tree status filter, or `None` to show every status.
+    node_status_filter: Option<proxmox_subscription::SubscriptionStatus>,
 }
 
 pwt::impl_deref_mut_property!(
@@ -609,6 +636,7 @@ impl LoadableComponent for SubscriptionRegistryComp {
             last_node_data: Vec::new(),
             pool_keys: Rc::new(Vec::new()),
             pool_digest: None,
+            node_status_filter: None,
         }
     }
 
@@ -622,6 +650,9 @@ impl LoadableComponent for SubscriptionRegistryComp {
                 self.last_node_data = nodes.clone();
                 let tree = build_tree(nodes);
                 self.tree_store.write().update_root_tree(tree);
+                // Re-apply the filter: its matching-remote set was computed from the previous
+                // load's data and must be recomputed against the fresh statuses.
+                self.apply_node_filter();
                 self.pool_keys = Rc::new(keys);
                 self.pool_digest = digest;
             }
@@ -773,6 +804,12 @@ impl LoadableComponent for SubscriptionRegistryComp {
                     }
                     link.send_reload();
                 });
+            }
+            Msg::SetStatusFilter(status) => {
+                self.node_status_filter = status;
+                self.apply_node_filter();
+                // A filtered-out row must not stay selected and keep its actions live.
+                self.node_selection.clear();
             }
         }
         true
@@ -1061,6 +1098,28 @@ impl SubscriptionRegistryComp {
             )
     }
 
+    /// Apply the current status filter to the tree store. A node matches by status; a remote
+    /// stays visible only if at least one of its nodes matches, so filtering does not leave empty
+    /// remote headers behind. Recomputed from `last_node_data` whenever the filter or data change.
+    fn apply_node_filter(&self) {
+        let Some(status) = self.node_status_filter else {
+            self.tree_store.set_filter(None);
+            return;
+        };
+        let matching_remotes: HashSet<String> = self
+            .last_node_data
+            .iter()
+            .filter(|n| n.status == status)
+            .map(|n| n.remote.clone())
+            .collect();
+        self.tree_store
+            .set_filter(move |entry: &NodeTreeEntry| match entry {
+                NodeTreeEntry::Root => true,
+                NodeTreeEntry::Remote { name, .. } => matching_remotes.contains(name),
+                NodeTreeEntry::Node { data, .. } => data.status == status,
+            });
+    }
+
     fn render_node_tree_panel(&self, ctx: &LoadableComponentContext<Self>) -> Panel {
         let table = DataTable::new(self.tree_columns.clone(), self.tree_store.clone())
             .selection(self.node_selection.clone())
@@ -1175,11 +1234,31 @@ impl SubscriptionRegistryComp {
             move |_| link.send_reload()
         });
 
-        // Left: per-node actions on the selected row, grouped add-key / undo-or-remove / verify.
-        // Right: bulk and queue actions over all nodes. The pending badge is fenced off from the
-        // queue verbs by its own rule so the verb cluster keeps its position when it is absent.
+        let status_items: Vec<yew::AttrValue> = all_node_statuses()
+            .iter()
+            .map(|s| yew::AttrValue::from(subscription_status_label(*s)))
+            .collect();
+        let status_filter = Combobox::new()
+            .items(Rc::new(status_items))
+            .default(
+                self.node_status_filter
+                    .map(|s| yew::AttrValue::from(subscription_status_label(s))),
+            )
+            .placeholder(tr!("All statuses"))
+            .key("node-status-filter")
+            .on_change(
+                ctx.link()
+                    .callback(|value: String| Msg::SetStatusFilter(status_from_label(&value))),
+            );
+
+        // Left: a status filter, then per-node actions on the selected row, grouped add-key /
+        // undo-or-remove / verify. Right: bulk and queue actions over all nodes. The pending badge
+        // is fenced off from the queue verbs by its own rule so the verb cluster keeps its
+        // position when it is absent.
         let mut toolbar = Toolbar::new()
             .border_bottom(true)
+            .with_child(status_filter)
+            .with_spacer()
             .with_child(assign_button)
             .with_child(adopt_key_button)
             .with_spacer()
