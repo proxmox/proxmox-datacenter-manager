@@ -31,7 +31,8 @@ pub use snapshot_list::SnapshotList;
 
 use crate::pbs::node::PbsNodePanel;
 use crate::pbs::tree::PbsTree;
-use crate::{get_deep_url, pdm_client};
+use crate::remotes::RemoteCertCheck;
+use crate::{get_deep_url, get_remote, pdm_client};
 
 #[derive(Debug, Eq, PartialEq, Properties)]
 pub struct PbsRemote {
@@ -53,17 +54,24 @@ impl From<PbsRemote> for VNode {
 #[allow(clippy::large_enum_variant)]
 pub enum Msg {
     SelectedView(tree::PbsTreeNode),
-    ResourcesList(Vec<DataStoreConfig>),
+    ResourcesList(Result<Vec<DataStoreConfig>, Error>),
+}
+
+#[derive(PartialEq)]
+pub enum ViewState {
+    /// Re-check the remote node TLS certificates (offered when the remote is unreachable).
+    CertCheck,
 }
 
 #[doc(hidden)]
 pub struct PbsRemoteComp {
-    state: LoadableComponentState<()>,
+    state: LoadableComponentState<ViewState>,
     datastores: Rc<Vec<DataStoreConfig>>,
     view: tree::PbsTreeNode,
+    last_error: Option<String>,
 }
 
-pwt::impl_deref_mut_property!(PbsRemoteComp, state, LoadableComponentState<()>);
+pwt::impl_deref_mut_property!(PbsRemoteComp, state, LoadableComponentState<ViewState>);
 
 impl PbsRemoteComp {
     async fn load_datastores(remote: &str) -> Result<Vec<DataStoreConfig>, Error> {
@@ -75,13 +83,14 @@ impl PbsRemoteComp {
 impl LoadableComponent for PbsRemoteComp {
     type Message = Msg;
     type Properties = PbsRemote;
-    type ViewState = ();
+    type ViewState = ViewState;
 
     fn create(_ctx: &LoadableComponentContext<Self>) -> Self {
         Self {
             state: LoadableComponentState::new(),
             datastores: Rc::new(Vec::new()),
             view: tree::PbsTreeNode::Root,
+            last_error: None,
         }
     }
 
@@ -92,7 +101,7 @@ impl LoadableComponent for PbsRemoteComp {
         let link = _ctx.link().clone();
         let remote = _ctx.props().remote.clone();
         Box::pin(async move {
-            link.send_message(Msg::ResourcesList(Self::load_datastores(&remote).await?));
+            link.send_message(Msg::ResourcesList(Self::load_datastores(&remote).await));
             Ok(())
         })
     }
@@ -102,8 +111,14 @@ impl LoadableComponent for PbsRemoteComp {
             Msg::SelectedView(pbs_tree_node) => {
                 self.view = pbs_tree_node;
             }
-            Msg::ResourcesList(vec) => {
+            Msg::ResourcesList(Ok(vec)) => {
+                self.last_error = None;
                 self.datastores = Rc::new(vec);
+            }
+            Msg::ResourcesList(Err(err)) => {
+                self.last_error = Some(err.to_string());
+                _ctx.link()
+                    .show_error(tr!("Load failed"), err.to_string(), false);
             }
         }
         true
@@ -170,18 +185,33 @@ impl LoadableComponent for PbsRemoteComp {
                                         }
                                     }),
                             )
-                            .with_child(Column::new().padding(4).class(FlexFit).with_child(
-                                PbsTree::new(
-                                    props.remote.clone(),
-                                    self.datastores.clone(),
-                                    self.loading(),
-                                    ctx.link().callback(Msg::SelectedView),
-                                    {
-                                        let link = ctx.link().clone();
-                                        move |_| link.send_reload()
-                                    },
-                                ),
-                            )),
+                            .with_child(
+                                Column::new()
+                                    .padding(4)
+                                    .gap(4)
+                                    .class(FlexFit)
+                                    // A rotated node certificate often surfaces only as an
+                                    // unreachable remote; offer the re-check where it shows.
+                                    .with_optional_child(self.last_error.is_some().then(|| {
+                                        Row::new().with_child(
+                                            Button::new(tr!("Check Certificate"))
+                                                .icon_class("fa fa-certificate")
+                                                .onclick(ctx.link().change_view_callback(|_| {
+                                                    Some(ViewState::CertCheck)
+                                                })),
+                                        )
+                                    }))
+                                    .with_child(PbsTree::new(
+                                        props.remote.clone(),
+                                        self.datastores.clone(),
+                                        self.loading(),
+                                        ctx.link().callback(Msg::SelectedView),
+                                        {
+                                            let link = ctx.link().clone();
+                                            move |_| link.send_reload()
+                                        },
+                                    )),
+                            ),
                     )
                     .with_child(
                         Panel::new()
@@ -192,5 +222,20 @@ impl LoadableComponent for PbsRemoteComp {
                     ),
             )
             .into()
+    }
+
+    fn dialog_view(
+        &self,
+        ctx: &LoadableComponentContext<Self>,
+        view_state: &Self::ViewState,
+    ) -> Option<Html> {
+        let link = ctx.link().clone();
+        match view_state {
+            ViewState::CertCheck => get_remote(&link, &ctx.props().remote).map(|remote| {
+                RemoteCertCheck::new(remote)
+                    .on_close(link.change_view_callback(|_| None))
+                    .into()
+            }),
+        }
     }
 }

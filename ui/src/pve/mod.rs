@@ -26,7 +26,8 @@ use pdm_api_types::{
     resource::{PveResource, ResourceType},
 };
 
-use crate::{extract_package_version, get_deep_url, LoadResult};
+use crate::remotes::RemoteCertCheck;
+use crate::{extract_package_version, get_deep_url, get_remote, LoadResult};
 
 pub mod lxc;
 pub mod node;
@@ -143,20 +144,26 @@ pub enum Msg {
     ),
 }
 
+#[derive(PartialEq)]
+pub enum ViewState {
+    /// Re-check the remote node TLS certificates (offered when the remote is unreachable).
+    CertCheck,
+}
+
 pub struct PveRemoteComp {
-    state: LoadableComponentState<()>,
+    state: LoadableComponentState<ViewState>,
     view: tree::PveTreeNode,
     resources: Rc<Vec<PveResource>>,
     last_error: Option<String>,
     updates: LoadResult<RemoteUpdateSummary, Error>,
 }
 
-pwt::impl_deref_mut_property!(PveRemoteComp, state, LoadableComponentState<()>);
+pwt::impl_deref_mut_property!(PveRemoteComp, state, LoadableComponentState<ViewState>);
 
 impl LoadableComponent for PveRemoteComp {
     type Message = Msg;
     type Properties = PveRemote;
-    type ViewState = ();
+    type ViewState = ViewState;
 
     fn create(ctx: &LoadableComponentContext<PveRemoteComp>) -> Self {
         ctx.link().repeated_load(5000);
@@ -242,64 +249,91 @@ impl LoadableComponent for PveRemoteComp {
             .with_child(tr! {"Remote '{0}'", ctx.props().remote})
             .into();
 
-        let content = Container::new()
-            .class("pwt-content-spacer")
-            .class(FlexFit)
-            .class("pwt-flex-direction-row")
-            .with_child(
-                Panel::new()
-                    .min_width(500)
-                    .style("flex", "1 1 0")
-                    .class(FlexFit)
-                    .border(true)
-                    .title(title)
-                    .with_tool(
-                        Button::new(tr!("Open Web UI"))
-                            .icon_class("fa fa-external-link")
-                            .on_activate({
-                                let link = ctx.link().clone();
-                                let remote = ctx.props().remote.clone();
-                                move |_| {
-                                    if let Some(url) = get_deep_url(&link, &remote, None, "") {
-                                        let _ = window().open_with_url(&url.href());
+        let content =
+            Container::new()
+                .class("pwt-content-spacer")
+                .class(FlexFit)
+                .class("pwt-flex-direction-row")
+                .with_child(
+                    Panel::new()
+                        .min_width(500)
+                        .style("flex", "1 1 0")
+                        .class(FlexFit)
+                        .border(true)
+                        .title(title)
+                        .with_tool(
+                            Button::new(tr!("Open Web UI"))
+                                .icon_class("fa fa-external-link")
+                                .on_activate({
+                                    let link = ctx.link().clone();
+                                    let remote = ctx.props().remote.clone();
+                                    move |_| {
+                                        if let Some(url) = get_deep_url(&link, &remote, None, "") {
+                                            let _ = window().open_with_url(&url.href());
+                                        }
                                     }
-                                }
-                            }),
-                    )
-                    .with_child(
-                        Column::new()
-                            .padding(4)
-                            .class(FlexFit)
-                            .gap(4)
-                            .with_child(remote_overview::RemotePanel::new(
-                                remote.clone(),
-                                self.resources.clone(),
-                                self.last_error.clone(),
-                            ))
-                            .with_child(html! {<hr/>})
-                            .with_child(tree::PveTree::new(
-                                remote.to_string(),
-                                self.resources.clone(),
-                                self.loading(),
-                                link.callback(Msg::SelectedView),
-                                {
-                                    let link = link.clone();
-                                    move |_| link.send_reload()
-                                },
-                            )),
-                    ),
-            )
-            .with_child(
-                Panel::new()
-                    .class(FlexFit)
-                    .border(true)
-                    .min_width(500)
-                    .with_child(content)
-                    .style("flex", "1 1 0"),
-            );
+                                }),
+                        )
+                        .with_child(
+                            Column::new()
+                                .padding(4)
+                                .class(FlexFit)
+                                .gap(4)
+                                .with_child(remote_overview::RemotePanel::new(
+                                    remote.clone(),
+                                    self.resources.clone(),
+                                    self.last_error.clone(),
+                                ))
+                                // When the remote is unreachable this is often a rotated node
+                                // certificate; offer the re-check right where the error shows.
+                                .with_optional_child(self.last_error.is_some().then(|| {
+                                    Row::new().with_child(
+                                        Button::new(tr!("Check Certificate"))
+                                            .icon_class("fa fa-certificate")
+                                            .onclick(link.change_view_callback(|_| {
+                                                Some(ViewState::CertCheck)
+                                            })),
+                                    )
+                                }))
+                                .with_child(html! {<hr/>})
+                                .with_child(tree::PveTree::new(
+                                    remote.to_string(),
+                                    self.resources.clone(),
+                                    self.loading(),
+                                    link.callback(Msg::SelectedView),
+                                    {
+                                        let link = link.clone();
+                                        move |_| link.send_reload()
+                                    },
+                                )),
+                        ),
+                )
+                .with_child(
+                    Panel::new()
+                        .class(FlexFit)
+                        .border(true)
+                        .min_width(500)
+                        .with_child(content)
+                        .style("flex", "1 1 0"),
+                );
         NavigationContainer::new()
             .with_child(Panel::new().class(FlexFit).with_child(content))
             .into()
+    }
+
+    fn dialog_view(
+        &self,
+        ctx: &LoadableComponentContext<Self>,
+        view_state: &Self::ViewState,
+    ) -> Option<Html> {
+        let link = ctx.link().clone();
+        match view_state {
+            ViewState::CertCheck => get_remote(&link, &ctx.props().remote).map(|remote| {
+                RemoteCertCheck::new(remote)
+                    .on_close(link.change_view_callback(|_| None))
+                    .into()
+            }),
+        }
     }
 
     fn load(
