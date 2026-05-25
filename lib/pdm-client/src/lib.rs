@@ -157,9 +157,14 @@ impl<T: HttpApiClient> PdmClient<T> {
         &self,
         remote: &str,
         updater: &pdm_api_types::remotes::RemoteUpdater,
+        delete: &[String],
     ) -> Result<(), Error> {
         let path = format!("/api2/extjs/remotes/remote/{remote}");
-        self.0.put(&path, updater).await?.nodata()?;
+        let mut request = serde_json::to_value(updater).expect("failed to serialize updater");
+        if !delete.is_empty() {
+            request["delete"] = serde_json::to_value(delete).expect("failed to serialize delete");
+        }
+        self.0.put(&path, &request).await?.nodata()?;
         Ok(())
     }
 

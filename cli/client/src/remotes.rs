@@ -108,7 +108,7 @@ async fn add_remote(entry: Remote, create_token: Option<String>) -> Result<(), E
 )]
 /// Update a remote.
 async fn update_remote(id: String, updater: RemoteUpdater) -> Result<(), Error> {
-    client()?.update_remote(&id, &updater).await?;
+    client()?.update_remote(&id, &updater, &[]).await?;
     Ok(())
 }
 
