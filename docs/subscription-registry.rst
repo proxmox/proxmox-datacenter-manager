@@ -5,8 +5,8 @@ The subscription registry maintains a central pool of Proxmox VE and Proxmox Bac
 subscription keys and lets an administrator assign them to remote nodes from a single place, without
 having to select and configure a key for all remote nodes individually.
 
-.. image:: images/screenshots/pdm-gui-subscription-registry.png
-  :target: _images/pdm-gui-subscription-registry.png
+.. image:: images/screenshots/subscription-registry.png
+  :target: _images/subscription-registry.png
   :align: center
   :width: 800px
   :alt: Subscription Registry with the key pool and node subscription status
@@ -28,7 +28,8 @@ Node Subscription Status
 The Node Subscription Status panel shows the live subscription state of every node behind a
 configured remote alongside any pending plan from the pool. Nodes that already hold a key the
 registry assigned appear with the live level; nodes with a pending pool assignment show a clock
-icon until the change is pushed to the remote.
+icon until the change is pushed to the remote. The filter button narrows the list by subscription
+status, or by a free-text remote or node name search.
 
 From this view an operator can revert a pending change on the selected node (an unpushed
 assignment or a queued Clear Key) or queue a new Clear Key. Clear Key frees the live
@@ -40,8 +41,8 @@ Assignment and Clearing
 
 A key can be pinned to a single node manually.
 
-.. image:: images/screenshots/pdm-gui-subscription-registry-auto-assign.png
-  :target: _images/pdm-gui-subscription-registry-auto-assign.png
+.. image:: images/screenshots/subscription-registry-auto-assign.png
+  :target: _images/subscription-registry-auto-assign.png
   :align: right
   :alt: Auto-Assign proposal before it is applied
 
@@ -70,10 +71,11 @@ Adopt Key for each node. Candidates the operator has no modify privilege on, who
 already bound elsewhere in the pool, whose (remote, node) target is already bound by another
 pool entry, or whose key or node name fails schema validation are skipped silently.
 
-The proposed plan can be inspected before it is applied. Apply Pending walks the queue in
-order and attempts every entry; any that fail are reported and stay pending, so one unreachable
-node does not strand the rest and a later Apply Pending retries only the failures. Discard
-Pending drops the plan without touching any remote.
+The proposed plan can be reviewed and adjusted before it is applied: untick a row to skip that
+node, or pick a different free key for a row from its key dropdown. Apply Pending walks the queue
+in order and attempts every entry; any that fail are reported and stay pending, so one unreachable
+node does not strand the rest and a later Apply Pending retries only the failures. Discard Pending
+drops the plan without touching any remote.
 
 The Check Subscription action triggers a fresh shop-side verification of the live subscription
 on the selected node, equivalent to the per-product "Check" button on PVE / PBS. Useful for
