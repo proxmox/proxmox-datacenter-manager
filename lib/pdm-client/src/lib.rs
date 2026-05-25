@@ -184,6 +184,18 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
+    /// Re-probe a configured node's TLS certificate (ignoring the pinned fingerprint),
+    /// so a rotated certificate can be detected and the stored fingerprint updated.
+    pub async fn remote_probe_certificate(
+        &self,
+        remote: &str,
+        node: &str,
+    ) -> Result<TlsProbeOutcome, Error> {
+        let path = format!("/api2/extjs/remotes/remote/{remote}/probe-certificate");
+        let request = json!({ "node": node });
+        Ok(self.0.post(&path, &request).await?.expect_json()?.data)
+    }
+
     pub async fn read_user(&self, user: &str) -> Result<User, Error> {
         let path = format!("/api2/extjs/access/users/{user}");
         Ok(self.0.get(&path).await?.expect_json()?.data)
