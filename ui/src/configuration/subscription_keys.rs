@@ -18,18 +18,30 @@ use proxmox_yew_comp::{
     LoadableComponentScopeExt, LoadableComponentState,
 };
 
-use pwt::css::{FontColor, FontStyle, Opacity};
+use pwt::css::{AlignItems, FlexFit, FontColor, FontStyle, JustifyContent, Opacity};
 use pwt::prelude::*;
 use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::form::{DisplayField, FormContext, TextArea};
-use pwt::widget::{Button, ConfirmDialog, Container, InputPanel, Toolbar, Tooltip};
+use pwt::widget::{Button, Column, ConfirmDialog, Container, Fa, InputPanel, Toolbar, Tooltip};
 use pwt_macros::builder;
 use yew::html::IntoEventCallback;
 
 use crate::widget::{PveNodeSelector, RemoteSelector};
 
 const BASE_URL: &str = "/subscriptions/keys";
+
+/// Centered, enlarged icon and hint for an empty panel body; mirrors the Ceph view's placeholder.
+pub(super) fn empty_state_hint(icon: &str, text: String) -> Html {
+    Column::new()
+        .class(FlexFit)
+        .class(AlignItems::Center)
+        .class(JustifyContent::Center)
+        .gap(2)
+        .with_child(Fa::new(icon).large_4x())
+        .with_child(text)
+        .into()
+}
 
 #[derive(Properties, PartialEq, Clone)]
 #[builder]
@@ -342,7 +354,10 @@ impl LoadableComponent for SubscriptionKeyGridComp {
         Box::pin(async { Ok(()) })
     }
 
-    fn main_view(&self, _ctx: &LoadableComponentContext<Self>) -> Html {
+    fn main_view(&self, ctx: &LoadableComponentContext<Self>) -> Html {
+        if ctx.props().pool_keys.is_empty() {
+            return empty_state_hint("key", tr!("No subscription keys in the pool yet."));
+        }
         DataTable::new(self.columns.clone(), self.store.clone())
             .selection(self.selection.clone())
             .into()

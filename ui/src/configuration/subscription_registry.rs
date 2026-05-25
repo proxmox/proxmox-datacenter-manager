@@ -35,7 +35,7 @@ use pdm_api_types::subscription::{
 };
 
 use super::subscription_assign::{AssignKeyToNodeDialog, AssignTarget};
-use super::subscription_keys::SubscriptionKeyGrid;
+use super::subscription_keys::{empty_state_hint, SubscriptionKeyGrid};
 
 const NODE_STATUS_URL: &str = "/subscriptions/node-status";
 const KEYS_URL: &str = "/subscriptions/keys";
@@ -1536,6 +1536,13 @@ impl SubscriptionRegistryComp {
             )
             .with_child(status_filter);
 
+        // Show a hint, not an empty grid, when no nodes exist at all (raw data, ignoring filters).
+        let node_body: Html = if self.last_node_data.is_empty() {
+            empty_state_hint("server", tr!("No remote nodes available yet."))
+        } else {
+            table.into()
+        };
+
         Panel::new()
             .class(FlexFit)
             .border(true)
@@ -1548,7 +1555,7 @@ impl SubscriptionRegistryComp {
                     .class(FlexFit)
                     .with_child(toolbar)
                     .with_child(filter_panel)
-                    .with_child(table),
+                    .with_child(node_body),
             )
     }
 
