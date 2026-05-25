@@ -183,7 +183,6 @@ impl PdmMigrateWindow {
                                         .unwrap_or_default();
                                     let (from, to) = mapping.split_once("=").unwrap_or_default();
 
-                                    log::error!("{from}={to}");
                                     match ty {
                                         "s" => migrate_opts = migrate_opts.map_storage(from, to),
                                         "n" => migrate_opts = migrate_opts.map_bridge(from, to),
