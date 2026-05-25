@@ -18,7 +18,9 @@ use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 use proxmox_time::{epoch_i64, epoch_to_rfc2822};
 
-use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{
+    Remote, RemoteType, RemoteUpdater, TlsProbeOutcome, REMOTE_ID_SCHEMA,
+};
 use pdm_api_types::rrddata::RemoteDatapoint;
 use pdm_api_types::{Authid, ConfigDigest, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY};
 
@@ -61,6 +63,10 @@ const ITEM_ROUTER: Router = Router::new()
 const REMOTE_SUBDIRS: SubdirMap = &sorted!([
     ("config", &Router::new().get(&API_METHOD_REMOTE_CONFIG)),
     ("version", &Router::new().get(&API_METHOD_VERSION)),
+    (
+        "probe-certificate",
+        &Router::new().post(&API_METHOD_PROBE_REMOTE_CERTIFICATE)
+    ),
     (
         "rrddata",
         &Router::new().get(&API_METHOD_GET_PER_REMOTE_RRD_DATA)
@@ -423,6 +429,39 @@ pub fn update_remote(
     pdm_config::remotes::save_config(remotes)?;
 
     Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            id: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                type: String,
+                description: "Hostname of the configured node to probe.",
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{id}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Re-probe a configured node's TLS certificate without using the pinned fingerprint.
+///
+/// Lets clients detect a rotated certificate (the live connection only fails with an
+/// ambiguous connect error) and decide whether to update the stored fingerprint. This
+/// never changes the stored pin; updating it goes through `update_remote` after explicit
+/// user confirmation.
+pub async fn probe_remote_certificate(id: String, node: String) -> Result<TlsProbeOutcome, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let remote = get_remote(&remotes, &id)?;
+
+    let node_url = remote
+        .nodes
+        .iter()
+        .find(|n| n.hostname == node)
+        .ok_or_else(|| http_err!(NOT_FOUND, "node {node:?} not configured for remote {id:?}"))?;
+
+    connection::probe_tls_connection(remote.ty, node_url.hostname.clone(), None).await
 }
 
 #[api(
