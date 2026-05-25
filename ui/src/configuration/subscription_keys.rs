@@ -225,14 +225,17 @@ impl LoadableComponent for SubscriptionKeyGridComp {
                 ctx.link().spawn(async move {
                     let url = format!("{BASE_URL}/{}", percent_encode_component(&id));
                     let query = digest.map(|d| serde_json::json!({ "digest": d }));
-                    if let Err(err) = http_delete(&url, query).await {
-                        link.show_error(
+                    // Reload only on success: Msg::Reload changes the view back to the grid, which
+                    // would otherwise immediately dismiss the error dialog show_error just opened.
+                    // show_error reloads on close, so a failed remove still refreshes the list.
+                    match http_delete(&url, query).await {
+                        Ok(()) => link.send_message(Msg::Reload),
+                        Err(err) => link.show_error(
                             tr!("Error"),
                             tr!("Could not remove {id}: {err}", id = id, err = err),
                             true,
-                        );
+                        ),
                     }
-                    link.send_message(Msg::Reload);
                 });
             }
             Msg::Reload => {
