@@ -89,6 +89,36 @@ fn qemu_cli() -> CommandLineInterface {
                 "timeframe",
             ]),
         )
+        .insert("snapshot", qemu_snapshot_cli())
+        .into()
+}
+
+fn qemu_snapshot_cli() -> CommandLineInterface {
+    CliCommandMap::new()
+        .insert(
+            "list",
+            CliCommand::new(&API_METHOD_QEMU_LIST_SNAPSHOTS).arg_param(&["remote", "vmid"]),
+        )
+        .insert(
+            "create",
+            CliCommand::new(&API_METHOD_QEMU_CREATE_SNAPSHOT)
+                .arg_param(&["remote", "vmid", "snapname"]),
+        )
+        .insert(
+            "delete",
+            CliCommand::new(&API_METHOD_QEMU_DELETE_SNAPSHOT)
+                .arg_param(&["remote", "vmid", "snapname"]),
+        )
+        .insert(
+            "rollback",
+            CliCommand::new(&API_METHOD_QEMU_ROLLBACK_SNAPSHOT)
+                .arg_param(&["remote", "vmid", "snapname"]),
+        )
+        .insert(
+            "update-description",
+            CliCommand::new(&API_METHOD_QEMU_UPDATE_SNAPSHOT_CONFIG)
+                .arg_param(&["remote", "vmid", "snapname"]),
+        )
         .into()
 }
 
@@ -131,6 +161,36 @@ fn lxc_cli() -> CommandLineInterface {
                 "mode",
                 "timeframe",
             ]),
+        )
+        .insert("snapshot", lxc_snapshot_cli())
+        .into()
+}
+
+fn lxc_snapshot_cli() -> CommandLineInterface {
+    CliCommandMap::new()
+        .insert(
+            "list",
+            CliCommand::new(&API_METHOD_LXC_LIST_SNAPSHOTS).arg_param(&["remote", "vmid"]),
+        )
+        .insert(
+            "create",
+            CliCommand::new(&API_METHOD_LXC_CREATE_SNAPSHOT)
+                .arg_param(&["remote", "vmid", "snapname"]),
+        )
+        .insert(
+            "delete",
+            CliCommand::new(&API_METHOD_LXC_DELETE_SNAPSHOT)
+                .arg_param(&["remote", "vmid", "snapname"]),
+        )
+        .insert(
+            "rollback",
+            CliCommand::new(&API_METHOD_LXC_ROLLBACK_SNAPSHOT)
+                .arg_param(&["remote", "vmid", "snapname"]),
+        )
+        .insert(
+            "update-description",
+            CliCommand::new(&API_METHOD_LXC_UPDATE_SNAPSHOT_CONFIG)
+                .arg_param(&["remote", "vmid", "snapname"]),
         )
         .into()
 }
@@ -1102,5 +1162,330 @@ async fn task_status(remote: String, upid: String) -> Result<(), Error> {
         &env().format_args.output_format.to_string(),
         &Default::default(),
     );
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA, optional: true },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+)]
+/// List the snapshots of a QEMU guest.
+async fn qemu_list_snapshots(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
+    const SNAPSHOT_LIST_SCHEMA: Schema =
+        ArraySchema::new("snapshot list", &pve_api_types::QemuSnapshot::API_SCHEMA).schema();
+
+    let list = client()?
+        .pve_qemu_list_snapshots(&remote, node.as_deref(), vmid)
+        .await?;
+    format_and_print_result_full(
+        &mut serde_json::to_value(list)?,
+        &ReturnType::new(false, &SNAPSHOT_LIST_SCHEMA),
+        &env().format_args.output_format.to_string(),
+        &Default::default(),
+    );
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA, optional: true },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            description: {
+                type: String,
+                optional: true,
+                description: "A textual description or comment.",
+            },
+            vmstate: { type: bool, optional: true, description: "Include the VM's RAM state." },
+        },
+    },
+)]
+/// Create a snapshot of a QEMU guest.
+async fn qemu_create_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    description: Option<String>,
+    vmstate: Option<bool>,
+) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client
+        .pve_qemu_snapshot_create(
+            &remote,
+            node.as_deref(),
+            vmid,
+            &snapname,
+            description.as_deref(),
+            vmstate,
+        )
+        .await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA, optional: true },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+        },
+    },
+)]
+/// Delete a snapshot of a QEMU guest.
+async fn qemu_delete_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client
+        .pve_qemu_snapshot_delete(&remote, node.as_deref(), vmid, &snapname)
+        .await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA, optional: true },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            start: {
+                type: bool,
+                optional: true,
+                description: "Start the guest after a successful rollback.",
+            },
+        },
+    },
+)]
+/// Roll back a QEMU guest to a snapshot (destructive: reverts disk and config to it).
+async fn qemu_rollback_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    start: Option<bool>,
+) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client
+        .pve_qemu_snapshot_rollback(&remote, node.as_deref(), vmid, &snapname, start)
+        .await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA, optional: true },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            description: {
+                type: String,
+                description: "The new description; pass an empty string to clear.",
+                optional: true,
+            },
+        },
+    },
+)]
+/// Update a QEMU snapshot's description.
+async fn qemu_update_snapshot_config(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    description: Option<String>,
+) -> Result<(), Error> {
+    let client = client()?;
+    client
+        .pve_qemu_snapshot_update_config(
+            &remote,
+            node.as_deref(),
+            vmid,
+            &snapname,
+            description.as_deref(),
+        )
+        .await?;
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA, optional: true },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+)]
+/// List the snapshots of an LXC guest.
+async fn lxc_list_snapshots(remote: String, node: Option<String>, vmid: u32) -> Result<(), Error> {
+    const SNAPSHOT_LIST_SCHEMA: Schema =
+        ArraySchema::new("snapshot list", &pve_api_types::LxcSnapshot::API_SCHEMA).schema();
+
+    let list = client()?
+        .pve_lxc_list_snapshots(&remote, node.as_deref(), vmid)
+        .await?;
+    format_and_print_result_full(
+        &mut serde_json::to_value(list)?,
+        &ReturnType::new(false, &SNAPSHOT_LIST_SCHEMA),
+        &env().format_args.output_format.to_string(),
+        &Default::default(),
+    );
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA, optional: true },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            description: {
+                type: String,
+                optional: true,
+                description: "A textual description or comment.",
+            },
+        },
+    },
+)]
+/// Create a snapshot of an LXC guest.
+async fn lxc_create_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    description: Option<String>,
+) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client
+        .pve_lxc_snapshot_create(
+            &remote,
+            node.as_deref(),
+            vmid,
+            &snapname,
+            description.as_deref(),
+        )
+        .await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA, optional: true },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+        },
+    },
+)]
+/// Delete a snapshot of an LXC guest.
+async fn lxc_delete_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client
+        .pve_lxc_snapshot_delete(&remote, node.as_deref(), vmid, &snapname)
+        .await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA, optional: true },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            start: {
+                type: bool,
+                optional: true,
+                description: "Start the container after a successful rollback.",
+            },
+        },
+    },
+)]
+/// Roll back an LXC guest to a snapshot (destructive: reverts disk and config to it).
+async fn lxc_rollback_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    start: Option<bool>,
+) -> Result<(), Error> {
+    let client = client()?;
+    let upid = client
+        .pve_lxc_snapshot_rollback(&remote, node.as_deref(), vmid, &snapname, start)
+        .await?;
+    println!("upid: {upid}");
+    let status = client.pve_wait_for_task(&upid).await?;
+    println!("{status:#?}");
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: { schema: NODE_SCHEMA, optional: true },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            description: {
+                type: String,
+                description: "The new description; pass an empty string to clear.",
+                optional: true,
+            },
+        },
+    },
+)]
+/// Update an LXC snapshot's description.
+async fn lxc_update_snapshot_config(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    description: Option<String>,
+) -> Result<(), Error> {
+    let client = client()?;
+    client
+        .pve_lxc_snapshot_update_config(
+            &remote,
+            node.as_deref(),
+            vmid,
+            &snapname,
+            description.as_deref(),
+        )
+        .await?;
     Ok(())
 }
