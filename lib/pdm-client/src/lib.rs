@@ -43,6 +43,8 @@ pub mod types {
 
     pub use pve_api_types::{IsRunning, LxcStatus, QemuStatus};
 
+    pub use pve_api_types::{LxcSnapshot, QemuSnapshot};
+
     pub use pve_api_types::verifiers::VOLUME_ID;
     pub use pve_api_types::{
         LxcConfig, LxcConfigMp, LxcConfigNet, LxcConfigRootfs, LxcConfigUnused, PveQmIde,
@@ -763,6 +765,101 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await
     }
 
+    pub async fn pve_qemu_list_snapshots(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+    ) -> Result<Vec<pve_api_types::QemuSnapshot>, Error> {
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/snapshot"
+        ))
+        .maybe_arg("node", &node)
+        .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_qemu_snapshot_create(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        snapname: &str,
+        description: Option<&str>,
+        vmstate: Option<bool>,
+    ) -> Result<RemoteUpid, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/snapshot");
+        let mut request = json!({ "snapname": snapname });
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        if let Some(description) = description {
+            request["description"] = description.into();
+        }
+        if let Some(vmstate) = vmstate {
+            request["vmstate"] = vmstate.into();
+        }
+        Ok(self.0.post(&path, &request).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_qemu_snapshot_delete(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        snapname: &str,
+    ) -> Result<RemoteUpid, Error> {
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/snapshot/{snapname}"
+        ))
+        .maybe_arg("node", &node)
+        .build();
+        Ok(self.0.delete(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_qemu_snapshot_rollback(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        snapname: &str,
+        start: Option<bool>,
+    ) -> Result<RemoteUpid, Error> {
+        let path =
+            format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/snapshot/{snapname}/rollback");
+        let mut request = json!({});
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        if let Some(start) = start {
+            request["start"] = start.into();
+        }
+        Ok(self.0.post(&path, &request).await?.expect_json()?.data)
+    }
+
+    /// Update a QEMU snapshot's description. Synchronous on the PVE side (no task).
+    /// `None` leaves the description unchanged; `Some("")` clears it.
+    pub async fn pve_qemu_snapshot_update_config(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        snapname: &str,
+        description: Option<&str>,
+    ) -> Result<(), Error> {
+        let path =
+            format!("/api2/extjs/pve/remotes/{remote}/qemu/{vmid}/snapshot/{snapname}/config");
+        let mut request = json!({});
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        if let Some(description) = description {
+            request["description"] = description.into();
+        }
+        self.0.put(&path, &request).await?.nodata()?;
+        Ok(())
+    }
+
     pub async fn pve_qemu_migrate(
         &self,
         remote: &str,
@@ -840,6 +937,97 @@ impl<T: HttpApiClient> PdmClient<T> {
     ) -> Result<RemoteUpid, Error> {
         self.pve_change_guest_status(remote, node, vmid, "lxc", "start")
             .await
+    }
+
+    pub async fn pve_lxc_list_snapshots(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+    ) -> Result<Vec<pve_api_types::LxcSnapshot>, Error> {
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/snapshot"
+        ))
+        .maybe_arg("node", &node)
+        .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_lxc_snapshot_create(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        snapname: &str,
+        description: Option<&str>,
+    ) -> Result<RemoteUpid, Error> {
+        let path = format!("/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/snapshot");
+        let mut request = json!({ "snapname": snapname });
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        if let Some(description) = description {
+            request["description"] = description.into();
+        }
+        Ok(self.0.post(&path, &request).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_lxc_snapshot_delete(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        snapname: &str,
+    ) -> Result<RemoteUpid, Error> {
+        let path = ApiPathBuilder::new(format!(
+            "/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/snapshot/{snapname}"
+        ))
+        .maybe_arg("node", &node)
+        .build();
+        Ok(self.0.delete(&path).await?.expect_json()?.data)
+    }
+
+    pub async fn pve_lxc_snapshot_rollback(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        snapname: &str,
+        start: Option<bool>,
+    ) -> Result<RemoteUpid, Error> {
+        let path =
+            format!("/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/snapshot/{snapname}/rollback");
+        let mut request = json!({});
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        if let Some(start) = start {
+            request["start"] = start.into();
+        }
+        Ok(self.0.post(&path, &request).await?.expect_json()?.data)
+    }
+
+    /// Update an LXC snapshot's description. Synchronous on the PVE side (no task).
+    /// `None` leaves the description unchanged; `Some("")` clears it.
+    pub async fn pve_lxc_snapshot_update_config(
+        &self,
+        remote: &str,
+        node: Option<&str>,
+        vmid: u32,
+        snapname: &str,
+        description: Option<&str>,
+    ) -> Result<(), Error> {
+        let path =
+            format!("/api2/extjs/pve/remotes/{remote}/lxc/{vmid}/snapshot/{snapname}/config");
+        let mut request = json!({});
+        if let Some(node) = node {
+            request["node"] = node.into();
+        }
+        if let Some(description) = description {
+            request["description"] = description.into();
+        }
+        self.0.put(&path, &request).await?.nodata()?;
+        Ok(())
     }
 
     pub async fn pve_lxc_shutdown(
