@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug};
 
 use proxmox_auth_api::types::Userid;
-use proxmox_installer_types::{post_hook::PostHookInfo, SystemInfo};
+use proxmox_installer_types::{
+    answer::SUBSCRIPTION_KEY_SCHEMA, post_hook::PostHookInfo, SystemInfo,
+};
 use proxmox_network_types::ip_address::{api_types::IpAddr, Cidr};
 use proxmox_schema::{
     api,
@@ -172,7 +174,11 @@ pub const PREPARED_INSTALL_CONFIG_ID_SCHEMA: proxmox_schema::Schema =
             properties: {},
             additional_properties: true,
             optional: true,
-        }
+        },
+        "subscription-key": {
+            optional: true,
+            schema: SUBSCRIPTION_KEY_SCHEMA,
+        },
     },
 )]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Updater)]
@@ -326,6 +332,14 @@ pub struct PreparedInstallationConfig {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     #[updater(serde(default, skip_serializing_if = "Option::is_none"))]
     pub template_counters: BTreeMap<String, i32>,
+
+    /// Optional Proxmox subscription key to apply to the installed system on
+    /// first boot. Forwarded as-is into the rendered answer's `[global]`
+    /// section; the installer stages it for the proxmox-first-boot
+    /// subscription activator.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[updater(serde(default, skip_serializing_if = "Option::is_none"))]
+    pub subscription_key: Option<String>,
 }
 
 #[api]
@@ -347,6 +361,8 @@ pub enum DeletablePreparedInstallationConfigProperty {
     PostHookCertFp,
     /// Delete all templating counters.
     TemplateCounters,
+    /// Drop the configured subscription key.
+    SubscriptionKey,
 }
 
 serde_plain::derive_display_from_serialize!(DeletablePreparedInstallationConfigProperty);

@@ -560,6 +560,9 @@ async fn update_prepared_answer(
                 DeletablePreparedInstallationConfigProperty::TemplateCounters => {
                     p.template_counters.clear();
                 }
+                DeletablePreparedInstallationConfigProperty::SubscriptionKey => {
+                    p.subscription_key = None;
+                }
             }
         }
     }
@@ -593,6 +596,7 @@ async fn update_prepared_answer(
         post_hook_base_url,
         post_hook_cert_fp,
         template_counters,
+        subscription_key,
     } = update;
 
     let mut new_token = None;
@@ -714,6 +718,10 @@ async fn update_prepared_answer(
     if let Some(counters) = template_counters {
         validate_template_map(&counters)?;
         **p.template_counters = counters;
+    }
+
+    if let Some(key) = subscription_key {
+        p.subscription_key = Some(key);
     }
 
     if !p.is_default && p.target_filter.is_empty() {
@@ -1198,9 +1206,7 @@ fn render_prepared_config(
         reboot_on_error: conf.reboot_on_error,
         reboot_mode: conf.reboot_mode,
         root_ssh_keys: conf.root_ssh_keys.clone(),
-        // PDM does not expose subscription_key on prepared answers yet,
-        // see the subscription-via-auto-installer branch for the full plumbing.
-        subscription_key: None,
+        subscription_key: conf.subscription_key.clone(),
     };
 
     let network = {

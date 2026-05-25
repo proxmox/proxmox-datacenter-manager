@@ -25,6 +25,7 @@ proxmox-simple-config.workspace = true
 proxmox-sys = { workspace = true, features = [ "acl", "crypt", "timer" ] }
 proxmox-acme-api.workspace = true
 proxmox-serde.workspace = true
+proxmox-installer-types = { workspace = true, features = [ "api-types" ] }
 proxmox-network-types.workspace = true
 pdm-api-types.workspace = true
 pdm-buildcfg.workspace = true

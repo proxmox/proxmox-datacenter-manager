@@ -37,6 +37,7 @@ pub mod types {
         BLOCKDEVICE_NAME_SCHEMA, CERT_FINGERPRINT_SHA256_SCHEMA, HTTP_URL_SCHEMA,
         PROXMOX_TOKEN_NAME_SCHEMA, SINGLE_LINE_COMMENT_FORMAT,
     };
+    use proxmox_installer_types::answer::SUBSCRIPTION_KEY_SCHEMA;
     use proxmox_network_types::{api_types::IpAddr, Cidr};
     use proxmox_schema::{api, ApiStringFormat, ApiType, PropertyString};
 
@@ -152,6 +153,10 @@ pub mod types {
             "template-counters": {
                 type: String,
                 optional: true,
+            },
+            "subscription-key": {
+                optional: true,
+                schema: SUBSCRIPTION_KEY_SCHEMA,
             },
         },
     )]
@@ -277,6 +282,11 @@ pub mod types {
         /// Key-value pairs of (auto-incrementing) counters.
         #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
         pub template_counters: PropertyString<BTreeMapWrapper<i32>>,
+
+        /// Optional Proxmox subscription key, forwarded as-is to the
+        /// rendered answer's `[global]` section.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub subscription_key: Option<String>,
     }
 
     impl TryFrom<PreparedInstallationConfig> for PreparedInstallationSectionConfig {
@@ -318,6 +328,8 @@ pub mod types {
                 post_hook_cert_fp: conf.post_hook_cert_fp,
                 // templating
                 template_counters: PropertyString::new(BTreeMapWrapper(conf.template_counters)),
+                // subscription
+                subscription_key: conf.subscription_key,
             })
         }
     }
@@ -369,6 +381,8 @@ pub mod types {
                 post_hook_cert_fp: self.post_hook_cert_fp,
                 // templating
                 template_counters: self.template_counters.into_inner().0,
+                // subscription
+                subscription_key: self.subscription_key,
             })
         }
     }
