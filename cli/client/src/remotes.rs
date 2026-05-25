@@ -4,9 +4,13 @@ use proxmox_router::cli::{
     format_and_print_result, format_and_print_result_full, CliCommand, CliCommandMap,
     CommandLineInterface, OutputFormat,
 };
+use proxmox_schema::property_string::PropertyString;
 use proxmox_schema::{api, property_string, ApiType, ReturnType, Schema};
 
-use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{
+    NodeUrl, Remote, RemoteType, RemoteUpdater, TlsProbeOutcome, REMOTE_ID_SCHEMA,
+};
+use pdm_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
 use crate::{client, env};
 
@@ -28,6 +32,14 @@ pub fn cli() -> CommandLineInterface {
         .insert(
             "version",
             CliCommand::new(&API_METHOD_REMOTE_VERSION).arg_param(&["id"]),
+        )
+        .insert(
+            "probe-certificate",
+            CliCommand::new(&API_METHOD_PROBE_CERTIFICATE).arg_param(&["id", "node"]),
+        )
+        .insert(
+            "set-fingerprint",
+            CliCommand::new(&API_METHOD_SET_FINGERPRINT).arg_param(&["id", "node"]),
         )
         .into()
 }
@@ -103,12 +115,27 @@ async fn add_remote(entry: Remote, create_token: Option<String>) -> Result<(), E
                 flatten: true,
                 type: RemoteUpdater,
             },
+            delete: {
+                description: "List of properties to clear, e.g. 'group' or 'web-url'.",
+                type: Array,
+                optional: true,
+                items: {
+                    type: String,
+                    description: "Property name.",
+                },
+            },
         }
     }
 )]
 /// Update a remote.
-async fn update_remote(id: String, updater: RemoteUpdater) -> Result<(), Error> {
-    client()?.update_remote(&id, &updater, &[]).await?;
+async fn update_remote(
+    id: String,
+    updater: RemoteUpdater,
+    delete: Option<Vec<String>>,
+) -> Result<(), Error> {
+    client()?
+        .update_remote(&id, &updater, delete.as_deref().unwrap_or(&[]))
+        .await?;
     Ok(())
 }
 
@@ -134,10 +161,108 @@ async fn delete_remote(id: String, delete_token: bool) -> Result<(), Error> {
     input: {
         properties: {
             id: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                type: String,
+                description: "Hostname of the configured node to probe.",
+            },
         }
     }
 )]
-/// Add a new remote.
+/// Re-probe a configured node's TLS certificate, ignoring the pinned fingerprint.
+///
+/// Useful to detect a rotated certificate. Apply the new fingerprint with
+/// `remote set-fingerprint <id> <node> <fingerprint>`, or clear the pin by omitting it.
+async fn probe_certificate(id: String, node: String) -> Result<(), Error> {
+    let outcome = client()?.remote_probe_certificate(&id, &node).await?;
+    match outcome {
+        TlsProbeOutcome::TrustedCertificate => {
+            println!("Certificate is trusted (validates against the system certificate store).");
+        }
+        TlsProbeOutcome::UntrustedCertificate(info) => {
+            let date = |epoch: Option<i64>| {
+                epoch
+                    .and_then(|e| proxmox_time::epoch_to_rfc3339_utc(e).ok())
+                    .unwrap_or_else(|| "-".to_string())
+            };
+            println!("Presented certificate (not trusted by the system store):");
+            println!(
+                "    fingerprint: {}",
+                info.fingerprint.as_deref().unwrap_or("-")
+            );
+            println!("    subject:     {}", info.subject);
+            println!("    issuer:      {}", info.issuer);
+            println!("    valid since: {}", date(info.notbefore));
+            println!("    expires:     {}", date(info.notafter));
+        }
+    }
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            id: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                type: String,
+                description: "Hostname of the configured node whose fingerprint to set.",
+            },
+            fingerprint: {
+                schema: CERT_FINGERPRINT_SHA256_SCHEMA,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Set or clear a node's stored TLS certificate fingerprint.
+///
+/// Omit the fingerprint to clear the pin and rely on the system trust store. Run
+/// `remote probe-certificate` first to read the fingerprint the node currently presents.
+async fn set_fingerprint(
+    id: String,
+    node: String,
+    fingerprint: Option<String>,
+) -> Result<(), Error> {
+    let client = client()?;
+    let remote = client
+        .list_remotes()
+        .await?
+        .into_iter()
+        .find(|r| r.id == id)
+        .ok_or_else(|| anyhow::format_err!("no such remote '{id}'"))?;
+
+    let mut found = false;
+    let nodes: Vec<PropertyString<NodeUrl>> = remote
+        .nodes
+        .iter()
+        .map(|ps| {
+            let mut url: NodeUrl = (**ps).clone();
+            if url.hostname == node {
+                url.fingerprint = fingerprint.clone();
+                found = true;
+            }
+            PropertyString::new(url)
+        })
+        .collect();
+    if !found {
+        anyhow::bail!("remote '{id}' has no node '{node}'");
+    }
+
+    let updater = RemoteUpdater {
+        nodes: Some(nodes),
+        ..Default::default()
+    };
+    client.update_remote(&id, &updater, &[]).await?;
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            id: { schema: REMOTE_ID_SCHEMA },
+        }
+    }
+)]
+/// Show a remote's version.
 async fn remote_version(id: String) -> Result<(), Error> {
     let data = client()?.remote_version(&id).await?;
     format_and_print_result_full(
