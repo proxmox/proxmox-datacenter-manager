@@ -21,6 +21,7 @@ use pwt::props::{ContainerBuilder, ExtractPrimaryKey, WidgetBuilder};
 use pwt::state::{Selection, SlabTree, Store, TreeStore};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader, MultiSelectMode};
 use pwt::widget::form::{Combobox, Field};
+use pwt::widget::menu::{Menu, MenuButton, MenuItem};
 use pwt::widget::{
     Button, Column, Container, Fa, Mask, Panel, Row, SegmentedButton, Toolbar, Tooltip,
 };
@@ -1328,15 +1329,17 @@ impl SubscriptionRegistryComp {
         let can_check = self
             .selected_node_status()
             .is_some_and(|n| n.status != proxmox_subscription::SubscriptionStatus::NotFound);
+        // Common per-selection verbs are direct buttons with short labels; each tooltip says what
+        // it does and when it is available, so a disabled button explains itself.
         let assign_button = Tooltip::new(
-            Button::new(tr!("Assign Key"))
+            Button::new(tr!("Assign"))
                 .icon_class("fa fa-link")
                 .disabled(!can_assign_key)
                 .on_activate(ctx.link().callback(|_| Msg::AssignKeyToSelectedNode)),
         )
         .tip(tr!(
-            "Bind a pool key to the selected node. Available for nodes without an active \
-             subscription that have no pool assignment yet."
+            "Bind a pool key to the selected node. Available for a node with no active \
+             subscription and no pool assignment yet."
         ));
         let revert_button = Tooltip::new(
             Button::new(tr!("Revert"))
@@ -1344,29 +1347,23 @@ impl SubscriptionRegistryComp {
                 .disabled(!can_revert)
                 .on_activate(ctx.link().callback(|_| Msg::RevertSelectedNode)),
         )
-        .tip(tr!("Drop the pending pool change on the selected node."));
-        let clear_key_button = Tooltip::new(
-            Button::new(tr!("Clear Key"))
+        .tip(tr!(
+            "Drop the pending pool change on the selected node. Available when the node has a \
+             queued assignment or clear."
+        ));
+        let clear_button = Tooltip::new(
+            Button::new(tr!("Clear"))
                 .icon_class("fa fa-recycle")
                 .disabled(!can_clear_key)
                 .on_activate(ctx.link().callback(|_| Msg::QueueClearForSelectedNode)),
         )
         .tip(tr!(
-            "Queue the live subscription on the selected node for removal at next Apply \
-             Pending, freeing the key for reassignment. Requires the node to be \
-             pool-managed; for foreign subscriptions, run Adopt Key first."
-        ));
-        let adopt_key_button = Tooltip::new(
-            Button::new(tr!("Adopt Key"))
-                .icon_class("fa fa-download")
-                .disabled(!can_adopt_key)
-                .on_activate(ctx.link().callback(|_| Msg::AdoptKeyForSelectedNode)),
-        )
-        .tip(tr!(
-            "Import the live subscription on the selected node into the pool."
+            "Queue the selected node's live subscription for removal at the next Apply Pending, \
+             freeing the key for reassignment. Available for a pool-managed node; for a foreign \
+             subscription, adopt it first."
         ));
         let check_button = Tooltip::new(
-            Button::new(tr!("Check Subscription"))
+            Button::new(tr!("Check"))
                 .icon_class("fa fa-refresh")
                 .disabled(!can_check)
                 .on_activate(
@@ -1375,21 +1372,31 @@ impl SubscriptionRegistryComp {
                 ),
         )
         .tip(if can_check {
-            tr!("Re-verify the live subscription against the shop, refreshing the status.")
+            tr!("Re-verify the live subscription against the shop, refreshing its status.")
         } else {
             tr!("No subscription installed on the selected node; assign or adopt one first.")
         });
 
-        let adopt_all_button = Tooltip::new(
-            Button::new(tr!("Adopt All"))
-                .icon_class("fa fa-download")
-                .disabled(adopt_all_count == 0)
-                .on_activate(ctx.link().callback(|_| Msg::AdoptAllPreview)),
-        )
-        .tip(tr!(
-            "Import every foreign live subscription that is not yet tracked by the \
-             pool. The remote is not contacted; only the pool config is updated."
-        ));
+        // Both adopt scopes share one menu: import the selected node's live subscription, or every
+        // untracked one across the remotes the operator can audit.
+        let adopt_menu = MenuButton::new(tr!("Adopt"))
+            .icon_class("fa fa-download")
+            .show_arrow(true)
+            .menu(
+                Menu::new()
+                    .with_item(
+                        MenuItem::new(tr!("Adopt Key"))
+                            .icon_class("fa fa-download")
+                            .disabled(!can_adopt_key)
+                            .on_select(ctx.link().callback(|_| Msg::AdoptKeyForSelectedNode)),
+                    )
+                    .with_item(
+                        MenuItem::new(tr!("Adopt All"))
+                            .icon_class("fa fa-download")
+                            .disabled(adopt_all_count == 0)
+                            .on_select(ctx.link().callback(|_| Msg::AdoptAllPreview)),
+                    ),
+            );
         let apply_pending_button = Tooltip::new(
             Button::new(tr!("Apply Pending"))
                 .icon_class("fa fa-play")
@@ -1421,33 +1428,34 @@ impl SubscriptionRegistryComp {
             move |_| link.send_reload()
         });
 
-        // A Filter toggle (turns primary-colored while a filter is active or the panel is open)
-        // keeps the status and text filters out of the action toolbar, in a collapsible section.
+        // Filter is an icon-only funnel parked at the far right (turns primary-colored while a
+        // filter is active or the panel is open), keeping the status and text filters out of the
+        // verb cluster and in a collapsible section.
         let filter_active =
             !self.node_text_filter.trim().is_empty() || !self.node_status_filter.is_empty();
-        let filter_button = Button::new(tr!("Filter"))
-            .icon_class(if self.filter_expanded || filter_active {
+        let filter_button = Tooltip::new(
+            Button::new_icon(if self.filter_expanded || filter_active {
                 "fa fa-filter pwt-color-primary"
             } else {
                 "fa fa-filter"
             })
-            .on_activate(ctx.link().callback(|_| Msg::ToggleFilterPanel));
+            .on_activate(ctx.link().callback(|_| Msg::ToggleFilterPanel)),
+        )
+        .tip(tr!(
+            "Filter the node list by status or by remote and node name."
+        ));
 
-        // Left: a filter toggle, then per-node actions on the selected row, grouped add-key /
-        // undo-or-remove / verify. Right: bulk and queue actions over all nodes. The pending badge
-        // is fenced off from the queue verbs by its own rule so the verb cluster keeps its
-        // position when it is absent.
+        // Left: the per-selection verbs, then the Adopt menu. Right: the queue actions and the
+        // filter funnel. The pending badge is fenced off by its own rule so the verb cluster keeps
+        // its position when it is absent.
         let mut toolbar = Toolbar::new()
             .border_bottom(true)
-            .with_child(filter_button)
-            .with_spacer()
             .with_child(assign_button)
-            .with_child(adopt_key_button)
-            .with_spacer()
             .with_child(revert_button)
-            .with_child(clear_key_button)
-            .with_spacer()
+            .with_child(clear_button)
             .with_child(check_button)
+            .with_spacer()
+            .with_child(adopt_menu)
             .with_flex_spacer();
         if pending > 0 {
             toolbar = toolbar
@@ -1455,9 +1463,10 @@ impl SubscriptionRegistryComp {
                 .with_spacer();
         }
         toolbar = toolbar
-            .with_child(adopt_all_button)
             .with_child(apply_pending_button)
-            .with_child(discard_pending_button);
+            .with_child(discard_pending_button)
+            .with_spacer()
+            .with_child(filter_button);
 
         // Collapsible filter row: a free-text remote/node field plus a multi-select segmented
         // status filter (the "All" segment clears it). Mirrors the task-view filter pattern.
