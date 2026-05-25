@@ -18,7 +18,7 @@ use proxmox_installer_types::{
         BtrfsCompressOption, BtrfsOptions, FilesystemOptions, FilesystemType, FilterMatch,
         KeyboardLayout, LvmOptions, RebootMode, ZfsChecksumOption, ZfsCompressOption, ZfsOptions,
         BTRFS_COMPRESS_OPTIONS, FILESYSTEM_TYPE_OPTIONS, ROOT_PASSWORD_SCHEMA,
-        ZFS_CHECKSUM_OPTIONS, ZFS_COMPRESS_OPTIONS,
+        SUBSCRIPTION_KEY_SCHEMA, ZFS_CHECKSUM_OPTIONS, ZFS_COMPRESS_OPTIONS,
     },
     EMAIL_DEFAULT_PLACEHOLDER,
 };
@@ -257,6 +257,14 @@ pub fn render_global_options_form(
                 })
                 .value(serde_variant_name(config.reboot_mode))
                 .required(true),
+        )
+        .with_field(
+            tr!("Subscription Key"),
+            Field::new()
+                .name("subscription-key")
+                .placeholder(tr!("Optional, e.g. pve1c-0123456789"))
+                .value(config.subscription_key.clone().unwrap_or_default())
+                .schema(&SUBSCRIPTION_KEY_SCHEMA),
         )
         .into()
 }

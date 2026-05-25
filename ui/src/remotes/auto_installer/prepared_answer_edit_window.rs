@@ -158,6 +158,7 @@ async fn submit(
             "disk-filter",
             "netdev-filter",
             "target-filter",
+            "subscription-key",
         ],
         true,
     );

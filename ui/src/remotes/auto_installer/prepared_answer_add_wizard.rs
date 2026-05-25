@@ -82,6 +82,8 @@ impl AddAnswerWizardProperties {
             post_hook_cert_fp: None,
             // templating
             template_counters,
+            // subscription
+            subscription_key: None,
         };
 
         yew::props!(Self { config })
