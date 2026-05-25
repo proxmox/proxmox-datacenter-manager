@@ -20,8 +20,10 @@ use pwt::prelude::*;
 use pwt::props::{ContainerBuilder, ExtractPrimaryKey, WidgetBuilder};
 use pwt::state::{Selection, SlabTree, Store, TreeStore};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader, MultiSelectMode};
-use pwt::widget::form::Combobox;
-use pwt::widget::{Button, Column, Container, Fa, Mask, Panel, Row, Toolbar, Tooltip};
+use pwt::widget::form::{Combobox, Field};
+use pwt::widget::{
+    Button, Column, Container, Fa, Mask, Panel, Row, SegmentedButton, Toolbar, Tooltip,
+};
 
 use pdm_api_types::subscription::{
     socket_count_from_key, AutoAssignProposal, ProposedAssignment, RemoteNodeStatus,
@@ -81,12 +83,19 @@ fn all_node_statuses() -> [proxmox_subscription::SubscriptionStatus; 6] {
     ]
 }
 
-/// Reverse of [`subscription_status_label`]: map a filter label back to its status. Locale-safe
-/// because both directions go through the same `tr!` at runtime.
-fn status_from_label(label: &str) -> Option<proxmox_subscription::SubscriptionStatus> {
-    all_node_statuses()
-        .into_iter()
-        .find(|s| subscription_status_label(*s) == label)
+/// True when a node passes the active filters: its status is selected (or no status is selected,
+/// meaning all), and the already-lowercased `text` is empty or a substring of its node or remote
+/// name.
+fn node_matches(
+    n: &RemoteNodeStatus,
+    text: &str,
+    statuses: &[proxmox_subscription::SubscriptionStatus],
+) -> bool {
+    let status_ok = statuses.is_empty() || statuses.contains(&n.status);
+    let text_ok = text.is_empty()
+        || n.node.to_lowercase().contains(text)
+        || n.remote.to_lowercase().contains(text);
+    status_ok && text_ok
 }
 
 /// Build a multi-line Status-column tooltip listing the last-check timestamp and the
@@ -310,8 +319,14 @@ pub enum Msg {
     /// Re-check the subscription on the currently-selected node against the shop. Pure refresh
     /// path; no confirmation dialog since the action is read-only from the pool's perspective.
     CheckSubscriptionForSelectedNode,
-    /// Restrict the node tree to a single subscription status, or show all when `None`.
-    SetStatusFilter(Option<proxmox_subscription::SubscriptionStatus>),
+    /// Show or hide the collapsible filter section.
+    ToggleFilterPanel,
+    /// Set the free-text remote/node filter.
+    SetNodeFilterText(String),
+    /// Toggle one status in the multi-select status filter.
+    ToggleStatusFilter(proxmox_subscription::SubscriptionStatus),
+    /// Clear the status filter (the "All" segment).
+    ClearStatusFilter,
 }
 
 #[derive(PartialEq)]
@@ -372,8 +387,12 @@ pub struct SubscriptionRegistryComp {
     /// the server rejects stale-view writes with 409 instead of silently overwriting a parallel
     /// admin's edits.
     pool_digest: Option<String>,
-    /// Active node-tree status filter, or `None` to show every status.
-    node_status_filter: Option<proxmox_subscription::SubscriptionStatus>,
+    /// Whether the collapsible filter section is shown.
+    filter_expanded: bool,
+    /// Free-text remote/node filter.
+    node_text_filter: String,
+    /// Active node-tree status filter; empty means every status passes.
+    node_status_filter: Vec<proxmox_subscription::SubscriptionStatus>,
 }
 
 pwt::impl_deref_mut_property!(
@@ -756,7 +775,9 @@ impl LoadableComponent for SubscriptionRegistryComp {
             last_node_data: Vec::new(),
             pool_keys: Rc::new(Vec::new()),
             pool_digest: None,
-            node_status_filter: None,
+            filter_expanded: false,
+            node_text_filter: String::new(),
+            node_status_filter: Vec::new(),
         }
     }
 
@@ -950,10 +971,27 @@ impl LoadableComponent for SubscriptionRegistryComp {
                     link.send_reload();
                 });
             }
-            Msg::SetStatusFilter(status) => {
-                self.node_status_filter = status;
+            Msg::ToggleFilterPanel => {
+                self.filter_expanded = !self.filter_expanded;
+            }
+            Msg::SetNodeFilterText(text) => {
+                self.node_text_filter = text;
                 self.apply_node_filter();
                 // A filtered-out row must not stay selected and keep its actions live.
+                self.node_selection.clear();
+            }
+            Msg::ToggleStatusFilter(status) => {
+                if let Some(pos) = self.node_status_filter.iter().position(|s| *s == status) {
+                    self.node_status_filter.remove(pos);
+                } else {
+                    self.node_status_filter.push(status);
+                }
+                self.apply_node_filter();
+                self.node_selection.clear();
+            }
+            Msg::ClearStatusFilter => {
+                self.node_status_filter.clear();
+                self.apply_node_filter();
                 self.node_selection.clear();
             }
         }
@@ -1247,21 +1285,25 @@ impl SubscriptionRegistryComp {
     /// stays visible only if at least one of its nodes matches, so filtering does not leave empty
     /// remote headers behind. Recomputed from `last_node_data` whenever the filter or data change.
     fn apply_node_filter(&self) {
-        let Some(status) = self.node_status_filter else {
+        let text = self.node_text_filter.trim().to_lowercase();
+        let statuses = self.node_status_filter.clone();
+        if text.is_empty() && statuses.is_empty() {
             self.tree_store.set_filter(None);
             return;
-        };
+        }
+        // A remote stays visible only when at least one of its nodes matches, so filtering does
+        // not leave empty remote headers behind.
         let matching_remotes: HashSet<String> = self
             .last_node_data
             .iter()
-            .filter(|n| n.status == status)
+            .filter(|n| node_matches(n, &text, &statuses))
             .map(|n| n.remote.clone())
             .collect();
         self.tree_store
             .set_filter(move |entry: &NodeTreeEntry| match entry {
                 NodeTreeEntry::Root => true,
                 NodeTreeEntry::Remote { name, .. } => matching_remotes.contains(name),
-                NodeTreeEntry::Node { data, .. } => data.status == status,
+                NodeTreeEntry::Node { data, .. } => node_matches(data, &text, &statuses),
             });
     }
 
@@ -1379,30 +1421,25 @@ impl SubscriptionRegistryComp {
             move |_| link.send_reload()
         });
 
-        let status_items: Vec<yew::AttrValue> = all_node_statuses()
-            .iter()
-            .map(|s| yew::AttrValue::from(subscription_status_label(*s)))
-            .collect();
-        let status_filter = Combobox::new()
-            .items(Rc::new(status_items))
-            .default(
-                self.node_status_filter
-                    .map(|s| yew::AttrValue::from(subscription_status_label(s))),
-            )
-            .placeholder(tr!("All statuses"))
-            .key("node-status-filter")
-            .on_change(
-                ctx.link()
-                    .callback(|value: String| Msg::SetStatusFilter(status_from_label(&value))),
-            );
+        // A Filter toggle (turns primary-colored while a filter is active or the panel is open)
+        // keeps the status and text filters out of the action toolbar, in a collapsible section.
+        let filter_active =
+            !self.node_text_filter.trim().is_empty() || !self.node_status_filter.is_empty();
+        let filter_button = Button::new(tr!("Filter"))
+            .icon_class(if self.filter_expanded || filter_active {
+                "fa fa-filter pwt-color-primary"
+            } else {
+                "fa fa-filter"
+            })
+            .on_activate(ctx.link().callback(|_| Msg::ToggleFilterPanel));
 
-        // Left: a status filter, then per-node actions on the selected row, grouped add-key /
+        // Left: a filter toggle, then per-node actions on the selected row, grouped add-key /
         // undo-or-remove / verify. Right: bulk and queue actions over all nodes. The pending badge
         // is fenced off from the queue verbs by its own rule so the verb cluster keeps its
         // position when it is absent.
         let mut toolbar = Toolbar::new()
             .border_bottom(true)
-            .with_child(status_filter)
+            .with_child(filter_button)
             .with_spacer()
             .with_child(assign_button)
             .with_child(adopt_key_button)
@@ -1422,6 +1459,45 @@ impl SubscriptionRegistryComp {
             .with_child(apply_pending_button)
             .with_child(discard_pending_button);
 
+        // Collapsible filter row: a free-text remote/node field plus a multi-select segmented
+        // status filter (the "All" segment clears it). Mirrors the task-view filter pattern.
+        let filter_panel = self.filter_expanded.then(|| {
+            let statuses = &self.node_status_filter;
+            let pressed = "pwt-scheme-secondary-container";
+            let mut status_filter = SegmentedButton::new()
+                .class("pwt-button-elevated")
+                .with_button(
+                    Button::new(tr!("All"))
+                        .pressed(statuses.is_empty())
+                        .class(statuses.is_empty().then_some(pressed))
+                        .on_activate(ctx.link().callback(|_| Msg::ClearStatusFilter)),
+                );
+            for status in all_node_statuses() {
+                let active = statuses.contains(&status);
+                status_filter = status_filter.with_button(
+                    Button::new(subscription_status_label(status))
+                        .pressed(active)
+                        .class(active.then_some(pressed))
+                        .on_activate(
+                            ctx.link()
+                                .callback(move |_| Msg::ToggleStatusFilter(status)),
+                        ),
+                );
+            }
+            Row::new()
+                .class("pwt-border-bottom")
+                .class(AlignItems::Center)
+                .padding(2)
+                .gap(2)
+                .with_child(
+                    Field::new()
+                        .placeholder(tr!("Filter by remote or node"))
+                        .value(self.node_text_filter.clone())
+                        .on_input(ctx.link().callback(Msg::SetNodeFilterText)),
+                )
+                .with_child(status_filter)
+        });
+
         Panel::new()
             .class(FlexFit)
             .border(true)
@@ -1433,6 +1509,7 @@ impl SubscriptionRegistryComp {
                 Column::new()
                     .class(FlexFit)
                     .with_child(toolbar)
+                    .with_optional_child(filter_panel)
                     .with_child(table),
             )
     }
