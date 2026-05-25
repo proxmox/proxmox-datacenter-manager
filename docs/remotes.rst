@@ -51,3 +51,42 @@ displaying content and storage utilization.
 
 Metrics from Proxmox Backup Server remotes are integrated directly into the central dashboard
 widgets, including RRD graphs for performance and usage monitoring.
+
+Connection and Certificate Troubleshooting
+-------------------------------------------
+
+Proxmox Datacenter Manager validates a remote's TLS certificate against the system certificate
+store. If the remote presents a publicly trusted certificate, for example one issued by Let's
+Encrypt through ACME, no further trust configuration is needed and certificate renewals are handled
+transparently.
+
+When a remote's certificate is not in the system trust store, as with the default self-signed
+Proxmox certificates, Proxmox Datacenter Manager instead pins the fingerprint you accepted when
+adding the remote. If such a remote later renews or rotates its certificate, the pinned fingerprint
+no longer matches the presented one and every connection to that remote fails. The web interface
+and the command-line tools surface this as an error such as:
+
+.. code-block:: text
+
+    connection failed: Could not establish a TLS connection. Check whether the fingerprint matches
+    or the certificate on the remote is valid. OpenSSL Error: error:0A000086:SSL routines:
+    tls_post_process_server_certificate:certificate verify failed
+
+The most common cause is a legitimate certificate renewal on the remote. It can also indicate an
+expired or otherwise invalid certificate or, if the change is unexpected, a man-in-the-middle
+attack, so confirm the new certificate through a trusted channel before accepting it.
+
+To recover, re-probe the certificate that the remote currently presents and update the stored
+fingerprint:
+
+* In the web interface, open the affected remote and use the **Check Certificate** action. It
+  contacts the node, shows the certificate presented now, and lets you update the pinned
+  fingerprint once you have confirmed the change. If the remote now uses a certificate that the
+  system trust store accepts, you can instead clear the stored fingerprint to rely on that trust.
+* On the command line, inspect the presented certificate with
+  ``proxmox-datacenter-manager-client remote probe-certificate <remote> <node>``, then store the
+  verified value with ``proxmox-datacenter-manager-client remote set-fingerprint <remote> <node>
+  <fingerprint>`` (omit the fingerprint to clear the pin).
+
+The system journal on the Proxmox Datacenter Manager host records additional detail, including the
+fingerprint that the remote presented and the one that was expected.
