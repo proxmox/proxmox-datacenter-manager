@@ -41,6 +41,13 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
     ("shutdown", &Router::new().post(&API_METHOD_QEMU_SHUTDOWN)),
     ("resume", &Router::new().post(&API_METHOD_QEMU_RESUME)),
     (
+        "snapshot",
+        &Router::new()
+            .get(&API_METHOD_QEMU_LIST_SNAPSHOTS)
+            .post(&API_METHOD_QEMU_CREATE_SNAPSHOT)
+            .match_all("snapname", &QEMU_SNAPSHOT_ROUTER)
+    ),
+    (
         "migrate",
         &Router::new()
             .get(&API_METHOD_QEMU_MIGRATE_PRECONDITIONS)
@@ -50,6 +57,21 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
         "remote-migrate",
         &Router::new().post(&API_METHOD_QEMU_REMOTE_MIGRATE)
     ),
+]);
+
+const QEMU_SNAPSHOT_ROUTER: Router = Router::new()
+    .delete(&API_METHOD_QEMU_DELETE_SNAPSHOT)
+    .subdirs(QEMU_SNAPSHOT_SUBDIRS);
+#[sortable]
+const QEMU_SNAPSHOT_SUBDIRS: SubdirMap = &sorted!([
+    (
+        "config",
+        &Router::new().put(&API_METHOD_QEMU_UPDATE_SNAPSHOT_CONFIG)
+    ),
+    (
+        "rollback",
+        &Router::new().post(&API_METHOD_QEMU_ROLLBACK_SNAPSHOT)
+    )
 ]);
 
 #[api(
@@ -339,6 +361,194 @@ pub async fn qemu_resume(
         .await?;
 
     new_remote_upid(remote, upid).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "The list of snapshots, including the current state as 'current'.",
+        items: { type: pve_api_types::QemuSnapshot },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// List the snapshots of a remote qemu vm.
+pub async fn qemu_list_snapshots(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+) -> Result<Vec<pve_api_types::QemuSnapshot>, Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+    Ok(pve.qemu_list_snapshots(&node, vmid).await?)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            description: {
+                type: String,
+                description: "A textual description or comment.",
+                optional: true,
+            },
+            vmstate: {
+                type: bool,
+                description: "Include the VM's RAM state, so the snapshot resumes exactly where it left off.",
+                optional: true,
+            },
+        },
+    },
+    returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
+)]
+/// Create a snapshot of a remote qemu vm.
+pub async fn qemu_create_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    description: Option<String>,
+    vmstate: Option<bool>,
+) -> Result<RemoteUpid, Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+    let params = pve_api_types::CreateQemuSnapshot {
+        snapname,
+        description,
+        vmstate,
+    };
+    let upid = pve.snapshot_qemu(&node, vmid, params).await?;
+    new_remote_upid(remote, upid).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+        },
+    },
+    returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
+)]
+/// Delete a snapshot of a remote qemu vm.
+pub async fn qemu_delete_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+) -> Result<RemoteUpid, Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+    let upid = pve
+        .delete_qemu_snapshot(&node, vmid, &snapname, Default::default())
+        .await?;
+    new_remote_upid(remote, upid).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            start: {
+                type: bool,
+                optional: true,
+                description: "Start the guest after a successful rollback.",
+            },
+        },
+    },
+    returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
+)]
+/// Roll back a remote qemu vm to a snapshot. This is destructive: it reverts the guest's disk and
+/// configuration to that snapshot (and its RAM, if the snapshot includes it). Optionally starts the
+/// guest afterwards.
+pub async fn qemu_rollback_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    start: Option<bool>,
+) -> Result<RemoteUpid, Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+    let params = pve_api_types::RollbackQemuSnapshot { start };
+    let upid = pve
+        .rollback_qemu_snapshot(&node, vmid, &snapname, params)
+        .await?;
+    new_remote_upid(remote, upid).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            description: {
+                type: String,
+                description: "A textual description or comment.",
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
+)]
+/// Update a remote qemu vm snapshot's description. This is synchronous (no worker task).
+pub async fn qemu_update_snapshot_config(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    description: Option<String>,
+) -> Result<(), Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+    let params = pve_api_types::UpdateQemuSnapshotConfig { description };
+    pve.update_qemu_snapshot_config(&node, vmid, &snapname, params)
+        .await?;
+    Ok(())
 }
 
 #[api(

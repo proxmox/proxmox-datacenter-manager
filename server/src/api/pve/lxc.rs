@@ -40,11 +40,33 @@ const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     ("status", &Router::new().get(&API_METHOD_LXC_GET_STATUS)),
     ("stop", &Router::new().post(&API_METHOD_LXC_STOP)),
     ("shutdown", &Router::new().post(&API_METHOD_LXC_SHUTDOWN)),
+    (
+        "snapshot",
+        &Router::new()
+            .get(&API_METHOD_LXC_LIST_SNAPSHOTS)
+            .post(&API_METHOD_LXC_CREATE_SNAPSHOT)
+            .match_all("snapname", &LXC_SNAPSHOT_ROUTER)
+    ),
     ("migrate", &Router::new().post(&API_METHOD_LXC_MIGRATE)),
     (
         "remote-migrate",
         &Router::new().post(&API_METHOD_LXC_REMOTE_MIGRATE)
     ),
+]);
+
+const LXC_SNAPSHOT_ROUTER: Router = Router::new()
+    .delete(&API_METHOD_LXC_DELETE_SNAPSHOT)
+    .subdirs(LXC_SNAPSHOT_SUBDIRS);
+#[sortable]
+const LXC_SNAPSHOT_SUBDIRS: SubdirMap = &sorted!([
+    (
+        "config",
+        &Router::new().put(&API_METHOD_LXC_UPDATE_SNAPSHOT_CONFIG)
+    ),
+    (
+        "rollback",
+        &Router::new().post(&API_METHOD_LXC_ROLLBACK_SNAPSHOT)
+    )
 ]);
 
 #[api(
@@ -235,6 +257,186 @@ pub async fn lxc_start(
     let upid = pve.start_lxc_async(&node, vmid, Default::default()).await?;
 
     new_remote_upid(remote, upid).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "The list of snapshots, including the current state as 'current'.",
+        items: { type: pve_api_types::LxcSnapshot },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// List the snapshots of a remote lxc container.
+pub async fn lxc_list_snapshots(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+) -> Result<Vec<pve_api_types::LxcSnapshot>, Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+    Ok(pve.lxc_list_snapshots(&node, vmid).await?)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            description: {
+                type: String,
+                description: "A textual description or comment.",
+                optional: true,
+            },
+        },
+    },
+    returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
+)]
+/// Create a snapshot of a remote lxc container.
+pub async fn lxc_create_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    description: Option<String>,
+) -> Result<RemoteUpid, Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+    let params = pve_api_types::CreateLxcSnapshot {
+        snapname,
+        description,
+    };
+    let upid = pve.snapshot_lxc(&node, vmid, params).await?;
+    new_remote_upid(remote, upid).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+        },
+    },
+    returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
+)]
+/// Delete a snapshot of a remote lxc container.
+pub async fn lxc_delete_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+) -> Result<RemoteUpid, Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+    let upid = pve
+        .delete_lxc_snapshot(&node, vmid, &snapname, Default::default())
+        .await?;
+    new_remote_upid(remote, upid).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            start: {
+                type: bool,
+                optional: true,
+                description: "Start the container after a successful rollback.",
+            },
+        },
+    },
+    returns: { type: RemoteUpid },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
+)]
+/// Roll back a remote lxc container to a snapshot. This is destructive: it reverts the container's
+/// disk and configuration to that snapshot. Optionally starts the container afterwards.
+pub async fn lxc_rollback_snapshot(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    start: Option<bool>,
+) -> Result<RemoteUpid, Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+    let params = pve_api_types::RollbackLxcSnapshot { start };
+    let upid = pve
+        .rollback_lxc_snapshot(&node, vmid, &snapname, params)
+        .await?;
+    new_remote_upid(remote, upid).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            node: {
+                schema: NODE_SCHEMA,
+                optional: true,
+            },
+            vmid: { schema: VMID_SCHEMA },
+            snapname: { schema: SNAPSHOT_NAME_SCHEMA },
+            description: {
+                type: String,
+                description: "A textual description or comment.",
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_RESOURCE_MANAGE, false),
+    },
+)]
+/// Update a remote lxc container snapshot's description. This is synchronous (no worker task).
+pub async fn lxc_update_snapshot_config(
+    remote: String,
+    node: Option<String>,
+    vmid: u32,
+    snapname: String,
+    description: Option<String>,
+) -> Result<(), Error> {
+    let pve = connect_to_remote_by_id(&remote)?;
+    let node = find_node_for_vm(node, vmid, pve.as_ref()).await?;
+    let params = pve_api_types::UpdateLxcSnapshotConfig { description };
+    pve.update_lxc_snapshot_config(&node, vmid, &snapname, params)
+        .await?;
+    Ok(())
 }
 
 #[api(
