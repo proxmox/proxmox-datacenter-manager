@@ -202,8 +202,7 @@ fn reconcile_unfound(
         let Some(remotes) = member_remotes.get(fsid.as_str()) else {
             continue;
         };
-        let probed: Vec<&ProbeOutcome> =
-            remotes.iter().filter_map(|r| outcomes.get(*r)).collect();
+        let probed: Vec<&ProbeOutcome> = remotes.iter().filter_map(|r| outcomes.get(*r)).collect();
         if probed.is_empty() {
             continue; // no coverage for this cluster this cycle
         }
@@ -276,23 +275,20 @@ fn upsert_cluster(
 
     let mut changed = false;
     {
-        let cluster = config
-            .clusters
-            .entry(fsid.to_string())
-            .or_insert_with(|| {
-                changed = true;
-                CephCluster {
-                    id: fsid.to_string(),
-                    display_name: None,
-                    public_network: None,
-                    cluster_network: None,
-                    stretch_mode: None,
-                    tiebreaker_mon: None,
-                    state: None,
-                    last_seen_missing: None,
-                    forgotten: None,
-                }
-            });
+        let cluster = config.clusters.entry(fsid.to_string()).or_insert_with(|| {
+            changed = true;
+            CephCluster {
+                id: fsid.to_string(),
+                display_name: None,
+                public_network: None,
+                cluster_network: None,
+                stretch_mode: None,
+                tiebreaker_mon: None,
+                state: None,
+                last_seen_missing: None,
+                forgotten: None,
+            }
+        });
         if cluster.state != Some(CephClusterState::Detected) || cluster.last_seen_missing.is_some()
         {
             cluster.state = Some(CephClusterState::Detected);
@@ -344,10 +340,7 @@ mod tests {
         assert!(upsert_cluster(&mut cfg, FSID, &members()));
         assert_eq!(cfg.clusters.len(), 1);
         assert_eq!(cfg.members.len(), 2);
-        assert_eq!(
-            cfg.clusters[FSID].state,
-            Some(CephClusterState::Detected)
-        );
+        assert_eq!(cfg.clusters[FSID].state, Some(CephClusterState::Detected));
         // Second run with the same input changes nothing.
         assert!(!upsert_cluster(&mut cfg, FSID, &members()));
         assert_eq!(cfg.members.len(), 2);
@@ -395,7 +388,12 @@ mod tests {
     fn reconcile_marks_gone_when_all_member_remotes_reachable() {
         let mut cfg = detected_cfg();
         let outcomes = outcome_map(vec![("pve-east", ProbeOutcome::Reachable)]);
-        assert!(reconcile_unfound(&mut cfg, &BTreeMap::new(), &outcomes, NOW));
+        assert!(reconcile_unfound(
+            &mut cfg,
+            &BTreeMap::new(),
+            &outcomes,
+            NOW
+        ));
         assert_eq!(cfg.clusters[FSID].state, Some(CephClusterState::Gone));
         assert_eq!(cfg.clusters[FSID].last_seen_missing, Some(NOW));
     }
@@ -404,8 +402,16 @@ mod tests {
     fn reconcile_marks_unreachable_and_leaves_last_seen() {
         let mut cfg = detected_cfg();
         let outcomes = outcome_map(vec![("pve-east", ProbeOutcome::Unreachable)]);
-        assert!(reconcile_unfound(&mut cfg, &BTreeMap::new(), &outcomes, NOW));
-        assert_eq!(cfg.clusters[FSID].state, Some(CephClusterState::Unreachable));
+        assert!(reconcile_unfound(
+            &mut cfg,
+            &BTreeMap::new(),
+            &outcomes,
+            NOW
+        ));
+        assert_eq!(
+            cfg.clusters[FSID].state,
+            Some(CephClusterState::Unreachable)
+        );
         assert_eq!(cfg.clusters[FSID].last_seen_missing, None);
     }
 
@@ -414,7 +420,12 @@ mod tests {
         let mut cfg = detected_cfg();
         // Only an unrelated remote was probed: no signal for this cluster.
         let outcomes = outcome_map(vec![("pve-west", ProbeOutcome::Reachable)]);
-        assert!(!reconcile_unfound(&mut cfg, &BTreeMap::new(), &outcomes, NOW));
+        assert!(!reconcile_unfound(
+            &mut cfg,
+            &BTreeMap::new(),
+            &outcomes,
+            NOW
+        ));
         assert_eq!(cfg.clusters[FSID].state, Some(CephClusterState::Detected));
     }
 
@@ -433,7 +444,12 @@ mod tests {
         let mut cfg = detected_cfg();
         cfg.clusters.get_mut(FSID).unwrap().forgotten = Some(NOW);
         let outcomes = outcome_map(vec![("pve-east", ProbeOutcome::Reachable)]);
-        assert!(!reconcile_unfound(&mut cfg, &BTreeMap::new(), &outcomes, NOW));
+        assert!(!reconcile_unfound(
+            &mut cfg,
+            &BTreeMap::new(),
+            &outcomes,
+            NOW
+        ));
         assert_eq!(cfg.clusters[FSID].state, Some(CephClusterState::Detected));
     }
 
@@ -441,10 +457,20 @@ mod tests {
     fn reconcile_gone_does_not_restamp_last_seen() {
         let mut cfg = detected_cfg();
         let outcomes = outcome_map(vec![("pve-east", ProbeOutcome::Reachable)]);
-        assert!(reconcile_unfound(&mut cfg, &BTreeMap::new(), &outcomes, NOW));
+        assert!(reconcile_unfound(
+            &mut cfg,
+            &BTreeMap::new(),
+            &outcomes,
+            NOW
+        ));
         // A second cycle while still gone changes nothing and keeps the original
         // last_seen_missing timestamp.
-        assert!(!reconcile_unfound(&mut cfg, &BTreeMap::new(), &outcomes, NOW + 500));
+        assert!(!reconcile_unfound(
+            &mut cfg,
+            &BTreeMap::new(),
+            &outcomes,
+            NOW + 500
+        ));
         assert_eq!(cfg.clusters[FSID].last_seen_missing, Some(NOW));
     }
 }

@@ -95,7 +95,12 @@ pub fn summarize_status(fsid: &str, raw: &Value) -> CephClusterStatus {
         .unwrap_or_default();
 
     let pgmap = raw.get("pgmap");
-    let pg = |key: &str| pgmap.and_then(|p| p.get(key)).and_then(value_i64).unwrap_or(0);
+    let pg = |key: &str| {
+        pgmap
+            .and_then(|p| p.get(key))
+            .and_then(value_i64)
+            .unwrap_or(0)
+    };
     let pg_opt = |key: &str| pgmap.and_then(|p| p.get(key)).and_then(value_i64);
     let pg_f = |key: &str| pgmap.and_then(|p| p.get(key)).and_then(|v| v.as_f64());
 
@@ -119,7 +124,12 @@ pub fn summarize_status(fsid: &str, raw: &Value) -> CephClusterStatus {
     // OSD counts are flat under `osdmap` in current Ceph but nested under
     // `osdmap.osdmap` in older releases; accept either.
     let osdmap = raw.get("osdmap").map(|o| o.get("osdmap").unwrap_or(o));
-    let osd = |key: &str| osdmap.and_then(|o| o.get(key)).and_then(value_i64).unwrap_or(0);
+    let osd = |key: &str| {
+        osdmap
+            .and_then(|o| o.get(key))
+            .and_then(value_i64)
+            .unwrap_or(0)
+    };
 
     // `num_mons` is absent in current Ceph `status` output; fall back to the
     // length of the `mons` array (the actual monitor list).
@@ -224,16 +234,22 @@ mod tests {
         assert_eq!(s.checks.len(), 1);
         assert_eq!(s.checks[0].code, "OSD_DOWN");
         assert_eq!(s.checks[0].summary, "1 osds down");
-        assert_eq!((s.bytes_used, s.bytes_total, s.bytes_avail), (1000, 4000, 3000));
+        assert_eq!(
+            (s.bytes_used, s.bytes_total, s.bytes_avail),
+            (1000, 4000, 3000)
+        );
         assert_eq!((s.osds_total, s.osds_up, s.osds_in), (6, 5, 6));
         assert_eq!((s.mons_total, s.mons_in_quorum), (3, 3));
         assert_eq!(s.mgr_active.as_deref(), Some("mgr-a"));
         assert_eq!(s.mgr_standbys, vec!["mgr-b".to_string()]);
         assert_eq!(s.num_pgs, 256);
-        assert_eq!(s.pgs_by_state, vec![pdm_api_types::ceph::CephPgStateGroup {
-            state_name: "active+clean".to_string(),
-            count: 256,
-        }]);
+        assert_eq!(
+            s.pgs_by_state,
+            vec![pdm_api_types::ceph::CephPgStateGroup {
+                state_name: "active+clean".to_string(),
+                count: 256,
+            }]
+        );
         assert_eq!(s.client_read_bytes_sec, Some(1024));
     }
 
