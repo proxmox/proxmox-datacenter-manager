@@ -18,6 +18,9 @@ pub use node_url_list::NodeUrlList;
 
 mod edit_remote;
 
+mod cert_check_window;
+pub use cert_check_window::RemoteCertCheck;
+
 mod config;
 pub use config::{create_remote, RemoteConfigPanel};
 

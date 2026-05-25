@@ -8,6 +8,7 @@ use proxmox_schema::property_string::PropertyString;
 
 use crate::remotes::edit_remote::EditRemote;
 use crate::remotes::remove_remote::RemoveRemote;
+use crate::remotes::RemoteCertCheck;
 //use pwt::widget::form::{Field, FormContext, InputType};
 
 use pdm_api_types::remotes::Remote;
@@ -105,6 +106,7 @@ pub enum ViewState {
     Add(RemoteType),
     Edit,
     Remove,
+    CheckCertificate,
 }
 
 pub enum Msg {
@@ -214,6 +216,11 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                     .disabled(disabled)
                     .on_activate(link.change_view_callback(|_| Some(ViewState::Remove))),
             )
+            .with_child(
+                Button::new(tr!("Check Certificate"))
+                    .disabled(disabled)
+                    .on_activate(link.change_view_callback(|_| Some(ViewState::CheckCertificate))),
+            )
             .with_flex_spacer()
             .with_child({
                 let loading = self.loading();
@@ -248,6 +255,17 @@ impl LoadableComponent for PbsRemoteConfigPanel {
                 .selected_key()
                 .map(|key| self.create_edit_dialog(ctx, key)),
             ViewState::Remove => Some(self.create_remove_remote_dialog(ctx)),
+            ViewState::CheckCertificate => self.selection.selected_key().and_then(|key| {
+                self.store
+                    .read()
+                    .lookup_record(&key)
+                    .cloned()
+                    .map(|remote| {
+                        RemoteCertCheck::new(remote)
+                            .on_close(ctx.link().change_view_callback(|_| None))
+                            .into()
+                    })
+            }),
         }
     }
 }
