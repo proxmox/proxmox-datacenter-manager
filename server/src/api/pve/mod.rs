@@ -75,6 +75,7 @@ const REMOTE_SUBDIRS: SubdirMap = &sorted!([
     ("options", &OPTIONS_ROUTER),
     ("qemu", &qemu::ROUTER),
     ("resources", &RESOURCES_ROUTER),
+    ("cluster-nextid", &NEXTID_ROUTER),
     ("cluster-status", &STATUS_ROUTER),
     ("tasks", &tasks::ROUTER),
     ("updates", &Router::new().get(&API_METHOD_GET_UPDATES)),
@@ -87,6 +88,8 @@ const NODES_ROUTER: Router = Router::new()
 const RESOURCES_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_RESOURCES);
 
 const STATUS_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_STATUS);
+
+const NEXTID_ROUTER: Router = Router::new().get(&API_METHOD_CLUSTER_NEXTID);
 
 const OPTIONS_ROUTER: Router = Router::new().get(&API_METHOD_GET_OPTIONS);
 
@@ -249,6 +252,30 @@ pub async fn cluster_status(
     let client = connection::make_pve_client_with_endpoint(remote, target_endpoint.as_deref())?;
     let status = client.cluster_status().await?;
     Ok(status)
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            "target-endpoint": {
+                type: String,
+                optional: true,
+                description: "The target endpoint to use for the connection.",
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get the next free VMID on the (target) cluster, e.g. to prefill a migration target VMID.
+pub async fn cluster_nextid(remote: String, target_endpoint: Option<String>) -> Result<u32, Error> {
+    let (remotes, _) = pdm_config::remotes::config()?;
+    let remote = get_remote(&remotes, &remote)?;
+    let client = connection::make_pve_client_with_endpoint(remote, target_endpoint.as_deref())?;
+    // VmId deserializes tolerantly from PVE's integer or its string-wrapped form.
+    Ok(client.cluster_nextid(None).await?.into())
 }
 
 fn map_pve_resource(remote: &str, resource: pve_api_types::ClusterResource) -> Option<PveResource> {
