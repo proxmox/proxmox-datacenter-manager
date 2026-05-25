@@ -363,7 +363,6 @@ async fn delete_key(
         let _lock = pdm_config::subscriptions::lock_config()?;
         let (mut config, config_digest) = pdm_config::subscriptions::config()?;
         config_digest.detect_modification(digest.as_ref())?;
-        let mut shadow = pdm_config::subscriptions::shadow_config()?;
 
         let Some(entry) = config.get(&key) else {
             return Err(key_not_found(&key));
@@ -401,13 +400,25 @@ async fn delete_key(
         }
 
         config.remove(&key);
-        shadow.remove(&key);
-        // Save main config first: an interrupted remove must not leave a `key` entry whose
-        // signed blob is gone (other readers would see the entry and try to consult the
-        // missing shadow). A stale shadow blob with no main entry is benign - readers do not
-        // consult it.
+        // Save the authoritative pool config first: an interrupted remove must not leave a `key`
+        // entry whose signed blob is gone. A stale shadow blob with no main entry is benign, as
+        // readers do not consult it.
         let new_digest = pdm_config::subscriptions::save_config(&config)?;
-        pdm_config::subscriptions::save_shadow(&shadow)?;
+        // Best-effort shadow cleanup. The shadow only caches signed info, so a corrupt or
+        // otherwise unparseable shadow must not block removing the key from the pool: drop the
+        // cached blob when the shadow loads, and leave the orphan entry behind otherwise.
+        match pdm_config::subscriptions::shadow_config() {
+            Ok(mut shadow) => {
+                shadow.remove(&key);
+                if let Err(err) = pdm_config::subscriptions::save_shadow(&shadow) {
+                    warn!("key '{key}' removed from pool, but updating its shadow failed: {err}");
+                }
+            }
+            Err(err) => warn!(
+                "key '{key}' removed from pool, but its shadow could not be read to drop the \
+                 cached info: {err}"
+            ),
+        }
         Ok(new_digest)
     })
     .await??;
