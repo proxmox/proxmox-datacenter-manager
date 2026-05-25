@@ -3,9 +3,9 @@
 //! Provides a single filterable view over the guests of every remote PDM
 //! manages, reusing the cached `/resources/list` aggregation. It can be shown as
 //! a flat sortable table or as a tree grouped by remote, and offers the common
-//! life-cycle actions (start, shutdown, migrate) plus a deep link into the
-//! originating remote's web UI. It is currently surfaced as a tab in the
-//! Remotes view.
+//! life-cycle actions (start, shutdown, migrate), snapshot management, plus a
+//! deep link into the originating remote's web UI. It is currently surfaced as a
+//! tab in the Remotes view.
 
 use std::collections::BTreeMap;
 use std::future::Future;
@@ -44,7 +44,10 @@ use pdm_api_types::RemoteUpid;
 use crate::pve::utils::{guest_is_live, guest_status_label, render_guest_tags};
 use crate::pve::{GuestInfo, GuestType};
 use crate::renderer::{render_resource_name, render_status_icon, render_tree_column};
-use crate::{get_deep_url, get_resource_node, widget::MigrateWindow};
+use crate::{
+    get_deep_url, get_resource_node,
+    widget::{MigrateWindow, SnapshotWindow},
+};
 
 /// Auto-reload interval for the cross-remote resource list.
 const RELOAD_INTERVAL_MS: u32 = 10_000;
@@ -198,6 +201,7 @@ pub enum Action {
 pub enum ViewState {
     Confirm(Action, Key),
     Migrate(String, GuestInfo),
+    Snapshots(String, GuestInfo),
 }
 
 pub enum Msg {
@@ -570,6 +574,11 @@ impl LoadableComponent for GuestPanelComp {
                     })
                     .into(),
             ),
+            ViewState::Snapshots(remote, guest_info) => Some(
+                SnapshotWindow::new(remote.clone(), *guest_info)
+                    .on_close(ctx.link().change_view_callback(|_| None))
+                    .into(),
+            ),
         }
     }
 
@@ -728,7 +737,7 @@ fn guest_actions(link: &LoadableComponentScope<GuestPanelComp>, entry: &GuestEnt
                 ActionIcon::new("fa fa-fw fa-power-off")
                     .disabled(disabled)
                     .class((!disabled).then_some(ColorScheme::Error))
-                    .attribute("aria-label", AttrValue::from(tr!("Shutdown")))
+                    .aria_label(tr!("Shutdown"))
                     .on_activate({
                         let link = link.clone();
                         let key = key.clone();
@@ -755,7 +764,7 @@ fn guest_actions(link: &LoadableComponentScope<GuestPanelComp>, entry: &GuestEnt
                 ActionIcon::new("fa fa-fw fa-play")
                     .disabled(disabled)
                     .class((!disabled).then_some(scheme))
-                    .attribute("aria-label", AttrValue::from(label.clone()))
+                    .aria_label(label.clone())
                     .on_activate({
                         let link = link.clone();
                         let key = key.clone();
@@ -766,11 +775,26 @@ fn guest_actions(link: &LoadableComponentScope<GuestPanelComp>, entry: &GuestEnt
             )
             .tip(label)
         }))
+        .with_child({
+            // Templates keep their existing snapshots; listing is always useful.
+            let remote = remote.clone();
+            Tooltip::new(
+                ActionIcon::new("fa fa-fw fa-history")
+                    .aria_label(tr!("Snapshots"))
+                    .on_activate({
+                        let link = link.clone();
+                        move |_| {
+                            link.change_view(Some(ViewState::Snapshots(remote.clone(), guest_info)))
+                        }
+                    }),
+            )
+            .tip(tr!("Snapshots"))
+        })
         .with_optional_child((!template).then(|| {
             let remote = remote.clone();
             Tooltip::new(
                 ActionIcon::new("fa fa-fw fa-paper-plane-o")
-                    .attribute("aria-label", AttrValue::from(tr!("Migrate")))
+                    .aria_label(tr!("Migrate"))
                     .on_activate({
                         let link = link.clone();
                         move |_| {
@@ -783,7 +807,7 @@ fn guest_actions(link: &LoadableComponentScope<GuestPanelComp>, entry: &GuestEnt
         .with_child(
             Tooltip::new(
                 ActionIcon::new("fa fa-fw fa-external-link")
-                    .attribute("aria-label", AttrValue::from(tr!("Open in PVE UI")))
+                    .aria_label(tr!("Open in PVE UI"))
                     .on_activate({
                         let link = link.clone();
                         move |_| {
@@ -854,7 +878,7 @@ fn flat_columns(
             .render(|entry: &GuestEntry| uptime_html(entry))
             .into(),
         DataTableColumn::new(tr!("Actions"))
-            .width("180px")
+            .width("210px")
             .render(move |entry: &GuestEntry| guest_actions(&link, entry))
             .into(),
     ])
@@ -926,7 +950,7 @@ fn tree_columns(
             })
             .into(),
         DataTableColumn::new(tr!("Actions"))
-            .width("180px")
+            .width("210px")
             .render(move |node: &GuestTreeNode| match node {
                 GuestTreeNode::Guest(entry) => guest_actions(&link, entry),
                 _ => html! {},

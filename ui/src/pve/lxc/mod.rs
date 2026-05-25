@@ -17,7 +17,9 @@ use pwt_macros::builder;
 use pdm_api_types::resource::PveLxcResource;
 
 use crate::pve::utils::render_lxc_name;
+use crate::pve::{GuestInfo, GuestType};
 use crate::renderer::render_title_row;
+use crate::widget::SnapshotWindow;
 
 #[derive(Clone, Debug, Properties, PartialEq)]
 #[builder]
@@ -161,6 +163,27 @@ impl yew::Component for LxcPanelComp {
                                     ),
                             )
                             .into()
+                    }
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("snapshots")
+                    .label(tr!("Snapshots"))
+                    .icon_class("fa fa-history"),
+                {
+                    let remote = props.remote.clone();
+                    let vmid = props.info.vmid;
+                    move |_| {
+                        SnapshotWindow::new(
+                            remote.clone(),
+                            GuestInfo {
+                                guest_type: GuestType::Lxc,
+                                vmid,
+                            },
+                        )
+                        .embedded(true)
+                        .into()
                     }
                 },
             )
