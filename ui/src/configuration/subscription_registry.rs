@@ -15,7 +15,10 @@ use proxmox_yew_comp::{
     LoadableComponentScopeExt, LoadableComponentState,
 };
 
-use pwt::css::{AlignItems, Flex, FlexDirection, FlexFit, FontColor, JustifyContent, Overflow};
+use pwt::css::{
+    AlignItems, ColorScheme, Display, Flex, FlexDirection, FlexFit, FontColor, JustifyContent,
+    Overflow,
+};
 use pwt::prelude::*;
 use pwt::props::{ContainerBuilder, ExtractPrimaryKey, WidgetBuilder};
 use pwt::state::{Selection, SlabTree, Store, TreeStore};
@@ -23,7 +26,7 @@ use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader, Multi
 use pwt::widget::form::{Combobox, Field};
 use pwt::widget::menu::{Menu, MenuButton, MenuItem};
 use pwt::widget::{
-    Button, Column, Container, Fa, Mask, Panel, Row, SegmentedButton, Toolbar, Tooltip,
+    Button, Column, Container, Fa, Mask, Panel, Row, SegmentedButton, Toolbar, Tooltip, Trigger,
 };
 
 use pdm_api_types::subscription::{
@@ -1168,14 +1171,20 @@ impl LoadableComponent for SubscriptionRegistryComp {
                             let digest = digest_for_cb.clone();
                             link.clone().spawn(async move {
                                 let digest = digest.map(pdm_client::ConfigDigest::from);
-                                if let Err(err) = crate::pdm_client()
+                                // Reload only on success; on error keep the dialog's error visible
+                                // (a trailing change_view(None) would dismiss it immediately).
+                                match crate::pdm_client()
                                     .subscription_adopt_key(&remote, &node, digest)
                                     .await
                                 {
-                                    link.show_error(tr!("Adopt Key"), err.to_string(), true);
+                                    Ok(_) => {
+                                        link.change_view(None);
+                                        link.send_reload();
+                                    }
+                                    Err(err) => {
+                                        link.show_error(tr!("Adopt Key"), err.to_string(), true)
+                                    }
                                 }
-                                link.change_view(None);
-                                link.send_reload();
                             });
                         })
                         .on_close(move |_| close_link.change_view(None))
@@ -1223,14 +1232,20 @@ impl LoadableComponent for SubscriptionRegistryComp {
                             let digest = digest_for_cb.clone();
                             link.clone().spawn(async move {
                                 let digest = digest.map(pdm_client::ConfigDigest::from);
-                                if let Err(err) = crate::pdm_client()
+                                // Reload only on success; on error keep the dialog's error visible
+                                // (a trailing change_view(None) would dismiss it immediately).
+                                match crate::pdm_client()
                                     .subscription_queue_clear(&remote, &node, digest)
                                     .await
                                 {
-                                    link.show_error(tr!("Clear Key"), err.to_string(), true);
+                                    Ok(_) => {
+                                        link.change_view(None);
+                                        link.send_reload();
+                                    }
+                                    Err(err) => {
+                                        link.show_error(tr!("Clear Key"), err.to_string(), true)
+                                    }
                                 }
-                                link.change_view(None);
-                                link.send_reload();
                             });
                         })
                         .on_close(move |_| close_link.change_view(None))
@@ -1385,14 +1400,14 @@ impl SubscriptionRegistryComp {
             .menu(
                 Menu::new()
                     .with_item(
+                        // No per-item icons: the menu button already carries the adopt glyph, and
+                        // both scopes would otherwise share the same icon to no effect.
                         MenuItem::new(tr!("Adopt Key"))
-                            .icon_class("fa fa-download")
                             .disabled(!can_adopt_key)
                             .on_select(ctx.link().callback(|_| Msg::AdoptKeyForSelectedNode)),
                     )
                     .with_item(
                         MenuItem::new(tr!("Adopt All"))
-                            .icon_class("fa fa-download")
                             .disabled(adopt_all_count == 0)
                             .on_select(ctx.link().callback(|_| Msg::AdoptAllPreview)),
                     ),
@@ -1434,12 +1449,9 @@ impl SubscriptionRegistryComp {
         let filter_active =
             !self.node_text_filter.trim().is_empty() || !self.node_status_filter.is_empty();
         let filter_button = Tooltip::new(
-            Button::new_icon(if self.filter_expanded || filter_active {
-                "fa fa-filter pwt-color-primary"
-            } else {
-                "fa fa-filter"
-            })
-            .on_activate(ctx.link().callback(|_| Msg::ToggleFilterPanel)),
+            Button::new_icon("fa fa-filter")
+                .class((self.filter_expanded || filter_active).then_some(FontColor::Primary))
+                .on_activate(ctx.link().callback(|_| Msg::ToggleFilterPanel)),
         )
         .tip(tr!(
             "Filter the node list by status or by remote and node name."
@@ -1468,44 +1480,61 @@ impl SubscriptionRegistryComp {
             .with_spacer()
             .with_child(filter_button);
 
-        // Collapsible filter row: a free-text remote/node field plus a multi-select segmented
-        // status filter (the "All" segment clears it). Mirrors the task-view filter pattern.
-        let filter_panel = self.filter_expanded.then(|| {
-            let statuses = &self.node_status_filter;
-            let pressed = "pwt-scheme-secondary-container";
-            let mut status_filter = SegmentedButton::new()
-                .class("pwt-button-elevated")
-                .with_button(
-                    Button::new(tr!("All"))
-                        .pressed(statuses.is_empty())
-                        .class(statuses.is_empty().then_some(pressed))
-                        .on_activate(ctx.link().callback(|_| Msg::ClearStatusFilter)),
-                );
-            for status in all_node_statuses() {
-                let active = statuses.contains(&status);
-                status_filter = status_filter.with_button(
-                    Button::new(subscription_status_label(status))
-                        .pressed(active)
-                        .class(active.then_some(pressed))
+        // Collapsible filter row, CSS-hidden when closed so the field keeps focus and state across
+        // toggles (the task-view filter idiom): a free-text remote/node field plus a multi-select
+        // segmented status filter whose "All" segment clears it.
+        let statuses = &self.node_status_filter;
+        let mut status_filter = SegmentedButton::new()
+            .class("pwt-button-elevated")
+            .with_button(
+                Button::new(tr!("All"))
+                    .pressed(statuses.is_empty())
+                    .class(
+                        statuses
+                            .is_empty()
+                            .then_some(ColorScheme::SecondaryContainer),
+                    )
+                    .on_activate(ctx.link().callback(|_| Msg::ClearStatusFilter)),
+            );
+        for status in all_node_statuses() {
+            let active = statuses.contains(&status);
+            status_filter = status_filter.with_button(
+                Button::new(subscription_status_label(status))
+                    .pressed(active)
+                    .class(active.then_some(ColorScheme::SecondaryContainer))
+                    .on_activate(
+                        ctx.link()
+                            .callback(move |_| Msg::ToggleStatusFilter(status)),
+                    ),
+            );
+        }
+        let filter_panel = Row::new()
+            .border_bottom(true)
+            .class(AlignItems::Center)
+            .class((!self.filter_expanded).then_some(Display::None))
+            .padding(2)
+            .gap(2)
+            .with_child(
+                Field::new()
+                    .placeholder(tr!("Filter by remote or node"))
+                    .attribute("aria-label", tr!("Filter nodes by remote or node name"))
+                    .value(self.node_text_filter.clone())
+                    .with_trigger(
+                        Trigger::new(if self.node_text_filter.is_empty() {
+                            ""
+                        } else {
+                            "fa fa-times"
+                        })
+                        .tip(tr!("Clear filter"))
                         .on_activate(
                             ctx.link()
-                                .callback(move |_| Msg::ToggleStatusFilter(status)),
+                                .callback(|_| Msg::SetNodeFilterText(String::new())),
                         ),
-                );
-            }
-            Row::new()
-                .class("pwt-border-bottom")
-                .class(AlignItems::Center)
-                .padding(2)
-                .gap(2)
-                .with_child(
-                    Field::new()
-                        .placeholder(tr!("Filter by remote or node"))
-                        .value(self.node_text_filter.clone())
-                        .on_input(ctx.link().callback(Msg::SetNodeFilterText)),
-                )
-                .with_child(status_filter)
-        });
+                        true,
+                    )
+                    .on_input(ctx.link().callback(Msg::SetNodeFilterText)),
+            )
+            .with_child(status_filter);
 
         Panel::new()
             .class(FlexFit)
@@ -1518,7 +1547,7 @@ impl SubscriptionRegistryComp {
                 Column::new()
                     .class(FlexFit)
                     .with_child(toolbar)
-                    .with_optional_child(filter_panel)
+                    .with_child(filter_panel)
                     .with_child(table),
             )
     }
@@ -1795,13 +1824,17 @@ impl SubscriptionRegistryComp {
                         let digest = digest.clone();
                         link.clone().spawn(async move {
                             let digest = digest.map(pdm_client::ConfigDigest::from);
-                            if let Err(err) =
-                                crate::pdm_client().subscription_adopt_all(digest).await
-                            {
-                                link.show_error(tr!("Adopt All"), err.to_string(), true);
+                            // Reload only on success; on error keep the dialog's error visible
+                            // (a trailing change_view(None) would dismiss it immediately).
+                            match crate::pdm_client().subscription_adopt_all(digest).await {
+                                Ok(_) => {
+                                    link.change_view(None);
+                                    link.send_reload();
+                                }
+                                Err(err) => {
+                                    link.show_error(tr!("Adopt All"), err.to_string(), true)
+                                }
                             }
-                            link.change_view(None);
-                            link.send_reload();
                         });
                     })),
             );
