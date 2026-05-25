@@ -68,6 +68,10 @@ pub enum Msg {
     Result(RemoteUpid),
     LoadPreconditions(Option<AttrValue>),
     PreconditionResult(Result<QemuMigratePreconditions, proxmox_client::Error>),
+    /// The target cluster's next free VMID, fetched after picking an external target remote.
+    NextidResult(Option<u32>),
+    /// Records the VMID just auto-seeded into the field, to tell a prefill from a manual edit.
+    Seeded(u32),
 }
 
 pub struct PdmMigrateWindow {
@@ -75,6 +79,10 @@ pub struct PdmMigrateWindow {
     _async_pool: AsyncPool,
     preconditions: Option<QemuMigratePreconditions>,
     target_node: Option<AttrValue>,
+    /// Next free VMID on the (external) target cluster, used to prefill the target VMID field.
+    target_nextid: Option<u32>,
+    /// The VMID last auto-seeded into the field; distinguishes a prefill from a manual override.
+    last_seeded: Option<u32>,
 }
 
 impl PdmMigrateWindow {
@@ -290,6 +298,8 @@ impl PdmMigrateWindow {
         Ok(())
     }
 
+    // a render helper that legitimately threads many display/form inputs
+    #[allow(clippy::too_many_arguments)]
     fn input_panel(
         link: &yew::html::Scope<Self>,
         form_ctx: &FormContext,
@@ -298,11 +308,27 @@ impl PdmMigrateWindow {
         guest_info: GuestInfo,
         preconditions: Option<QemuMigratePreconditions>,
         target_node: Option<AttrValue>,
+        target_nextid: Option<u32>,
+        last_seeded: Option<u32>,
     ) -> Html {
         let same_remote = target_remote == source_remote;
         if !same_remote {
             let node = target_node.unwrap_or_default().to_string();
             form_ctx.write().set_field_value("node", node.into());
+            // Prefill the target VMID with the target cluster's next free id. Reseed while the
+            // field is empty or still holds the previously auto-seeded id (so switching targets
+            // updates it), but leave a manual override untouched.
+            if let Some(nextid) = target_nextid {
+                let current = form_ctx.read().get_field_text("target-vmid");
+                let unedited =
+                    current.is_empty() || last_seeded.is_some_and(|s| current == s.to_string());
+                if unedited && current != nextid.to_string() {
+                    form_ctx
+                        .write()
+                        .set_field_value("target-vmid", nextid.into());
+                    link.send_message(Msg::Seeded(nextid));
+                }
+            }
         }
         let detail_mode = form_ctx.read().get_field_checked("detailed-mode");
         let mut uses_local_disks = false;
@@ -512,6 +538,8 @@ impl Component for PdmMigrateWindow {
             _async_pool: AsyncPool::new(),
             preconditions: None,
             target_node: None,
+            target_nextid: None,
+            last_seeded: None,
         }
     }
 
@@ -520,7 +548,22 @@ impl Component for PdmMigrateWindow {
         match msg {
             Msg::RemoteChange(remote) => {
                 let changed = self.target_remote != remote;
-                self.target_remote = remote.into();
+                self.target_remote = remote.clone().into();
+                if changed {
+                    // stale until refetched; only external migrations get a prefilled VMID
+                    self.target_nextid = None;
+                    if remote != props.remote.as_str() {
+                        self._async_pool
+                            .send_future(ctx.link().clone(), async move {
+                                // endpoint-agnostic: nextid is cluster-wide
+                                let res = crate::pdm_client()
+                                    .pve_cluster_nextid(&remote, None)
+                                    .await
+                                    .ok();
+                                Msg::NextidResult(res)
+                            });
+                    }
+                }
                 changed
             }
             Msg::Result(remote_upid) => {
@@ -562,6 +605,14 @@ impl Component for PdmMigrateWindow {
                     });
                 false
             }
+            Msg::NextidResult(nextid) => {
+                self.target_nextid = nextid;
+                nextid.is_some()
+            }
+            Msg::Seeded(id) => {
+                self.last_seeded = Some(id);
+                false
+            }
             Msg::NodenameResult(result) => match result {
                 Ok(nodename) => {
                     self.target_node = Some(nodename.into());
@@ -597,6 +648,8 @@ impl Component for PdmMigrateWindow {
                 let link = ctx.link().clone();
                 let preconditions = self.preconditions.clone();
                 let target_node = self.target_node.clone();
+                let target_nextid = self.target_nextid;
+                let last_seeded = self.last_seeded;
                 move |form| {
                     Self::input_panel(
                         &link,
@@ -606,6 +659,8 @@ impl Component for PdmMigrateWindow {
                         guest_info,
                         preconditions.clone(),
                         target_node.clone(),
+                        target_nextid,
+                        last_seeded,
                     )
                 }
             })
