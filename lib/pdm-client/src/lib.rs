@@ -610,6 +610,18 @@ impl<T: HttpApiClient> PdmClient<T> {
         Ok(self.0.get(&query).await?.expect_json()?.data)
     }
 
+    /// Get the next free VMID on a (possibly remote/external) cluster.
+    pub async fn pve_cluster_nextid(
+        &self,
+        remote: &str,
+        target_endpoint: Option<&str>,
+    ) -> Result<u32, Error> {
+        let query = ApiPathBuilder::new(format!("/api2/extjs/pve/remotes/{remote}/cluster-nextid"))
+            .maybe_arg("target-endpoint", &target_endpoint)
+            .build();
+        Ok(self.0.get(&query).await?.expect_json()?.data)
+    }
+
     pub async fn pve_list_qemu(
         &self,
         remote: &str,
