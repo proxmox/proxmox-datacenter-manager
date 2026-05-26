@@ -171,6 +171,22 @@ pub fn render_global_options_form(
                     }
                 })
                 .value(config.country.clone())
+                .filter(|item: &AttrValue, query: &str| {
+                    let query = query.to_string().to_lowercase();
+                    let item = item.to_string();
+
+                    // match by country code
+                    if item.starts_with(&query) {
+                        return true;
+                    }
+
+                    // match by country (common) name
+                    if let Some(name) = COUNTRY_INFO.deref().get(&item) {
+                        return name.to_lowercase().contains(&query);
+                    }
+
+                    false
+                })
                 .autoselect_filter(true)
                 .required(true),
         )
