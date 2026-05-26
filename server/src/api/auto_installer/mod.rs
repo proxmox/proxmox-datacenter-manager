@@ -4,6 +4,7 @@ use anyhow::{anyhow, Context, Result};
 use http::StatusCode;
 use std::collections::{BTreeMap, HashMap};
 
+use pdm_api_types::PROXMOX_TOKEN_NAME_SCHEMA;
 use pdm_api_types::{
     auto_installer::{
         AnswerToken, AnswerTokenCreateResult, AnswerTokenUpdateResult, AnswerTokenUpdater,
@@ -870,8 +871,7 @@ async fn list_tokens(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<AnswerToken>
     input: {
         properties: {
             id: {
-                type: String,
-                description: "Token ID.",
+                schema: PROXMOX_TOKEN_NAME_SCHEMA,
             },
             comment: {
                 schema: COMMENT_SCHEMA,
@@ -939,8 +939,7 @@ fn create_token(
     input: {
         properties: {
             id: {
-                type: String,
-                description: "Token ID.",
+                schema: PROXMOX_TOKEN_NAME_SCHEMA,
             },
             update: {
                 type: AnswerTokenUpdater,
@@ -1047,8 +1046,7 @@ async fn update_token(
     input: {
         properties: {
             id: {
-                type: String,
-                description: "Token ID.",
+                schema: PROXMOX_TOKEN_NAME_SCHEMA,
             },
         },
     },
