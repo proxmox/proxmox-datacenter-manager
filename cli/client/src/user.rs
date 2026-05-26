@@ -412,7 +412,7 @@ fn perform_fido_creation(
     let libfido = proxmox_fido2::Lib::open()?;
 
     'device: for dev_info in libfido.list_devices(None)? {
-        log::debug!(
+        println!(
             "opening FIDO2 device {manufacturer:?} {product:?} at {path:?}",
             manufacturer = dev_info.manufacturer,
             product = dev_info.product,

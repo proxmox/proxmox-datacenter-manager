@@ -379,7 +379,7 @@ fn perform_fido_auth(
         if !std::mem::replace(&mut first, false) {
             println!("Trying next device...");
         }
-        log::debug!(
+        println!(
             "opening FIDO2 device {manufacturer:?} {product:?} at {path:?}",
             manufacturer = dev_info.manufacturer,
             product = dev_info.product,
