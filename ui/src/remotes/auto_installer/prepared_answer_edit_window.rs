@@ -159,6 +159,7 @@ async fn submit(
             "netdev-filter",
             "target-filter",
             "subscription-key",
+            "template-counters",
         ],
         true,
     );

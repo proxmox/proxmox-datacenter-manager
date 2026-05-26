@@ -1150,7 +1150,9 @@ fn kv_list_to_template_counter_map_validate(v: &Vec<(String, Value)>) -> Result<
             };
             match value.and_then(|v| v.try_into().ok()) {
                 Some(v) => {
-                    map.insert(k.clone(), v);
+                    if map.insert(k.clone(), v).is_some() {
+                        bail!("duplicate template counter name: {k}");
+                    }
                 }
                 None => bail!("invalid value: {v}"),
             }
