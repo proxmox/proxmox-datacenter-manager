@@ -224,6 +224,23 @@ pub fn render_global_options_form(
                         .into()
                 })
                 .value(serde_variant_name(config.keyboard))
+                .filter(|item: &AttrValue, query: &str| {
+                    let query = query.to_string().to_lowercase();
+                    let item = item.to_string();
+
+                    // match by keyboard layout code
+                    if item.starts_with(&query) {
+                        return true;
+                    }
+
+                    // match by keyboard layout human name
+                    if let Ok(human_name) = item.parse::<KeyboardLayout>()
+                        .map(|v| v.human_name().to_owned()) {
+                        return human_name.to_lowercase().contains(&query);
+                    }
+
+                    false
+                })
                 .autoselect_filter(true)
                 .required(true),
         )
