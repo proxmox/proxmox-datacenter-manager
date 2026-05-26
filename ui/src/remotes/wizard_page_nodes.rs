@@ -83,6 +83,7 @@ impl PdmWizardPageNodes {
                                     .with_child(
                                         KVGrid::new()
                                             .class(FlexFit)
+                                            .class("pdm-kvgrid-wrap")
                                             .borderless(true)
                                             .striped(false)
                                             .rows(self.certificate_rows.clone())

@@ -1,3 +1,30 @@
+// pwt's datatable styles every td and td > div with `white-space: nowrap; overflow: hidden;
+// text-overflow: ellipsis`, which clips long Issuer/Subject/SAN values in a KVGrid that uses the
+// same cell chrome. Opt KVGrid instances in to wrapping by adding this class - scoped so other
+// DataTable users keep the truncation default.
+.pdm-kvgrid-wrap {
+    // Keep the label column (first cell) intrinsic so short labels like "Fingerprint" don't get
+    // broken character-by-character once the value column starts wrapping. The longest label in
+    // the cert KVGrid is "Subject Alternative Names" - give the column enough room for it.
+    .pwt-datatable-content td:first-child {
+        white-space: nowrap;
+        min-width: 14em;
+        width: 14em;
+    }
+    // Wrap only the value column so long Issuer/Subject/SAN values become fully readable.
+    .pwt-datatable-content td:not(:first-child),
+    .pwt-datatable-content td:not(:first-child) > div {
+        white-space: normal !important;
+        overflow: visible;
+        text-overflow: clip;
+    }
+    .pwt-datatable-content td:not(:first-child) {
+        // Long DN strings and fingerprints have no natural break points; allow mid-token wrap.
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+}
+
 .pdm-type-icon {
     position: relative;
 

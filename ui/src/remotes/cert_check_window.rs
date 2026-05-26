@@ -17,7 +17,7 @@ use proxmox_acme_api::CertificateInfo;
 use proxmox_schema::property_string::PropertyString;
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use proxmox_yew_comp::{KVGrid, KVGridRow, Status};
-use pwt::css::{AlignItems, FlexFit, JustifyContent};
+use pwt::css::{AlignItems, Flex, FlexFit, FontStyle, JustifyContent};
 use pwt::prelude::*;
 use pwt::props::ExtractPrimaryKey;
 use pwt::state::{KeyedSlabTree, TreeStore};
@@ -535,7 +535,9 @@ fn render_detail(
     info: &Option<CertificateInfo>,
     system_trusted_pinned: bool,
 ) -> Html {
-    let mut col = Column::new().padding(2).gap(2);
+    // The tree column wraps the cell content in a horizontal Row [indent | expander | content];
+    // claim the remaining row width via flex: 1 so the inner KVGrid fills the colspan=3 cell.
+    let mut col = Column::new().padding(2).gap(2).class(Flex::Fill);
 
     if system_trusted_pinned {
         col.add_child(Container::new().with_child(tr!(
@@ -562,7 +564,13 @@ fn render_detail(
             }),
     );
     col.add_child(
+        Container::new()
+            .class(FontStyle::TitleSmall)
+            .with_child(tr!("Newly probed certificate:")),
+    );
+    col.add_child(
         KVGrid::new()
+            .class("pdm-kvgrid-wrap")
             .borderless(true)
             .striped(false)
             .rows(cert_rows.clone())
