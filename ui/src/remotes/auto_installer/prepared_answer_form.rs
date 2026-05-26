@@ -1073,7 +1073,12 @@ fn kv_list_to_template_counter_map_validate(v: &Vec<(String, Value)>) -> Result<
     let mut map = BTreeMap::<String, i32>::new();
     for (k, v) in v {
         if TEMPLATE_COUNTER_NAME_REGEX.is_match(k) {
-            match v.as_i64().and_then(|v| v.try_into().ok()) {
+            let value = match v {
+                Value::Number(number) => number.as_i64(),
+                Value::String(text) => text.parse().ok(),
+                _ => None,
+            };
+            match value.and_then(|v| v.try_into().ok()) {
                 Some(v) => {
                     map.insert(k.clone(), v);
                 }
