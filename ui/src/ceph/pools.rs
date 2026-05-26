@@ -11,7 +11,7 @@ use yew::virtual_dom::{Key, VComp, VNode};
 use proxmox_human_byte::HumanByte;
 
 use pwt::prelude::*;
-use pwt::state::Store;
+use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::{Button, Toolbar};
 
@@ -54,6 +54,8 @@ impl CephPoolsPanel {
 pub struct PdmCephPoolsPanel {
     state: LoadableComponentState<()>,
     store: Store<CephPool>,
+    // row-highlight only, no action on select
+    selection: Selection,
     columns: Rc<Vec<DataTableHeader<CephPool>>>,
 }
 
@@ -70,6 +72,7 @@ impl LoadableComponent for PdmCephPoolsPanel {
         Self {
             state: LoadableComponentState::new(),
             store,
+            selection: Selection::new(),
             columns: columns(),
         }
     }
@@ -103,6 +106,7 @@ impl LoadableComponent for PdmCephPoolsPanel {
     fn main_view(&self, _ctx: &LoadableComponentContext<Self>) -> Html {
         DataTable::new(Rc::clone(&self.columns), self.store.clone())
             .class(pwt::css::FlexFit)
+            .selection(self.selection.clone())
             .into()
     }
 }

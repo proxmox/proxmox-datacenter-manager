@@ -10,7 +10,7 @@ use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::AlignItems;
 use pwt::prelude::*;
-use pwt::state::Store;
+use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::{Button, Fa, Row, Toolbar};
 
@@ -41,6 +41,8 @@ impl CephMonitorsPanel {
 pub struct PdmCephMonitorsPanel {
     state: LoadableComponentState<()>,
     store: Store<CephMon>,
+    // row-highlight only, no action on select
+    selection: Selection,
     columns: Rc<Vec<DataTableHeader<CephMon>>>,
 }
 
@@ -57,6 +59,7 @@ impl LoadableComponent for PdmCephMonitorsPanel {
         Self {
             state: LoadableComponentState::new(),
             store,
+            selection: Selection::new(),
             columns: columns(),
         }
     }
@@ -90,6 +93,7 @@ impl LoadableComponent for PdmCephMonitorsPanel {
     fn main_view(&self, _ctx: &LoadableComponentContext<Self>) -> Html {
         DataTable::new(Rc::clone(&self.columns), self.store.clone())
             .class(pwt::css::FlexFit)
+            .selection(self.selection.clone())
             .into()
     }
 }

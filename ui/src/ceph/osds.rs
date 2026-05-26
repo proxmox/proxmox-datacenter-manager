@@ -18,7 +18,7 @@ use yew::virtual_dom::{Key, VComp, VNode};
 use pwt::css::{AlignItems, FontColor};
 use pwt::prelude::*;
 use pwt::props::ExtractPrimaryKey;
-use pwt::state::{SlabTree, Store, TreeStore};
+use pwt::state::{Selection, SlabTree, Store, TreeStore};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::{Button, Container, Fa, Row, Toolbar};
 
@@ -266,6 +266,9 @@ pub struct PdmCephOsdsPanel {
     flat: bool,
     flat_store: Store<OsdData>,
     flat_columns: Rc<Vec<DataTableHeader<OsdData>>>,
+    // row-highlight only; tree and flat selections are separate so they do not bleed across views
+    tree_selection: Selection,
+    flat_selection: Selection,
 }
 
 pwt::impl_deref_mut_property!(PdmCephOsdsPanel, state, LoadableComponentState<()>);
@@ -290,6 +293,8 @@ impl LoadableComponent for PdmCephOsdsPanel {
             flat: false,
             flat_store: Store::with_extract_key(|o: &OsdData| Key::from(o.name.clone())),
             flat_columns: flat_columns(),
+            tree_selection: Selection::new(),
+            flat_selection: Selection::new(),
         }
     }
 
@@ -349,10 +354,12 @@ impl LoadableComponent for PdmCephOsdsPanel {
         if self.flat {
             DataTable::new(Rc::clone(&self.flat_columns), self.flat_store.clone())
                 .class(pwt::css::FlexFit)
+                .selection(self.flat_selection.clone())
                 .into()
         } else {
             DataTable::new(Rc::clone(&self.columns), self.store.clone())
                 .class(pwt::css::FlexFit)
+                .selection(self.tree_selection.clone())
                 .into()
         }
     }

@@ -14,7 +14,7 @@ use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::AlignItems;
 use pwt::prelude::*;
-use pwt::state::Store;
+use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::{Button, Column, Fa, Row, Toolbar};
 
@@ -68,6 +68,9 @@ pub struct PdmCephManagersPanel {
     state: LoadableComponentState<()>,
     mgr_store: Store<CephMgr>,
     mds_store: Store<CephMds>,
+    // row-highlight only, no action on select
+    mgr_selection: Selection,
+    mds_selection: Selection,
     mgr_columns: Rc<Vec<DataTableHeader<CephMgr>>>,
     mds_columns: Rc<Vec<DataTableHeader<CephMds>>>,
 }
@@ -85,6 +88,8 @@ impl LoadableComponent for PdmCephManagersPanel {
             state: LoadableComponentState::new(),
             mgr_store: Store::with_extract_key(|m: &CephMgr| Key::from(m.name.clone())),
             mds_store: Store::with_extract_key(|m: &CephMds| Key::from(m.name.clone())),
+            mgr_selection: Selection::new(),
+            mds_selection: Selection::new(),
             mgr_columns: mgr_columns(),
             mds_columns: mds_columns(),
         }
@@ -129,11 +134,15 @@ impl LoadableComponent for PdmCephManagersPanel {
             .gap(2)
             .with_child(render_title_row(tr!("Managers"), "cogs"))
             .with_child(
-                DataTable::new(Rc::clone(&self.mgr_columns), self.mgr_store.clone()).border(true),
+                DataTable::new(Rc::clone(&self.mgr_columns), self.mgr_store.clone())
+                    .border(true)
+                    .selection(self.mgr_selection.clone()),
             )
             .with_child(render_title_row(tr!("Metadata Servers"), "folder-open-o"))
             .with_child(
-                DataTable::new(Rc::clone(&self.mds_columns), self.mds_store.clone()).border(true),
+                DataTable::new(Rc::clone(&self.mds_columns), self.mds_store.clone())
+                    .border(true)
+                    .selection(self.mds_selection.clone()),
             )
             .into()
     }

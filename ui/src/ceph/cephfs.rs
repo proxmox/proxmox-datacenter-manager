@@ -12,7 +12,7 @@ use anyhow::Error;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::prelude::*;
-use pwt::state::Store;
+use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::{Button, Toolbar};
 
@@ -43,6 +43,8 @@ impl CephFsPanel {
 pub struct PdmCephFsPanel {
     state: LoadableComponentState<()>,
     store: Store<CephFs>,
+    // row-highlight only, no action on select
+    selection: Selection,
     columns: Rc<Vec<DataTableHeader<CephFs>>>,
 }
 
@@ -59,6 +61,7 @@ impl LoadableComponent for PdmCephFsPanel {
         Self {
             state: LoadableComponentState::new(),
             store,
+            selection: Selection::new(),
             columns: columns(),
         }
     }
@@ -92,6 +95,7 @@ impl LoadableComponent for PdmCephFsPanel {
     fn main_view(&self, _ctx: &LoadableComponentContext<Self>) -> Html {
         DataTable::new(Rc::clone(&self.columns), self.store.clone())
             .class(pwt::css::FlexFit)
+            .selection(self.selection.clone())
             .into()
     }
 }
