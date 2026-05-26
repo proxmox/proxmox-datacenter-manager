@@ -189,6 +189,7 @@ impl yew::Component for DashboardMapComp {
         WorldMap::new(geojson)
             .with_std_props(&props.std_props)
             .listeners(&props.listeners)
+            .max_zoom_level(100.0)
             .points(self.points.clone())
             .into()
     }
