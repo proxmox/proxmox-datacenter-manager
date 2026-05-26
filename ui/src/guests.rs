@@ -203,7 +203,7 @@ pub enum ViewState {
     Confirm(Action, Key),
     /// Open the migration dialog for the given (remote, source-node, guest).
     Migrate(String, String, GuestInfo),
-    Snapshots(String, GuestInfo),
+    Snapshots(String, GuestInfo, String),
 }
 
 pub enum Msg {
@@ -577,8 +577,8 @@ impl LoadableComponent for GuestPanelComp {
                     })
                     .into(),
             ),
-            ViewState::Snapshots(remote, guest_info) => Some(
-                SnapshotWindow::dialog(remote.clone(), *guest_info)
+            ViewState::Snapshots(remote, guest_info, name) => Some(
+                SnapshotWindow::dialog(remote.clone(), *guest_info, name.clone())
                     .on_close(ctx.link().change_view_callback(|_| None))
                     .into(),
             ),
@@ -810,13 +810,18 @@ fn guest_actions(link: &LoadableComponentScope<GuestPanelComp>, entry: &GuestEnt
         .with_child({
             // Templates keep their existing snapshots; listing is always useful.
             let remote = remote.clone();
+            let name = entry.resource.name().to_string();
             Tooltip::new(
                 ActionIcon::new("fa fa-fw fa-history")
                     .aria_label(tr!("Snapshots"))
                     .on_activate({
                         let link = link.clone();
                         move |_| {
-                            link.change_view(Some(ViewState::Snapshots(remote.clone(), guest_info)))
+                            link.change_view(Some(ViewState::Snapshots(
+                                remote.clone(),
+                                guest_info,
+                                name.clone(),
+                            )))
                         }
                     }),
             )

@@ -149,9 +149,26 @@ impl SnapshotWindow {
     }
 
     /// Returns the snapshot component within a dialog
-    pub fn dialog(remote: impl Into<AttrValue>, guest_info: GuestInfo) -> Dialog {
-        let title = tr!("Snapshots - {0}", guest_info.vmid);
-        let snapshot_comp = Self::new(remote, guest_info);
+    pub fn dialog(
+        remote: impl Into<AttrValue>,
+        guest_info: GuestInfo,
+        name: impl Into<AttrValue>,
+    ) -> Dialog {
+        let remote = remote.into();
+        let name = name.into();
+        // Carry the guest name and remote in the title: the central guest list spans remotes, so
+        // the bare VMID is ambiguous on its own.
+        let title = if name.is_empty() {
+            tr!("Snapshots - {0} on {1}", guest_info.vmid, remote)
+        } else {
+            tr!(
+                "Snapshots - {0} ({1}) on {2}",
+                name,
+                guest_info.vmid,
+                remote
+            )
+        };
+        let snapshot_comp = Self::new(remote.clone(), guest_info);
 
         Dialog::new(title)
             .min_width(720)
