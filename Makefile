@@ -12,6 +12,10 @@ DBG_DEB=$(PACKAGE)-dbgsym_$(DEB_VERSION)_$(DEB_HOST_ARCH).deb
 CLIENT_DEB=$(PACKAGE)-client_$(DEB_VERSION)_$(DEB_HOST_ARCH).deb
 CLIENT_DBG_DEB=$(PACKAGE)-client-dbgsym_$(DEB_VERSION)_$(DEB_HOST_ARCH).deb
 DOC_DEB=$(PACKAGE)-docs_$(DEB_VERSION)_all.deb
+# The UI is built from a separate source package; deb-ui moves its built deb
+# next to the main debs at the top level. Pick it up opportunistically on
+# upload, without making it a hard prerequisite of the main 'upload' target.
+UI_DEB:=$(wildcard $(PACKAGE)-ui_*_$(DEB_HOST_ARCH).deb)
 DSC=$(PACKAGE)_$(DEB_VERSION).dsc
 
 CARGO ?= cargo
@@ -115,7 +119,6 @@ deb-api: $(DEB)
 $(DEB) $(DBG_DEB) $(CLIENT_DEB) $(CLIENT_DBG_DEB) $(DOC_DEB) &: $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -b -uc -us
 	lintian $(DEB) $(CLIENT_DEB) $(DOC_DEB)
-	@echo $(DEB)
 
 .PHONY: dsc
 dsc:
@@ -129,17 +132,17 @@ $(DSC): $(BUILDDIR) $(ORIG_SRC_TAR)
 sbuild: $(DSC)
 	sbuild $(DSC)
 
-.PHONY: upload upload-ui upload-all
-# 'upload' covers the proxmox-datacenter-manager source: the main, the docs and the dbgsym deb.
-# The UI is a separate source package - upload it on its own with 'upload-ui', or both with 'upload-all'.
+.PHONY: upload upload-ui
+# 'upload' ships the proxmox-datacenter-manager source's main, client, docs and
+# dbgsym debs, and additionally the UI deb if one is sitting at the top level
+# from a prior 'deb-ui' / 'deb' build. The UI is a separate source package, so
+# 'upload-ui' uploads just the UI source on its own when only that was built.
 upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
 upload: $(DEB) $(DBG_DEB) $(CLIENT_DEB) $(CLIENT_DBG_DEB) $(DOC_DEB)
-	tar cf - $(DEB) $(DBG_DEB) $(CLIENT_DEB) $(CLIENT_DBG_DEB) $(DOC_DEB) |ssh -X repoman@repo.proxmox.com -- upload --product pdm --dist $(UPLOAD_DIST) --arch $(DEB_HOST_ARCH)
+	tar cf - $(DEB) $(DBG_DEB) $(CLIENT_DEB) $(CLIENT_DBG_DEB) $(DOC_DEB) $(UI_DEB) |ssh -X repoman@repo.proxmox.com -- upload --product pdm --dist $(UPLOAD_DIST) --arch $(DEB_HOST_ARCH)
 
 upload-ui:
 	$(MAKE) -C $(UI_DIR) upload
-
-upload-all: upload upload-ui
 
 .PHONY: clean clean-deb distclean
 distclean: clean
