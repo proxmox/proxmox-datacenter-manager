@@ -639,11 +639,14 @@ impl SubscriptionRegistryComp {
                     // Picking a key and (un)ticking the row are independent affordances; wrap
                     // the cell in a click-swallowing Container so a click on the dropdown does
                     // not bubble up to the DataTable viewport's row-toggle handler and deselect
-                    // the row out from under the operator.
+                    // the row out from under the operator. `required(true)` additionally
+                    // suppresses the Selector's X-clear trigger which, when activated, snapped
+                    // the dropdown to the top-most key on re-render.
                     Container::new()
                         .onclick(|event: MouseEvent| event.stop_propagation())
                         .with_child(
                             Combobox::new()
+                                .required(true)
                                 .items(choice.options.clone())
                                 // Controlled value: the model is the source of truth, so the
                                 // cell shows the effective key and does not emit a spurious
