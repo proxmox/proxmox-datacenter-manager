@@ -725,7 +725,7 @@ fn columns(
     // from the row's identity to its controls, especially on wide desktops.
     cols.push(
         DataTableColumn::new(tr!("Actions"))
-            .width("120px")
+            .width("100px")
             .justify("center")
             .render(move |e: &SnapshotTreeEntry| {
                 let SnapshotTreeEntry::Item(s) = e else {
@@ -738,10 +738,9 @@ fn columns(
                 let name = s.name.clone();
                 let description = s.description.clone();
                 // ActionIcons default to tabindex -1; set 0 + aria-label so each is reachable and
-                // named for keyboard/screen-reader users (the Tooltip is not an accessible name).
+                // named for keyboard/screen-reader users.
                 // Order edit -> rollback -> delete: least to most destructive, left to right.
                 Row::new()
-                    .gap(2)
                     .class(pwt::css::JustifyContent::Center)
                     .with_child(
                         Tooltip::new(
