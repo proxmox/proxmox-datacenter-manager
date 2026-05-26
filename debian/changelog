@@ -1,3 +1,21 @@
+proxmox-datacenter-manager (1.0.7) trixie; urgency=medium
+
+  * cli: improve fido2 authentication when multiple security keys are
+    connected: ask the user to touch the device they want to use instead of
+    trying them one after the other, and print the device info to stdout so it
+    is visible which device's PIN to enter.
+
+  * api: auto-installer: propagate the proxmox-wide token-name schema to the
+    answer-token list, create and update endpoints, so malformed token IDs are
+    rejected at the API boundary instead of being accepted and failing later.
+
+  * auto-installer: store the prepared-answer cidr, gateway and dns fields as
+    strings so they can hold a MiniJinja template expression (e.g. an address
+    with a {{ installation_nr }} counter); the rendered answer is still parsed
+    into typed addresses, so an invalid result is rejected at render time.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 26 May 2026 19:00:00 +0200
+
 proxmox-datacenter-manager (1.0.6) trixie; urgency=medium
 
   * add central guest snapshot management for QEMU and LXC guests: list,
