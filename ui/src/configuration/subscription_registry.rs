@@ -135,7 +135,7 @@ fn pending_badge(push_count: u32, clear_count: u32) -> Row {
                     .with_child(tr!("{n} pending push(es)", n = push_count)),
             )
             .tip(tr!(
-                "{n} pool key(s) queued for push; Apply Pending will install them on the remote.",
+                "{n} pool key(s) queued for push; 'Apply Pending' will install them on the remote.",
                 n = push_count,
             )),
         );
@@ -150,7 +150,7 @@ fn pending_badge(push_count: u32, clear_count: u32) -> Row {
                     .with_child(tr!("{n} pending clear(s)", n = clear_count)),
             )
             .tip(tr!(
-                "{n} live subscription(s) queued for removal; Apply Pending will free them.",
+                "{n} live subscription(s) queued for removal; 'Apply Pending' will free them.",
                 n = clear_count,
             )),
         );
@@ -751,7 +751,7 @@ fn key_cell(n: &RemoteNodeStatus) -> Html {
                         .with_child(text),
                 )
                 .tip(tr!(
-                    "Not in pool - Adopt Key imports this live subscription."
+                    "Not in pool - 'Adopt Key' imports this live subscription."
                 ))
                 .into()
             } else {
@@ -1383,7 +1383,7 @@ impl SubscriptionRegistryComp {
                 .on_activate(ctx.link().callback(|_| Msg::QueueClearForSelectedNode)),
         )
         .tip(tr!(
-            "Queue the selected node's live subscription for removal at the next Apply Pending, \
+            "Queue the selected node's live subscription for removal at the next 'Apply Pending', \
              freeing the key for reassignment. Available for a pool-managed node; for a foreign \
              subscription, adopt it first."
         ));

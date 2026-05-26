@@ -286,7 +286,7 @@ impl LoadableComponent for SubscriptionKeyGridComp {
                         .on_activate(link.change_view_callback(|_| Some(ViewState::Add))),
                 )
                 .tip(tr!(
-                    "Add one or more subscription keys to the pool; the Assign step \
+                    "Add one or more subscription keys to the pool; the 'Assign' step \
                      happens later."
                 )),
             )
@@ -299,7 +299,7 @@ impl LoadableComponent for SubscriptionKeyGridComp {
                         .on_activate(link.change_view_callback(|_| Some(ViewState::Assign))),
                 )
                 .tip(tr!(
-                    "Pin the selected key to a remote node; Apply Pending pushes the \
+                    "Pin the selected key to a remote node; 'Apply Pending' pushes the \
                      assignment to the remote."
                 )),
             )
@@ -324,8 +324,8 @@ impl LoadableComponent for SubscriptionKeyGridComp {
                         .on_activate(move |_| cb.emit(())),
                 )
                 .tip(tr!(
-                    "Propose a one-key-per-node assignment for nodes that have no active \
-                     subscription, then queue it pending Apply."
+                    "Propose a key assignment for nodes that have no active subscription \
+                    then queue it for the next 'Apply Pending'."
                 )),
             );
         }
