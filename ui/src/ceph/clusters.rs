@@ -317,6 +317,7 @@ fn columns() -> Rc<Vec<DataTableHeader<CephClusterListEntry>>> {
             .into(),
         DataTableColumn::new(tr!("Usage"))
             .width("minmax(100px,3fr)")
+            .vertical_align("middle")
             .render(
                 |item: &CephClusterListEntry| match (item.bytes_used, item.bytes_total) {
                     (Some(used), Some(total)) if total > 0 => usage_meter(used, total),
