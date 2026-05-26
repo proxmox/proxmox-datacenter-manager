@@ -84,7 +84,7 @@ pub fn access_control() -> Html {
             TabBarItem::new()
                 .key("api-tokens")
                 .icon_class("fa fa-user-o")
-                .label(tr!("API Token")),
+                .label(tr!("API Tokens")),
             |_| {
                 Container::new()
                     .class("pwt-content-spacer")
