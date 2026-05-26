@@ -636,16 +636,25 @@ impl SubscriptionRegistryComp {
                     let link = link.clone();
                     let rk_cb = rk.clone();
                     let auto = p.key.clone();
-                    Combobox::new()
-                        .items(choice.options.clone())
-                        // Controlled value: the model is the source of truth, so the cell shows
-                        // the effective key and does not emit a spurious change on mount. A clear
-                        // bumps the row nonce in `vkey` to remount the field on the effective key.
-                        .value(Some(yew::AttrValue::from(choice.current.clone())))
-                        .key(vkey)
-                        .on_change(link.callback(move |val: String| {
-                            Msg::OverrideProposalKey(rk_cb.clone(), val, auto.clone())
-                        }))
+                    // Picking a key and (un)ticking the row are independent affordances; wrap
+                    // the cell in a click-swallowing Container so a click on the dropdown does
+                    // not bubble up to the DataTable viewport's row-toggle handler and deselect
+                    // the row out from under the operator.
+                    Container::new()
+                        .onclick(|event: MouseEvent| event.stop_propagation())
+                        .with_child(
+                            Combobox::new()
+                                .items(choice.options.clone())
+                                // Controlled value: the model is the source of truth, so the
+                                // cell shows the effective key and does not emit a spurious
+                                // change on mount. A clear (via Delete/Backspace) bumps the row
+                                // nonce in `vkey` to remount the field on the effective key.
+                                .value(Some(yew::AttrValue::from(choice.current.clone())))
+                                .key(vkey)
+                                .on_change(link.callback(move |val: String| {
+                                    Msg::OverrideProposalKey(rk_cb.clone(), val, auto.clone())
+                                })),
+                        )
                         .into()
                 })
                 .into(),
