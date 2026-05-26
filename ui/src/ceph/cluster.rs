@@ -93,15 +93,26 @@ impl yew::Component for PdmCephClusterPanel {
             Button::new(tr!("Open Web UI"))
                 .icon_class("fa fa-external-link")
                 .onclick(move |_| {
-                    // The PVE fragment route for a node's Ceph panel is `v1::=node/<node>::38` (38
-                    // is the node Ceph tab); with no representative node, fall back to the remote
-                    // root.
+                    // Mirror the active PDM Ceph subview onto the matching PVE Ceph tab. pwt's
+                    // TabPanel.router(true) appends the active key as the trailing `/`-delimited
+                    // segment of the URL hash; unknown values (e.g. before a sub-tab is selected)
+                    // fall back to the top-level Ceph node panel.
+                    let hash = window().location().hash().unwrap_or_default();
+                    let pve_tab = match hash.rsplit('/').next().unwrap_or("") {
+                        "monitors" => "40",
+                        "osds" => "42",
+                        "pools" => "43",
+                        "cephfs" => "ceph-cephfspanel",
+                        // PVE manages flags through a dialog opened from the OSD panel
+                        "flags" => "42",
+                        _ => "38",
+                    };
                     let url = match &node {
                         Some(node) => get_deep_url_low_level(
                             &link,
                             &remote,
                             Some(node),
-                            &format!("v1::=node/{node}::38"),
+                            &format!("v1::=node/{node}::{pve_tab}"),
                         ),
                         None => get_deep_url(&link, &remote, None, ""),
                     };
