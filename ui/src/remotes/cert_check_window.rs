@@ -447,16 +447,23 @@ impl Component for PdmRemoteCertCheck {
         let props = ctx.props();
 
         // Walk live so the header tracks incremental probes; outstanding = Changed or
-        // SystemTrusted-with-pin (every row that still offers an action).
+        // SystemTrusted-with-pin (every row that still offers an action). Track issuers from
+        // every row that has a CertificateInfo, to surface a fleet-wide "same issuer" hint once
+        // probes have completed and the issuers agree across at least two nodes.
         let mut total = 0usize;
         let mut outstanding = 0usize;
         let mut loading = false;
+        let mut issuers: Vec<String> = Vec::new();
         if let Some(root) = self.store.read().root() {
             root.visit(&mut |node| {
                 if let CertTreeEntry::Node { status, .. } = node.record() {
                     total += 1;
                     match status {
-                        NodeStatus::Changed(_) | NodeStatus::SystemTrusted => outstanding += 1,
+                        NodeStatus::Changed(info) => {
+                            outstanding += 1;
+                            issuers.push(info.issuer.clone());
+                        }
+                        NodeStatus::SystemTrusted => outstanding += 1,
                         NodeStatus::Loading => loading = true,
                         _ => {}
                     }
@@ -464,6 +471,14 @@ impl Component for PdmRemoteCertCheck {
             });
         }
         let staged_count = self.staged.len();
+        // Suppress while any probe is still in flight to avoid flipping in when the last lands;
+        // require at least two known certs and agreement on the issuer string.
+        let fleet_issuer =
+            if !loading && issuers.len() >= 2 && issuers.iter().all(|i| i == &issuers[0]) {
+                Some(issuers.swap_remove(0))
+            } else {
+                None
+            };
 
         let link = ctx.link().clone();
         let summary = Toolbar::new()
@@ -481,6 +496,14 @@ impl Component for PdmRemoteCertCheck {
 
         let mut body = Column::new().class(FlexFit);
         body.add_child(summary);
+        if let Some(iss) = fleet_issuer {
+            // <p> so a long issuer DN wraps with the dialog instead of widening it.
+            body.add_child(
+                Container::from_tag("p")
+                    .padding(2)
+                    .with_child(tr!("All certificates are issued by \"{0}\".", iss)),
+            );
+        }
         if total == 0 {
             body.add_child(
                 Container::new()
@@ -488,6 +511,12 @@ impl Component for PdmRemoteCertCheck {
                     .with_child(tr!("No nodes are configured for this remote.")),
             );
         } else {
+            // <p> wraps with the dialog; translations vary widely in resulting text width.
+            body.add_child(Container::from_tag("p").padding(2).with_child(tr!(
+                "Compare each new SHA-256 fingerprint against the one shown under 'Certificates' \
+                 on the remote node's own web interface, accessed through an independently \
+                 trusted channel, before accepting it."
+            )));
             body.add_child(
                 DataTable::new(Rc::clone(&self.columns), self.store.clone()).class(FlexFit),
             );
@@ -582,9 +611,7 @@ fn render_detail(
         )));
     } else {
         col.add_child(Container::new().with_child(tr!(
-            "Only the fingerprint is stored, so PDM cannot confirm this is a \
-             legitimate renewal. Verify the new fingerprint out-of-band before \
-             trusting it."
+            "Only the fingerprint is stored, so PDM cannot confirm this is a legitimate renewal."
         )));
     }
     col.into()
