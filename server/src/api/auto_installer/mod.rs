@@ -1222,20 +1222,23 @@ fn render_prepared_config(
         } else {
             let cidr = conf
                 .cidr
+                .as_deref()
                 .ok_or_else(|| anyhow!("no host address"))
-                .and_then(|cidr| render("cidr", &cidr.to_string()))
+                .and_then(|cidr| render("cidr", cidr))
                 .and_then(|s| Ok(s.parse()?))?;
 
             let dns = conf
                 .dns
+                .as_deref()
                 .ok_or_else(|| anyhow!("no DNS server address"))
-                .and_then(|dns| render("dns", &dns.to_string()))
+                .and_then(|dns| render("dns", dns))
                 .and_then(|s| Ok(s.parse()?))?;
 
             let gateway = conf
                 .gateway
+                .as_deref()
                 .ok_or_else(|| anyhow!("no gateway address"))
-                .and_then(|gw| render("gateway", &gw.to_string()))
+                .and_then(|gw| render("gateway", gw))
                 .and_then(|s| Ok(s.parse()?))?;
 
             answer::NetworkConfig::FromAnswer(answer::NetworkConfigFromAnswer {

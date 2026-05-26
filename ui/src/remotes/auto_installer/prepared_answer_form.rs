@@ -30,7 +30,10 @@ use pwt::{
     props::FieldStdProps,
     state::Store,
     widget::{
-        form::{Checkbox, Combobox, DisplayField, Field, FormContext, InputType, Number, TextArea},
+        form::{
+            Checkbox, Combobox, DisplayField, Field, FormContext, InputType, Number, TextArea,
+            ValidateFn,
+        },
         Button, Column, Container, Dialog, Fa, FieldLabel, FieldPosition, InputPanel, Row, Tooltip,
     },
 };
@@ -327,14 +330,17 @@ pub fn render_network_options_form(
         .show_advanced(form_ctx.get_show_advanced())
         .with_field(
             tr!("Use DHCP"),
-            Checkbox::new().name("use-dhcp-network").default(true),
+            Checkbox::new()
+                .name("use-dhcp-network")
+                .default(config.use_dhcp_network),
         )
         .with_field(
             tr!("IP Address (CIDR)"),
             Field::new()
                 .name("cidr")
                 .placeholder(tr!("E.g. 192.168.0.100/24"))
-                .schema(&CIDR_SCHEMA)
+                .value(config.cidr.clone())
+                .validate(templated_schema_validate(&CIDR_SCHEMA))
                 .disabled(use_dhcp_network)
                 .required(!use_dhcp_network),
         )
@@ -343,7 +349,8 @@ pub fn render_network_options_form(
             Field::new()
                 .name("gateway")
                 .placeholder(tr!("E.g. 192.168.0.1"))
-                .schema(&IP_SCHEMA)
+                .value(config.gateway.clone())
+                .validate(templated_schema_validate(&IP_SCHEMA))
                 .disabled(use_dhcp_network)
                 .required(!use_dhcp_network),
         )
@@ -352,13 +359,16 @@ pub fn render_network_options_form(
             Field::new()
                 .name("dns")
                 .placeholder(tr!("E.g. 192.168.0.254"))
-                .schema(&IP_SCHEMA)
+                .value(config.dns.clone())
+                .validate(templated_schema_validate(&IP_SCHEMA))
                 .disabled(use_dhcp_network)
                 .required(!use_dhcp_network),
         )
         .with_field(
             tr!("FQDN from DHCP"),
-            Checkbox::new().name("use-dhcp-fqdn").default(false),
+            Checkbox::new()
+                .name("use-dhcp-fqdn")
+                .default(config.use_dhcp_fqdn),
         )
         .with_field(
             tr!("Fully-Qualified Domain Name (FQDN)"),
@@ -1079,6 +1089,38 @@ fn render_template_counter_value(
             }
         })
         .into()
+}
+
+/// Validate against a schema, but accept any value carrying a MiniJinja placeholder, as the
+/// backend substitutes those before parsing the field.
+fn templated_schema_validate(schema: &'static proxmox_schema::Schema) -> ValidateFn<String> {
+    ValidateFn::new(move |value: &String| {
+        if contains_minijinja_variable(value) {
+            return Ok(());
+        }
+        schema.parse_simple_value(value)?;
+        Ok(())
+    })
+}
+
+/// Whether the value contains a MiniJinja variable expression, that is `{{`, an identifier
+/// (optionally dotted, like `product.product`), and `}}`, with optional surrounding whitespace.
+fn contains_minijinja_variable(value: &str) -> bool {
+    let is_ident = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '.';
+
+    let mut rest = value;
+    while let Some(open) = rest.find("{{") {
+        let inner = &rest[open + 2..];
+        if let Some(close) = inner.find("}}") {
+            if inner[..close].trim().chars().all(is_ident) && !inner[..close].trim().is_empty() {
+                return true;
+            }
+            rest = &inner[close + 2..];
+        } else {
+            break;
+        }
+    }
+    false
 }
 
 #[allow(clippy::ptr_arg)]

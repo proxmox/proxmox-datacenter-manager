@@ -38,7 +38,6 @@ pub mod types {
         PROXMOX_TOKEN_NAME_SCHEMA, SINGLE_LINE_COMMENT_FORMAT,
     };
     use proxmox_installer_types::answer::SUBSCRIPTION_KEY_SCHEMA;
-    use proxmox_network_types::{api_types::IpAddr, Cidr};
     use proxmox_schema::{api, ApiStringFormat, ApiType, PropertyString};
 
     #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -235,19 +234,22 @@ pub mod types {
         pub use_dhcp_network: bool,
         /// IP address and netmask if not using DHCP.
         ///
-        /// Supports templating via MiniJinja.
+        /// Supports templating via MiniJinja, so this holds either a literal CIDR or a template
+        /// that resolves to one; it is parsed and validated at render time.
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub cidr: Option<Cidr>,
+        pub cidr: Option<String>,
         /// Gateway if not using DHCP.
         ///
-        /// Supports templating via MiniJinja.
+        /// Supports templating via MiniJinja, so this holds either a literal address or a template
+        /// that resolves to one; it is parsed and validated at render time.
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub gateway: Option<IpAddr>,
+        pub gateway: Option<String>,
         /// DNS server address if not using DHCP.
         ///
-        /// Supports templating via MiniJinja.
+        /// Supports templating via MiniJinja, so this holds either a literal address or a template
+        /// that resolves to one; it is parsed and validated at render time.
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub dns: Option<IpAddr>,
+        pub dns: Option<String>,
         /// Filter for network devices, to select a specific management interface.
         #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
         pub netdev_filter: PropertyString<BTreeMapWrapper<String>>,
