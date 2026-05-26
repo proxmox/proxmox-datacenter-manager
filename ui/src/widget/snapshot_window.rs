@@ -479,7 +479,10 @@ impl LoadableComponent for PdmSnapshotWindow {
                 ctx.link().spawn(async move {
                     match Self::update_description(remote, guest_info, snapname, description).await
                     {
-                        Ok(()) => link.send_reload(),
+                        Ok(()) => {
+                            link.send_reload();
+                            link.change_view(None);
+                        }
                         Err(err) => link.show_error(tr!("Error"), err, true),
                     }
                 });
