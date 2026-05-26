@@ -182,7 +182,6 @@ impl yew::Component for LxcPanelComp {
                                 vmid,
                             },
                         )
-                        .embedded(true)
                         .into()
                     }
                 },

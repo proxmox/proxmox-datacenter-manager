@@ -11,9 +11,8 @@ use std::rc::Rc;
 
 use anyhow::{bail, Error};
 use serde_json::json;
-use yew::html::IntoEventCallback;
 use yew::virtual_dom::{Key, VComp, VNode};
-use yew::{Callback, Properties};
+use yew::Properties;
 
 use proxmox_client::ApiResponseData;
 use proxmox_yew_comp::{
@@ -139,16 +138,6 @@ pub struct SnapshotWindow {
 
     /// Which guest to manage snapshots for.
     pub guest_info: GuestInfo,
-
-    /// Render the list inline (for embedding as a tab) instead of as a modal dialog.
-    #[prop_or_default]
-    #[builder]
-    pub embedded: bool,
-
-    /// Close callback (only used in modal mode).
-    #[prop_or_default]
-    #[builder_cb(IntoEventCallback, into_event_callback, ())]
-    pub on_close: Option<Callback<()>>,
 }
 
 impl SnapshotWindow {
@@ -158,31 +147,24 @@ impl SnapshotWindow {
             guest_info,
         })
     }
-}
 
-impl From<SnapshotWindow> for VNode {
-    fn from(val: SnapshotWindow) -> Self {
-        let embedded = val.embedded;
-        let on_close = val.on_close.clone();
-        let title = tr!("Snapshots - {0}", val.guest_info.vmid);
-
-        // The master renders a Column/page (toolbar + table + dialogs), not a dialog. Embedded as
-        // a detail-panel tab it is dropped in inline; as a standalone window it is wrapped in a
-        // Dialog that carries the title and the close callback.
-        let master: VNode =
-            VComp::new::<LoadableComponentMaster<PdmSnapshotWindow>>(Rc::new(val), None).into();
-        if embedded {
-            return master;
-        }
+    /// Returns the snapshot component within a dialog
+    pub fn dialog(remote: impl Into<AttrValue>, guest_info: GuestInfo) -> Dialog {
+        let title = tr!("Snapshots - {0}", guest_info.vmid);
+        let snapshot_comp = Self::new(remote, guest_info);
 
         Dialog::new(title)
             .min_width(720)
             .min_height(440)
             .max_height("90vh")
             .resizable(true)
-            .on_close(on_close)
-            .with_child(master)
-            .into()
+            .with_child(snapshot_comp)
+    }
+}
+
+impl From<SnapshotWindow> for VNode {
+    fn from(val: SnapshotWindow) -> Self {
+        VComp::new::<LoadableComponentMaster<PdmSnapshotWindow>>(Rc::new(val), None).into()
     }
 }
 

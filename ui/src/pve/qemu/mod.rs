@@ -162,7 +162,6 @@ impl yew::Component for QemuPanelComp {
                                 vmid,
                             },
                         )
-                        .embedded(true)
                         .into()
                     }
                 },

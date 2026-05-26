@@ -575,7 +575,7 @@ impl LoadableComponent for GuestPanelComp {
                     .into(),
             ),
             ViewState::Snapshots(remote, guest_info) => Some(
-                SnapshotWindow::new(remote.clone(), *guest_info)
+                SnapshotWindow::dialog(remote.clone(), *guest_info)
                     .on_close(ctx.link().change_view_callback(|_| None))
                     .into(),
             ),
