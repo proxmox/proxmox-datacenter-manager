@@ -40,6 +40,7 @@ use pwt::widget::{
 
 use pdm_api_types::resource::{RemoteResources, Resource};
 use pdm_api_types::RemoteUpid;
+use pdm_search::SearchTerm;
 
 use crate::pve::utils::{guest_is_live, guest_status_label, render_guest_tags};
 use crate::pve::{GuestInfo, GuestType};
@@ -669,6 +670,39 @@ fn build_guest_tree(entries: &[GuestEntry], expand: bool) -> KeyedSlabTree<Guest
 }
 
 fn guest_matches(entry: &GuestEntry, text: &str) -> bool {
+    if text.trim().is_empty() {
+        return true;
+    }
+    // Reuse pdm-search's SearchTerm parser for the `field:value` qualifier syntax. The global
+    // search bar's Search::matches is OR-by-default with `+` for required; the in-list guest
+    // filter is meant to narrow, so AND all terms instead.
+    text.split_whitespace()
+        .map(SearchTerm::from)
+        .all(|term| term_matches(entry, &term))
+}
+
+// `field:value` qualifies the match to one column; bare/unknown terms fall through to a free-text
+// match across every visible column.
+fn term_matches(entry: &GuestEntry, term: &SearchTerm) -> bool {
+    let value = &term.value;
+    match term.category.as_deref() {
+        Some("tag") => entry
+            .tags()
+            .iter()
+            .any(|t| t.to_lowercase().contains(value)),
+        Some("remote") => entry.remote.to_lowercase().contains(value),
+        Some("node") => entry.node().to_lowercase().contains(value),
+        Some("status") => entry.resource.status().to_lowercase().contains(value),
+        Some("type") => entry
+            .guest_type()
+            .to_string()
+            .to_lowercase()
+            .contains(value),
+        _ => free_text_match(entry, value),
+    }
+}
+
+fn free_text_match(entry: &GuestEntry, text: &str) -> bool {
     entry.remote.to_lowercase().contains(text)
         || entry.resource.name().to_lowercase().contains(text)
         || entry.vmid().to_string().contains(text)
