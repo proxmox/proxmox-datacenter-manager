@@ -404,7 +404,8 @@ pub fn render_network_options_form(
                 .submit_empty(false)
                 .name("netdev-filter")
                 .class(FlexFit)
-                .disabled(use_dhcp_fqdn),
+                .disabled(use_dhcp_network)
+                .required(!use_dhcp_network),
         )
         .into()
 }
@@ -513,7 +514,12 @@ pub fn render_disk_setup_form(
                 .submit_empty(false)
                 .name("disk-filter")
                 .class(FlexFit)
-                .disabled(disk_mode != DiskSelectionMode::Filter),
+                .disabled(disk_mode != DiskSelectionMode::Filter)
+                // The auto-installer rejects an empty filter at apply time ("need either
+                // disk-list or filter set"), so reject it in the form too rather than let the
+                // user submit a config that will fail. Required only in Filter mode; in Fixed
+                // mode the field is disabled and validation is skipped.
+                .required(disk_mode == DiskSelectionMode::Filter),
         );
 
     let warning = match fs_type {
