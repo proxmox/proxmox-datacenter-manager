@@ -374,83 +374,64 @@ fn perform_fido_auth(
 
     let libfido = proxmox_fido2::Lib::open()?;
 
-    let mut first = true;
-    'device: for dev_info in libfido.list_devices(None)? {
-        if !std::mem::replace(&mut first, false) {
-            println!("Trying next device...");
-        }
+    let Some((dev, dev_info)) = libfido.dev_open_query_by_touch(|| {
+        println!("{e}Multiple fido2 devices present!{e}", e = emoji("⚠️"));
         println!(
-            "opening FIDO2 device {manufacturer:?} {product:?} at {path:?}",
-            manufacturer = dev_info.manufacturer,
-            product = dev_info.product,
-            path = dev_info.path,
+            "{}Please select the device to use by touching it!",
+            emoji("👆")
         );
-        let dev = match libfido.dev_open(&dev_info.path) {
-            Ok(dev) => dev,
-            Err(err) => {
-                log::debug!(
-                    "failed to open FIDO2 device {path:?} - {err}",
-                    path = dev_info.path,
-                );
-                continue;
-            }
-        };
-        let options = match dev.options() {
-            Ok(o) => o,
-            Err(err) => {
-                log::error!(
-                    "error getting device options for {path:?}: {err:?}",
-                    path = dev_info.path
-                );
-                continue 'device;
-            }
-        };
+        Ok(())
+    })?
+    else {
+        bail!("failed to perform fido2 authentication");
+    };
 
-        let mut assert = libfido
-            .assert_new()?
-            .set_relying_party(public_key.rp_id.as_str())?
-            .set_user_verification_required(match public_key.user_verification {
-                UserVerificationPolicy::Discouraged_DO_NOT_USE => {
-                    if options.user_verification {
-                        FidoOpt::False
-                    } else {
-                        FidoOpt::Omit
-                    }
-                }
-                UserVerificationPolicy::Preferred => FidoOpt::Omit,
-                UserVerificationPolicy::Required => FidoOpt::True,
-            })?
-            .set_clientdata_hash(&hash)?;
-        for cred in &public_key.allow_credentials {
-            assert = assert.allow_cred(cred.id.as_ref())?;
-        }
+    log::debug!("using FIDO2 device {dev_info}");
 
-        let mut pin = None;
-        'with_pin: loop {
-            print!("{}Please confirm presence on security token.", emoji("👆"));
-            std::io::stdout().flush()?;
-            let response = dev.assert(&mut assert, pin.as_deref());
-            println!();
-            return match response {
-                Ok(assert) => finish_fido_auth(assert, client_data_json, b64u_challenge),
-                Err(proxmox_fido2::Error::NoCredentials) => {
-                    println!("Device did not contain the required credentials");
-                    continue 'device;
+    let options = dev
+        .options()
+        .with_context(|| format!("error getting device options from {dev_info}"))?;
+
+    let mut assert = libfido
+        .assert_new()?
+        .set_relying_party(public_key.rp_id.as_str())?
+        .set_user_verification_required(match public_key.user_verification {
+            UserVerificationPolicy::Discouraged_DO_NOT_USE => {
+                if options.user_verification {
+                    FidoOpt::False
+                } else {
+                    FidoOpt::Omit
                 }
-                Err(proxmox_fido2::Error::PinRequired) if pin.is_none() => {
-                    let user_pin = proxmox_sys::linux::tty::read_password("fido2 pin: ")?;
-                    pin = Some(
-                        String::from_utf8(user_pin)
-                            .map_err(|_| format_err!("invalid bytes in pin"))?,
-                    );
-                    continue 'with_pin;
-                }
-                Err(err) => return Err(err.into()),
-            };
-        }
+            }
+            UserVerificationPolicy::Preferred => FidoOpt::Omit,
+            UserVerificationPolicy::Required => FidoOpt::True,
+        })?
+        .set_clientdata_hash(&hash)?;
+    for cred in &public_key.allow_credentials {
+        assert = assert.allow_cred(cred.id.as_ref())?;
     }
 
-    bail!("failed to perform fido2 authentication");
+    let mut pin = None;
+    'with_pin: loop {
+        print!("{}Please confirm presence on security token.", emoji("👆"));
+        std::io::stdout().flush()?;
+        let response = dev.assert(&mut assert, pin.as_deref());
+        println!();
+        return match response {
+            Ok(assert) => finish_fido_auth(assert, client_data_json, b64u_challenge),
+            Err(proxmox_fido2::Error::NoCredentials) => {
+                bail!("Device did not contain the required credentials");
+            }
+            Err(proxmox_fido2::Error::PinRequired) if pin.is_none() => {
+                let user_pin = proxmox_sys::linux::tty::read_password("fido2 pin: ")?;
+                pin = Some(
+                    String::from_utf8(user_pin).map_err(|_| format_err!("invalid bytes in pin"))?,
+                );
+                continue 'with_pin;
+            }
+            Err(err) => return Err(err.into()),
+        };
+    }
 }
 
 fn finish_fido_auth(

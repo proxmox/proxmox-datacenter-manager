@@ -411,80 +411,68 @@ fn perform_fido_creation(
 
     let libfido = proxmox_fido2::Lib::open()?;
 
-    'device: for dev_info in libfido.list_devices(None)? {
+    let Some((dev, dev_info)) = libfido.dev_open_query_by_touch(|| {
         println!(
-            "opening FIDO2 device {manufacturer:?} {product:?} at {path:?}",
-            manufacturer = dev_info.manufacturer,
-            product = dev_info.product,
-            path = dev_info.path,
+            "{e}Multiple fido2 devices present!{e}",
+            e = env::emoji("⚠️")
         );
-        let dev = match libfido.dev_open(&dev_info.path) {
-            Ok(dev) => dev,
-            Err(err) => {
-                log::debug!(
-                    "failed to open FIDO2 device {path:?} - {err}",
-                    path = dev_info.path,
-                );
-                continue;
-            }
+        println!(
+            "{}Please select the device to use by touching it!",
+            env::emoji("👆")
+        );
+        Ok(())
+    })?
+    else {
+        bail!("failed to perform fido2 authentication");
+    };
+
+    log::debug!("using FIDO2 device {dev_info}");
+
+    let options = dev
+        .options()
+        .with_context(|| format!("error getting device options from {dev_info}"))?;
+
+    'algorithm: for params in &public_key.pub_key_cred_params {
+        let Ok(alg) = libc::c_int::try_from(params.alg) else {
+            continue 'algorithm;
         };
-        let options = match dev.options() {
-            Ok(o) => o,
-            Err(err) => {
-                log::error!(
-                    "error getting device options for {path:?}: {err:?}",
-                    path = dev_info.path
-                );
-                continue 'device;
-            }
+
+        let Some(mut cred) = prepare_cerds(&libfido, public_key, &hash, &options, alg)? else {
+            bail!("failed to prepare credentials for {dev_info}");
         };
 
-        'algorithm: for params in &public_key.pub_key_cred_params {
-            let Ok(alg) = libc::c_int::try_from(params.alg) else {
-                continue 'algorithm;
-            };
-
-            let Some(mut cred) = prepare_cerds(&libfido, public_key, &hash, &options, alg)? else {
-                continue 'device;
-            };
-
-            let read_new_pin = || {
-                let user_pin = proxmox_sys::linux::tty::read_password(&format!(
-                    "{}fido2 pin: ",
-                    env::emoji("🔐")
-                ))?;
-                String::from_utf8(user_pin).map_err(|_| format_err!("invalid bytes in pin"))
-            };
-            let mut pin = None;
-            if options.client_pin {
-                pin = Some(read_new_pin()?);
+        let read_new_pin = || {
+            let user_pin = proxmox_sys::linux::tty::read_password(&format!(
+                "{}fido2 pin: ",
+                env::emoji("🔐")
+            ))?;
+            String::from_utf8(user_pin).map_err(|_| format_err!("invalid bytes in pin"))
+        };
+        let mut pin = None;
+        if options.client_pin {
+            pin = Some(read_new_pin()?);
+        }
+        'with_pin: loop {
+            if options.user_presence {
+                print!(
+                    "{}Please confirm presence on security token.",
+                    env::emoji("👆")
+                );
+                let _ = std::io::stdout().flush();
             }
-            'with_pin: loop {
-                if options.user_presence {
-                    print!(
-                        "{}Please confirm presence on security token.",
-                        env::emoji("👆")
-                    );
-                    let _ = std::io::stdout().flush();
+            let response = dev.make_cred(&mut cred, pin.as_deref());
+            println!();
+            match response {
+                Ok(cred) => return finish_fido_auth(cred, client_data_json, b64u_challenge, alg),
+                Err(proxmox_fido2::Error::UnsupportedAlgorithm) => continue 'algorithm,
+                Err(proxmox_fido2::Error::PinRequired) if pin.is_none() => {
+                    eprintln!("PIN failure");
+                    pin = Some(read_new_pin()?);
+                    continue 'with_pin;
                 }
-                let response = dev.make_cred(&mut cred, pin.as_deref());
-                println!();
-                match response {
-                    Ok(cred) => {
-                        return finish_fido_auth(cred, client_data_json, b64u_challenge, alg)
-                    }
-                    Err(proxmox_fido2::Error::UnsupportedAlgorithm) => continue 'algorithm,
-                    Err(proxmox_fido2::Error::PinRequired) if pin.is_none() => {
-                        eprintln!("PIN failure");
-                        pin = Some(read_new_pin()?);
-                        continue 'with_pin;
-                    }
-                    Err(err) => return Err(err.into()),
-                }
+                Err(err) => return Err(err.into()),
             }
         }
-
-        // this device supports none of the algorithms, try another
     }
 
     bail!("failed to perform fido2 authentication");
