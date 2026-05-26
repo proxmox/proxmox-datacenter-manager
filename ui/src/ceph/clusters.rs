@@ -85,12 +85,13 @@ fn daemon_cell(up: Option<i64>, total: Option<i64>) -> Html {
     }
 }
 
-/// An OSD "up / in / total" cell. Red when any OSD is down (data availability risk), amber when all
-/// are up but some are out (drained/rebalancing).
+/// An OSD "{up} up, {in}/{total} in" cell. Red when any OSD is down (data availability risk), amber
+/// when all are up but some are out (drained/rebalancing). The mixed phrasing keeps the two
+/// independent dimensions (running vs. participating in data placement) readable as one cell.
 fn osd_cell(up: Option<i64>, in_cluster: Option<i64>, total: Option<i64>) -> Html {
     match (up, in_cluster, total) {
         (Some(up), Some(in_cluster), Some(total)) => {
-            let text = format!("{up} / {in_cluster} / {total}");
+            let text = tr!("{0} up, {1}/{2} in", up, in_cluster, total);
             let color = if up < total {
                 Some(FontColor::Error)
             } else if in_cluster < total {

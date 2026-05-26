@@ -142,7 +142,7 @@ impl LoadableComponent for PdmCephDashboardPanel {
         col = col.with_child(kv(
             tr!("OSDs"),
             tr!(
-                "{0} up, {1} in / {2} total",
+                "{0} up, {1}/{2} in",
                 status.osds_up,
                 status.osds_in,
                 status.osds_total
