@@ -145,6 +145,13 @@ Ceph
 This menu collects the Ceph clusters of all connected hyper-converged Proxmox VE
 remotes for read-only monitoring. See the :ref:`ceph` section for details.
 
+Guests
+^^^^^^
+
+This menu provides a single cross-remote list of all QEMU and LXC guests, with
+text filtering, sorting, the common per-guest actions, and snapshot management.
+See the :ref:`guests` section for details.
+
 Remotes
 ^^^^^^^
 
