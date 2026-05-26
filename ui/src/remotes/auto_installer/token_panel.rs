@@ -384,12 +384,7 @@ async fn create_token(form_ctx: FormContext) -> Result<AnswerTokenCreateResult> 
         proxmox_time::parse_rfc3339(&form_ctx.read().get_field_text("expire-at")).unwrap_or(0);
 
     Ok(pdm_client()
-        .add_autoinst_token(
-            &percent_encode_component(&id),
-            Some(comment),
-            Some(enable),
-            Some(expire),
-        )
+        .add_autoinst_token(&id, Some(comment), Some(enable), Some(expire))
         .await?)
 }
 
