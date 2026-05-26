@@ -177,7 +177,12 @@ impl LoadableComponent for AuthTokenPanelComponent {
                     ))
                     .disabled(self.selection.is_empty())
                     .on_activate(link.callback(|_| Message::RegenerateSecret)),
-            );
+            )
+            .with_flex_spacer()
+            .with_child(Button::refresh(self.loading()).onclick({
+                let link = ctx.link().clone();
+                move |_| link.send_reload()
+            }));
 
         Some(toolbar.into())
     }
