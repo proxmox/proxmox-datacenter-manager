@@ -56,6 +56,11 @@ pub fn prepare_form_data(mut value: serde_json::Value) -> Result<serde_json::Val
 
     let root_ssh_keys = collect_lines_into_array(obj.remove("root-ssh-keys"));
 
+    // `fqdn` is required on the API type, but its input is disabled (and thus not submitted)
+    // when the FQDN is taken from DHCP; provide an empty value so such an answer can be created.
+    // The backend ignores `fqdn` whenever `use-dhcp-fqdn` is set.
+    obj.entry("fqdn".to_owned()).or_insert(json!(""));
+
     value["filesystem"] = json!(fs_opts);
     value["disk-list"] = json!(disk_list);
     value["root-ssh-keys"] = root_ssh_keys;
