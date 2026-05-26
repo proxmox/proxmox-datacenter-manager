@@ -1351,12 +1351,9 @@ impl SubscriptionRegistryComp {
         let adopt_all_count = self.adopt_all_candidates().len();
         let (push_count, clear_count) = self.pending_counts();
         let pending = push_count + clear_count;
-        // Check Subscription is a no-op on the remote when no key is installed (PVE / PBS
-        // `update_subscription` returns early without contacting the shop), so disable the
-        // button to keep the UI honest about what clicking it will do.
-        let can_check = self
-            .selected_node_status()
-            .is_some_and(|n| n.status != proxmox_subscription::SubscriptionStatus::NotFound);
+        // PDM's cached status may be stale (e.g. a key was just added directly on the remote),
+        // so always allow Check when a node is selected.
+        let can_check = self.selected_node_status().is_some();
         // Common per-selection verbs are direct buttons with short labels; each tooltip says what
         // it does and when it is available, so a disabled button explains itself.
         let assign_button = Tooltip::new(
@@ -1402,7 +1399,7 @@ impl SubscriptionRegistryComp {
         .tip(if can_check {
             tr!("Re-verify the live subscription against the shop, refreshing its status.")
         } else {
-            tr!("No subscription installed on the selected node; assign or adopt one first.")
+            tr!("Select a node to check its subscription.")
         });
 
         // Both adopt scopes share one menu: import the selected node's live subscription, or every
