@@ -321,11 +321,11 @@ pub fn render_network_options_form(
                 .disabled(use_dhcp_network)
                 .required(!use_dhcp_network),
         )
-        .with_right_field(
+        .with_field(
             tr!("FQDN from DHCP"),
             Checkbox::new().name("use-dhcp-fqdn").default(false),
         )
-        .with_right_field(
+        .with_field(
             tr!("Fully-Qualified Domain Name (FQDN)"),
             Field::new()
                 .name("fqdn")
@@ -344,15 +344,14 @@ pub fn render_network_options_form(
                 })
                 .required(!use_dhcp_fqdn),
         )
-        .with_right_field("", DisplayField::new().key("dummy"))
-        .with_right_field(
+        .with_field(
             tr!("Pin Network Interfaces"),
             Checkbox::new()
                 .name("netif-name-pinning-enabled")
                 .default(config.netif_name_pinning_enabled),
         )
         .with_advanced_spacer()
-        .with_large_advanced_field(
+        .with_advanced_field(
             tr!("Network Device Filters"),
             KeyValueList::new()
                 .value(
