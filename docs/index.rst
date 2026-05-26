@@ -25,6 +25,7 @@ in the section entitled "GNU Free Documentation License".
    web-ui.rst
    sdn-integration.rst
    remotes.rst
+   ceph.rst
    automated-installations.rst
    views.rst
    subscription-registry.rst

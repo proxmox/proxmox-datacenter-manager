@@ -139,6 +139,12 @@ information on how to use Proxmox Datacenter Manager's SDN integration can be fo
   :align: right
   :alt: The Update tab shows all updates on all remotes
 
+Ceph
+^^^^
+
+This menu collects the Ceph clusters of all connected hyper-converged Proxmox VE
+remotes for read-only monitoring. See the :ref:`ceph` section for details.
+
 Remotes
 ^^^^^^^
 
