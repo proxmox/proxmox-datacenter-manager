@@ -1,3 +1,40 @@
+proxmox-datacenter-manager-ui (1.0.6) trixie; urgency=medium
+
+  * guests: central snapshot management for QEMU and LXC. List a guest's
+    snapshots as a parent/child tree with state, timestamp and description,
+    and create, roll back, delete and edit the description of a snapshot from
+    the central guest list or as a Snapshots tab in the QEMU and LXC detail
+    panels.
+
+  * remotes: add a certificate check and re-pin dialog. After a TLS
+    certificate rotation on a remote, the dialog re-probes the configured
+    nodes, lets you accept the new fingerprint per node or clear the stored
+    pin, and applies every accepted change as one batch. Reachable from the
+    remotes list and offered directly on a PVE or PBS remote whose connection
+    is failing. This is a stop-gap until all Proxmox products support staged
+    certificate rotation.
+
+  * subscription: improve the key pool and Auto-Assign UX: validate keys when
+    adding them, allow per-row key overrides and row deselection in the
+    Auto-Assign proposal, surface errors when removing a key fails, and filter
+    the node status tree by status.
+
+  * subscription: tighten panel UX: empty-state hints on the pool and node
+    panels, a collapsible node-status filter, and a node-status toolbar that
+    fits narrower side panels.
+
+  * auto-installer: add an optional Proxmox subscription key field to the
+    prepared answer form, so a prepared installation can be assigned a
+    subscription key up front.
+
+  * ceph: make the cluster list and per-cluster detail view responsive, so
+    they show useful content on narrower viewports.
+
+  * ceph: include the Ceph logo with the package, restoring the menu entry
+    icon and the logo in the cluster views.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 26 May 2026 03:08:23 +0200
+
 proxmox-datacenter-manager-ui (1.0.5) trixie; urgency=medium
 
   * ceph: add Ceph cluster views: a cluster list and a per-cluster dashboard
