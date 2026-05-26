@@ -261,8 +261,8 @@ impl ViewComp {
                         let mut params = json!({});
                         // max-age for location has a sensible backend default and does not need to be
                         // updated as often, except if forced
-                        if max_age == 0 {
-                            params["max-age"] = 0.into();
+                        if max_age <= FORCE_RELOAD_MAX_AGE_S {
+                            params["max-age"] = max_age.into();
                         }
                         add_view_filter(&mut params);
                         let res = http_get("/resources/location-info", Some(params)).await;
