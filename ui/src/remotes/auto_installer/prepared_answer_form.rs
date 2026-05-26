@@ -171,6 +171,7 @@ pub fn render_global_options_form(
                     }
                 })
                 .value(config.country.clone())
+                .autoselect_filter(true)
                 .required(true),
         )
         .with_field(
@@ -207,6 +208,7 @@ pub fn render_global_options_form(
                         .into()
                 })
                 .value(serde_variant_name(config.keyboard))
+                .autoselect_filter(true)
                 .required(true),
         )
         .with_field(
