@@ -6,12 +6,14 @@
 //! Layout follows the PVE remote-overview convention (section title rows + separators + meter
 //! rows), not bordered sub-panels, so it matches the rest of PDM's detail panes.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
 
 use anyhow::Error;
+
+use serde_json::json;
 
 use yew::virtual_dom::{VComp, VNode};
 
@@ -31,8 +33,11 @@ use pdm_api_types::ceph::{CephClusterStatus, CephHealthCheck};
 use super::renderer::{ceph_health_label, ceph_health_status, usage_cell};
 use crate::renderer::{render_title_row, separator};
 
-async fn load_summary(cluster: &str) -> Result<CephClusterStatus, Error> {
-    proxmox_yew_comp::http_get(format!("/ceph/clusters/{cluster}/summary"), None).await
+/// `max-age=0` forces the server to skip its status cache and fetch fresh, used for an explicit
+/// manual reload after a change; the background poll passes `None` to keep hitting the cache.
+async fn load_summary(cluster: &str, force_fresh: bool) -> Result<CephClusterStatus, Error> {
+    let params = force_fresh.then(|| json!({ "max-age": 0 }));
+    proxmox_yew_comp::http_get(format!("/ceph/clusters/{cluster}/summary"), params).await
 }
 
 #[derive(PartialEq, Properties)]
@@ -48,15 +53,24 @@ impl CephDashboardPanel {
     }
 }
 
+/// Set when the user clicks refresh, so the next [`load`](LoadableComponent::load) forces fresh
+/// data; the background poll never sends it.
+pub enum Msg {
+    ForceReload,
+}
+
 pub struct PdmCephDashboardPanel {
     state: LoadableComponentState<()>,
     status: Rc<RefCell<Option<CephClusterStatus>>>,
+    /// Read-and-cleared by `load`; the manual reload and the poll both route through `load`, so
+    /// this flag is the only thing that tells them apart.
+    force_fresh: Cell<bool>,
 }
 
 pwt::impl_deref_mut_property!(PdmCephDashboardPanel, state, LoadableComponentState<()>);
 
 impl LoadableComponent for PdmCephDashboardPanel {
-    type Message = ();
+    type Message = Msg;
     type Properties = CephDashboardPanel;
     type ViewState = ();
 
@@ -66,6 +80,17 @@ impl LoadableComponent for PdmCephDashboardPanel {
         Self {
             state: LoadableComponentState::new(),
             status: Rc::new(RefCell::new(None)),
+            force_fresh: Cell::new(false),
+        }
+    }
+
+    fn update(&mut self, ctx: &LoadableComponentContext<Self>, msg: Self::Message) -> bool {
+        match msg {
+            Msg::ForceReload => {
+                self.force_fresh.set(true);
+                ctx.link().send_reload();
+                false
+            }
         }
     }
 
@@ -75,9 +100,10 @@ impl LoadableComponent for PdmCephDashboardPanel {
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
         let cluster = ctx.props().cluster.clone();
         let status = self.status.clone();
+        let force_fresh = self.force_fresh.take();
         Box::pin(async move {
             // Resolve before taking the borrow; never hold it across the await.
-            let data = load_summary(&cluster).await?;
+            let data = load_summary(&cluster, force_fresh).await?;
             *status.borrow_mut() = Some(data);
             Ok(())
         })
@@ -91,7 +117,9 @@ impl LoadableComponent for PdmCephDashboardPanel {
                 .class("pwt-overflow-hidden")
                 .class("pwt-border-bottom")
                 .with_flex_spacer()
-                .with_child(Button::refresh(loading).onclick(move |_| link.send_reload()))
+                .with_child(
+                    Button::refresh(loading).onclick(move |_| link.send_message(Msg::ForceReload)),
+                )
                 .into(),
         )
     }
