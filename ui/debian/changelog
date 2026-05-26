@@ -1,3 +1,111 @@
+proxmox-datacenter-manager-ui (1.0.7) trixie; urgency=medium
+
+  * map widget: actually plot remote locations on the world map. The
+    pwt-assets submodule needed an update for the leaflet map classes, and the
+    per-node location data needed a force reload so it surfaces after the
+    cache is refreshed.
+
+  * pve: snapshots: close the description-edit dialog on a successful update;
+    previously the dialog stayed open even though the change had already been
+    applied in the background.
+
+  * ceph: rephrase the OSD column from "{up} / {in} / {total}" to "{up} up,
+    {in}/{total} in" to make the two independent dimensions (running vs.
+    participating in data placement) readable as one cell.
+
+  * ceph: pools: allow sorting by Used % so operators can quickly spot the
+    most- and least-utilized pools when triaging capacity.
+
+  * ceph: allow row selection in the cluster panels (CephFS, flags, managers +
+    MDS, monitors, OSDs, pools) for orientation and screenshots; the selection
+    is purely visual, no action fires on select.
+
+  * ceph: open the matching PVE Ceph subview from the "Open Web UI" button
+    instead of always landing on the top-level Ceph node tab. The mapping
+    covers Monitors, OSDs, Pools, CephFS and Flags (which PVE manages from the
+    OSD panel).
+
+  * ceph: fix the vertical alignment of the per-OSD usage meter.
+
+  * auto-installer: prepared-answer form polish:
+    - include the certificate fingerprint in the suggested
+      proxmox-auto-install-assistant prepare-iso command line so it can be
+      copied and run as-is; ship a default template that users can adapt
+    - refresh the advanced filesystem options in place when the filesystem
+      field changes; previously only a Save + re-open round-trip would surface
+      the matching options
+    - require a non-empty disk-filter and network-filter list so an empty
+      list is rejected up-front rather than later by the apply step ("need
+      either disk-list or filter set"); also fix the network filter's disabled
+      gate to key off the DHCP network checkbox instead of the unrelated DHCP
+      FQDN one
+    - validate the template-counter name field properly, allow new counters
+      to be added, parse an empty counter default value as 0, and make the
+      FQDN field a large field with an empty default
+    - filter the country and keyboard-layout dropdowns by both ISO code and
+      full name so users can search by either, and auto-select the matching
+      entry as they type
+    - stop silently dropping the advanced ZFS ARC max size and the ZFS and
+      Btrfs compression algorithm when saving a prepared answer
+    - allow saving a prepared answer that takes its FQDN from DHCP, which
+      previously failed with a "missing field" error
+
+  * auto-installer: drop URL encoding from the token ID during creation so the
+    rendered API URL matches the stored ID exactly.
+
+  * subscription: keep Auto-Assign row selection independent from the per-row
+    key picker. Clicking the dropdown no longer toggles the row's selection,
+    and clearing the dropdown no longer snaps the value back to the top-most
+    key.
+
+  * subscription: always allow Check when a node is selected. The previous
+    gate on "no subscription installed" prevented refreshing a cached status
+    that may have become stale after a key was added directly on the remote.
+
+  * guests: extend the filter on the cross-remote guest list with
+    field-qualified terms (tag:, remote:, node:, status:, type:) that are
+    ANDed across whitespace-separated terms, e.g. "tag:prod remote:cluster1"
+    matches guests tagged prod on the cluster1 remote.  Bare words still match
+    across all visible columns.
+
+  * guests: make the CPU Usage and Memory Usage columns sortable in the tree
+    view; normalize the column label to "Memory Usage" so it matches the rest
+    of the UI.
+
+  * guests: promote the cross-remote guest panel to the top-level navigation.
+
+  * migration: indicate the guest's current node in the target-node selector
+    (greyed out and labelled "current") so users do not pick a no-op target;
+    also add a CPU Usage column next to the existing Memory Usage column so a
+    target can be picked by full live utilization.
+
+  * certificates: lay out the certificate-detail KVGrid to fit and wrap long
+    values; in the certificate re-check dialog hoist the verification guidance
+    and summarize the fleet's certificate issuer.
+
+  * access control: use the plural form for the API Tokens tab name.
+
+  * auto-installer: seed the network and FQDN settings from the saved config
+    when editing a prepared answer, so a static configuration is no longer
+    reset to DHCP on edit; also accept MiniJinja template expressions in the
+    address fields.
+
+  * auto-installer: clear the template counters when the list is emptied on
+    edit, and reject duplicate template-counter names instead of silently
+    collapsing them into one entry.
+
+  * auto-installer: add a refresh button to the authentication tokens panel.
+
+  * ceph: force a fresh status fetch on a manual dashboard reload instead of
+    serving the cached value; the background poll keeps using the cache.
+
+  * subscription: clarify the status labels so the dashboard (remotes),
+    the configuration panel (the PDM host's own subscription) and the
+    remotes-list column (subscription level) no longer read as contradicting
+    each other.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 26 May 2026 19:00:00 +0200
+
 proxmox-datacenter-manager-ui (1.0.6) trixie; urgency=medium
 
   * guests: central snapshot management for QEMU and LXC. List a guest's
