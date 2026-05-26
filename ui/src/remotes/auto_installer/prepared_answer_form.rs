@@ -88,7 +88,7 @@ fn collect_fs_options(obj: &mut serde_json::Map<String, Value>) -> FilesystemOpt
                 .and_then(|v| v.as_u64())
                 .map(|v| v as u32),
             arc_max: obj
-                .remove("ashift")
+                .remove("arc-max")
                 .and_then(|v| v.as_u64())
                 .map(|v| v as u32),
             checksum: obj
@@ -96,7 +96,7 @@ fn collect_fs_options(obj: &mut serde_json::Map<String, Value>) -> FilesystemOpt
                 .and_then(|v| v.as_str().map(ToOwned::to_owned))
                 .and_then(|s| s.parse::<ZfsChecksumOption>().ok()),
             compress: obj
-                .remove("checksum")
+                .remove("compress")
                 .and_then(|v| v.as_str().map(ToOwned::to_owned))
                 .and_then(|s| s.parse::<ZfsCompressOption>().ok()),
             copies: obj
@@ -108,7 +108,7 @@ fn collect_fs_options(obj: &mut serde_json::Map<String, Value>) -> FilesystemOpt
         FilesystemType::Btrfs(level) => FilesystemOptions::Btrfs(BtrfsOptions {
             raid: Some(level),
             compress: obj
-                .remove("checksum")
+                .remove("compress")
                 .and_then(|v| v.as_str().map(ToOwned::to_owned))
                 .and_then(|s| s.parse::<BtrfsCompressOption>().ok()),
             hdsize: obj.remove("hdsize").and_then(|v| v.as_f64()),
@@ -676,10 +676,10 @@ fn add_zfs_advanced_form_fields(panel: &mut InputPanel, fs_opts: &ZfsOptions) {
         true,
         false,
         tr!("ARC Maximum Size (MiB)"),
-        Number::new()
+        Number::<u64>::new()
             .name("arc-max")
-            .min(64.)
-            .step(1.)
+            .min(64)
+            .step(1)
             .submit_empty(false)
             .value(fs_opts.arc_max.map(|v| v.to_string())),
     );
