@@ -19,6 +19,7 @@ use crate::configuration::subscription_panel::SubscriptionPanel;
 use crate::configuration::subscription_registry::SubscriptionRegistryProps;
 use crate::configuration::views::ViewGrid;
 use crate::dashboard::view::View;
+use crate::guests::GuestPanel;
 use crate::remotes::RemotesPanel;
 use crate::sdn::evpn::EvpnPanel;
 use crate::sdn::ZoneTree;
@@ -357,6 +358,15 @@ impl Component for PdmMainMenu {
             "ceph",
             Some("fa fa-ceph"),
             |_| CephView::new().into(),
+        );
+
+        register_view(
+            &mut menu,
+            &mut content,
+            tr!("Guests"),
+            "guests",
+            Some("fa fa-desktop"),
+            |_| GuestPanel::new().into(),
         );
 
         let mut remote_submenu = Menu::new();
