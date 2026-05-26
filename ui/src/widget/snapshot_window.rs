@@ -171,8 +171,8 @@ impl SnapshotWindow {
         let snapshot_comp = Self::new(remote.clone(), guest_info);
 
         Dialog::new(title)
-            .min_width(720)
-            .min_height(440)
+            .min_width(760)
+            .min_height(570)
             .max_height("90vh")
             .resizable(true)
             .with_child(snapshot_comp)
@@ -680,7 +680,7 @@ fn columns(
     // snapshot nests under its parent, siblings sorted by snaptime in build_snapshot_tree).
     let mut cols: Vec<DataTableHeader<SnapshotTreeEntry>> = vec![
         DataTableColumn::new(tr!("Name"))
-            .flex(1)
+            .flex(2)
             .tree_column(store)
             .render(|e: &SnapshotTreeEntry| {
                 let SnapshotTreeEntry::Item(s) = e else {
@@ -802,7 +802,7 @@ fn columns(
     );
     cols.push(
         DataTableColumn::new(tr!("Description"))
-            .flex(2)
+            .flex(3)
             .render(|e: &SnapshotTreeEntry| match e {
                 SnapshotTreeEntry::Item(s) => html! { { s.description.clone() } },
                 SnapshotTreeEntry::Root => html! {},
