@@ -892,16 +892,12 @@ fn flat_columns(
             .flex(1)
             .render(|entry: &GuestEntry| render_guest_tags(entry.tags()).into())
             .into(),
-        DataTableColumn::new(tr!("CPU usage"))
+        DataTableColumn::new(tr!("CPU Usage"))
             .width("90px")
-            .sorter(|a: &GuestEntry, b: &GuestEntry| {
-                a.cpu()
-                    .partial_cmp(&b.cpu())
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+            .sorter(|a: &GuestEntry, b: &GuestEntry| a.cpu().total_cmp(&b.cpu()))
             .render(|entry: &GuestEntry| cpu_html(entry))
             .into(),
-        DataTableColumn::new(tr!("Memory usage"))
+        DataTableColumn::new(tr!("Memory Usage"))
             .width("150px")
             .sorter(|a: &GuestEntry, b: &GuestEntry| a.mem().cmp(&b.mem()))
             .render(|entry: &GuestEntry| mem_html(entry))
@@ -962,15 +958,23 @@ fn tree_columns(
                 _ => html! {},
             })
             .into(),
-        DataTableColumn::new(tr!("CPU usage"))
+        DataTableColumn::new(tr!("CPU Usage"))
             .width("90px")
+            .sorter(|a: &GuestTreeNode, b: &GuestTreeNode| match (a, b) {
+                (GuestTreeNode::Guest(a), GuestTreeNode::Guest(b)) => a.cpu().total_cmp(&b.cpu()),
+                _ => std::cmp::Ordering::Equal,
+            })
             .render(|node: &GuestTreeNode| match node {
                 GuestTreeNode::Guest(entry) => cpu_html(entry),
                 _ => html! {},
             })
             .into(),
-        DataTableColumn::new(tr!("Memory usage"))
+        DataTableColumn::new(tr!("Memory Usage"))
             .width("150px")
+            .sorter(|a: &GuestTreeNode, b: &GuestTreeNode| match (a, b) {
+                (GuestTreeNode::Guest(a), GuestTreeNode::Guest(b)) => a.mem().cmp(&b.mem()),
+                _ => std::cmp::Ordering::Equal,
+            })
             .render(|node: &GuestTreeNode| match node {
                 GuestTreeNode::Guest(entry) => mem_html(entry),
                 _ => html! {},
