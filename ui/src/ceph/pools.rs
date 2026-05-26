@@ -145,6 +145,11 @@ fn columns() -> Rc<Vec<DataTableHeader<CephPool>>> {
             .into(),
         DataTableColumn::new(tr!("Used"))
             .flex(1)
+            .sorter(|a: &CephPool, b: &CephPool| {
+                a.percent_used
+                    .unwrap_or_default()
+                    .total_cmp(&b.percent_used.unwrap_or_default())
+            })
             .render(|p: &CephPool| {
                 let pct = p.percent_used.unwrap_or(0.0) * 100.0;
                 let used = HumanByte::from(p.bytes_used.unwrap_or(0).max(0) as u64);
