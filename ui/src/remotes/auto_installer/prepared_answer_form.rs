@@ -949,7 +949,7 @@ pub fn render_show_secret_dialog(
         pdm_origin().unwrap_or_else(|| "https://pdm.example.com:8443".to_owned())
     );
     let commandline = format!(
-        "proxmox-auto-install-assistant prepare-iso --fetch-from http --url {answer_url} --answer-auth-token {token}",
+        "proxmox-auto-install-assistant prepare-iso --fetch-from http --url {answer_url} --answer-auth-token {token} INPUT.iso",
     );
 
     let copy_commandline_view = Container::new()
@@ -976,7 +976,7 @@ pub fn render_show_secret_dialog(
                                 move |_| copy_text_to_clipboard(&commandline)
                             }),
                     )
-                    .tip(tr!("Copy command line to clipboard.")),
+                    .tip(tr!("Copy template command line to clipboard. Replace INPUT.iso with your installation ISO.")),
                 ),
         );
 
