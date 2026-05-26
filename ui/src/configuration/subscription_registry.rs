@@ -26,7 +26,8 @@ use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader, Multi
 use pwt::widget::form::{Combobox, Field};
 use pwt::widget::menu::{Menu, MenuButton, MenuItem};
 use pwt::widget::{
-    Button, Column, Container, Fa, Mask, Panel, Row, SegmentedButton, Toolbar, Tooltip, Trigger,
+    Button, Column, Container, Fa, Mask, MiniScrollMode, Panel, Row, SegmentedButton, Toolbar,
+    Tooltip, Trigger,
 };
 
 use pdm_api_types::subscription::{
@@ -1462,6 +1463,7 @@ impl SubscriptionRegistryComp {
         // its position when it is absent.
         let mut toolbar = Toolbar::new()
             .border_bottom(true)
+            .scroll_mode(MiniScrollMode::Arrow)
             .with_child(assign_button)
             .with_child(revert_button)
             .with_child(clear_button)
