@@ -1,3 +1,30 @@
+proxmox-datacenter-manager (1.0.6) trixie; urgency=medium
+
+  * add central guest snapshot management for QEMU and LXC guests: list,
+    create, roll back, delete and edit the description of a snapshot through
+    new API endpoints and CLI subcommands.
+
+  * remotes: add an endpoint and CLI subcommands to re-probe a remote node's
+    TLS certificate and update or clear the stored fingerprint, so a rotated
+    certificate no longer forces removing and re-adding the remote. This is a
+    stop-gap until all Proxmox products support staged certificate rotation.
+
+  * auto-installer: support an optional Proxmox subscription key per prepared
+    answer, forwarded into the rendered answer file so an automated install
+    can register the new node's subscription without an operator step.
+
+  * subscription: tolerate a corrupt shadow file when removing a pool key.
+    Drop the cached shadow blob best-effort after the authoritative pool
+    config removal succeeds, instead of refusing the removal up front.
+
+  * docs: document recovery from a rotated TLS certificate on a remote: when
+    the stored fingerprint is pinned, how the mismatch surfaces as an opaque
+    connection error, and how to re-probe and update or clear the pin.
+
+  * docs: refresh the subscription registry screenshots and notes.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 26 May 2026 03:08:23 +0200
+
 proxmox-datacenter-manager (1.0.5) trixie; urgency=medium
 
   * add read-only Ceph cluster monitoring for Proxmox VE remotes: auto-detect
