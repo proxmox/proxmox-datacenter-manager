@@ -1075,6 +1075,7 @@ fn kv_list_to_template_counter_map_validate(v: &Vec<(String, Value)>) -> Result<
         if TEMPLATE_COUNTER_NAME_REGEX.is_match(k) {
             let value = match v {
                 Value::Number(number) => number.as_i64(),
+                Value::String(text) if text == "" => Some(0),
                 Value::String(text) => text.parse().ok(),
                 _ => None,
             };
