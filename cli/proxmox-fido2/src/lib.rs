@@ -98,6 +98,7 @@ pub struct Lib {
     fido_dev_free: extern "C" fn(&mut *mut c_void),
     fido_dev_open: extern "C" fn(*mut c_void, dev: *const i8) -> c_int,
     fido_dev_close: extern "C" fn(*mut c_void),
+    fido_dev_cancel: extern "C" fn(*mut c_void),
     fido_dev_is_fido2: extern "C" fn(*mut c_void) -> c_int,
     fido_dev_get_cbor_info: extern "C" fn(*mut c_void, *mut c_void) -> c_int,
     fido_dev_make_cred: extern "C" fn(*mut c_void, *mut c_void, *const i8) -> c_int,
@@ -110,6 +111,8 @@ pub struct Lib {
     fido_dev_info_manufacturer_string: extern "C" fn(*mut c_void) -> *const i8,
     fido_dev_info_path: extern "C" fn(*mut c_void) -> *const i8,
     fido_dev_info_product_string: extern "C" fn(*mut c_void) -> *const i8,
+    fido_dev_get_touch_begin: extern "C" fn(*mut c_void) -> c_int,
+    fido_dev_get_touch_status: extern "C" fn(*mut c_void, *mut c_int, c_int) -> c_int,
 
     fido_cbor_info_new: extern "C" fn() -> *mut c_void,
     fido_cbor_info_free: extern "C" fn(&mut *mut c_void),
@@ -208,6 +211,7 @@ impl Lib {
             fido_dev_free: lib.get(c"fido_dev_free")?,
             fido_dev_open: lib.get(c"fido_dev_open")?,
             fido_dev_close: lib.get(c"fido_dev_close")?,
+            fido_dev_cancel: lib.get(c"fido_dev_cancel")?,
             fido_dev_is_fido2: lib.get(c"fido_dev_is_fido2")?,
             fido_dev_get_cbor_info: lib.get(c"fido_dev_get_cbor_info")?,
             fido_dev_make_cred: lib.get(c"fido_dev_make_cred")?,
@@ -220,6 +224,8 @@ impl Lib {
             fido_dev_info_manufacturer_string: lib.get(c"fido_dev_info_manufacturer_string")?,
             fido_dev_info_path: lib.get(c"fido_dev_info_path")?,
             fido_dev_info_product_string: lib.get(c"fido_dev_info_product_string")?,
+            fido_dev_get_touch_begin: lib.get(c"fido_dev_get_touch_begin")?,
+            fido_dev_get_touch_status: lib.get(c"fido_dev_get_touch_status")?,
 
             fido_cbor_info_new: lib.get(c"fido_cbor_info_new")?,
             fido_cbor_info_free: lib.get(c"fido_cbor_info_free")?,
@@ -287,6 +293,7 @@ impl Lib {
         Ok(FidoDev {
             lib: Arc::clone(self),
             dev,
+            should_cancel: false,
         })
     }
 
@@ -366,6 +373,88 @@ impl Lib {
         }
 
         Ok(None)
+    }
+
+    /// Ask all FIDO2 devices for a touch event and finally open the one which was touched by the
+    /// user.
+    ///
+    /// Note that the FIDO2 library needs to busy-poll each device for this.
+    ///
+    /// If only one device is present, the device is opened silently.
+    /// If multiple devices are present, the callback is used in order to allow the caller to
+    /// notify the user about this.
+    pub fn dev_open_query_by_touch<E, F>(
+        self: &Arc<Self>,
+        multiple_devices_present_callback: F,
+    ) -> Result<Option<(FidoDev, DeviceDescription)>, Error>
+    where
+        Error: From<E>,
+        F: FnOnce() -> Result<(), E>,
+    {
+        let all_devices = self.list_devices(None)?;
+
+        if all_devices.is_empty() {
+            return Ok(None);
+        }
+
+        // Special case where only 1 device exists: we don't need to nag the user with a touch!
+        if all_devices.len() == 1 {
+            let dev_info = { all_devices }.pop().unwrap();
+
+            let device = self.dev_open(&dev_info.path)?;
+            if !device.is_fido2() {
+                return Ok(None);
+            }
+
+            return Ok(Some((device, dev_info)));
+        }
+
+        multiple_devices_present_callback()?;
+
+        // Otherwise perform the touch query:
+        let mut opened_devices = Vec::with_capacity(all_devices.len());
+        for dev_info in all_devices {
+            let mut device = match self.dev_open(&dev_info.path) {
+                Ok(d) => d,
+                Err(err) => {
+                    log::error!("failed to open fido2 device {:?}: {err}", dev_info.path);
+                    continue;
+                }
+            };
+
+            if !device.is_fido2() {
+                continue;
+            }
+
+            match device.touch_begin() {
+                Ok(()) => opened_devices.push((device, dev_info)),
+                Err(err) => {
+                    log::error!(
+                        "failed to ask device {:?}: for touch event: {err}",
+                        dev_info.path
+                    );
+                    continue;
+                }
+            }
+        }
+
+        loop {
+            if opened_devices.is_empty() {
+                return Ok(None);
+            }
+
+            for (index, (device, dev_info)) in opened_devices.iter().enumerate() {
+                match device.touch_get() {
+                    Ok(false) => (),
+                    Ok(true) => return Ok(Some(opened_devices.remove(index))),
+                    Err(err) => {
+                        log::error!("error with device {dev_info}: {err:?}");
+                        opened_devices.remove(index);
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -460,9 +549,22 @@ pub struct DeviceDescription {
     pub path: PathBuf,
 }
 
+impl fmt::Display for DeviceDescription {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{manufacturer:?} {product:?} (at {path:?})",
+            manufacturer = self.manufacturer,
+            product = self.product,
+            path = self.path,
+        )
+    }
+}
+
 pub struct FidoDev {
     lib: Arc<Lib>,
     dev: *mut c_void,
+    should_cancel: bool,
 }
 
 unsafe impl Send for FidoDev {}
@@ -470,6 +572,9 @@ unsafe impl Sync for FidoDev {}
 
 impl Drop for FidoDev {
     fn drop(&mut self) {
+        if self.should_cancel {
+            (self.lib.fido_dev_cancel)(self.dev);
+        }
         (self.lib.fido_dev_close)(self.dev);
         (self.lib.fido_dev_free)(&mut self.dev);
     }
@@ -495,6 +600,28 @@ impl FidoDev {
 
     pub fn is_fido2(&self) -> bool {
         (self.lib.fido_dev_is_fido2)(self.dev) != 0
+    }
+
+    fn touch_begin(&mut self) -> Result<(), Error> {
+        let res = result_msg(
+            &self.lib,
+            (self.lib.fido_dev_get_touch_begin)(self.dev),
+            "failed to ask device for a touch event",
+        );
+        if res.is_ok() {
+            self.should_cancel = true;
+        }
+        res
+    }
+
+    fn touch_get(&self) -> Result<bool, Error> {
+        let mut status = 0;
+        result_msg(
+            &self.lib,
+            (self.lib.fido_dev_get_touch_status)(self.dev, &mut status, 50),
+            "failed to query touch status of device",
+        )?;
+        Ok(status != 0)
     }
 
     pub fn make_cred<'a>(
