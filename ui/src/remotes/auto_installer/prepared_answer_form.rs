@@ -538,17 +538,38 @@ pub fn render_disk_setup_form(
 
     panel.add_spacer(true);
 
-    add_fs_advanced_form_fields(&mut panel, &config.filesystem);
+    // Dispatch the advanced field set on the live `fs_type` read from the form context (already
+    // re-read on every render via EditWindow's FormDataChange redraw), not on the static config:
+    // switching filesystem must refresh the advanced panel in place. When the live kind still
+    // matches the saved kind reuse the saved payload so unrelated edits survive; otherwise fall
+    // back to defaults so the form starts the new kind from a clean slate.
+    add_fs_advanced_form_fields(&mut panel, fs_type, &config.filesystem);
     panel.into()
 }
 
-fn add_fs_advanced_form_fields(panel: &mut InputPanel, fs_opts: &FilesystemOptions) {
-    match fs_opts {
-        FilesystemOptions::Ext4(opts) | FilesystemOptions::Xfs(opts) => {
-            add_lvm_advanced_form_fields(panel, opts)
-        }
-        FilesystemOptions::Zfs(opts) => add_zfs_advanced_form_fields(panel, opts),
-        FilesystemOptions::Btrfs(opts) => add_btrfs_advanced_form_fields(panel, opts),
+fn add_fs_advanced_form_fields(
+    panel: &mut InputPanel,
+    fs_type: FilesystemType,
+    fs_opts: &FilesystemOptions,
+) {
+    if fs_type.is_lvm() {
+        let lvm = match fs_opts {
+            FilesystemOptions::Ext4(opts) | FilesystemOptions::Xfs(opts) => *opts,
+            _ => LvmOptions::default(),
+        };
+        add_lvm_advanced_form_fields(panel, &lvm);
+    } else if matches!(fs_type, FilesystemType::Zfs(_)) {
+        let zfs = match fs_opts {
+            FilesystemOptions::Zfs(opts) => *opts,
+            _ => ZfsOptions::default(),
+        };
+        add_zfs_advanced_form_fields(panel, &zfs);
+    } else if fs_type.is_btrfs() {
+        let btrfs = match fs_opts {
+            FilesystemOptions::Btrfs(opts) => *opts,
+            _ => BtrfsOptions::default(),
+        };
+        add_btrfs_advanced_form_fields(panel, &btrfs);
     }
 }
 
