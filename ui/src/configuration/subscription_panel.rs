@@ -149,17 +149,21 @@ const SUBSCRIPTION_THRESHOLD: f64 = 0.8;
 
 fn rows() -> Vec<KVGridRow> {
     vec![
-        KVGridRow::new("status", tr!("Status")).renderer(move |_name, value, record| {
-            let value = match value {
-                Value::String(data) => data,
-                Value::Null => return Container::from_tag("i").class("pwt-loading-icon").into(),
-                _ => return error_message(&tr!("invalid data")).into(),
-            };
-            match record["message"].as_str() {
-                Some(msg) => format!("{value}: {msg}").into(),
-                None => value.into(),
-            }
-        }),
+        KVGridRow::new("status", tr!("PDM Subscription Status")).renderer(
+            move |_name, value, record| {
+                let value = match value {
+                    Value::String(data) => data,
+                    Value::Null => {
+                        return Container::from_tag("i").class("pwt-loading-icon").into()
+                    }
+                    _ => return error_message(&tr!("invalid data")).into(),
+                };
+                match record["message"].as_str() {
+                    Some(msg) => format!("{value}: {msg}").into(),
+                    None => value.into(),
+                }
+            },
+        ),
         KVGridRow::new("statistics", tr!("Statistics")).renderer(move |_name, value, _record| {
             let statistics = serde_json::from_value::<SubscriptionStatistics>(value.clone());
             match statistics {

@@ -178,7 +178,7 @@ impl yew::Component for RemotePanelComp {
             None => Column::new()
                 .gap(2)
                 .with_child(status_row_right_icon(
-                    tr!("Subscription Status"),
+                    tr!("Subscription Level"),
                     if status.level.is_empty() {
                         Status::Error
                     } else {

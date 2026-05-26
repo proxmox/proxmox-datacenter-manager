@@ -68,7 +68,7 @@ fn render_subscription_status(subs: &[RemoteSubscriptions]) -> Row {
     } else if active > 0 {
         (
             Status::Success,
-            tr!("Your subscription status is valid."),
+            tr!("All remotes have a valid subscription."),
             "".into(),
         )
     } else {
