@@ -201,7 +201,8 @@ pub enum Action {
 #[derive(PartialEq)]
 pub enum ViewState {
     Confirm(Action, Key),
-    Migrate(String, GuestInfo),
+    /// Open the migration dialog for the given (remote, source-node, guest).
+    Migrate(String, String, GuestInfo),
     Snapshots(String, GuestInfo),
 }
 
@@ -566,8 +567,9 @@ impl LoadableComponent for GuestPanelComp {
                         .into(),
                 )
             }
-            ViewState::Migrate(remote, guest_info) => Some(
+            ViewState::Migrate(remote, source_node, guest_info) => Some(
                 MigrateWindow::new(remote.clone(), *guest_info)
+                    .source_node(AttrValue::from(source_node.clone()))
                     .on_close(ctx.link().change_view_callback(|_| None))
                     .on_submit({
                         let link = ctx.link().clone();
@@ -826,13 +828,18 @@ fn guest_actions(link: &LoadableComponentScope<GuestPanelComp>, entry: &GuestEnt
         })
         .with_optional_child((!template).then(|| {
             let remote = remote.clone();
+            let node = node.clone();
             Tooltip::new(
                 ActionIcon::new("fa fa-fw fa-paper-plane-o")
                     .aria_label(tr!("Migrate"))
                     .on_activate({
                         let link = link.clone();
                         move |_| {
-                            link.change_view(Some(ViewState::Migrate(remote.clone(), guest_info)))
+                            link.change_view(Some(ViewState::Migrate(
+                                remote.clone(),
+                                node.clone(),
+                                guest_info,
+                            )))
                         }
                     }),
             )

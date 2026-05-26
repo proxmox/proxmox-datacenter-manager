@@ -1,7 +1,10 @@
 use anyhow::{bail, Error};
 use pdm_client::types::StorageContent;
 use serde_json::{json, Value};
-use yew::{html::IntoEventCallback, Callback, Component, Properties};
+use yew::{
+    html::{IntoEventCallback, IntoPropValue},
+    Callback, Component, Properties,
+};
 
 use proxmox_client::ApiResponseData;
 use proxmox_human_byte::HumanByte;
@@ -38,6 +41,12 @@ pub struct MigrateWindow {
 
     /// The guest Info
     pub guest_info: GuestInfo,
+
+    /// The node the guest currently runs on. Threaded through to the target-node selector for
+    /// intra-cluster migrations so it can grey-out (and reject) the guest's current node.
+    #[builder(IntoPropValue, into_prop_value)]
+    #[prop_or_default]
+    pub source_node: Option<AttrValue>,
 
     /// Close/Abort callback.
     #[builder_cb(IntoEventCallback, into_event_callback, ())]
@@ -305,6 +314,7 @@ impl PdmMigrateWindow {
         form_ctx: &FormContext,
         target_remote: AttrValue,
         source_remote: AttrValue,
+        source_node: Option<AttrValue>,
         guest_info: GuestInfo,
         preconditions: Option<QemuMigratePreconditions>,
         target_node: Option<AttrValue>,
@@ -405,6 +415,9 @@ impl PdmMigrateWindow {
                 PveNodeSelector::new(target_remote.clone())
                     .name("node")
                     .required(same_remote)
+                    // only mark the current node in intra-cluster migrations; for remote
+                    // migrations the source node name does not exist on the target cluster
+                    .source_node(same_remote.then(|| source_node.clone()).flatten())
                     .on_change(link.callback(Msg::LoadPreconditions))
                     .disabled(!same_remote),
             )
@@ -645,6 +658,7 @@ impl Component for PdmMigrateWindow {
             .renderer({
                 let target = self.target_remote.clone();
                 let source_remote = ctx.props().remote.clone();
+                let source_node = ctx.props().source_node.clone();
                 let link = ctx.link().clone();
                 let preconditions = self.preconditions.clone();
                 let target_node = self.target_node.clone();
@@ -656,6 +670,7 @@ impl Component for PdmMigrateWindow {
                         form,
                         target.clone(),
                         source_remote.clone(),
+                        source_node.clone(),
                         guest_info,
                         preconditions.clone(),
                         target_node.clone(),

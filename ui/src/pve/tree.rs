@@ -126,8 +126,10 @@ impl std::fmt::Display for Action {
 
 #[derive(PartialEq)]
 pub enum ViewState {
-    Confirm(Action, String),  // ID
-    MigrateWindow(GuestInfo), // ID
+    Confirm(Action, String), // ID
+    /// Open the migration dialog for the given guest, carrying its current node so the
+    /// target-node selector can grey out (and reject) that entry.
+    MigrateWindow(GuestInfo, String),
 }
 
 pub enum Msg {
@@ -558,8 +560,9 @@ impl LoadableComponent for PveTreeComp {
                         .into(),
                 )
             }
-            ViewState::MigrateWindow(guest_info) => Some(
+            ViewState::MigrateWindow(guest_info, source_node) => Some(
                 MigrateWindow::new(props.remote.clone(), *guest_info)
+                    .source_node(AttrValue::from(source_node.clone()))
                     .on_close(ctx.link().change_view_callback(|_| None))
                     .on_submit({
                         let link = ctx.link().clone();
@@ -736,26 +739,42 @@ fn columns(
                         .tip(label);
                         Some(icon)
                     }))
-                    .with_optional_child(guest_info.map(|(guest_info, _, _)| {
-                        Tooltip::new(ActionIcon::new("fa fa-fw fa-paper-plane-o").on_activate({
-                            let link = link.clone();
-                            move |_| link.change_view(Some(ViewState::MigrateWindow(guest_info)))
-                        }))
-                        .tip(tr!("Migrate"))
+                    .with_optional_child(guest_info.and_then(|(guest_info, _, _)| {
+                        let source_node = node.clone()?;
+                        Some(
+                            Tooltip::new(
+                                ActionIcon::new("fa fa-fw fa-paper-plane-o")
+                                    .aria_label(tr!("Migrate"))
+                                    .on_activate({
+                                        let link = link.clone();
+                                        move |_| {
+                                            link.change_view(Some(ViewState::MigrateWindow(
+                                                guest_info,
+                                                source_node.clone(),
+                                            )))
+                                        }
+                                    }),
+                            )
+                            .tip(tr!("Migrate")),
+                        )
                     }))
                     .with_child(
-                        Tooltip::new(ActionIcon::new("fa fa-external-link").on_activate({
-                            let link = link.clone();
-                            let remote = remote.clone();
-                            move |_| {
-                                // there must be a remote with a connections config if were already here
-                                if let Some(url) =
-                                    get_deep_url(&link, &remote, node.as_deref(), &local_id)
-                                {
-                                    let _ = window().open_with_url(&url.href());
-                                }
-                            }
-                        }))
+                        Tooltip::new(
+                            ActionIcon::new("fa fa-external-link")
+                                .aria_label(tr!("Open in PVE UI"))
+                                .on_activate({
+                                    let link = link.clone();
+                                    let remote = remote.clone();
+                                    move |_| {
+                                        // there must be a remote with a connections config if were already here
+                                        if let Some(url) =
+                                            get_deep_url(&link, &remote, node.as_deref(), &local_id)
+                                        {
+                                            let _ = window().open_with_url(&url.href());
+                                        }
+                                    }
+                                }),
+                        )
                         .tip(tr!("Open in PVE UI")),
                     )
                     .into()

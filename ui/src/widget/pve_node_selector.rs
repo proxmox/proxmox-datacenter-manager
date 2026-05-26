@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use anyhow::Error;
-use proxmox_yew_comp::Status;
+use anyhow::{bail, Error};
+use proxmox_yew_comp::{rrd_value_renderer, Status};
 use yew::{
     html,
     html::{IntoEventCallback, IntoPropValue},
@@ -10,12 +10,12 @@ use yew::{
 };
 
 use pwt::{
-    css::FlexFit,
+    css::{FlexFit, Opacity},
     props::{ContainerBuilder, FieldBuilder, WidgetBuilder, WidgetStyleBuilder},
     state::Store,
     tr,
     widget::{
-        data_table::{DataTable, DataTableColumn, DataTableHeader},
+        data_table::{DataTable, DataTableColumn, DataTableHeader, DataTableRowRenderArgs},
         form::{Selector, SelectorRenderArgs},
         Fa, GridPicker, Row,
     },
@@ -49,11 +49,19 @@ pub struct PveNodeSelector {
     #[prop_or_default]
     pub excluded_nodes: Rc<Vec<String>>,
 
-    /// Whether to show the "Memory Usage" column. Callers picking a node for a context where
-    /// memory is irrelevant (e.g. subscription assignment) can hide it.
+    /// Whether to show the resource-utilization columns ("CPU Usage", "Memory Usage"). Callers
+    /// picking a node for a context where utilization is irrelevant (e.g. subscription
+    /// assignment) can hide them.
     #[builder]
     #[prop_or(true)]
     pub show_memory: bool,
+
+    /// Node that should be rendered as the current source (greyed out, suffixed with
+    /// "(current)") and rejected by validation. Used by the migration dialog so the user
+    /// cannot pick the guest's current node as a target.
+    #[builder(IntoPropValue, into_prop_value)]
+    #[prop_or_default]
+    pub source_node: Option<AttrValue>,
 }
 
 impl PveNodeSelector {
@@ -148,6 +156,7 @@ impl Component for PveNodeSelectorComp {
         let props = ctx.props();
         let err = self.last_err.clone();
         let show_memory = props.show_memory;
+        let source_node = props.source_node.clone();
         let on_change = {
             let on_change = props.on_change.clone();
             let store = self.store.clone();
@@ -162,8 +171,8 @@ impl Component for PveNodeSelectorComp {
                 }
             }
         };
-        Selector::new(
-            self.store.clone(),
+        let mut selector = Selector::new(self.store.clone(), {
+            let source_node = source_node.clone();
             move |args: &SelectorRenderArgs<Store<ClusterNodeIndexResponse>>| {
                 if let Some(err) = &err {
                     return Row::new()
@@ -171,33 +180,101 @@ impl Component for PveNodeSelectorComp {
                         .with_child(err)
                         .into();
                 }
+                let source_node_for_row = source_node.clone();
                 GridPicker::new(
-                    DataTable::new(columns(show_memory), args.store.clone())
-                        .min_width(300)
-                        .header_focusable(false)
-                        .class(FlexFit),
+                    DataTable::new(
+                        columns(show_memory, source_node.clone()),
+                        args.store.clone(),
+                    )
+                    .min_width(300)
+                    .header_focusable(false)
+                    // dim the source node so the user sees why it is in the list but
+                    // cannot pick it; selection itself is blocked via `validate` below
+                    .row_render_callback(
+                        move |args: &mut DataTableRowRenderArgs<ClusterNodeIndexResponse>| {
+                            if let Some(src) = &source_node_for_row {
+                                if args.record().node == src.as_str() {
+                                    args.add_class(Opacity::Half);
+                                }
+                            }
+                        },
+                    )
+                    .class(FlexFit),
                 )
                 .selection(args.selection.clone())
                 .on_select(args.controller.on_select_callback())
                 .into()
-            },
-        )
+            }
+        })
         .with_std_props(&props.std_props)
         .with_input_props(&props.input_props)
-        .autoselect(true)
+        // Skip autoselect when migrating intra-cluster so the dialog does not open already
+        // pointed at the (rejected) source row; cross-remote callers (source_node: None) keep
+        // the convenience of a seeded selection.
+        .autoselect(source_node.is_none())
         .editable(true)
         .on_change(on_change)
-        .default(props.default.clone())
-        .into()
+        .default(props.default.clone());
+
+        if let Some(src) = source_node {
+            // reject the source node so an accidental click can't submit a no-op migration
+            selector = selector.validate(
+                move |(value, _store): &(String, Store<ClusterNodeIndexResponse>)| {
+                    if value == src.as_str() {
+                        bail!(tr!("Cannot migrate to the guest's current node"));
+                    }
+                    Ok(())
+                },
+            );
+        }
+
+        selector.into()
     }
 }
 
-fn columns(show_memory: bool) -> Rc<Vec<DataTableHeader<ClusterNodeIndexResponse>>> {
-    let mut columns = vec![DataTableColumn::new(tr!("Node"))
-        .get_property(|entry: &ClusterNodeIndexResponse| &entry.node)
-        .sort_order(true)
-        .into()];
+fn columns(
+    show_memory: bool,
+    source_node: Option<AttrValue>,
+) -> Rc<Vec<DataTableHeader<ClusterNodeIndexResponse>>> {
+    let node_column = if let Some(source_node) = source_node {
+        DataTableColumn::new(tr!("Node"))
+            .render(move |entry: &ClusterNodeIndexResponse| {
+                if entry.node == source_node.as_str() {
+                    html! { tr!("{0} (current)", entry.node) }
+                } else {
+                    html! { entry.node.clone() }
+                }
+            })
+            .sorter(
+                |a: &ClusterNodeIndexResponse, b: &ClusterNodeIndexResponse| a.node.cmp(&b.node),
+            )
+            .sort_order(true)
+            .into()
+    } else {
+        DataTableColumn::new(tr!("Node"))
+            .get_property(|entry: &ClusterNodeIndexResponse| &entry.node)
+            .sort_order(true)
+            .into()
+    };
+    let mut columns = vec![node_column];
     if show_memory {
+        columns.push(
+            DataTableColumn::new(tr!("CPU Usage"))
+                .render(|entry: &ClusterNodeIndexResponse| match entry.cpu {
+                    Some(cpu) => html! { rrd_value_renderer::render_cpu_usage(&cpu) },
+                    None => html! {},
+                })
+                .sorter(
+                    |a: &ClusterNodeIndexResponse, b: &ClusterNodeIndexResponse| {
+                        // total_cmp tolerates NaN; preserve the "no data sorts low" intuition by
+                        // mapping None to negative infinity so unprobed nodes stay at the bottom.
+                        a.cpu
+                            .unwrap_or(f64::NEG_INFINITY)
+                            .total_cmp(&b.cpu.unwrap_or(f64::NEG_INFINITY))
+                    },
+                )
+                .into(),
+        );
         columns.push(
             DataTableColumn::new(tr!("Memory Usage"))
                 .render(
