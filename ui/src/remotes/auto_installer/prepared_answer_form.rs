@@ -335,6 +335,13 @@ pub fn render_network_options_form(
                 .tip(tr!(
                     "Hostname and domain to set for the target installation. Allows templating."
                 ))
+                .validate(|s: &String| {
+                    if s != "{{product.product}}{{installation_nr}}.example.com" {
+                        Ok(())
+                    } else {
+                        Err(anyhow!("Please adapt the default FQDN template!"))
+                    }
+                })
                 .required(!use_dhcp_fqdn),
         )
         .with_right_field("", DisplayField::new().key("dummy"))

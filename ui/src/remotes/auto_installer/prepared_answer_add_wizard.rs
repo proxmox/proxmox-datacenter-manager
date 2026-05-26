@@ -55,7 +55,7 @@ impl AddAnswerWizardProperties {
             target_filter: BTreeMap::new(),
             // global options
             country: "at".to_owned(),
-            fqdn: String::new(),
+            fqdn: "{{product.product}}{{installation_nr}}.example.com".to_string(),
             use_dhcp_fqdn: false,
             keyboard: answer::KeyboardLayout::default(),
             mailto: String::new(),
