@@ -84,3 +84,11 @@ impl Component for AutoInstallerPanelComponent {
             .into()
     }
 }
+
+fn pdm_origin() -> Option<String> {
+    gloo_utils::document()
+        .url()
+        .and_then(|s| web_sys::Url::new(&s))
+        .map(|url| url.origin())
+        .ok()
+}

@@ -21,6 +21,7 @@ use proxmox_yew_comp::{
 use pwt::{prelude::*, state::Store, widget::TabBarItem};
 use pwt_macros::builder;
 
+use super::pdm_origin;
 use super::prepared_answer_form::*;
 use crate::pdm_client;
 
@@ -78,8 +79,8 @@ impl AddAnswerWizardProperties {
             disk_filter: BTreeMap::new(),
             disk_filter_match: None,
             // post hook
-            post_hook_base_url: None,
             post_hook_cert_fp: None,
+            post_hook_base_url: pdm_origin(),
             // templating
             template_counters,
             // subscription

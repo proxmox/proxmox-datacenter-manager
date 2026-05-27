@@ -38,6 +38,7 @@ use pwt::{
     },
 };
 
+use super::pdm_origin;
 use crate::remotes::auto_installer::token_selector::TokenSelector;
 
 pub fn prepare_form_data(mut value: serde_json::Value) -> Result<serde_json::Value> {
@@ -962,7 +963,8 @@ pub fn render_auth_form(
                 .class("pwt-mt-2 pwt-color-primary")
                 .with_child(Fa::new("info-circle").class("fa-fw"))
                 .with_child(tr!(
-                    "Optional. If provided, status reporting will be enabled."
+                    "Optional. If provided, status reporting will be enabled. \
+                    Make sure that these values are correct from the perspective of the target host."
                 )),
         )
         .into()
@@ -1180,14 +1182,6 @@ fn serde_variant_name<T: Serialize>(ty: T) -> Option<String> {
             None
         }
     }
-}
-
-fn pdm_origin() -> Option<String> {
-    gloo_utils::document()
-        .url()
-        .and_then(|s| web_sys::Url::new(&s))
-        .map(|url| url.origin())
-        .ok()
 }
 
 const KEYBOARD_LAYOUTS: &[KeyboardLayout] = {
