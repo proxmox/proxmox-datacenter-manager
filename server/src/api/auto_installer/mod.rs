@@ -777,10 +777,14 @@ fn validate_udev_filter_map(map: &BTreeMap<String, String>) -> Result<()> {
     Ok(())
 }
 
-fn validate_template_map<T>(map: &BTreeMap<String, T>) -> Result<()> {
-    for k in map.keys() {
+fn validate_template_map(map: &BTreeMap<String, i32>) -> Result<()> {
+    for (k, v) in map {
         if !TEMPLATE_COUNTER_NAME_REGEX.is_match(k) {
             http_bail!(BAD_REQUEST, "invalid template counter name: '{k}'");
+        }
+        // counters only ever increment from their seed, so a negative start is meaningless
+        if *v < 0 {
+            http_bail!(BAD_REQUEST, "template counter '{k}' must not be negative");
         }
     }
     Ok(())
