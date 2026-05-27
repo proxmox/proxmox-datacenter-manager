@@ -60,7 +60,7 @@ fn get_certificate_info() -> Result<CertificateInfo, Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&["system", "certificates"], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Anybody,
     },
     returns: {
         type: Array,
