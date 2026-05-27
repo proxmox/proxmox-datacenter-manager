@@ -437,6 +437,7 @@ impl Component for PdmNodeStatus {
                             .with_flex_spacer()
                             .with_child(
                                 ConfirmButton::new(tr!("Reboot Datacenter Manager"))
+                                    .dangerous(true)
                                     .confirm_message(tr!(
                                         "Are you sure you want to reboot the node?"
                                     ))
@@ -448,6 +449,7 @@ impl Component for PdmNodeStatus {
                             )
                             .with_child(
                                 ConfirmButton::new(tr!("Shutdown Datacenter Manager"))
+                                    .dangerous(true)
                                     .confirm_message(tr!(
                                         "Are you sure you want to shut down the node?"
                                     ))
