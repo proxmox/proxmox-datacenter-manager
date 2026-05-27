@@ -340,6 +340,9 @@ pub enum ViewState {
     /// take seconds on a slow fleet). Shown immediately on click so the operator sees the request
     /// landed instead of staring at an unchanged panel.
     AutoAssignComputing,
+    /// Auto-Assign found no unassigned keys for the remaining nodes; an informational outcome
+    /// rather than an error.
+    AutoAssignEmpty,
     ConfirmAutoAssign(AutoAssignProposal),
     ConfirmApplyPending,
     ConfirmClearPending,
@@ -822,11 +825,8 @@ impl LoadableComponent for SubscriptionRegistryComp {
                 ctx.link().spawn(async move {
                     match http_post::<AutoAssignProposal>(AUTO_ASSIGN_URL, None).await {
                         Ok(proposal) if proposal.assignments.is_empty() => {
-                            link.show_error(
-                                tr!("Auto-Assign"),
-                                tr!("No suitable unassigned keys for the remaining nodes."),
-                                false,
-                            );
+                            // a benign "nothing to assign" outcome, not an error
+                            link.change_view(Some(ViewState::AutoAssignEmpty));
                         }
                         Ok(proposal) => link.send_message(Msg::ShowProposal(proposal)),
                         Err(err) => link.show_error(tr!("Auto-Assign"), err.to_string(), true),
@@ -1088,6 +1088,21 @@ impl LoadableComponent for SubscriptionRegistryComp {
                         .into(),
                 )
             }
+            ViewState::AutoAssignEmpty => {
+                use pwt::widget::MessageBox;
+                Some(
+                    MessageBox::new(
+                        tr!("Auto-Assign"),
+                        tr!("No suitable unassigned keys for the remaining nodes."),
+                    )
+                    .icon_class("fa fa-info-circle pwt-color-primary")
+                    .on_close({
+                        let link = ctx.link().clone();
+                        move |_| link.change_view(None)
+                    })
+                    .into(),
+                )
+            }
             ViewState::ConfirmApplyPending => {
                 use pwt::widget::ConfirmDialog;
                 let (push_count, clear_count) = self.pending_counts();
@@ -1108,7 +1123,6 @@ impl LoadableComponent for SubscriptionRegistryComp {
                 };
                 Some(
                     ConfirmDialog::new(tr!("Apply Pending Changes"), body)
-                        .icon_class("fa fa-question-circle")
                         .on_confirm({
                             let link = ctx.link().clone();
                             move |_| link.send_message(Msg::ApplyPending)
@@ -1131,7 +1145,6 @@ impl LoadableComponent for SubscriptionRegistryComp {
                         tr!("Discard all queued assignments and cancel all queued Clear Key actions? \
                              The remote nodes are not touched."),
                     )
-                    .icon_class("fa fa-question-circle")
                     .on_confirm({
                         let link = ctx.link().clone();
                         move |_| link.send_message(Msg::ClearPending)
@@ -1175,7 +1188,6 @@ impl LoadableComponent for SubscriptionRegistryComp {
                 Some(
                     ConfirmDialog::default()
                         .title(tr!("Adopt Key"))
-                        .icon_class("fa fa-question-circle")
                         .confirm_message(body)
                         .on_confirm(move |_| {
                             let link = link.clone();
