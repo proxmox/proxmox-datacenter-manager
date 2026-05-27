@@ -254,7 +254,7 @@ impl Component for PoiInfoComp {
             match (props.remote.ty, nodes.len()) {
                 (RemoteType::Pve, x) if x > 0 => (
                     Some(span(tr!("1 Node" | "{0} Nodes" % x, x))),
-                    Some(Tooltip::new(Fa::new("question-circle")).rich_tip(
+                    Some(Tooltip::new(Fa::new("info-circle")).rich_tip(
                         Column::new().children(nodes.into_iter().map(|n| span(n).into())),
                     )),
                 ),
