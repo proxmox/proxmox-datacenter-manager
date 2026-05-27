@@ -225,6 +225,7 @@ impl LoadableComponent for AuthTokenPanelComponent {
             Self::ViewState::Edit => self.create_edit_dialog(ctx),
             Self::ViewState::DisplaySecret { token, secret } => render_show_secret_dialog(
                 None,
+                None,
                 token,
                 secret,
                 &self.fingerprint,

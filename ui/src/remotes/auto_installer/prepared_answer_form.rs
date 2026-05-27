@@ -972,6 +972,7 @@ pub fn render_auth_form(
 
 pub fn render_show_secret_dialog(
     config_id: Option<&str>,
+    answer_base_url: Option<&str>,
     token: &AnswerToken,
     secret: &str,
     fingerprint: &Option<String>,
@@ -1008,7 +1009,9 @@ pub fn render_show_secret_dialog(
 
     let answer_url = format!(
         "{}/api2/json/auto-install/answer",
-        pdm_origin().unwrap_or_else(|| "https://pdm.example.com:8443".to_owned())
+        answer_base_url
+            .or(pdm_origin().as_deref())
+            .unwrap_or_else(|| "https://pdm.example.com:8443")
     );
 
     let mut commandline = format!(

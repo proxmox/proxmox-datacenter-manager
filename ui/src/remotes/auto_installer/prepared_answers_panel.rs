@@ -52,6 +52,8 @@ enum ViewState {
     Edit,
     DisplaySecret {
         config_id: String,
+        url: Option<String>,
+        fingerprint: Option<String>,
         token: AnswerToken,
         secret: String,
     },
@@ -63,6 +65,8 @@ enum Message {
     RemoveEntry,
     DisplaySecret {
         config_id: String,
+        url: Option<String>,
+        fingerprint: Option<String>,
         token: AnswerToken,
         secret: String,
     },
@@ -152,11 +156,15 @@ impl LoadableComponent for PreparedAnswersPanelComponent {
             }
             Message::DisplaySecret {
                 config_id,
+                url,
+                fingerprint,
                 token,
                 secret,
             } => {
                 link.change_view(Some(Self::ViewState::DisplaySecret {
                     config_id,
+                    url,
+                    fingerprint,
                     token,
                     secret,
                 }));
@@ -224,6 +232,8 @@ impl LoadableComponent for PreparedAnswersPanelComponent {
                 if let Some(token) = new_token {
                     Self::Message::DisplaySecret {
                         config_id: config.id,
+                        url: config.post_hook_base_url,
+                        fingerprint: config.post_hook_cert_fp,
                         token: token.token,
                         secret: token.secret,
                     }
@@ -275,13 +285,16 @@ impl LoadableComponent for PreparedAnswersPanelComponent {
             }
             Self::ViewState::DisplaySecret {
                 config_id,
+                url,
+                fingerprint,
                 token,
                 secret,
             } => render_show_secret_dialog(
                 Some(config_id),
+                url.as_deref(),
                 token,
                 secret,
-                &self.fingerprint,
+                fingerprint,
                 on_close,
             ),
         }
