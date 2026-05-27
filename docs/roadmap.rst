@@ -54,6 +54,298 @@ specific needs.
 Release History
 ---------------
 
+.. _proxmox_datacenter_manager_1.1:
+
+Proxmox Datacenter Manager 1.1
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Released 28. May 2026**
+
+-  Based on Debian Trixie (13.5)
+-  Latest 7.0 Kernel as stable default
+-  ZFS 2.4.2
+
+.. _features_highlights_1.1:
+
+Features (Highlights)
+^^^^^^^^^^^^^^^^^^^^^^
+
+-  Integration of automated installation functionality.
+
+      Proxmox Datacenter Manager can now manage answer file configurations and serve them to
+      remotes, allowing for centralized management of installation parameters.
+
+      Installation progress can be tracked from within Proxmox Datacenter Manager's web interface.
+
+      A token system protects the installation process, enhancing overall security.
+
+      Prepared answers can carry an optional Proxmox subscription key, so a new node registers its
+      subscription automatically without an extra operator step.
+
+-  Subscriptions can now be centrally managed through a subscription registry in Proxmox Datacenter
+   Manager.
+
+      Administrators can configure a central pool of subscription keys and assign them to specific
+      remotes.
+
+      Subscriptions can be assigned to or cleared from remotes.
+
+      Assignments can also be suggested automatically to ease handling large numbers of remotes.
+
+-  Ceph clusters on connected hyper-converged Proxmox VE remotes can now be monitored.
+
+      The status of multiple Ceph clusters can be seen at a glance from a single panel.
+
+      The health status, capacity and performance, as well as the status of monitors, managers,
+      OSDs and flags, can be inspected.
+
+-  Metrics are now collected for the Proxmox Datacenter Manager host itself.
+
+      Administrators can tell at a glance how utilized their Proxmox Datacenter Manager host is.
+
+-  New widgets visualize the location of remotes on a map and use gauges to show the utilization of
+   resources.
+
+      Locations should be set via the node or datacenter options on Proxmox VE remotes.
+
+      For Proxmox Backup Server remotes, the location can be set under Configuration → Other →
+      Location.
+
+-  First step toward central guest management across connected remotes.
+
+      A new cross-remote view lists all QEMU and LXC guests as a flat sortable table or as a tree
+      grouped by remote, with text filtering and the most common per-guest actions readily
+      available.
+
+      Snapshot management is centrally available for QEMU and LXC guests: list a guest's snapshots
+      in a parent/child tree and create, roll back, delete or edit a snapshot's description, either
+      from the central guest list or from the per-guest detail panel.
+
+      An explicit Resume action is offered for paused or suspended QEMU guests, complementing the
+      existing start, stop and shutdown actions.
+
+      This is the initial iteration of central guest management; expect further day-to-day tasks to
+      be integrated in upcoming releases.
+
+.. _changelog_overview_1.1:
+
+Changelog Overview
+^^^^^^^^^^^^^^^^^^
+
+.. _enhancements_in_the_web_interface_gui_1.1:
+
+Enhancements in the Web Interface (GUI)
+'''''''''''''''''''''''''''''''''''''''
+
+- Add RRD graphs for the Proxmox Datacenter Manager host to the node status panel.
+- Add gauge chart widgets for CPU, memory and storage utilization for views and the default
+  dashboard.
+- A new widget allows visualizing remotes on a map.
+- Add a cross-remote guest list showing all QEMU and LXC guests across connected Proxmox VE
+  remotes, either as a flat sortable table or as a tree grouped by remote, with text filtering and
+  the common per-guest actions.
+- Add central snapshot management for QEMU and LXC guests, accessible from the central guest list
+  or as a Snapshots tab in the per-guest detail panels (`issue 7207
+  <https://bugzilla.proxmox.com/show_bug.cgi?id=7207>`__).
+- Offer an explicit Resume action for paused or suspended QEMU guests, complementing the existing
+  start, stop and shutdown actions.
+- Add a certificate check and re-pin dialog for remotes: after a TLS certificate rotation, the
+  dialog re-probes the configured nodes, lets the operator accept the new fingerprint per node or
+  clear the stored pin, and applies the changes as one batch. It is reachable from the remotes list
+  and offered directly on a Proxmox VE or Proxmox Backup Server remote whose connection is
+  currently failing.
+- The notes field now supports a subset of `MathML
+  <https://developer.mozilla.org/en-US/docs/Web/MathML>`__ to allow presenting calculations in
+  proper mathematical notation.
+- Derive IDs for headings in the notes field automatically to enable intra-document links.
+- Add a button to download the system report on the node status page.
+- Fix an issue where a shared storage in a cluster was counted multiple times toward the storage
+  capacity calculations (`issue 7135 <https://bugzilla.proxmox.com/show_bug.cgi?id=7135>`__).
+- Allow refreshing remote tasks in the task viewer.
+- Use the IEC standard for showing drive space.
+- Improve adding permissions by listing ACL paths for specific resources and views as well.
+- Fix an issue that would prematurely log out users right after a fresh login.
+- Fix an issue that would clear filter value fields when editing an existing view.
+- Allow showing views even if they contain unknown widgets, which can happen during updates.
+- Force a refresh after a view was edited to load potentially missing data immediately.
+- Add a message to the top entities widget when it is empty, explaining why nothing can be
+  displayed.
+- Show an explanatory message when a view is empty.
+- Names of views are now validated in the UI.
+- Improve the subscription key pool experience: validate keys when adding them, allow per-row key
+  overrides and row deselection in the Auto-Assign proposal, surface errors when removing a key
+  fails, and filter the node status tree by status.
+- When migrating a guest to a new cluster, query the remote cluster for its next free VMID and use
+  it to pre-fill the migration dialog.
+- Properly handle the OpenID redirection authorization, improving compatibility with certain OpenID
+  providers, for example Google (`issue 7290
+  <https://bugzilla.proxmox.com/show_bug.cgi?id=7290>`__).
+- Allow the UI to render the add-user dialog properly depending on the realm.
+- Avoid an issue that prevented users from being edited when the "expire" field was set.
+- Use a password field for the OpenID client key field.
+- Allow changing an LDAP realm to use anonymous search.
+- Allow a realm sync dialog to be submitted even if the default values were not changed.
+- Improve and extend UI routing to include tabs in a Proxmox VE remote panel and avoid unnecessary
+  history entries.
+- Improve the experience when refreshing remote update and subscription status by disabling buttons
+  and showing a loading bar.
+- Disable the datastore content view and show an appropriate message if the datastore is in the
+  'offline' maintenance mode.
+- Fix a flaw where an attacker could manipulate a panic display to run arbitrary code in a user's
+  browser context.
+- Harden the Markdown viewer's HTML sanitizer by also encoding the 'base' tag and fixing tag-name
+  comparisons that previously did not match uppercase variants.
+- Add proper descriptions for tasks native to Proxmox Datacenter Manager.
+- Prevent the browser from reloading the page when adding a remote through the wizard.
+- Fix an issue that displayed the wrong timezone for Kyiv (`issue 7141
+  <https://bugzilla.proxmox.com/show_bug.cgi?id=7141>`__).
+- Improve adding Proxmox Backup Server remotes by normalizing the hostname in the remote addition
+  wizard.
+- Properly display the endpoint URL when showing the automated installer preparation command.
+- Fix an issue where longer combo-boxes could be overlapped by their picker.
+- Use "System Log" instead of "Syslog" in the web interface.
+- Improved and updated translations for many languages, including:
+
+   - Arabic
+   - Brazilian Portuguese
+   - Croatian
+   - Czech
+   - French
+   - German
+   - Hungarian
+   - Italian
+   - Japanese
+   - Korean
+   - Polish
+   - Russian
+   - Simplified Chinese
+   - Spanish
+   - Swedish
+   - Traditional Chinese
+   - Turkish
+   - Ukrainian
+
+.. _resource_management_1.1:
+
+Resource Management
+'''''''''''''''''''
+
+- Allow Proxmox Datacenter Manager to serve answer files for automated installations.
+
+      Installations can be tracked through Proxmox Datacenter Manager.
+
+      Options for the automated installation can be managed through the web interface.
+
+      An additional token system lets new installations authenticate against Proxmox Datacenter
+      Manager, improving security.
+
+      Prepared answers can optionally carry a Proxmox subscription key, so a new node registers its
+      subscription automatically on first boot.
+
+- When migrating a resource without a specific target endpoint across clusters, Proxmox Datacenter
+  Manager now prefers hosts that are known to be reachable.
+
+      Previously the first configured host of the target cluster was chosen.
+
+- Add a tab panel for tasks in the Proxmox Backup Server remote panel.
+- Take the first step toward central guest management: list and operate on QEMU and LXC guests
+  across connected remotes from a single panel, manage their snapshots centrally, and resume paused
+  or suspended QEMU guests. See the highlights section for details.
+
+.. _remotes_management_1.1:
+
+Remotes Management
+''''''''''''''''''
+
+- Proxmox Datacenter Manager can now manage subscriptions for connected remotes.
+
+      This allows administrators to configure a centrally managed pool of subscriptions.
+
+      Subscriptions can be applied to and cleared from a remote via the web interface.
+
+      Subsequent fixes ensure that key removal tolerates a corrupt shadow file and finishes the
+      authoritative pool config removal first.
+
+- Allow monitoring Ceph clusters on connected hyper-converged Proxmox VE remotes.
+
+      A new panel tells the status of multiple Ceph clusters at a glance.
+
+      Further details such as the current health status, capacity, performance, and the status of
+      monitors, managers, OSDs or flags can be inspected.
+
+- Re-probe and re-pin a remote's TLS certificate from the UI or CLI after a certificate rotation,
+  instead of having to remove and re-add the remote.
+
+      A new dialog re-probes the configured nodes, lets the operator accept the new fingerprint per
+      node or clear the stored pin, and applies the changes as a single batch.
+
+      This is a stop-gap until all Proxmox products support staged certificate rotation.
+
+- Add proper support for different realm types when adding Proxmox Backup Server remotes.
+- Allow removing the token generated for Proxmox Datacenter Manager when removing a remote (`issue
+  6914 <https://bugzilla.proxmox.com/show_bug.cgi?id=6914>`__).
+- Properly drop remotes from the cache if they have vanished (`issue 7120
+  <https://bugzilla.proxmox.com/show_bug.cgi?id=7120>`__).
+
+      This fixes an issue where a node could be removed from the cluster but still show up in
+      Proxmox Datacenter Manager.
+
+- When querying the snapshots of a datastore fails, more appropriate error messages are now passed
+  through.
+
+.. _backend_improvements_1.1:
+
+Backend Improvements
+''''''''''''''''''''
+
+- Allow querying Proxmox Datacenter Manager host metrics.
+- Return global CPU, memory and storage statistics when querying the status of a resource.
+- Add an API endpoint for refreshing the task cache for a single remote or all remotes.
+- Add support for OpenID audiences (`issue 5076
+  <https://bugzilla.proxmox.com/show_bug.cgi?id=5076>`__).
+
+      This is required to support certain OpenID providers like `Zitadel <https://zitadel.com/>`__.
+
+- Fix a bug that prevented users from an OpenID realm from being added manually (`issue 7182
+  <https://bugzilla.proxmox.com/show_bug.cgi?id=7182>`__).
+- Ensure that freshly fetched subscription data is returned when the ``max_age`` parameter is set
+  to ``0``.
+- Add better ACME support for servers returning status code ``204`` when requesting a nonce (`issue
+  6939 <https://bugzilla.proxmox.com/show_bug.cgi?id=6939>`__).
+- Rework the resource, subscription and remote-update caches onto a shared, persistent key-value
+  store, making the cached data self-healing and more consistent across these subsystems.
+- Move the views API handlers into the proxy process and tighten their schema and error messages,
+  including a clearer error for view layouts that contain unknown widgets.
+- Relax the privilege required to list certificate information from ``Modify`` to ``Audit``,
+  allowing read-only access to certificate state without granting modification rights.
+- The backend package now recommends ``ifupdown2``.
+- Querying the host's certificate information is now permitted for any logged-in user.
+
+.. _command_line_interface_enhancements_1.1:
+
+Command Line Interface Enhancements
+'''''''''''''''''''''''''''''''''''
+
+- Allow managing guest snapshots via the CLI.
+- Add a sub-command to query the support status of a Proxmox Datacenter Manager host and include it
+  in the system report.
+- Allow managing ACME settings through the ``proxmox-datacenter-manager-admin`` CLI (`issue 7179
+  <https://bugzilla.proxmox.com/show_bug.cgi?id=7179>`__).
+- Allow specifying the target ID when migrating a VM or container between Proxmox VE remotes via the
+  CLI.
+- Improve CLI completion in bash.
+- Allow (re-)probing and managing the fingerprint of remotes via the CLI.
+- Fix an issue that prevented zsh completions from being generated properly.
+- Improve FIDO authenticator support when multiple devices are connected via the CLI client.
+
+.. _known_issues_breaking_changes_1.1:
+
+Known Issues & Breaking Changes
+'''''''''''''''''''''''''''''''
+
+- Removed the ``/nodes/localhost/rrdata`` API handler. The impact should be minimal, as it always
+  failed previously.
+
 .. _proxmox_datacenter_manager_1.0:
 
 Proxmox Datacenter Manager 1.0
