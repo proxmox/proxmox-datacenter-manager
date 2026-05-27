@@ -39,20 +39,17 @@ pub async fn get_location_info_for_remote(
                 get_cached_location_info(&remote.id, u64::MAX).await?
             }
         };
-        let info = match location_info {
-            Some(info) => info,
-            None => return Ok(None),
-        };
+
         let now = proxmox_time::epoch_i64();
 
         if let Some(existing_state) =
-            update_cached_location_info(&remote.id, info.clone(), now).await?
+            update_cached_location_info(&remote.id, location_info.clone(), now).await?
         {
             // Somebody else updated the cache while we performed the API request,
             // return the more recent data instead of the data we just fetched.
             return Ok(Some(existing_state));
         }
-        Ok(Some(info))
+        Ok(location_info)
     }
 }
 
@@ -76,14 +73,15 @@ async fn get_cached_location_info(
 
 async fn update_cached_location_info(
     remote: &str,
-    info: CachedLocationInfo,
+    info: Option<CachedLocationInfo>,
     now: i64,
 ) -> Result<Option<CachedLocationInfo>, Error> {
     let cache = api_cache::write_remote(remote).await?;
 
     Ok(cache
         .set_if_newer_with_timestamp(LOCATION_STATE_CACHE_KEY, info, now)
-        .await?)
+        .await?
+        .flatten())
 }
 
 /// Parse a PVE location property string (from the datacenter or a node config) into our [Location].
