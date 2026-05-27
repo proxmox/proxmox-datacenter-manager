@@ -98,6 +98,16 @@ template can be used for the **Hostname/FQDN** field:
 MiniJinja features a wide range of `built-in filters`_, which are enabled by
 default, similar to Jinja2.
 
+.. _autoinst_subscription_key:
+
+Subscription Key
+^^^^^^^^^^^^^^^^
+
+A prepared answer can carry an optional Proxmox subscription key. When set, the
+newly installed node registers that subscription automatically as part of the
+installation, so no separate operator step is needed to bring the node under a
+valid subscription.
+
 .. _autoinst_token:
 
 Authentication token management
