@@ -1247,21 +1247,31 @@ fn render_prepared_config(
                 .as_deref()
                 .ok_or_else(|| anyhow!("no host address"))
                 .and_then(|cidr| render("cidr", cidr))
-                .and_then(|s| Ok(s.parse()?))?;
+                .and_then(|s| {
+                    s.parse()
+                        .with_context(|| format!("rendered 'cidr' is not a valid CIDR: {s:?}"))
+                })?;
 
             let dns = conf
                 .dns
                 .as_deref()
                 .ok_or_else(|| anyhow!("no DNS server address"))
                 .and_then(|dns| render("dns", dns))
-                .and_then(|s| Ok(s.parse()?))?;
+                .and_then(|s| {
+                    s.parse()
+                        .with_context(|| format!("rendered 'dns' is not a valid IP address: {s:?}"))
+                })?;
 
             let gateway = conf
                 .gateway
                 .as_deref()
                 .ok_or_else(|| anyhow!("no gateway address"))
                 .and_then(|gw| render("gateway", gw))
-                .and_then(|s| Ok(s.parse()?))?;
+                .and_then(|s| {
+                    s.parse().with_context(|| {
+                        format!("rendered 'gateway' is not a valid IP address: {s:?}")
+                    })
+                })?;
 
             answer::NetworkConfig::FromAnswer(answer::NetworkConfigFromAnswer {
                 cidr,
