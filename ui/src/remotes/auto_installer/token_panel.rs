@@ -382,7 +382,7 @@ fn edit_input_panel(form_ctx: &FormContext, token: &AnswerToken) -> Html {
     add_expiry_fields(&mut panel, form_ctx, token.expire_at);
     panel.add_right_field(
         tr!("Enabled"),
-        Checkbox::new().name("enabled").checked(token.enabled),
+        Checkbox::new().name("enabled").default(token.enabled),
     );
     panel.add_large_field(
         false,
@@ -391,6 +391,7 @@ fn edit_input_panel(form_ctx: &FormContext, token: &AnswerToken) -> Html {
         Field::new()
             .name("comment")
             .value(token.comment.clone())
+            .default(token.comment.clone())
             .submit_empty(true),
     );
     panel.into()
@@ -418,6 +419,9 @@ fn add_input_panel(form_ctx: &FormContext) -> Html {
 fn add_expiry_fields(panel: &mut InputPanel, form_ctx: &FormContext, expire_at: Option<i64>) {
     let has_expiry = matches!(expire_at, Some(exp) if exp != 0);
     let active = form_ctx.read().get_field_checked("has-expiry");
+    // epoch_to_input_value yields the `YYYY-MM-DDTHH:MM` form the datetime-local input
+    // needs; seed it as the field default too so an unchanged edit stays non-dirty.
+    let value = expire_at.and_then(|exp| (exp != 0).then(|| epoch_to_input_value(exp)));
     panel.add_right_field(
         tr!("Expires"),
         Checkbox::new()
@@ -431,9 +435,8 @@ fn add_expiry_fields(panel: &mut InputPanel, form_ctx: &FormContext, expire_at: 
             .name("expire-at")
             .disabled(!active)
             .required(active)
-            // epoch_to_input_value yields the `YYYY-MM-DDTHH:MM` form the
-            // datetime-local input needs.
-            .value(expire_at.and_then(|exp| (exp != 0).then(|| epoch_to_input_value(exp))))
+            .default(value.clone())
+            .value(value)
             .input_type(InputType::DatetimeLocal),
     );
 }
