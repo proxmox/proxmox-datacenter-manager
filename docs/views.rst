@@ -85,9 +85,12 @@ Map Widget
 ^^^^^^^^^^
 
 The locations shown by the `map` widget come from the remotes and cannot be
-edited in Proxmox Datacenter Manager. Configure them on the remote side: on
-Proxmox VE in the datacenter configuration as a cluster-wide default, optionally
-overridden per node, and on Proxmox Backup Server in the node configuration.
+edited in Proxmox Datacenter Manager. Configure them on the remote side:
+
+- On Proxmox VE, set a cluster-wide default in the datacenter options, and
+  optionally override it per node in the node options.
+- On Proxmox Backup Server, set the location under the "Configuration" menu, in
+  the "Other" tab's "Location" section.
 
 The map background is drawn from public-domain vector data by `Natural Earth
 <https://www.naturalearthdata.com/>`_, shipped in the `proxmox-geojson-data`
