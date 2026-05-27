@@ -725,7 +725,7 @@ fn columns(
     // from the row's identity to its controls, especially on wide desktops.
     cols.push(
         DataTableColumn::new(tr!("Actions"))
-            .width("100px")
+            .width("110px")
             .justify("center")
             .render(move |e: &SnapshotTreeEntry| {
                 let SnapshotTreeEntry::Item(s) = e else {
