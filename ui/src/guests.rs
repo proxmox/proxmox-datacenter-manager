@@ -24,7 +24,7 @@ use proxmox_yew_comp::{
     LoadableComponentScope, LoadableComponentScopeExt, LoadableComponentState,
 };
 
-use pwt::css::{AlignItems, ColorScheme, FlexFit, FontColor, FontStyle, JustifyContent};
+use pwt::css::{AlignItems, ColorScheme, FlexFit, FontStyle, JustifyContent};
 use pwt::prelude::*;
 use pwt::props::{
     ContainerBuilder, CssPaddingBuilder, ExtractPrimaryKey, StorageLocation, WidgetBuilder,
@@ -614,17 +614,13 @@ fn empty_state(icon: &str, title: String, hint: String) -> Html {
         .class(AlignItems::Center)
         .gap(2)
         .padding(4)
-        .with_child(Fa::new(icon).large_3x().class(FontColor::NeutralAlt))
+        .with_child(Fa::new(icon).large_3x())
         .with_child(
             Container::from_tag("span")
                 .class(FontStyle::TitleMedium)
                 .with_child(title),
         )
-        .with_child(
-            Container::from_tag("span")
-                .class(FontColor::NeutralAlt)
-                .with_child(hint),
-        )
+        .with_child(Container::from_tag("span").with_child(hint))
         .into()
 }
 
