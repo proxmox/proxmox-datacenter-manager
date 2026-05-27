@@ -1096,6 +1096,8 @@ fn render_template_counter_value(
     (_key, value, props, on_change): &(String, Value, FieldStdProps, Callback<String>),
 ) -> yew::Html {
     Number::<i32>::new()
+        // counters only ever increment from their start value, so a negative seed is meaningless
+        .min(0)
         .value(value.as_i64().unwrap_or_default().to_string())
         .disabled(props.disabled)
         .on_change({
@@ -1167,11 +1169,12 @@ fn kv_list_to_template_counter_map_validate(v: &Vec<(String, Value)>) -> Result<
                 _ => None,
             };
             match value.and_then(|v| v.try_into().ok()) {
-                Some(v) => {
+                Some(v) if v >= 0 => {
                     if map.insert(k.clone(), v).is_some() {
                         bail!("duplicate template counter name: {k}");
                     }
                 }
+                Some(v) => bail!("template counter must not be negative: {v}"),
                 None => bail!("invalid value: {v}"),
             }
         } else {
