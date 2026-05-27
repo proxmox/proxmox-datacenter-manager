@@ -946,7 +946,7 @@ pub fn render_auth_form(
                 .tip(tr!(
                     "Base URL this PDM instance is reachable from the target host"
                 ))
-                .tip(pdm_origin())
+                .placeholder(pdm_origin())
                 .value(config.post_hook_base_url.clone()),
         )
         .with_large_field(
