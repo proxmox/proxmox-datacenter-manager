@@ -71,7 +71,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Proxmox Datacenter Manager'
-copyright = '2023 - 2025, Proxmox Server Solutions GmbH'
+copyright = '2023 - 2026, Proxmox Server Solutions GmbH'
 author = 'Proxmox Support Team'
 
 # The version info for the project you're documenting, acts as a replacement for
