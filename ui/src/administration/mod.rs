@@ -112,7 +112,7 @@ impl Component for PdmServerAdministration {
             .with_item_builder(
                 TabBarItem::new()
                     .key("syslog")
-                    .label(tr!("Syslog"))
+                    .label(tr!("System Log"))
                     .icon_class("fa fa-list"),
                 |_| {
                     Container::new()
