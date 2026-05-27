@@ -81,6 +81,7 @@ impl Component for PdmRemoveRemote {
             );
 
         let mut dialog = ConfirmDialog::default()
+            .dangerous(true)
             .on_confirm(Callback::from(move |_| {
                 if let Some(on_confirm) = &on_confirm {
                     on_confirm.emit(!keep_api_token);
