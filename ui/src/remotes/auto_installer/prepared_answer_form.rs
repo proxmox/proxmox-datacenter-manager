@@ -566,6 +566,8 @@ pub fn render_disk_setup_form(
     // matches the saved kind reuse the saved payload so unrelated edits survive; otherwise fall
     // back to defaults so the form starts the new kind from a clean slate.
     add_fs_advanced_form_fields(&mut panel, fs_type, &config.filesystem);
+    // report advanced-field presence so the wizard/edit window can auto-show the toggle
+    form_ctx.set_has_advanced(panel.has_advanced());
     panel.into()
 }
 
