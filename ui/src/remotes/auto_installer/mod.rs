@@ -93,11 +93,9 @@ impl Component for AutoInstallerPanelComponent {
                         .on_token_created(ctx.link().callback(|_| Msg::TokenCreated)),
                 ),
             )
-            .with_child(
-                Panel::new().title(secrets_title).with_child(
-                    token_panel::AuthTokenPanel::default().reload_trigger(self.token_reload),
-                ),
-            )
+            .with_child(Panel::new().title(secrets_title).with_child(
+                token_panel::AuthTokenPanel::default().reload_trigger(self.token_reload),
+            ))
             .into()
     }
 }
