@@ -1,3 +1,52 @@
+proxmox-datacenter-manager-ui (1.1.1) trixie; urgency=medium
+
+  * views: map widget: keep an open info card aligned with its marker while
+    the page scrolls, and use an info icon rather than a question-mark one for
+    the node-list tooltip.
+
+  * auto-installer:
+    - expose the advanced filesystem options, such as the ZFS and Btrfs
+      settings, in the create wizard, not only when editing an existing
+      answer; the Advanced toggle now appears automatically on steps that
+      contain advanced fields
+    - fix template counters: a counter no longer snaps to zero on its first
+      edit, a form reset restores the seeded value, and counters are
+      constrained to non-negative values; more generally, deleting a row in a
+      key-value list no longer copies its value onto the next row
+    - improve the authorization-token edit dialog: gate Update on an actual
+      change and offer Reset, fix clearing and partial entry of the expiry,
+      and show its year, date, and time correctly
+    - prefill the preparation command with the host's TLS fingerprint and the
+      Datacenter Manager's own origin, taking both from the entered answer
+      when creating one
+    - refresh the token panel after an answer auto-creates its token, re-sync
+      the token selector on reset, and align the Network and Disk tabs
+
+  * confirm dialogs: stop styling routine confirmations as errors; a
+    confirmation now uses a neutral question icon and focuses the affirmative
+    button, reserving the alerting icon and safe-button focus for genuinely
+    destructive actions like removing a remote, deleting a certificate, or
+    rebooting a node.
+
+  * guest snapshots: title the dialog with the guest name and source remote
+    (a bare VMID is ambiguous across remotes), and tune the dialog size and
+    actions column.
+
+  * lxc/qemu: drop the deprecated HA group information, superseded by HA
+    node-affinity rules since Proxmox VE 9.0.
+
+  * guests: improve the empty-list placeholder contrast, which was hard to
+    read in dark mode.
+
+  * subscription registry: clarify some tooltips, e.g., quote the referenced
+    button names.
+
+  * administration: rename the system log tab to "System Log" to follow suite
+    with Proxmox VE and other products, that changed to the more generic term
+    already since a while.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 28 May 2026 00:15:38 +0200
+
 proxmox-datacenter-manager-ui (1.1.0) trixie; urgency=medium
 
   * bump for 1.1 point release.
