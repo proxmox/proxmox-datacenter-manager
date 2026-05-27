@@ -1,3 +1,9 @@
+proxmox-datacenter-manager (1.1.0) trixie; urgency=medium
+
+  * bump for 1.1 point release.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 27 May 2026 02:26:41 +0200
+
 proxmox-datacenter-manager (1.0.7) trixie; urgency=medium
 
   * cli: improve fido2 authentication when multiple security keys are
