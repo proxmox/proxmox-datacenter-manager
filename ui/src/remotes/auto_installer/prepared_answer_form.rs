@@ -1100,7 +1100,14 @@ fn render_template_counter_value(
     Number::<i32>::new()
         // counters only ever increment from their start value, so a negative seed is meaningless
         .min(0)
-        .value(value.as_i64().unwrap_or_default().to_string())
+        // edits round-trip through the list as Value::String, the seed comes in as Value::Number;
+        // read both so the displayed value prop actually changes (e.g. on reset) and the field
+        // repaints instead of keeping its stale internal value
+        .value(match value {
+            Value::Number(n) => n.as_i64().unwrap_or_default().to_string(),
+            Value::String(s) => s.clone(),
+            _ => String::new(),
+        })
         .disabled(props.disabled)
         .on_change({
             let on_change = on_change.clone();
