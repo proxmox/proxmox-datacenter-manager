@@ -400,8 +400,8 @@ pub fn render_network_options_form(
                 .name("netif-name-pinning-enabled")
                 .default(config.netif_name_pinning_enabled),
         )
-        .with_advanced_spacer()
-        .with_advanced_field(
+        .with_spacer()
+        .with_field(
             tr!("Network Device Filters"),
             KeyValueList::new()
                 .value(
