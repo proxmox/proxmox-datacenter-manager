@@ -1110,7 +1110,11 @@ fn find_config(
     let (prepared, _) = pdm_config::auto_install::read_prepared_answers()?;
 
     let mut default_answer = None;
-    for sc in prepared.values() {
+    let mut matched: Option<PreparedInstallationConfig> = None;
+    // Iterate in the config's stable order. `values()` would deref to a HashMap and pick a random
+    // winner across restarts when more than one answer matches; the first match in file order wins
+    // instead, and we warn on any further match so an admin can disambiguate overlapping filters.
+    for (_id, sc) in prepared.iter() {
         let PreparedInstallationSectionConfigWrapper::PreparedConfig(p) = sc;
 
         if !p.authorized_tokens.contains(token_id) {
@@ -1142,8 +1146,22 @@ fn find_config(
         });
 
         if matched_all {
-            return Ok(Some(p.clone().try_into()?));
+            match &matched {
+                None => matched = Some(p.clone().try_into()?),
+                Some(first) => {
+                    log::warn!(
+                        "multiple prepared answers match the request for token '{token_id}'; \
+                         using '{}'",
+                        first.id
+                    );
+                    break;
+                }
+            }
         }
+    }
+
+    if matched.is_some() {
+        return Ok(matched);
     }
 
     // If no specific target filter(s) matched, return the default answer, if there is one
