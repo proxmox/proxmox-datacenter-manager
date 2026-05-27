@@ -1,3 +1,31 @@
+proxmox-datacenter-manager (1.1.1) trixie; urgency=medium
+
+  * api: certificates: let any authenticated user query the host's TLS
+    certificate information, which every TLS connection exposes anyway, and
+    add a matching pdm-client method, so the web interface can prefill the
+    fingerprint for the automated-installer preparation command.
+
+  * auto-installer:
+    - match prepared answers in the configuration's stable order and let the
+      first match win, rather than a random match that could change across
+      restarts when several answers overlap; warn when a further answer also
+      matches, so overlapping target filters can be disambiguated
+    - reject negative template counter values at the API, not only malformed
+      counter names, as a counter only ever increments from its seed
+    - name the offending field and include the rendered value when a templated
+      CIDR, gateway, or DNS address renders to an invalid value, instead of a
+      bare "invalid IP address"
+
+  * map: clear a remote's cached location once its last location is removed,
+    so clients are no longer served a stale location depending on the
+    requested cache max age.
+
+  * docs: add guides for Ceph cluster monitoring and central guest management,
+    document the optional per-answer auto-installer subscription key, and
+    clarify where remote map locations are configured.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 28 May 2026 00:01:11 +0200
+
 proxmox-datacenter-manager (1.1.0) trixie; urgency=medium
 
   * bump for 1.1 point release.
