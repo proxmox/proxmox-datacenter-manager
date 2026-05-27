@@ -13,9 +13,10 @@ use pdm_api_types::auto_installer::{
     AnswerToken, AnswerTokenCreateResult, AnswerTokenUpdateResult, AnswerTokenUpdater,
 };
 use proxmox_yew_comp::{
-    percent_encoding::percent_encode_component, utils::render_epoch, ConfirmButton,
-    EditWindow, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
-    LoadableComponentScopeExt, LoadableComponentState,
+    percent_encoding::percent_encode_component,
+    utils::{epoch_to_input_value, render_epoch},
+    ConfirmButton, EditWindow, LoadableComponent, LoadableComponentContext,
+    LoadableComponentMaster, LoadableComponentScopeExt, LoadableComponentState,
 };
 use pwt::{
     props::{ContainerBuilder, CssPaddingBuilder, EventSubscriber, FieldBuilder, WidgetBuilder},
@@ -351,15 +352,13 @@ fn edit_input_panel(token: &AnswerToken) -> Html {
             tr!("Expire"),
             Field::new()
                 .name("expire-at")
-                .value(token.expire_at.and_then(|exp| {
-                    let expiry_at = if exp == 0 {
-                        String::new()
-                    } else {
-                        proxmox_yew_comp::utils::epoch_to_input_value(exp)
-                    };
-
-                    Some(expiry_at)
-                }))
+                // epoch_to_input_value yields the `YYYY-MM-DDTHH:MM` form the datetime-local
+                // input needs; the never sentinel (0) maps to an empty field.
+                .value(
+                    token
+                        .expire_at
+                        .and_then(|exp| (exp != 0).then(|| epoch_to_input_value(exp))),
+                )
                 .placeholder(tr!("never"))
                 .input_type(InputType::DatetimeLocal),
         )
