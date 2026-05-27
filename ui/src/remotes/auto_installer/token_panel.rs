@@ -348,11 +348,15 @@ fn edit_input_panel(token: &AnswerToken) -> Html {
             tr!("Expire"),
             Field::new()
                 .name("expire-at")
-                .value(
-                    token
-                        .expire_at
-                        .and_then(|exp| proxmox_time::epoch_to_rfc3339(exp).ok()),
-                )
+                .value(token.expire_at.and_then(|exp| {
+                    let expiry_at = if exp == 0 {
+                        String::new()
+                    } else {
+                        proxmox_yew_comp::utils::epoch_to_input_value(exp)
+                    };
+
+                    Some(expiry_at)
+                }))
                 .placeholder(tr!("never"))
                 .input_type(InputType::DatetimeLocal),
         )
