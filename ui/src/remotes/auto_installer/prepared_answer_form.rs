@@ -974,6 +974,7 @@ pub fn render_show_secret_dialog(
     config_id: Option<&str>,
     token: &AnswerToken,
     secret: &str,
+    fingerprint: &Option<String>,
     on_close: Callback<()>,
 ) -> Option<yew::Html> {
     let token = format!("{}:{secret}", token.id);
@@ -1009,9 +1010,16 @@ pub fn render_show_secret_dialog(
         "{}/api2/json/auto-install/answer",
         pdm_origin().unwrap_or_else(|| "https://pdm.example.com:8443".to_owned())
     );
-    let commandline = format!(
-        "proxmox-auto-install-assistant prepare-iso --fetch-from http --url {answer_url} --answer-auth-token {token} INPUT.iso",
+
+    let mut commandline = format!(
+        "proxmox-auto-install-assistant prepare-iso --fetch-from http --url {answer_url} --answer-auth-token {token}",
     );
+
+    if let Some(fingerprint) = fingerprint {
+        commandline = format!("{commandline} --cert-fingerprint {fingerprint}");
+    }
+
+    commandline = format!("{commandline} INPUT.iso");
 
     let copy_commandline_view = Container::new()
         .class("pwt-form-grid-col4")

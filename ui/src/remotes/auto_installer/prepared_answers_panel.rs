@@ -66,6 +66,7 @@ enum Message {
         token: AnswerToken,
         secret: String,
     },
+    FingerprintLoaded(Option<String>),
 }
 
 struct PreparedAnswersPanelComponent {
@@ -73,6 +74,7 @@ struct PreparedAnswersPanelComponent {
     selection: Selection,
     store: Store<PreparedInstallationConfig>,
     columns: Rc<Vec<DataTableHeader<PreparedInstallationConfig>>>,
+    fingerprint: Option<String>,
 }
 
 pwt::impl_deref_mut_property!(
@@ -94,12 +96,24 @@ impl LoadableComponent for PreparedAnswersPanelComponent {
             |a: &PreparedInstallationConfig, b: &PreparedInstallationConfig| a.id.cmp(&b.id),
         );
 
+        let link = ctx.link().clone();
+        ctx.link().spawn(async move {
+            link.send_message(Message::FingerprintLoaded(
+                pdm_client()
+                    .certificate_info()
+                    .await
+                    .ok()
+                    .and_then(|mut c| c.pop().and_then(|c| c.fingerprint)),
+            ));
+        });
+
         Self {
             state: LoadableComponentState::new(),
             selection: Selection::new()
                 .on_select(ctx.link().callback(|_| Message::SelectionChange)),
             store,
             columns: Rc::new(columns()),
+            fingerprint: None,
         }
     }
 
@@ -146,6 +160,10 @@ impl LoadableComponent for PreparedAnswersPanelComponent {
                     token,
                     secret,
                 }));
+                false
+            }
+            Message::FingerprintLoaded(fp) => {
+                self.fingerprint = fp;
                 false
             }
         }
@@ -221,7 +239,7 @@ impl LoadableComponent for PreparedAnswersPanelComponent {
 
         match view_state {
             Self::ViewState::Create => Some(
-                AddAnswerWizardProperties::new()
+                AddAnswerWizardProperties::new(self.fingerprint.clone())
                     .on_submit_result(on_submit_result)
                     .on_close(on_close)
                     .into(),
@@ -259,7 +277,13 @@ impl LoadableComponent for PreparedAnswersPanelComponent {
                 config_id,
                 token,
                 secret,
-            } => render_show_secret_dialog(Some(config_id), token, secret, on_close),
+            } => render_show_secret_dialog(
+                Some(config_id),
+                token,
+                secret,
+                &self.fingerprint,
+                on_close,
+            ),
         }
     }
 }

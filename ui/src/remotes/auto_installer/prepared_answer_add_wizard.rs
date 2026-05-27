@@ -44,7 +44,7 @@ pub struct AddAnswerWizardProperties {
 }
 
 impl AddAnswerWizardProperties {
-    pub fn new() -> Self {
+    pub fn new(fingerprint: Option<String>) -> Self {
         let mut template_counters = BTreeMap::new();
         template_counters.insert("installation_nr".to_owned(), 0i32);
 
@@ -79,8 +79,8 @@ impl AddAnswerWizardProperties {
             disk_filter: BTreeMap::new(),
             disk_filter_match: None,
             // post hook
-            post_hook_cert_fp: None,
             post_hook_base_url: pdm_origin(),
+            post_hook_cert_fp: fingerprint,
             // templating
             template_counters,
             // subscription

@@ -53,6 +53,7 @@ enum Message {
     SelectionChange,
     RemoveEntry,
     RegenerateSecret,
+    FingerprintLoaded(Option<String>),
 }
 
 struct AuthTokenPanelComponent {
@@ -60,6 +61,7 @@ struct AuthTokenPanelComponent {
     selection: Selection,
     store: Store<AnswerToken>,
     columns: Rc<Vec<DataTableHeader<AnswerToken>>>,
+    fingerprint: Option<String>,
 }
 
 pwt::impl_deref_mut_property!(
@@ -78,12 +80,24 @@ impl LoadableComponent for AuthTokenPanelComponent {
             Store::with_extract_key(|record: &AnswerToken| Key::from(record.id.to_string()));
         store.set_sorter(|a: &AnswerToken, b: &AnswerToken| a.id.cmp(&b.id));
 
+        let link = ctx.link().clone();
+        ctx.link().spawn(async move {
+            link.send_message(Message::FingerprintLoaded(
+                pdm_client()
+                    .certificate_info()
+                    .await
+                    .ok()
+                    .and_then(|mut c| c.pop().and_then(|c| c.fingerprint)),
+            ));
+        });
+
         Self {
             state: LoadableComponentState::new(),
             selection: Selection::new()
                 .on_select(ctx.link().callback(|_| Message::SelectionChange)),
             store,
             columns: Rc::new(columns()),
+            fingerprint: None,
         }
     }
 
@@ -140,6 +154,10 @@ impl LoadableComponent for AuthTokenPanelComponent {
                         link.send_reload();
                     })
                 }
+                false
+            }
+            Message::FingerprintLoaded(fingerprint) => {
+                self.fingerprint = fingerprint;
                 false
             }
         }
@@ -209,6 +227,7 @@ impl LoadableComponent for AuthTokenPanelComponent {
                 None,
                 token,
                 secret,
+                &self.fingerprint,
                 ctx.link().change_view_callback(|_| None),
             ),
         }
