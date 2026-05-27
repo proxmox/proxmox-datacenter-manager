@@ -17,7 +17,7 @@ use pdm_api_types::rrddata::{
     QemuDataPoint,
 };
 use pdm_api_types::sdn::{ListVnet, ListZone};
-use pdm_api_types::BasicRealmInfo;
+use pdm_api_types::{BasicRealmInfo, CertificateInfo};
 use pve_api_types::StartQemuMigrationType;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -2198,6 +2198,16 @@ impl<T: HttpApiClient> PdmClient<T> {
             .await?
             .nodata()?;
         Ok(())
+    }
+
+    /// Get the current certificat's information for the PDM host itself.
+    pub async fn certificate_info(&self) -> Result<Vec<CertificateInfo>, Error> {
+        Ok(self
+            .0
+            .get("/api2/extjs/nodes/localhost/certificates/info")
+            .await?
+            .expect_json::<Vec<CertificateInfo>>()?
+            .data)
     }
 }
 
