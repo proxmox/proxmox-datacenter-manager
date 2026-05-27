@@ -13,7 +13,7 @@ use pdm_api_types::auto_installer::{
     AnswerToken, AnswerTokenCreateResult, AnswerTokenUpdateResult, AnswerTokenUpdater,
 };
 use proxmox_yew_comp::{
-    percent_encoding::percent_encode_component, utils::render_epoch_short, ConfirmButton,
+    percent_encoding::percent_encode_component, utils::render_epoch, ConfirmButton,
     EditWindow, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
     LoadableComponentScopeExt, LoadableComponentState,
 };
@@ -317,7 +317,7 @@ fn columns() -> Vec<DataTableHeader<AnswerToken>> {
                 move |item: &AnswerToken| {
                     html! {
                         match item.expire_at {
-                            Some(epoch) if epoch != 0 => render_epoch_short(epoch),
+                            Some(epoch) if epoch != 0 => render_epoch(epoch),
                             _ => tr!("never"),
                         }
                     }
