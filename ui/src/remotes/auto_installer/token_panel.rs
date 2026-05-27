@@ -297,7 +297,7 @@ impl AuthTokenPanelComponent {
             .edit(true)
             .renderer({
                 let record = record.clone();
-                move |_| edit_input_panel(&record)
+                move |form_ctx: &FormContext| edit_input_panel(form_ctx, &record)
             })
             .submit_text(tr!("Update"))
             .on_submit({
@@ -368,74 +368,90 @@ fn columns() -> Vec<DataTableHeader<AnswerToken>> {
     ]
 }
 
-fn edit_input_panel(token: &AnswerToken) -> Html {
-    InputPanel::new()
-        .padding(4)
-        .with_right_field(
-            tr!("Expire"),
-            Field::new()
-                .name("expire-at")
-                // epoch_to_input_value yields the `YYYY-MM-DDTHH:MM` form the datetime-local
-                // input needs; the never sentinel (0) maps to an empty field.
-                .value(
-                    token
-                        .expire_at
-                        .and_then(|exp| (exp != 0).then(|| epoch_to_input_value(exp))),
-                )
-                .placeholder(tr!("never"))
-                .input_type(InputType::DatetimeLocal),
-        )
-        .with_field(
-            tr!("Token Name"),
-            Field::new()
-                .name("id")
-                .value(token.id.clone())
-                .submit(false)
-                .disabled(true)
-                .required(true),
-        )
-        .with_right_field(
-            tr!("Enabled"),
-            Checkbox::new().name("enabled").checked(token.enabled),
-        )
-        .with_large_field(
-            tr!("Comment"),
-            Field::new()
-                .name("comment")
-                .value(token.comment.clone())
-                .submit_empty(true),
-        )
-        .into()
+fn edit_input_panel(form_ctx: &FormContext, token: &AnswerToken) -> Html {
+    let mut panel = InputPanel::new().padding(4);
+    panel.add_field(
+        tr!("Token Name"),
+        Field::new()
+            .name("id")
+            .value(token.id.clone())
+            .submit(false)
+            .disabled(true)
+            .required(true),
+    );
+    add_expiry_fields(&mut panel, form_ctx, token.expire_at);
+    panel.add_right_field(
+        tr!("Enabled"),
+        Checkbox::new().name("enabled").checked(token.enabled),
+    );
+    panel.add_large_field(
+        false,
+        false,
+        tr!("Comment"),
+        Field::new()
+            .name("comment")
+            .value(token.comment.clone())
+            .submit_empty(true),
+    );
+    panel.into()
 }
 
-fn add_input_panel(_form_ctx: &FormContext) -> Html {
-    InputPanel::new()
-        .padding(4)
-        .with_field(
-            tr!("Token Name"),
-            Field::new().name("id").submit(false).required(true),
-        )
-        .with_right_field(
-            tr!("Expire"),
-            Field::new()
-                .name("expire-at")
-                .placeholder(tr!("never"))
-                .input_type(InputType::DatetimeLocal),
-        )
-        .with_right_field(
-            tr!("Enabled"),
-            Checkbox::new().name("enabled").default(true),
-        )
-        .with_large_field(tr!("Comment"), Field::new().name("comment"))
-        .into()
+fn add_input_panel(form_ctx: &FormContext) -> Html {
+    let mut panel = InputPanel::new().padding(4);
+    panel.add_field(
+        tr!("Token Name"),
+        Field::new().name("id").submit(false).required(true),
+    );
+    add_expiry_fields(&mut panel, form_ctx, None);
+    panel.add_right_field(
+        tr!("Enabled"),
+        Checkbox::new().name("enabled").default(true),
+    );
+    panel.add_large_field(false, false, tr!("Comment"), Field::new().name("comment"));
+    panel.into()
+}
+
+/// Adds the token expiry controls: an "Expires" checkbox plus a date-time field that is only active
+/// while it is set. An unset checkbox means the token never expires and is also how an existing
+/// expiry is cleared. The date-time field is required while active, so a half-entered value (which
+/// the native input reports as empty) is rejected here instead of being silently stored as never.
+fn add_expiry_fields(panel: &mut InputPanel, form_ctx: &FormContext, expire_at: Option<i64>) {
+    let has_expiry = matches!(expire_at, Some(exp) if exp != 0);
+    let active = form_ctx.read().get_field_checked("has-expiry");
+    panel.add_right_field(
+        tr!("Expires"),
+        Checkbox::new()
+            .name("has-expiry")
+            .submit(false)
+            .default(has_expiry),
+    );
+    panel.add_right_field(
+        tr!("Expire"),
+        Field::new()
+            .name("expire-at")
+            .disabled(!active)
+            .required(active)
+            // epoch_to_input_value yields the `YYYY-MM-DDTHH:MM` form the
+            // datetime-local input needs.
+            .value(expire_at.and_then(|exp| (exp != 0).then(|| epoch_to_input_value(exp))))
+            .input_type(InputType::DatetimeLocal),
+    );
+}
+
+/// Reads the expiry as a UNIX epoch, or 0 (never) when the "Expires" checkbox is unset.
+fn read_expiry(form_ctx: &FormContext) -> i64 {
+    if form_ctx.read().get_field_checked("has-expiry") {
+        proxmox_time::parse_rfc3339(&form_ctx.read().get_field_text("expire-at")).unwrap_or(0)
+    } else {
+        0
+    }
 }
 
 async fn create_token(form_ctx: FormContext) -> Result<AnswerTokenCreateResult> {
     let id = form_ctx.read().get_field_text("id");
     let comment = form_ctx.read().get_field_text("comment");
     let enable = form_ctx.read().get_field_checked("enabled");
-    let expire =
-        proxmox_time::parse_rfc3339(&form_ctx.read().get_field_text("expire-at")).unwrap_or(0);
+    let expire = read_expiry(&form_ctx);
 
     Ok(pdm_client()
         .add_autoinst_token(&id, Some(comment), Some(enable), Some(expire))
@@ -446,9 +462,7 @@ async fn update_token(form_ctx: FormContext, id: &str) -> Result<()> {
     let updater = AnswerTokenUpdater {
         comment: Some(form_ctx.read().get_field_text("comment")),
         enabled: Some(form_ctx.read().get_field_checked("enabled")),
-        expire_at: Some(
-            proxmox_time::parse_rfc3339(&form_ctx.read().get_field_text("expire-at")).unwrap_or(0),
-        ),
+        expire_at: Some(read_expiry(&form_ctx)),
     };
 
     pdm_client()
