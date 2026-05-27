@@ -1,3 +1,9 @@
+proxmox-datacenter-manager-ui (1.1.0) trixie; urgency=medium
+
+  * bump for 1.1 point release.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 27 May 2026 02:27:45 +0200
+
 proxmox-datacenter-manager-ui (1.0.7) trixie; urgency=medium
 
   * map widget: actually plot remote locations on the world map. The
