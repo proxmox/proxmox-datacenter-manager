@@ -268,6 +268,9 @@ impl AuthTokenPanelComponent {
             .clone();
 
         let window = EditWindow::new(tr!("Edit") + ": " + &tr!("Token"))
+            // dirty-gate the Update button and show a Reset button, matching the prepared-answer
+            // edit flow (the form is seeded from the record, not loaded asynchronously).
+            .edit(true)
             .renderer({
                 let record = record.clone();
                 move |_| edit_input_panel(&record)
