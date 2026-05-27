@@ -27,17 +27,33 @@ impl From<AutoInstallerPanel> for VNode {
     }
 }
 
-pub struct AutoInstallerPanelComponent {}
+pub enum Msg {
+    /// The prepared-answer flow created a new token, refresh the token panel.
+    TokenCreated,
+}
+
+pub struct AutoInstallerPanelComponent {
+    token_reload: usize,
+}
 
 impl Component for AutoInstallerPanelComponent {
-    type Message = ();
+    type Message = Msg;
     type Properties = AutoInstallerPanel;
 
     fn create(_: &Context<Self>) -> Self {
-        Self {}
+        Self { token_reload: 0 }
     }
 
-    fn view(&self, _: &Context<Self>) -> Html {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            Msg::TokenCreated => {
+                self.token_reload = self.token_reload.wrapping_add(1);
+                true
+            }
+        }
+    }
+
+    fn view(&self, ctx: &Context<Self>) -> Html {
         let installations_title: Html = Row::new()
             .gap(2)
             .class(AlignItems::Baseline)
@@ -72,14 +88,15 @@ impl Component for AutoInstallerPanelComponent {
                     .with_child(installations_panel::InstallationsPanel::default()),
             )
             .with_child(
-                Panel::new()
-                    .title(answers_title)
-                    .with_child(prepared_answers_panel::PreparedAnswersPanel::default()),
+                Panel::new().title(answers_title).with_child(
+                    prepared_answers_panel::PreparedAnswersPanel::default()
+                        .on_token_created(ctx.link().callback(|_| Msg::TokenCreated)),
+                ),
             )
             .with_child(
-                Panel::new()
-                    .title(secrets_title)
-                    .with_child(token_panel::AuthTokenPanel::default()),
+                Panel::new().title(secrets_title).with_child(
+                    token_panel::AuthTokenPanel::default().reload_trigger(self.token_reload),
+                ),
             )
             .into()
     }

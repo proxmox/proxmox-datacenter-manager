@@ -32,7 +32,19 @@ use pwt::{
 use crate::{pdm_client, remotes::auto_installer::prepared_answer_form::render_show_secret_dialog};
 
 #[derive(Default, PartialEq, Properties)]
-pub struct AuthTokenPanel {}
+pub struct AuthTokenPanel {
+    /// Bumped by the parent to request a reload, for example after the prepared-answer flow
+    /// auto-created a token.
+    #[prop_or_default]
+    pub reload_trigger: usize,
+}
+
+impl AuthTokenPanel {
+    pub fn reload_trigger(mut self, reload_trigger: usize) -> Self {
+        self.reload_trigger = reload_trigger;
+        self
+    }
+}
 
 impl From<AuthTokenPanel> for VNode {
     fn from(value: AuthTokenPanel) -> Self {
@@ -162,6 +174,17 @@ impl LoadableComponent for AuthTokenPanelComponent {
                 false
             }
         }
+    }
+
+    fn changed(
+        &mut self,
+        ctx: &LoadableComponentContext<Self>,
+        old_props: &Self::Properties,
+    ) -> bool {
+        if ctx.props().reload_trigger != old_props.reload_trigger {
+            ctx.link().send_reload();
+        }
+        true
     }
 
     fn toolbar(&self, ctx: &LoadableComponentContext<Self>) -> Option<yew::Html> {

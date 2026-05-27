@@ -5,7 +5,7 @@ use core::clone::Clone;
 use std::{future::Future, pin::Pin, rc::Rc};
 use yew::{
     virtual_dom::{Key, VComp, VNode},
-    Properties,
+    Callback, Properties,
 };
 
 use pdm_api_types::auto_installer::{
@@ -33,7 +33,19 @@ use super::{
 use crate::{pdm_client, remotes::auto_installer::prepared_answer_form::render_show_secret_dialog};
 
 #[derive(Default, PartialEq, Properties)]
-pub struct PreparedAnswersPanel {}
+pub struct PreparedAnswersPanel {
+    /// Called when submitting an answer auto-created a token, so the sibling token panel can
+    /// refresh.
+    #[prop_or_default]
+    pub on_token_created: Option<Callback<()>>,
+}
+
+impl PreparedAnswersPanel {
+    pub fn on_token_created(mut self, on_token_created: impl Into<Callback<()>>) -> Self {
+        self.on_token_created = Some(on_token_created.into());
+        self
+    }
+}
 
 impl From<PreparedAnswersPanel> for VNode {
     fn from(value: PreparedAnswersPanel) -> Self {
@@ -161,6 +173,10 @@ impl LoadableComponent for PreparedAnswersPanelComponent {
                 token,
                 secret,
             } => {
+                // reaching this arm means the backend created a fresh token for the answer
+                if let Some(on_token_created) = &ctx.props().on_token_created {
+                    on_token_created.emit(());
+                }
                 link.change_view(Some(Self::ViewState::DisplaySecret {
                     config_id,
                     url,
