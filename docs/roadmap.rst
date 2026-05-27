@@ -1,53 +1,69 @@
 Roadmap
 =======
 
+For completed items, see the release notes for previous versions below.
 
-* Simplify adding remotes by implementing a remote-join information endpoint. This allows copying
-  key data to provide the Proxmox Datacenter Manager with all initial information required to
-  connect to a remote, ensuring trust and safety.
+The items below describe development directions and priorities. Not all are planned for immediate
+delivery. Some are long-term efforts spanning multiple major releases, and items may be
+reprioritized based on engineering capacity, enterprise customer requirements, and community
+feedback.
 
-  - This concept is similar to the "Join Information" API and UI used in Proxmox VE clusters but
-    functions independently, as Proxmox Datacenter Manager does not rely on cluster communication.
+* **Resource organization and access control:**
 
-* Management of core configurations:
+  - Folders as a first-class hierarchical entity: each remote has a single home folder, and access
+    can be delegated per folder.
+  - Tags as a flat labeling scheme, independent of the folder hierarchy, where a resource can carry
+    several tags.
+  - A finer-grained ACL schema: Resource\* roles that separate managing a resource from modifying
+    its definition, folders acting as ACL anchors, and closing the remaining cross-cluster
+    delegation gaps.
 
-  - Backup jobs and their status.
-  - Firewall management (building upon the existing visualization capabilities).
+* **Guest and resource management:**
 
-* Off-site replication of guests for manual recovery in case of datacenter failure.
-* Evaluate an active-standby architecture for the Proxmox Datacenter Manager to avoid a single point
-  of failure.
+  - Bulk actions on virtual guests across the selection in the central guest list, building on the
+    cluster-wide bulk-action endpoints that the underlying Proxmox products provide and degrading
+    gracefully where they are missing; the same operations also through the admin CLI, with
+    aggregated progress and per-item results.
+  - More information in resource overviews and detail panels, and more options in the migration
+    dialog, such as a bandwidth limit and an online/offline preference.
+  - Management of further core configurations of remote resources: a backup-job overview with
+    last-execution status, and basic guest configuration beyond snapshots, lifecycle and migration.
+    Proxmox Datacenter Manager keeps linking out to the remote's full interface for anything complex.
+  - A console for remote resources (nodes and guests).
 
-  - Currently, users can operate two instances, which results in doubled metric collection but
-    minimal overhead otherwise.
+* **Remotes and onboarding:**
 
-* Integration of Proxmox Mail Gateway.
-* Bulk actions, such as starting, stopping, or migrating multiple virtual guests at once.
-* Implementation of a notification system:
+  - Simplify adding remotes through copy-and-paste Quick-Add information, mirroring the Proxmox VE
+    cluster-join flow but independent of cluster communication and working on single nodes too.
+  - Handle multi-factor authentication for the initial Probe Remote connection.
 
-  - Standard system notifications and update alerts.
-  - Evaluation of Proxmox Datacenter Manager acting as a notification target for remotes.
+* **Networking:**
 
-* User Interface improvements:
+  - First-class SDN integration, further phases: stretch EVPN VNets across clusters, support
+    multiple VRFs across clusters, and automate route-target import and export.
+  - Firewall management, likely landing together with the SDN work.
 
-  - Handling Multi-Factor Authentication (MFA) for the initial "Probe Remote" connection.
-  - Evaluate a Pool View where hierarchical resource pools from all remotes are merged.
+* **Notifications:**
 
-* Improvements for customizable Views:
+  - Standard system, update and task notifications for the Proxmox Datacenter Manager node itself.
+  - Evaluate whether Proxmox Datacenter Manager can act as a notification target for remotes.
 
-  - Provide more card widgets that one can add, including ones that provide some direct control over
-    the included resources.
-  - Allow to add the pre-defined Updates, Firewall or Task tabs from the Remotes panel.
-  - Allow to create tabs to organize complex views.
-  - Evaluate other layouting options for rendering the card widgets.
-  - Extending the filter capability by providing more types and evaluate more flexible comparisons
-    operators.
+* **Search and usability:**
 
+  - More expressive search and filter syntax: wildcards for view filter values, richer expressions
+    in the resource search bar, and additional category keywords.
+  - Polish error messages and handling across the web interface, the CLI and the API, with richer
+    presentation of API errors and more actionable guidance on common failure modes.
 
-Please note that this list outlines general goals and potential ideas rather than fixed promises.
-If you have a substantial use case you're willing to describe in detail, we encourage you to open
-enhancement requests for items listed here, as your feedback helps us prioritize work and understand
-specific needs.
+* **Further integrations and resilience:**
+
+  - Integration of further Proxmox projects: Proxmox Mail Gateway as a remote, and deeper Proxmox
+    Backup Server integration including job status, datastore content browsing and prune retention.
+  - Off-site replication copies of virtual guests for manual recovery on a datacenter failure (not
+    HA).
+  - Evaluate an active-standby architecture for Proxmox Datacenter Manager itself, to avoid a single
+    point of failure; two instances side-by-side already cover this in practice, at the cost of
+    doubled metric collection.
 
 .. _release_history:
 
