@@ -111,6 +111,18 @@ impl ManagedField for TokenSelectorField {
         }
     }
 
+    fn value_changed(&mut self, _ctx: &ManagedFieldContext<Self>) {
+        // The Selection is the picker's source of truth; re-sync it whenever the field value
+        // changes externally - notably a form reset, which rewrites the value but would otherwise
+        // leave the checkboxes where the user left them.
+        let keys: HashSet<Key> = serde_json::from_value::<Vec<String>>(self.state.value.clone())
+            .unwrap_or_default()
+            .into_iter()
+            .map(Key::from)
+            .collect();
+        self.selection.bulk_select(keys);
+    }
+
     fn changed(&mut self, ctx: &ManagedFieldContext<Self>, old_props: &Self::Properties) -> bool {
         let props = ctx.props();
 
