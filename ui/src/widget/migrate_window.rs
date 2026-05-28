@@ -400,7 +400,16 @@ impl PdmMigrateWindow {
                     .remote_type(RemoteType::Pve)
                     .name("remote")
                     .default(target_remote.clone())
-                    .on_change(link.callback(Msg::RemoteChange))
+                    .on_change({
+                        let link = link.clone();
+                        let form_ctx = form_ctx.clone();
+                        move |new_remote: String| {
+                            form_ctx
+                                .write()
+                                .set_field_value("target-endpoint", String::new().into());
+                            link.send_message(Msg::RemoteChange(new_remote));
+                        }
+                    })
                     .required(true),
             )
             .with_field(
