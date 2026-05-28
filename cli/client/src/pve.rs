@@ -333,10 +333,20 @@ impl fmt::Display for FormatTagList<'_> {
     }
 }
 
+#[derive(serde::Serialize)]
+struct GuestListOutput {
+    remote: String,
+    entries: Vec<pve_api_types::VmEntry>,
+}
+
 #[api(
     input: {
         properties: {
-            remote: { schema: REMOTE_ID_SCHEMA },
+            remote: {
+                type: Array,
+                description: "List of remotes to query.",
+                items: { schema: REMOTE_ID_SCHEMA },
+            },
             node: {
                 schema: NODE_SCHEMA,
                 optional: true,
@@ -345,28 +355,52 @@ impl fmt::Display for FormatTagList<'_> {
     }
 )]
 /// List the QEMU VMs of a cluster.
-async fn list_qemu(remote: String, node: Option<String>) -> Result<(), Error> {
-    let mut entries = client()?.pve_list_qemu(&remote, node.as_deref()).await?;
-
+async fn list_qemu(remote: Vec<String>, node: Option<String>) -> Result<(), Error> {
+    let remote_count = remote.len();
     let output_format = env().format_args.output_format;
     if output_format == OutputFormat::Text {
-        if entries.is_empty() {
-            println!("No vms available");
-            return Ok(());
-        }
+        for remote in remote {
+            let mut entries = client()?.pve_list_qemu(&remote, node.as_deref()).await?;
 
-        entries.sort_by(|a, b| a.vmid.cmp(&b.vmid));
-        for entry in entries {
-            print!("{}: {}", entry.vmid, entry.status);
-            if let Some(name) = &entry.name {
-                print!(" ({name})");
+            let padding = if remote_count != 1 {
+                println!("{remote}:");
+                "  "
+            } else {
+                ""
+            };
+
+            if entries.is_empty() {
+                println!("{padding}No vms available");
+                continue;
             }
-            print!("{}", FormatTagList(entry.tags().collect()));
-            println!();
+
+            entries.sort_by(|a, b| a.vmid.cmp(&b.vmid));
+            for entry in entries {
+                print!("{padding}{}: {}", entry.vmid, entry.status);
+                if let Some(name) = &entry.name {
+                    print!(" ({name})");
+                }
+                print!("{}", FormatTagList(entry.tags().collect()));
+                println!();
+            }
         }
     } else {
-        format_and_print_result(&entries, &output_format.to_string());
+        let mut list = Vec::new();
+
+        for remote in remote {
+            let entries = client()?.pve_list_qemu(&remote, node.as_deref()).await?;
+
+            if remote_count == 1 {
+                format_and_print_result(&entries, &output_format.to_string());
+                return Ok(());
+            }
+
+            list.push(GuestListOutput { remote, entries });
+        }
+
+        format_and_print_result(&list, &output_format.to_string());
     }
+
     Ok(())
 }
 
@@ -731,7 +765,11 @@ async fn get_qemu_rrd_data(
 #[api(
     input: {
         properties: {
-            remote: { schema: REMOTE_ID_SCHEMA },
+            remote: {
+                type: Array,
+                description: "List of remotes to query.",
+                items: { schema: REMOTE_ID_SCHEMA },
+            },
             node: {
                 schema: NODE_SCHEMA,
                 optional: true,
@@ -740,27 +778,49 @@ async fn get_qemu_rrd_data(
     }
 )]
 /// List the LXC containers of a cluster.
-async fn list_lxc(remote: String, node: Option<String>) -> Result<(), Error> {
-    let mut entries = client()?.pve_list_lxc(&remote, node.as_deref()).await?;
+async fn list_lxc(remote: Vec<String>, node: Option<String>) -> Result<(), Error> {
+    let remote_count = remote.len();
 
     let output_format = env().format_args.output_format;
     if output_format == OutputFormat::Text {
-        if entries.is_empty() {
-            println!("No containers available");
-            return Ok(());
-        }
+        for remote in remote {
+            let mut entries = client()?.pve_list_lxc(&remote, node.as_deref()).await?;
+            let padding = if remote_count != 1 {
+                println!("{remote}:");
+                "  "
+            } else {
+                ""
+            };
 
-        entries.sort_by(|a, b| a.vmid.cmp(&b.vmid));
-        for entry in entries {
-            print!("{}: {}", entry.vmid, entry.status);
-            if let Some(name) = &entry.name {
-                print!(" ({name})");
+            if entries.is_empty() {
+                println!("{padding}No containers available");
+                continue;
             }
-            print!("{}", FormatTagList(entry.tags().collect()));
-            println!();
+
+            entries.sort_by(|a, b| a.vmid.cmp(&b.vmid));
+            for entry in entries {
+                print!("{padding}{}: {}", entry.vmid, entry.status);
+                if let Some(name) = &entry.name {
+                    print!(" ({name})");
+                }
+                print!("{}", FormatTagList(entry.tags().collect()));
+                println!();
+            }
         }
     } else {
-        format_and_print_result(&entries, &output_format.to_string());
+        let mut list = Vec::new();
+        for remote in remote {
+            let entries = client()?.pve_list_lxc(&remote, node.as_deref()).await?;
+
+            if remote_count == 1 {
+                format_and_print_result(&entries, &output_format.to_string());
+                return Ok(());
+            }
+
+            list.push(GuestListOutput { remote, entries });
+        }
+
+        format_and_print_result(&list, &output_format.to_string());
     }
     Ok(())
 }
