@@ -166,7 +166,8 @@ pub async fn check_subscription() -> Result<(), Error> {
                     && info.serverid.is_some()
                 {
                     log::info!(
-                        "Using subscription of node '{node}' of remote '{remote}' for enterprise repository access"
+                        "Using subscription of node '{node}' of remote '{remote}' for enterprise \
+                         repository access"
                     );
                     update_apt_auth(
                         APT_AUTH_FN,
