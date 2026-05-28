@@ -1037,7 +1037,6 @@ pub fn render_show_secret_dialog(
                     Field::new()
                         .input_type(InputType::Password)
                         .class(FlexFit)
-                        .style("height", "2em")
                         .value(commandline.to_owned())
                         .read_only(true),
                 )
