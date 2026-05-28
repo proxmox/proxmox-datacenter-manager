@@ -882,6 +882,7 @@ pub fn render_templating_form(config: &PreparedInstallationConfig) -> yew::Html 
         )
         .with_large_custom_child(
             KeyValueList::new()
+                .key("current-value")
                 .value(
                     config
                         .template_counters
@@ -922,6 +923,7 @@ pub fn render_auth_form(
         )
         .with_large_custom_child(
             TokenSelector::new(tokens)
+                .key("authorized-tokens")
                 .selected_keys(config.authorized_tokens.clone())
                 .required(false)
                 .submit_empty(true)
@@ -983,6 +985,7 @@ pub fn render_show_secret_dialog(
     let token = format!("{}:{secret}", token.id);
 
     let copy_token_view = Container::new()
+        .key("copy-token-view")
         .class("pwt-form-grid-col4")
         .with_child(FieldLabel::new(tr!("Token")))
         .with_child(
@@ -1027,6 +1030,7 @@ pub fn render_show_secret_dialog(
     commandline = format!("{commandline} INPUT.iso");
 
     let copy_commandline_view = Container::new()
+        .key("copy-commandline-view")
         .class("pwt-form-grid-col4")
         .with_child(FieldLabel::new(tr!("Command Line")))
         .with_child(
