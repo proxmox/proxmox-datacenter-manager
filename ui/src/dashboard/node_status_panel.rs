@@ -8,15 +8,15 @@ use proxmox_yew_comp::Status;
 use pwt::css::{AlignItems, FlexFit, JustifyContent, TextAlign};
 use pwt::prelude::*;
 use pwt::state::SharedState;
-use pwt::widget::{error_message, Column, Fa, Panel};
+use pwt::widget::{Column, Fa, Panel, error_message};
 
 use pdm_api_types::resource::NodeStatusCount;
 use pdm_api_types::{remotes::RemoteType, resource::ResourcesStatus};
 
+use crate::LoadResult;
 use crate::dashboard::create_title_with_icon;
 use crate::dashboard::view::add_current_view_to_search;
 use crate::search_provider::get_search_provider;
-use crate::LoadResult;
 
 use super::loading_column;
 

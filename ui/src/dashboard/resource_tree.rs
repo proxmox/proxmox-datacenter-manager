@@ -1,11 +1,11 @@
 use pwt::css;
 use pwt::prelude::*;
 use pwt::props::{ContainerBuilder, WidgetBuilder, WidgetStyleBuilder};
-use pwt::widget::form::Field;
 use pwt::widget::Column;
 use pwt::widget::Panel;
 use pwt::widget::Row;
 use pwt::widget::Toolbar;
+use pwt::widget::form::Field;
 
 use crate::widget::RedrawController;
 use crate::widget::ResourceTree;

@@ -2,12 +2,12 @@ use anyhow::Error;
 use gloo_timers::callback::Interval;
 use yew::html::IntoPropValue;
 use yew::{Component, Properties};
-use yew_router::prelude::RouterScopeExt;
 use yew_router::AnyRoute;
+use yew_router::prelude::RouterScopeExt;
 
 use pwt::prelude::*;
 use pwt::state::SharedState;
-use pwt::{css, AsyncPool};
+use pwt::{AsyncPool, css};
 use pwt::{
     css::AlignItems,
     widget::{ActionIcon, Container, Row, Tooltip},
@@ -20,8 +20,8 @@ use proxmox_yew_comp::utils::render_epoch;
 
 use pdm_api_types::subscription::PdmSubscriptionInfo;
 
-use crate::dashboard::view::EditingMessage;
 use crate::LoadResult;
+use crate::dashboard::view::EditingMessage;
 
 #[widget(comp=PdmDashboardStatusRow)]
 #[derive(Properties, PartialEq, Clone)]

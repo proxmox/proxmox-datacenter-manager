@@ -8,17 +8,16 @@ use yew::virtual_dom::{Key, VComp, VNode};
 use proxmox_schema::property_string::PropertyString;
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
 use pwt::{
+    AsyncPool,
     css::{self, FlexFit},
     prelude::*,
     widget::{
-        error_message,
+        Column, Container, InputPanel, Mask, Row, error_message,
         form::{Field, FormContext, FormContextObserver, InputType, RadioButton},
-        Column, Container, InputPanel, Mask, Row,
     },
-    AsyncPool,
 };
 
-use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{NodeUrl, REMOTE_ID_SCHEMA, Remote, RemoteType};
 
 use pwt_macros::builder;
 

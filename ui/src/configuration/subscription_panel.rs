@@ -9,9 +9,9 @@ use yew::virtual_dom::{VComp, VNode};
 
 use pwt::css;
 use pwt::prelude::*;
-use pwt::widget::{error_message, Button, Column, Container, Progress, Row, Toolbar};
+use pwt::widget::{Button, Column, Container, Progress, Row, Toolbar, error_message};
 
-use proxmox_yew_comp::{http_get, http_post, KVGrid, KVGridRow};
+use proxmox_yew_comp::{KVGrid, KVGridRow, http_get, http_post};
 use proxmox_yew_comp::{
     LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
     LoadableComponentScopeExt, LoadableComponentState,
@@ -154,7 +154,7 @@ fn rows() -> Vec<KVGridRow> {
                 let value = match value {
                     Value::String(data) => data,
                     Value::Null => {
-                        return Container::from_tag("i").class("pwt-loading-icon").into()
+                        return Container::from_tag("i").class("pwt-loading-icon").into();
                     }
                     _ => return error_message(&tr!("invalid data")).into(),
                 };

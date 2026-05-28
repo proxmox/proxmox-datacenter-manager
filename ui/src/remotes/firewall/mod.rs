@@ -7,8 +7,8 @@ mod ui_helpers;
 pub use tree::FirewallTreeComponent;
 
 use std::rc::Rc;
-use yew::virtual_dom::{VComp, VNode};
 use yew::Properties;
+use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_yew_comp::LoadableComponentMaster;
 

@@ -42,8 +42,8 @@ mod dashboard;
 mod guests;
 
 use wasm_bindgen::JsValue;
-use yew::html::IntoEventCallback;
 use yew::Html;
+use yew::html::IntoEventCallback;
 use yew_router::prelude::RouterScopeExt;
 
 mod widget;

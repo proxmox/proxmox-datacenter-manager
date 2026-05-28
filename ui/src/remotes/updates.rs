@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use futures::Future;
 use yew::virtual_dom::{Key, VComp, VNode};
-use yew::{html, Html, Properties};
+use yew::{Html, Properties, html};
 
 use pdm_api_types::remote_updates::{
     NodeUpdateStatus, NodeUpdateSummary, ProductRepositoryStatus, RemoteUpdateStatus, UpdateSummary,
@@ -31,8 +31,8 @@ use pwt::{
     state::{Selection, SlabTree, TreeStore},
     tr,
     widget::{
-        data_table::{DataTable, DataTableColumn, DataTableHeader},
         Column, Fa, Row,
+        data_table::{DataTable, DataTableColumn, DataTableHeader},
     },
 };
 

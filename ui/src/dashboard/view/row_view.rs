@@ -16,8 +16,8 @@ use pwt::widget::menu::{Menu, MenuButton, MenuItem};
 use pwt::widget::{ActionIcon, Button, Column, Container, Row, Tooltip};
 use pwt_macros::builder;
 
-use crate::dashboard::view::row_element::RowElement;
 use crate::dashboard::view::EditingMessage;
+use crate::dashboard::view::row_element::RowElement;
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::views::{
@@ -339,7 +339,10 @@ impl Component for RowViewComp {
 
         if layout.iter().flatten().count() == 0 && !self.edit_mode {
             let icon = "<i class=\"fa fa-pencil\"></i>";
-            let message = tr!("The layout is empty. To add widgets, enable editing by clicking the {0} icon above.", icon);
+            let message = tr!(
+                "The layout is empty. To add widgets, enable editing by clicking the {0} icon above.",
+                icon
+            );
             let message = Html::from_html_unchecked(message.into());
             row.add_child(
                 Container::new()

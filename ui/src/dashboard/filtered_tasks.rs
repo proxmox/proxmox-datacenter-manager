@@ -2,33 +2,33 @@ use std::rc::Rc;
 
 use anyhow::Error;
 use proxmox_yew_comp::{
+    Status, TaskViewer,
     common_api_types::TaskStatusClass,
     http_get,
     utils::{format_duration_human, render_epoch},
-    Status, TaskViewer,
 };
 use pwt_macros::builder;
 use yew::{
+    Component, Properties,
     html::IntoEventCallback,
     virtual_dom::{VComp, VNode},
-    Component, Properties,
 };
 
 use pwt::{
+    AsyncPool,
     css::FlexFit,
     prelude::*,
     widget::{
-        data_table::{DataTable, DataTableColumn, DataTableHeader},
         ActionIcon, AlertDialog, Fa, Mask, Tooltip,
+        data_table::{DataTable, DataTableColumn, DataTableHeader},
     },
-    AsyncPool,
 };
 use pwt::{state::Store, tr, widget::Dialog};
 
 use pbs_api_types::TaskListItem;
 use pdm_api_types::{RemoteUpid, TaskFilters, TaskStateType};
 
-use crate::tasks::{format_optional_remote_upid, TaskWorkerType};
+use crate::tasks::{TaskWorkerType, format_optional_remote_upid};
 
 #[derive(PartialEq, Properties)]
 #[builder]

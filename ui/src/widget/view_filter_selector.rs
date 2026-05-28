@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::str::FromStr;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use pdm_api_types::resource::ResourceType;
 use pwt::css;
 use pwt::widget::{ActionIcon, Button, Column, Row};
@@ -18,7 +18,7 @@ use pwt::widget::form::{
 use pwt_macros::widget;
 
 use pdm_api_types::views::{
-    EnumMatcher, FilterRule, StringMatcher, FILTER_RULE_LIST_SCHEMA, FILTER_RULE_SCHEMA,
+    EnumMatcher, FILTER_RULE_LIST_SCHEMA, FILTER_RULE_SCHEMA, FilterRule, StringMatcher,
 };
 
 use crate::widget::RemoteSelector;

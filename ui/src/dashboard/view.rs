@@ -4,35 +4,35 @@ use std::rc::Rc;
 use anyhow::Error;
 use futures::join;
 use js_sys::Date;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
-use proxmox_yew_comp::{http_get, http_put, Status};
+use proxmox_yew_comp::{Status, http_get, http_put};
+use pwt::AsyncPool;
 use pwt::css;
 use pwt::prelude::*;
 use pwt::props::StorageLocation;
 use pwt::state::{PersistentState, SharedState};
 use pwt::widget::container::span;
-use pwt::widget::{error_message, form::FormContext, Column, Container, Progress};
+use pwt::widget::{Column, Container, Progress, error_message, form::FormContext};
 use pwt::widget::{Fa, Panel, Row};
-use pwt::AsyncPool;
 
 use crate::dashboard::refresh_config_edit::{
-    refresh_config_id, RefreshConfig, DEFAULT_MAX_AGE_S, DEFAULT_REFRESH_INTERVAL_S,
-    FORCE_RELOAD_MAX_AGE_S, INITIAL_MAX_AGE_S,
+    DEFAULT_MAX_AGE_S, DEFAULT_REFRESH_INTERVAL_S, FORCE_RELOAD_MAX_AGE_S, INITIAL_MAX_AGE_S,
+    RefreshConfig, refresh_config_id,
 };
 use crate::dashboard::subscription_info::create_subscriptions_dialog;
 use crate::dashboard::tasks::get_task_options;
 use crate::dashboard::{
-    create_gauge_panel, create_guest_panel, create_map_panel, create_node_panel,
-    create_pbs_datastores_panel, create_refresh_config_edit_window, create_remote_panel,
-    create_resource_tree, create_sdn_panel, create_subscription_panel, create_task_summary_panel,
-    create_top_entities_panel, DashboardStatusRow,
+    DashboardStatusRow, create_gauge_panel, create_guest_panel, create_map_panel,
+    create_node_panel, create_pbs_datastores_panel, create_refresh_config_edit_window,
+    create_remote_panel, create_resource_tree, create_sdn_panel, create_subscription_panel,
+    create_task_summary_panel, create_top_entities_panel,
 };
 use crate::remotes::AddWizard;
 use crate::widget::RedrawController;
-use crate::{pdm_client, LoadResult};
+use crate::{LoadResult, pdm_client};
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::resource::ResourcesStatus;

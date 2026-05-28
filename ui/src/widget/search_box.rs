@@ -1,19 +1,19 @@
 use std::rc::Rc;
 
 use gloo_utils::{document, window};
-use wasm_bindgen::{prelude::Closure, JsCast};
+use wasm_bindgen::{JsCast, prelude::Closure};
 use web_sys::{Element, HtmlElement};
 use yew::{
-    virtual_dom::{VComp, VNode},
     Component, NodeRef, Properties,
+    virtual_dom::{VComp, VNode},
 };
 
 use pwt::{
-    dom::{focus::FocusTracker, IntoHtmlElement},
+    dom::{IntoHtmlElement, focus::FocusTracker},
     prelude::*,
     props::CssLength,
     state::{SharedState, SharedStateObserver},
-    widget::{form::Field, Container, Trigger},
+    widget::{Container, Trigger, form::Field},
 };
 
 use crate::search_provider::get_search_provider;

@@ -4,25 +4,24 @@ use anyhow::Result;
 use core::clone::Clone;
 use std::{future::Future, pin::Pin, rc::Rc};
 use yew::{
-    virtual_dom::{Key, VComp, VNode},
     Callback, Properties,
+    virtual_dom::{Key, VComp, VNode},
 };
 
 use pdm_api_types::auto_installer::{
     AnswerToken, AnswerTokenCreateResult, PreparedInstallationConfig,
 };
 use proxmox_yew_comp::{
-    percent_encoding::percent_encode_component, ConfirmButton, LoadableComponent,
-    LoadableComponentContext, LoadableComponentMaster, LoadableComponentScopeExt,
-    LoadableComponentState,
+    ConfirmButton, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState, percent_encoding::percent_encode_component,
 };
 use pwt::{
     props::{ContainerBuilder, EventSubscriber, WidgetBuilder},
     state::{Selection, Store},
     tr,
     widget::{
-        data_table::{DataTable, DataTableColumn, DataTableHeader},
         Button, Fa, Toolbar,
+        data_table::{DataTable, DataTableColumn, DataTableHeader},
     },
 };
 

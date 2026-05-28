@@ -6,13 +6,13 @@ use anyhow::Error;
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::subscription::{
-    AddKeysResult, ProductType, RemoteNodeStatus, SubscriptionKeyEntry, SubscriptionKeySource,
-    SUBSCRIPTION_KEY_SCHEMA,
+    AddKeysResult, ProductType, RemoteNodeStatus, SUBSCRIPTION_KEY_SCHEMA, SubscriptionKeyEntry,
+    SubscriptionKeySource,
 };
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
-use proxmox_yew_comp::{http_delete, http_post, EditWindow};
+use proxmox_yew_comp::{EditWindow, http_delete, http_post};
 use proxmox_yew_comp::{
     LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
     LoadableComponentScopeExt, LoadableComponentState,

@@ -4,28 +4,27 @@ use anyhow::Result;
 use core::clone::Clone;
 use std::{future::Future, pin::Pin, rc::Rc};
 use yew::{
-    html,
+    Html, Properties, html,
     virtual_dom::{Key, VComp, VNode},
-    Html, Properties,
 };
 
 use pdm_api_types::auto_installer::{
     AnswerToken, AnswerTokenCreateResult, AnswerTokenUpdateResult, AnswerTokenUpdater,
 };
 use proxmox_yew_comp::{
-    percent_encoding::percent_encode_component,
-    utils::{epoch_to_input_value, render_epoch},
     ConfirmButton, EditWindow, LoadableComponent, LoadableComponentContext,
     LoadableComponentMaster, LoadableComponentScopeExt, LoadableComponentState,
+    percent_encoding::percent_encode_component,
+    utils::{epoch_to_input_value, render_epoch},
 };
 use pwt::{
     props::{ContainerBuilder, CssPaddingBuilder, EventSubscriber, FieldBuilder, WidgetBuilder},
     state::{Selection, Store},
     tr,
     widget::{
+        Button, Fa, InputPanel, Toolbar,
         data_table::{DataTable, DataTableColumn, DataTableHeader},
         form::{Checkbox, Field, FormContext, InputType},
-        Button, Fa, InputPanel, Toolbar,
     },
 };
 

@@ -2,17 +2,17 @@ use std::rc::Rc;
 
 use anyhow::Error;
 use pwt::css::ColorScheme;
-use pwt::widget::form::Form;
 use pwt::widget::Button;
 use pwt::widget::Row;
+use pwt::widget::form::Form;
 use serde_json::Value;
 use yew::prelude::Context as YewContext;
 use yew::virtual_dom::VComp;
 use yew::virtual_dom::VNode;
 
 use pwt::prelude::*;
-use pwt::widget::form::{Field, FormContext};
 use pwt::widget::InputPanel;
+use pwt::widget::form::{Field, FormContext};
 
 use proxmox_yew_comp::{ObjectGrid, ObjectGridRow};
 

@@ -21,7 +21,7 @@ use pwt::state::Store;
 use pwt::tr;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::form::Combobox;
-use pwt::widget::{error_message, Button, Column, InputPanel, Toolbar};
+use pwt::widget::{Button, Column, InputPanel, Toolbar, error_message};
 
 use crate::pdm_client;
 use crate::sdn::evpn::NodeList;

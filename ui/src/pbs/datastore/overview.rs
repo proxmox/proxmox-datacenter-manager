@@ -3,17 +3,17 @@ use std::rc::Rc;
 use gloo_timers::callback::Timeout;
 use pbs_api_types::DataStoreConfig;
 use yew::{
-    virtual_dom::{VComp, VNode},
     Properties,
+    virtual_dom::{VComp, VNode},
 };
 
 use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series, StatusRow};
 use pwt::{
+    AsyncPool,
     css::{ColorScheme, FlexFit, JustifyContent},
     prelude::*,
     props::WidgetBuilder,
     widget::{Column, Container, Progress, Row},
-    AsyncPool,
 };
 
 use pdm_api_types::rrddata::PbsDatastoreDataPoint;

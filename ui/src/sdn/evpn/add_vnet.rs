@@ -1,9 +1,9 @@
 use std::{collections::HashSet, rc::Rc};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use yew::{virtual_dom::Key, Callback, Component, Html, Properties};
+use yew::{Callback, Component, Html, Properties, virtual_dom::Key};
 
 use pdm_client::types::{CreateVnetParams, ListZone, SDN_ID_SCHEMA};
 use proxmox_yew_comp::{EditWindow, SchemaValidation};
@@ -17,13 +17,13 @@ use pwt::{
     state::{Selection, Store},
     tr,
     widget::{
+        Column, Container, GridPicker, InputPanel,
         data_table::{DataTable, DataTableColumn, DataTableHeader, MultiSelectMode},
         error_message,
         form::{
             Field, FormContext, ManagedField, ManagedFieldContext, ManagedFieldMaster,
             ManagedFieldState, Number,
         },
-        Column, Container, GridPicker, InputPanel,
     },
 };
 use pwt_macros::widget;

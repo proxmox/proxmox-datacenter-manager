@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use wasm_bindgen::UnwrapThrowExt;
 use yew::{
-    html::{IntoEventCallback, IntoPropValue},
     AttrValue, Callback, Component, Properties,
+    html::{IntoEventCallback, IntoPropValue},
 };
 
 use pwt::{

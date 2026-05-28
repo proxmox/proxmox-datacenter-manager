@@ -1,9 +1,8 @@
 use std::rc::Rc;
 
 use yew::{
-    html,
+    Component, Html, Properties, html,
     virtual_dom::{Key, VComp, VNode},
-    Component, Html, Properties,
 };
 
 use pdm_api_types::subscription::{
@@ -16,8 +15,8 @@ use pwt::{
     state::{KeyedSlabTree, TreeStore},
     tr,
     widget::{
-        data_table::{DataTable, DataTableColumn, DataTableHeader},
         Container, Fa, Row,
+        data_table::{DataTable, DataTableColumn, DataTableHeader},
     },
 };
 

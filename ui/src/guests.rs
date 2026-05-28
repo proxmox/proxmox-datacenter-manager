@@ -20,8 +20,8 @@ use yew::virtual_dom::{Key, VComp, VNode};
 use proxmox_human_byte::HumanByte;
 use proxmox_yew_comp::utils::format_duration_human;
 use proxmox_yew_comp::{
-    rrd_value_renderer, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
-    LoadableComponentScope, LoadableComponentScopeExt, LoadableComponentState,
+    LoadableComponent, LoadableComponentContext, LoadableComponentMaster, LoadableComponentScope,
+    LoadableComponentScopeExt, LoadableComponentState, rrd_value_renderer,
 };
 
 use pwt::css::{AlignItems, ColorScheme, FlexFit, FontStyle, JustifyContent};
@@ -38,8 +38,8 @@ use pwt::widget::{
     Toolbar, Tooltip, Trigger,
 };
 
-use pdm_api_types::resource::{RemoteResources, Resource};
 use pdm_api_types::RemoteUpid;
+use pdm_api_types::resource::{RemoteResources, Resource};
 use pdm_search::SearchTerm;
 
 use crate::pve::utils::{guest_is_live, guest_status_label, render_guest_tags};

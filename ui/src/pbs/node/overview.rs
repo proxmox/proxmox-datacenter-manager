@@ -1,25 +1,25 @@
 use std::rc::Rc;
 
 use yew::{
-    virtual_dom::{VComp, VNode},
     Context,
+    virtual_dom::{VComp, VNode},
 };
 
 use proxmox_yew_comp::{
-    node_info, rrd_value_renderer, RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series,
+    RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series, node_info, rrd_value_renderer,
 };
 use pwt::{
+    AsyncPool,
     css::{ColorScheme, FlexFit, JustifyContent},
     prelude::*,
     props::{ContainerBuilder, WidgetBuilder},
-    widget::{error_message, Column, Container, Panel, Progress, Row},
-    AsyncPool,
+    widget::{Column, Container, Panel, Progress, Row, error_message},
 };
 
 use pbs_api_types::NodeStatus;
 use pdm_api_types::rrddata::PbsNodeDataPoint;
 
-use crate::{renderer::separator, LoadResult};
+use crate::{LoadResult, renderer::separator};
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
 pub struct PbsNodeOverviewPanel {

@@ -4,11 +4,11 @@ use anyhow::Error;
 use yew::html::IntoPropValue;
 
 use pwt::widget::form::Combobox;
-use pwt::{prelude::*, AsyncPool};
+use pwt::{AsyncPool, prelude::*};
 
 use pwt_macros::{builder, widget};
 
-use crate::{pdm_client, RemoteList};
+use crate::{RemoteList, pdm_client};
 
 static PREDEFINED_PATHS: &[&str] = &[
     "/",

@@ -1,25 +1,24 @@
 use std::rc::Rc;
 
-use anyhow::{bail, Error};
-use proxmox_yew_comp::{rrd_value_renderer, Status};
+use anyhow::{Error, bail};
+use proxmox_yew_comp::{Status, rrd_value_renderer};
 use yew::{
-    html,
+    AttrValue, Callback, Component, Properties, html,
     html::{IntoEventCallback, IntoPropValue},
     virtual_dom::Key,
-    AttrValue, Callback, Component, Properties,
 };
 
 use pwt::{
+    AsyncPool,
     css::{FlexFit, Opacity},
     props::{ContainerBuilder, FieldBuilder, WidgetBuilder, WidgetStyleBuilder},
     state::Store,
     tr,
     widget::{
+        Fa, GridPicker, Row,
         data_table::{DataTable, DataTableColumn, DataTableHeader, DataTableRowRenderArgs},
         form::{Selector, SelectorRenderArgs},
-        Fa, GridPicker, Row,
     },
-    AsyncPool,
 };
 use pwt_macros::{builder, widget};
 

@@ -1,12 +1,11 @@
 use std::rc::Rc;
 
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use proxmox_human_byte::HumanByte;
 use yew::{
-    html,
+    AttrValue, Callback, Component, Properties, html,
     html::{IntoEventCallback, IntoPropValue},
     virtual_dom::Key,
-    AttrValue, Callback, Component, Properties,
 };
 
 use pwt::{
@@ -15,16 +14,16 @@ use pwt::{
     state::Store,
     tr,
     widget::{
+        GridPicker,
         data_table::{DataTable, DataTableColumn, DataTableHeader},
         form::{Selector, SelectorRenderArgs, ValidateFn},
-        GridPicker,
     },
 };
 use pwt_macros::{builder, widget};
 
 use pdm_client::{
-    types::{StorageContent, StorageInfo},
     PveListStoragesFilter,
+    types::{StorageContent, StorageInfo},
 };
 
 #[widget(comp=PveStorageSelectorComp, @input)]

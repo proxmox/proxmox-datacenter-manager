@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use anyhow::Error;
 use yew::virtual_dom::{VComp, VNode};
-use yew::{html, Callback, Html, Properties};
+use yew::{Callback, Html, Properties, html};
 
 use pdm_client::types::{ListController, ListControllersType, ListVnet, ListZone, ListZonesType};
 use proxmox_yew_comp::{

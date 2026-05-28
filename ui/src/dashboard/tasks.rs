@@ -13,19 +13,19 @@ use pwt::css;
 use pwt::prelude::*;
 use pwt::props::ExtractPrimaryKey;
 use pwt::state::Store;
+use pwt::widget::Panel;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::error_message;
-use pwt::widget::Panel;
 use pwt::widget::{ActionIcon, Container, Tooltip};
 use pwt_macros::{builder, widget};
 
 use pdm_api_types::TaskStatistics;
 
+use crate::LoadResult;
 use crate::dashboard::create_title_with_icon;
 use crate::dashboard::loading_column;
 use crate::dashboard::refresh_config_edit::DEFAULT_TASK_SUMMARY_HOURS;
 use crate::tasks::TaskWorkerType;
-use crate::LoadResult;
 
 use super::filtered_tasks::FilteredTasks;
 

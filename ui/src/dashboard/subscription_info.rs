@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use anyhow::Error;
 use yew::{
-    virtual_dom::{VComp, VNode},
     Component, Html, Properties,
+    virtual_dom::{VComp, VNode},
 };
 
 use proxmox_yew_comp::Status;
@@ -16,7 +16,7 @@ use pwt::{
 
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 
-use crate::{dashboard::SubscriptionsList, LoadResult};
+use crate::{LoadResult, dashboard::SubscriptionsList};
 
 #[derive(Properties, PartialEq)]
 pub struct SubscriptionInfo {

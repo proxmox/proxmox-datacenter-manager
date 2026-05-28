@@ -5,37 +5,37 @@ use gloo_timers::callback::Timeout;
 use serde_json::json;
 use web_sys::window;
 use yew::{
+    Component,
     html::{IntoEventCallback, IntoPropValue},
     virtual_dom::Key,
-    Component,
 };
 
 use pwt::{
+    AsyncPool,
     css::{FlexFit, FontColor},
     prelude::*,
     props::ExtractPrimaryKey,
     state::{Selection, TreeStore},
     widget::{
+        ActionIcon, Column, Container, Fa, Panel, Progress, Row, Tooltip,
         data_table::{
             DataTable, DataTableCellRenderArgs, DataTableColumn, DataTableHeader,
             DataTableKeyboardEvent, DataTableMouseEvent,
         },
-        ActionIcon, Column, Container, Fa, Panel, Progress, Row, Tooltip,
     },
-    AsyncPool,
 };
 use pwt_macros::{builder, widget};
 
-use proxmox_yew_comp::{http_get, Status};
+use proxmox_yew_comp::{Status, http_get};
 
 use pdm_api_types::resource::{RemoteResources, Resource};
 
 use crate::{
+    RemoteList,
     dashboard::view::ViewContext,
     get_deep_url, get_resource_node,
     pve::utils::render_guest_tags,
     renderer::{render_resource_name, render_status_icon},
-    RemoteList,
 };
 
 const REFRESH_TIME_S: u32 = 60;

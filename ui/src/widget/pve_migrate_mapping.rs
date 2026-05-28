@@ -1,30 +1,30 @@
 use std::{collections::HashSet, rc::Rc};
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde_json::Value;
-use yew::{html::IntoPropValue, virtual_dom::Key, AttrValue, Properties};
+use yew::{AttrValue, Properties, html::IntoPropValue, virtual_dom::Key};
 
 use proxmox_schema::property_string::PropertyString;
 use pwt::widget::form::ManagedFieldScopeExt;
 use pwt::{
+    AsyncPool,
     props::{ContainerBuilder, CssBorderBuilder, ExtractPrimaryKey, FieldBuilder, WidgetBuilder},
     state::Store,
     tr,
     widget::{
+        Column,
         data_table::{DataTable, DataTableColumn, DataTableHeader},
         error_message,
         form::{ManagedField, ManagedFieldContext, ManagedFieldMaster, ManagedFieldState},
-        Column,
     },
-    AsyncPool,
 };
 use pwt_macros::{builder, widget};
 
 use pdm_client::types::{LxcConfigNet, QemuConfigNet, StorageContent};
 
 use crate::pve::{
-    utils::{foreach_drive_lxc, foreach_drive_qemu},
     GuestInfo,
+    utils::{foreach_drive_lxc, foreach_drive_qemu},
 };
 
 use super::{PveNetworkSelector, PveStorageSelector};

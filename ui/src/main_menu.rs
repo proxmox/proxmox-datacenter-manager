@@ -21,8 +21,8 @@ use crate::configuration::views::ViewGrid;
 use crate::dashboard::view::View;
 use crate::guests::GuestPanel;
 use crate::remotes::RemotesPanel;
-use crate::sdn::evpn::EvpnPanel;
 use crate::sdn::ZoneTree;
+use crate::sdn::evpn::EvpnPanel;
 use crate::{
     AccessControl, CertificatesPanel, RemoteListCacheEntry, ServerAdministration,
     SystemConfiguration,

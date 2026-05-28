@@ -2,27 +2,27 @@ use std::rc::Rc;
 
 use gloo_timers::callback::Timeout;
 use yew::{
-    virtual_dom::{VComp, VNode},
     Properties,
+    virtual_dom::{VComp, VNode},
 };
 
 use proxmox_human_byte::HumanByte;
 use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series, Status};
 use pwt::{
+    AsyncPool,
     css::{AlignItems, ColorScheme, FlexFit, JustifyContent},
     prelude::*,
     props::WidgetBuilder,
     widget::{Column, Container, Fa, Panel, Progress, Row},
-    AsyncPool,
 };
 
 use pdm_api_types::{resource::PveStorageResource, rrddata::PveStorageDataPoint};
 use pdm_client::types::PveStorageStatus;
 
 use crate::{
+    LoadResult,
     pve::utils::{render_content_type, render_storage_type},
     renderer::{separator, status_row_right_icon},
-    LoadResult,
 };
 
 #[derive(Clone, Debug, Properties)]

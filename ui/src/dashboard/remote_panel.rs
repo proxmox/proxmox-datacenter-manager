@@ -11,12 +11,12 @@ use pwt::prelude::*;
 use pwt::props::{ContainerBuilder, WidgetBuilder};
 use pwt::state::SharedState;
 use pwt::widget::menu::{Menu, MenuButton, MenuEvent, MenuItem};
-use pwt::widget::{error_message, Column, Container, Fa, Panel};
+use pwt::widget::{Column, Container, Fa, Panel, error_message};
 
 use pdm_api_types::resource::ResourcesStatus;
 
-use crate::dashboard::view::add_current_view_to_search;
 use crate::LoadResult;
+use crate::dashboard::view::add_current_view_to_search;
 use crate::{dashboard::create_title_with_icon, search_provider::get_search_provider};
 
 #[derive(Properties, PartialEq)]

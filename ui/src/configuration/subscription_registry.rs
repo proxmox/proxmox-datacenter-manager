@@ -9,11 +9,11 @@ use yew::virtual_dom::{Key, VComp, VNode};
 
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use proxmox_yew_comp::utils::render_epoch;
-use proxmox_yew_comp::{http_delete, http_get, http_get_full, http_post};
 use proxmox_yew_comp::{
     LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
     LoadableComponentScopeExt, LoadableComponentState,
 };
+use proxmox_yew_comp::{http_delete, http_get, http_get_full, http_post};
 
 use pwt::css::{
     AlignItems, ColorScheme, Display, Flex, FlexDirection, FlexFit, FontColor, JustifyContent,
@@ -31,12 +31,12 @@ use pwt::widget::{
 };
 
 use pdm_api_types::subscription::{
-    socket_count_from_key, AutoAssignProposal, ProposedAssignment, RemoteNodeStatus,
-    SubscriptionKeyEntry, SubscriptionLevel,
+    AutoAssignProposal, ProposedAssignment, RemoteNodeStatus, SubscriptionKeyEntry,
+    SubscriptionLevel, socket_count_from_key,
 };
 
 use super::subscription_assign::{AssignKeyToNodeDialog, AssignTarget};
-use super::subscription_keys::{empty_state_hint, SubscriptionKeyGrid};
+use super::subscription_keys::{SubscriptionKeyGrid, empty_state_hint};
 
 const NODE_STATUS_URL: &str = "/subscriptions/node-status";
 const KEYS_URL: &str = "/subscriptions/keys";
@@ -1107,10 +1107,7 @@ impl LoadableComponent for SubscriptionRegistryComp {
                 use pwt::widget::ConfirmDialog;
                 let (push_count, clear_count) = self.pending_counts();
                 let body = match (push_count, clear_count) {
-                    (p, 0) => tr!(
-                        "Push {n} queued assignment(s) to the remote nodes?",
-                        n = p,
-                    ),
+                    (p, 0) => tr!("Push {n} queued assignment(s) to the remote nodes?", n = p,),
                     (0, c) => tr!(
                         "Remove {n} live subscription(s) from the remote nodes?",
                         n = c,

@@ -11,14 +11,14 @@ use pwt::{
     widget::{Container, Fa, List, ListTile, Panel},
 };
 use yew::{
-    virtual_dom::{VComp, VNode},
     Properties,
+    virtual_dom::{VComp, VNode},
 };
 
+use crate::LoadResult;
 use crate::dashboard::create_title_with_icon;
 use crate::dashboard::view::add_current_view_to_search;
 use crate::search_provider::get_search_provider;
-use crate::LoadResult;
 
 use super::loading_column;
 

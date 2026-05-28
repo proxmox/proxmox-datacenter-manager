@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use proxmox_yew_comp::AptPackageManager;
 use yew::{
-    virtual_dom::{VComp, VNode},
     Context,
+    virtual_dom::{VComp, VNode},
 };
 
 use pwt::{

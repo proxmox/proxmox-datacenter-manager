@@ -6,9 +6,9 @@ use anyhow::Error;
 
 use proxmox_schema::property_string::PropertyString;
 
+use crate::remotes::RemoteCertCheck;
 use crate::remotes::edit_remote::EditRemote;
 use crate::remotes::remove_remote::RemoveRemote;
-use crate::remotes::RemoteCertCheck;
 //use pwt::widget::form::{Field, FormContext, InputType};
 
 use pdm_api_types::remotes::Remote;
@@ -19,7 +19,7 @@ use proxmox_yew_comp::percent_encoding::percent_encode_component;
 
 //use proxmox_schema::api_types::{CERT_FINGERPRINT_SHA256_SCHEMA, DNS_NAME_OR_IP_SCHEMA};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::prelude::*;
@@ -27,8 +27,8 @@ use pwt::state::{Selection, Store};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 //use pwt::widget::form::{delete_empty_values, Field, FormContext, InputType};
 use pwt::widget::{
-    menu::{Menu, MenuButton, MenuItem},
     Button, Column, Toolbar, Tooltip,
+    menu::{Menu, MenuButton, MenuItem},
 };
 //use pwt::widget::InputPanel;
 

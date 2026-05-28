@@ -2,7 +2,7 @@
 
 use serde_json::Value;
 use std::{collections::HashSet, rc::Rc};
-use yew::{html, virtual_dom::Key, Properties};
+use yew::{Properties, html, virtual_dom::Key};
 
 use pdm_api_types::auto_installer::AnswerToken;
 use pwt::{
@@ -10,12 +10,12 @@ use pwt::{
     prelude::*,
     state::{Selection, Store},
     widget::{
+        GridPicker,
         data_table::{DataTable, DataTableColumn, DataTableHeader, MultiSelectMode},
         form::{
             ManagedField, ManagedFieldContext, ManagedFieldMaster, ManagedFieldScopeExt,
             ManagedFieldState,
         },
-        GridPicker,
     },
 };
 use pwt_macros::{builder, widget};

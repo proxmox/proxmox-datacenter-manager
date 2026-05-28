@@ -2,14 +2,14 @@ use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 
 use pdm_api_types::VIEW_ID_SCHEMA;
 use yew::virtual_dom::{Key, VComp, VNode};
 
 use proxmox_yew_comp::form::delete_empty_values;
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
-use proxmox_yew_comp::{http_delete, http_get, http_post, http_put, EditWindow, SchemaValidation};
+use proxmox_yew_comp::{EditWindow, SchemaValidation, http_delete, http_get, http_post, http_put};
 use proxmox_yew_comp::{
     LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
     LoadableComponentScopeExt, LoadableComponentState,
@@ -23,8 +23,8 @@ use pwt::widget::{Button, ConfirmDialog, InputPanel, Toolbar};
 
 use pdm_api_types::views::{ViewConfig, ViewLayout, ViewTemplate};
 
-use crate::widget::{ViewFilterSelector, ViewSelector};
 use crate::ViewListContext;
+use crate::widget::{ViewFilterSelector, ViewSelector};
 
 async fn create_view(
     base_url: AttrValue,

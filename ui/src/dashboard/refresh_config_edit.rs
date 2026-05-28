@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use pwt::prelude::*;
 use pwt::props::StorageLocation;
 use pwt::state::PersistentState;
-use pwt::widget::form::{DisplayField, FormContext, Number};
 use pwt::widget::InputPanel;
+use pwt::widget::form::{DisplayField, FormContext, Number};
 
 use proxmox_client::ApiResponseData;
 use proxmox_yew_comp::EditWindow;

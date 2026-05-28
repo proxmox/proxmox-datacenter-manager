@@ -5,18 +5,18 @@ use serde_json::json;
 use yew::virtual_dom::{VComp, VNode};
 
 use proxmox_human_byte::HumanByte;
-use proxmox_yew_comp::{rrd_value_renderer, RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
+use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series, rrd_value_renderer};
 
+use pwt::AsyncPool;
 use pwt::prelude::*;
 use pwt::props::WidgetBuilder;
 use pwt::widget::{Column, Container, Panel, Progress, Row};
-use pwt::AsyncPool;
 
 use pdm_api_types::{resource::PveQemuResource, rrddata::QemuDataPoint};
 use pdm_client::types::{IsRunning, QemuStatus};
 
-use crate::renderer::{separator, status_row};
 use crate::LoadResult;
+use crate::renderer::{separator, status_row};
 
 #[derive(Clone, Debug, Properties, PartialEq)]
 pub struct QemuOverviewPanel {

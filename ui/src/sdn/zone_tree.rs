@@ -4,7 +4,7 @@ use std::pin::Pin;
 use std::rc::Rc;
 
 use yew::virtual_dom::{Key, VComp, VNode};
-use yew::{html, ContextHandle, Html, Properties};
+use yew::{ContextHandle, Html, Properties, html};
 
 use pdm_api_types::resource::{PveNetworkResource, RemoteResources, ResourceType, SdnStatus};
 use pdm_client::types::{ClusterResourceNetworkType, Resource};
@@ -22,12 +22,13 @@ use pwt::{
     state::{Selection, SlabTree, TreeStore},
     tr,
     widget::{
+        Column, Fa, Row,
         data_table::{DataTable, DataTableColumn, DataTableHeader},
-        error_message, Column, Fa, Row,
+        error_message,
     },
 };
 
-use crate::{get_deep_url, pdm_client, RemoteList};
+use crate::{RemoteList, get_deep_url, pdm_client};
 
 #[derive(PartialEq, Properties)]
 pub struct ZoneTree {}

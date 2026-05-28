@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde_json::Value;
 
 use yew::virtual_dom::Key;
@@ -16,8 +16,8 @@ use pwt::{css, prelude::*};
 
 use proxmox_yew_comp::{SchemaValidation, Status};
 
-use pdm_api_types::remotes::NodeUrl;
 use pdm_api_types::HOST_OPTIONAL_PORT_SCHEMA;
+use pdm_api_types::remotes::NodeUrl;
 use proxmox_schema::property_string::PropertyString;
 
 use proxmox_schema::api_types::CERT_FINGERPRINT_SHA256_SCHEMA;

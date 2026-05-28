@@ -2,10 +2,9 @@ use std::rc::Rc;
 
 use anyhow::Error;
 use yew::{
-    html,
+    AttrValue, Callback, Component, Properties, html,
     html::{IntoEventCallback, IntoPropValue},
     virtual_dom::Key,
-    AttrValue, Callback, Component, Properties,
 };
 
 use pwt::{
@@ -14,9 +13,9 @@ use pwt::{
     state::Store,
     tr,
     widget::{
+        GridPicker,
         data_table::{DataTable, DataTableColumn, DataTableHeader},
         form::{Selector, SelectorRenderArgs},
-        GridPicker,
     },
 };
 use pwt_macros::{builder, widget};

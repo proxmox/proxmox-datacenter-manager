@@ -20,7 +20,7 @@ use proxmox_yew_comp::percent_encoding::percent_encode_component;
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::subscription::{
-    pick_best_pve_socket_key, socket_count_from_key, SubscriptionKeyEntry,
+    SubscriptionKeyEntry, pick_best_pve_socket_key, socket_count_from_key,
 };
 
 const KEYS_URL: &str = "/subscriptions/keys";

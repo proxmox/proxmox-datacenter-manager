@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use anyhow::Error;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use yew::html::IntoEventCallback;
 use yew::virtual_dom::{Key, VComp, VNode};
 use yew::{Callback, Component, Context, Properties};
@@ -17,6 +17,7 @@ use proxmox_acme_api::CertificateInfo;
 use proxmox_schema::property_string::PropertyString;
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use proxmox_yew_comp::{KVGrid, KVGridRow, Status};
+use pwt::AsyncPool;
 use pwt::css::{AlignItems, Flex, FlexFit, FontStyle, JustifyContent};
 use pwt::prelude::*;
 use pwt::props::ExtractPrimaryKey;
@@ -25,7 +26,6 @@ use pwt::widget::data_table::{
     DataTable, DataTableCellRenderArgs, DataTableColumn, DataTableHeader,
 };
 use pwt::widget::{ActionIcon, Button, Column, Container, Dialog, Fa, Row, Toolbar, Tooltip};
-use pwt::AsyncPool;
 use pwt_macros::builder;
 
 use pdm_api_types::remotes::{NodeUrl, Remote, TlsProbeOutcome};

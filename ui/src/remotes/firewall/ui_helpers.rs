@@ -3,7 +3,7 @@ use pwt::css::{AlignItems, FontColor};
 use pwt::prelude::*;
 use pwt::tr;
 use pwt::widget::{Container, Fa, Row};
-use yew::{html, Html};
+use yew::{Html, html};
 
 use proxmox_yew_comp::configuration::pve::FirewallRulesPanel;
 use proxmox_yew_comp::form::pve::PveGuestType;

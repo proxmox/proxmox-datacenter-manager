@@ -13,20 +13,20 @@ use pwt::prelude::*;
 use pwt::state::{Loader, SharedState, SharedStateObserver};
 use pwt::widget::canvas::Group;
 use pwt::widget::charts::{
-    render_point_default, render_tooltip_default, Location, MapPointData, PointsRenderArgs,
-    WorldMap, WorldPoint,
+    Location, MapPointData, PointsRenderArgs, WorldMap, WorldPoint, render_point_default,
+    render_tooltip_default,
 };
 use pwt::widget::container::span;
-use pwt::widget::{error_message, ActionIcon, Column, Container, Fa, Panel, Row, Tooltip};
+use pwt::widget::{ActionIcon, Column, Container, Fa, Panel, Row, Tooltip, error_message};
 use pwt_macros::{builder, widget};
 
 use crate::dashboard::loading_column;
-use crate::{navigate_to, LoadResult};
+use crate::{LoadResult, navigate_to};
 
-use pdm_api_types::remotes::RemoteType;
-use pdm_api_types::resource::{RemoteInfo, RemoteStatus, ResourcesStatus};
 use pdm_api_types::CachedLocationInfo;
 use pdm_api_types::Location as RemoteLocation;
+use pdm_api_types::remotes::RemoteType;
+use pdm_api_types::resource::{RemoteInfo, RemoteStatus, ResourcesStatus};
 
 #[widget(comp=DashboardMapComp, @element)]
 #[builder]

@@ -4,22 +4,22 @@ use gloo_timers::callback::Timeout;
 use proxmox_human_byte::HumanByte;
 use serde_json::json;
 
-use yew::virtual_dom::{VComp, VNode};
 use yew::Properties;
+use yew::virtual_dom::{VComp, VNode};
 
+use pwt::AsyncPool;
 use pwt::css::{ColorScheme, FlexFit, JustifyContent};
 use pwt::prelude::*;
 use pwt::props::WidgetBuilder;
 use pwt::widget::{Column, Container, Panel, Progress, Row};
-use pwt::AsyncPool;
 
-use proxmox_yew_comp::{rrd_value_renderer, RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series};
+use proxmox_yew_comp::{RRDGraph, RRDTimeframe, RRDTimeframeSelector, Series, rrd_value_renderer};
 
 use pdm_api_types::{resource::PveLxcResource, rrddata::LxcDataPoint};
 use pdm_client::types::{IsRunning, LxcStatus};
 
-use crate::renderer::{separator, status_row};
 use crate::LoadResult;
+use crate::renderer::{separator, status_row};
 
 #[derive(Clone, Debug, Properties, PartialEq)]
 pub struct LxcOverviewPanel {

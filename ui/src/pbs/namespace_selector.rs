@@ -9,14 +9,14 @@ use yew::html::{IntoEventCallback, IntoPropValue};
 use yew::prelude::*;
 use yew::virtual_dom::Key;
 
-use pbs_api_types::percent_encoding::percent_encode_component;
 use pbs_api_types::NamespaceListItem;
+use pbs_api_types::percent_encoding::percent_encode_component;
 
 use pwt::props::{FieldBuilder, RenderFn, WidgetBuilder, WidgetStyleBuilder};
 use pwt::state::Store;
+use pwt::widget::GridPicker;
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
 use pwt::widget::form::{Selector, SelectorRenderArgs, ValidateFn};
-use pwt::widget::GridPicker;
 
 use pwt_macros::{builder, widget};
 

@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use anyhow::{anyhow, Error};
+use anyhow::{Error, anyhow};
 use yew::virtual_dom::{Key, VNode};
 use yew::{Callback, Component, Context, Html, Properties};
 
@@ -14,11 +14,11 @@ use pwt::tr;
 use pwt::widget::data_table::{
     DataTable, DataTableColumn, DataTableHeader, DataTableRowRenderArgs,
 };
-use pwt::widget::{error_message, Column, Fa, Row};
+use pwt::widget::{Column, Fa, Row, error_message};
 use pwt_macros::widget;
 
-use crate::sdn::evpn::evpn_panel::DetailPanel;
 use crate::sdn::evpn::EvpnRouteTarget;
+use crate::sdn::evpn::evpn_panel::DetailPanel;
 
 #[widget(comp=VrfTreeComponent)]
 #[derive(Clone, PartialEq, Properties, Default)]

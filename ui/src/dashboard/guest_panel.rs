@@ -2,24 +2,24 @@ use std::rc::Rc;
 
 use anyhow::Error;
 
-use yew::virtual_dom::{VComp, VNode};
 use yew::Properties;
+use yew::virtual_dom::{VComp, VNode};
 
 use pwt::css::{self, TextAlign};
 use pwt::prelude::*;
 use pwt::state::SharedState;
-use pwt::widget::{error_message, Container, Fa, List, ListTile, Panel};
+use pwt::widget::{Container, Fa, List, ListTile, Panel, error_message};
 
 use proxmox_yew_comp::GuestState;
 
 use pdm_api_types::resource::{GuestStatusCount, ResourceType, ResourcesStatus};
 use pdm_search::{Search, SearchTerm};
 
+use crate::LoadResult;
 use crate::dashboard::create_title_with_icon;
 use crate::dashboard::view::add_current_view_to_search;
 use crate::pve::GuestType;
 use crate::search_provider::get_search_provider;
-use crate::LoadResult;
 
 use super::loading_column;
 

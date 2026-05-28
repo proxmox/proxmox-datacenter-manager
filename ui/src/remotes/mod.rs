@@ -22,7 +22,7 @@ mod cert_check_window;
 pub use cert_check_window::RemoteCertCheck;
 
 mod config;
-pub use config::{create_remote, RemoteConfigPanel};
+pub use config::{RemoteConfigPanel, create_remote};
 
 mod tasks;
 pub use tasks::RemoteTaskList;
@@ -38,7 +38,7 @@ pub use firewall::FirewallTree;
 mod auto_installer;
 use auto_installer::AutoInstallerPanel;
 
-use yew::{function_component, Html};
+use yew::{Html, function_component};
 
 use pwt::prelude::*;
 use pwt::{

@@ -9,16 +9,15 @@ use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde_json::json;
-use yew::virtual_dom::{Key, VComp, VNode};
 use yew::Properties;
+use yew::virtual_dom::{Key, VComp, VNode};
 
 use proxmox_client::ApiResponseData;
 use proxmox_yew_comp::{
-    utils::render_epoch, EditWindow, LoadableComponent, LoadableComponentContext,
-    LoadableComponentMaster, LoadableComponentScope, LoadableComponentScopeExt,
-    LoadableComponentState,
+    EditWindow, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScope, LoadableComponentScopeExt, LoadableComponentState, utils::render_epoch,
 };
 use pwt::css::FlexFit;
 use pwt::prelude::*;

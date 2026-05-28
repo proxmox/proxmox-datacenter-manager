@@ -15,23 +15,23 @@ use pwt::css::{AlignItems, ColorScheme, FlexFit, FontStyle, JustifyContent};
 use pwt::props::{ContainerBuilder, CssBorderBuilder, ExtractPrimaryKey, WidgetBuilder};
 use pwt::state::{KeyedSlabTree, NavigationContext, NavigationContextExt, Selection, TreeStore};
 use pwt::widget::{
-    data_table::{DataTable, DataTableColumn, DataTableHeader},
-    form::Field,
     ActionIcon, Column, Container, Fa, MessageBox, MessageBoxButtons, Row, Toolbar, Tooltip,
     Trigger,
+    data_table::{DataTable, DataTableColumn, DataTableHeader},
+    form::Field,
 };
 use pwt::{prelude::*, widget::Button};
 
 use pdm_api_types::{
-    resource::{PveLxcResource, PveNodeResource, PveQemuResource, PveResource, PveStorageResource},
     RemoteUpid,
+    resource::{PveLxcResource, PveNodeResource, PveQemuResource, PveResource, PveStorageResource},
 };
 
 use crate::{get_deep_url, renderer::render_tree_column, widget::MigrateWindow};
 
 use super::{
-    utils::{self, render_guest_tags, render_lxc_name, render_qemu_name},
     GuestInfo, GuestType,
+    utils::{self, render_guest_tags, render_lxc_name, render_qemu_name},
 };
 
 #[derive(Clone, PartialEq)]

@@ -5,14 +5,14 @@ use pwt::css;
 use pwt::prelude::*;
 use pwt::state::SharedState;
 use pwt::widget::Fa;
-use pwt::widget::{charts::PieChart, Panel};
-use pwt::widget::{error_message, Column, Container, Row};
+use pwt::widget::{Column, Container, Row, error_message};
+use pwt::widget::{Panel, charts::PieChart};
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::{resource::ResourcesStatus, views::NodeResourceType};
 
-use crate::dashboard::{create_title_with_icon, loading_column};
 use crate::LoadResult;
+use crate::dashboard::{create_title_with_icon, loading_column};
 
 struct PanelConfig {
     show_cpu: bool,

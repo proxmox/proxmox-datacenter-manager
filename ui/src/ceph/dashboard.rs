@@ -452,9 +452,5 @@ fn perf_rows(status: &CephClusterStatus) -> Option<Vec<Row>> {
         ));
     }
 
-    if rows.is_empty() {
-        None
-    } else {
-        Some(rows)
-    }
+    if rows.is_empty() { None } else { Some(rows) }
 }

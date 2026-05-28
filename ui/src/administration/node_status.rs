@@ -8,13 +8,13 @@ use proxmox_time::epoch_i64;
 use proxmox_yew_comp::percent_encoding::percent_encode_component;
 use proxmox_yew_comp::utils::{copy_text_to_clipboard, render_epoch};
 use proxmox_yew_comp::{
-    http_post, rrd_value_renderer, ConfirmButton, NodeStatusPanel, RRDGraph, RRDGrid, RRDTimeframe,
-    RRDTimeframeSelector, Series,
+    ConfirmButton, NodeStatusPanel, RRDGraph, RRDGrid, RRDTimeframe, RRDTimeframeSelector, Series,
+    http_post, rrd_value_renderer,
 };
+use pwt::AsyncAbortGuard;
 use pwt::css::JustifyContent;
 use pwt::widget::{Button, Column, Container, Row};
-use pwt::AsyncAbortGuard;
-use pwt::{prelude::*, AsyncPool};
+use pwt::{AsyncPool, prelude::*};
 
 use pdm_api_types::rrddata::PdmNodeDatapoint;
 

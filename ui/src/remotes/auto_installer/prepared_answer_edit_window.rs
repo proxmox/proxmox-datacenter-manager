@@ -13,15 +13,15 @@ use pdm_api_types::auto_installer::{
     PreparedInstallationConfig, PreparedInstallationConfigUpdateResult,
 };
 use proxmox_yew_comp::{
-    form::delete_empty_values, percent_encoding::percent_encode_component, EditWindow,
-    LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
-    LoadableComponentScopeExt, LoadableComponentState,
+    EditWindow, LoadableComponent, LoadableComponentContext, LoadableComponentMaster,
+    LoadableComponentScopeExt, LoadableComponentState, form::delete_empty_values,
+    percent_encoding::percent_encode_component,
 };
 use pwt::{
     css::FlexFit,
     prelude::*,
     state::Store,
-    widget::{form::FormContext, TabBarItem, TabPanel},
+    widget::{TabBarItem, TabPanel, form::FormContext},
 };
 use pwt_macros::builder;
 

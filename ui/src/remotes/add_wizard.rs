@@ -14,8 +14,8 @@ use proxmox_yew_comp::{
 use yew::virtual_dom::VNode;
 
 use super::{
-    wizard_page_connect::ConnectParams, WizardPageConnect, WizardPageInfo, WizardPageNodes,
-    WizardPageSummary,
+    WizardPageConnect, WizardPageInfo, WizardPageNodes, WizardPageSummary,
+    wizard_page_connect::ConnectParams,
 };
 
 use pwt_macros::builder;

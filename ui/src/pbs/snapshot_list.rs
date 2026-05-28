@@ -2,24 +2,24 @@
 
 use std::rc::Rc;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use gloo_timers::callback::Interval;
 use js_sys::Date;
 use proxmox_yew_comp::utils::render_epoch_short;
 use pwt::css::FontColor;
 use yew::virtual_dom::{Key, VComp, VNode};
-use yew::{html, Properties};
+use yew::{Properties, html};
 
 use pwt::prelude::Context as PwtContext;
-use pwt::prelude::{tr, Component, Html};
+use pwt::prelude::{Component, Html, tr};
 use pwt::props::{
     ContainerBuilder, CssBorderBuilder, CssPaddingBuilder, ExtractPrimaryKey, WidgetBuilder,
     WidgetStyleBuilder,
 };
 use pwt::state::{Selection, TreeStore};
 use pwt::widget::data_table::{DataTable, DataTableColumn, DataTableHeader};
-use pwt::widget::{error_message, Column, Container, Fa, Progress, Toolbar, Tooltip};
-use pwt::{css, AsyncPool};
+use pwt::widget::{Column, Container, Fa, Progress, Toolbar, Tooltip, error_message};
+use pwt::{AsyncPool, css};
 
 use pbs_api_types::{BackupGroup, BackupNamespace, BackupType, SnapshotListItem, VerifyState};
 

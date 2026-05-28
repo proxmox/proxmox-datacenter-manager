@@ -1,40 +1,40 @@
 //! Provides all shared components for the prepared answer create wizard and the corresponding
 //! edit window, as well as some utility to collect and prepare the form data for submission.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::{collections::BTreeMap, ops::Deref, rc::Rc, sync::LazyLock};
 
 use pdm_api_types::{
-    auto_installer::{
-        AnswerToken, DiskSelectionMode, PreparedInstallationConfig,
-        PREPARED_INSTALL_CONFIG_ID_SCHEMA, TEMPLATE_COUNTER_NAME_REGEX, UDEV_FILTER_KEY_REGEX,
-    },
     DISK_LIST_SCHEMA, EMAIL_SCHEMA,
+    auto_installer::{
+        AnswerToken, DiskSelectionMode, PREPARED_INSTALL_CONFIG_ID_SCHEMA,
+        PreparedInstallationConfig, TEMPLATE_COUNTER_NAME_REGEX, UDEV_FILTER_KEY_REGEX,
+    },
 };
 use proxmox_installer_types::{
-    answer::{
-        BtrfsCompressOption, BtrfsOptions, FilesystemOptions, FilesystemType, FilterMatch,
-        KeyboardLayout, LvmOptions, RebootMode, ZfsChecksumOption, ZfsCompressOption, ZfsOptions,
-        BTRFS_COMPRESS_OPTIONS, FILESYSTEM_TYPE_OPTIONS, ROOT_PASSWORD_SCHEMA,
-        SUBSCRIPTION_KEY_SCHEMA, ZFS_CHECKSUM_OPTIONS, ZFS_COMPRESS_OPTIONS,
-    },
     EMAIL_DEFAULT_PLACEHOLDER,
+    answer::{
+        BTRFS_COMPRESS_OPTIONS, BtrfsCompressOption, BtrfsOptions, FILESYSTEM_TYPE_OPTIONS,
+        FilesystemOptions, FilesystemType, FilterMatch, KeyboardLayout, LvmOptions,
+        ROOT_PASSWORD_SCHEMA, RebootMode, SUBSCRIPTION_KEY_SCHEMA, ZFS_CHECKSUM_OPTIONS,
+        ZFS_COMPRESS_OPTIONS, ZfsChecksumOption, ZfsCompressOption, ZfsOptions,
+    },
 };
 use proxmox_schema::api_types::{CIDR_SCHEMA, IP_SCHEMA};
-use proxmox_yew_comp::{utils::copy_text_to_clipboard, KeyValueList, SchemaValidation};
+use proxmox_yew_comp::{KeyValueList, SchemaValidation, utils::copy_text_to_clipboard};
 use pwt::{
     css::{ColorScheme, Flex, FlexFit, Overflow},
     prelude::*,
     props::FieldStdProps,
     state::Store,
     widget::{
+        Button, Column, Container, Dialog, Fa, FieldLabel, FieldPosition, InputPanel, Row, Tooltip,
         form::{
             Checkbox, Combobox, DisplayField, Field, FormContext, InputType, Number, TextArea,
             ValidateFn,
         },
-        Button, Column, Container, Dialog, Fa, FieldLabel, FieldPosition, InputPanel, Row, Tooltip,
     },
 };
 
@@ -126,10 +126,11 @@ fn collect_lines_into_array(value: Option<Value>) -> Value {
     value
         .and_then(|v| v.as_str().map(|s| s.to_owned()))
         .map(|s| {
-            json!(s
-                .split('\n')
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<&str>>())
+            json!(
+                s.split('\n')
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<&str>>()
+            )
         })
         .unwrap_or(Value::Array(Vec::new()))
 }
@@ -541,9 +542,9 @@ pub fn render_disk_setup_form(
         );
 
     let warning = match fs_type {
-        FilesystemType::Zfs(_) => Some(
-            tr!("ZFS is not compatible with hardware RAID controllers, for details see the documentation.")
-        ),
+        FilesystemType::Zfs(_) => Some(tr!(
+            "ZFS is not compatible with hardware RAID controllers, for details see the documentation."
+        )),
         FilesystemType::Btrfs(_) => Some(tr!(
             "Btrfs integration is a technology preview and only available for Proxmox Virtual Environment installations."
         )),
@@ -867,13 +868,9 @@ pub fn render_templating_form(config: &PreparedInstallationConfig) -> yew::Html 
         .class(Flex::Fill)
         .class(Overflow::Auto)
         .padding(4)
-        .with_large_custom_child(
-            Container::from_tag("p")
-                .key("counter-info")
-                .with_child(tr!(
-                    "Numerical template counters can be used to provide unique values across installations."
-                )),
-        )
+        .with_large_custom_child(Container::from_tag("p").key("counter-info").with_child(tr!(
+            "Numerical template counters can be used to provide unique values across installations."
+        )))
         .with_large_custom_child(
             Container::from_tag("p")
                 .key("counters-hint")
@@ -1164,7 +1161,9 @@ fn kv_list_to_udev_filter_map_validate(v: &Vec<(String, Value)>) -> Result<Value
         if UDEV_FILTER_KEY_REGEX.is_match(k) {
             map.insert(k.clone(), v.as_str().unwrap_or_default().to_owned());
         } else {
-            bail!("udev property names must only consist of uppercase characters and underscores: {k}");
+            bail!(
+                "udev property names must only consist of uppercase characters and underscores: {k}"
+            );
         }
     }
 

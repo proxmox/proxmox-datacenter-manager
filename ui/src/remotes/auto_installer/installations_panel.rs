@@ -1,16 +1,16 @@
 //! Implements the UI components for displaying an overview view of all finished/in-progress
 //! installations.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use core::clone::Clone;
 use std::{future::Future, pin::Pin, rc::Rc};
 
 use pdm_api_types::auto_installer::{Installation, InstallationStatus};
-use proxmox_installer_types::{post_hook::PostHookInfo, SystemInfo};
+use proxmox_installer_types::{SystemInfo, post_hook::PostHookInfo};
 use proxmox_yew_comp::{
-    percent_encoding::percent_encode_component, ConfirmButton, DataViewWindow, LoadableComponent,
-    LoadableComponentContext, LoadableComponentMaster, LoadableComponentScopeExt,
-    LoadableComponentState,
+    ConfirmButton, DataViewWindow, LoadableComponent, LoadableComponentContext,
+    LoadableComponentMaster, LoadableComponentScopeExt, LoadableComponentState,
+    percent_encoding::percent_encode_component,
 };
 use pwt::{
     css::{Flex, FlexFit, Overflow},
@@ -21,14 +21,14 @@ use pwt::{
     state::{Selection, Store},
     tr,
     widget::{
+        Button, Toolbar,
         data_table::{DataTable, DataTableColumn, DataTableHeader},
         form::TextArea,
-        Button, Toolbar,
     },
 };
 use yew::{
-    virtual_dom::{Key, VComp, VNode},
     Properties,
+    virtual_dom::{Key, VComp, VNode},
 };
 
 use crate::pdm_client;

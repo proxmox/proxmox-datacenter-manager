@@ -7,13 +7,13 @@ use serde_json::Value;
 use yew::virtual_dom::{VComp, VNode};
 
 use pwt::css::{FlexFit, FontStyle, JustifyContent, Overflow};
-use pwt::widget::{error_message, Button, Column, Container, Dialog, Mask, Row};
-use pwt::{prelude::*, AsyncAbortGuard};
+use pwt::widget::{Button, Column, Container, Dialog, Mask, Row, error_message};
+use pwt::{AsyncAbortGuard, prelude::*};
 use pwt_macros::builder;
 
 use proxmox_yew_comp::{KVGrid, KVGridRow, WizardPageRenderInfo};
 
-use pdm_api_types::{remotes::NodeUrl, CertificateInfo};
+use pdm_api_types::{CertificateInfo, remotes::NodeUrl};
 use pdm_client::types::Remote;
 
 use super::NodeUrlList;

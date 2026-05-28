@@ -9,13 +9,13 @@ use pwt::state::SharedState;
 use pwt::widget::Fa;
 use pwt::{
     css::{AlignItems, Display, FlexFit, JustifyContent},
-    dom::align::{align_to, AlignOptions},
+    dom::align::{AlignOptions, align_to},
     props::{
         ContainerBuilder, CssLength, CssPaddingBuilder, EventSubscriber, IntoVTag, WidgetBuilder,
         WidgetStyleBuilder,
     },
     tr,
-    widget::{error_message, ActionIcon, Column, Container, Panel, Row},
+    widget::{ActionIcon, Column, Container, Panel, Row, error_message},
 };
 
 use pdm_api_types::views::LeaderboardType;

@@ -5,18 +5,18 @@ use pwt::css::ColorScheme;
 use serde::Deserialize;
 use wasm_bindgen::UnwrapThrowExt;
 
+use pwt::AsyncAbortGuard;
 use pwt::prelude::*;
 use pwt::widget::menu::{Menu, MenuButton, MenuEntry, MenuEvent, MenuItem};
-use pwt::AsyncAbortGuard;
 use yew::html::{IntoEventCallback, IntoPropValue};
 use yew::virtual_dom::{VComp, VNode};
 
 use pwt::state::{Loader, Theme, ThemeObserver};
 use pwt::widget::{Button, Container, Row, ThemeModeSelector, Tooltip};
 
-use proxmox_yew_comp::utils::set_location_href;
 use proxmox_yew_comp::RunningTasksButton;
-use proxmox_yew_comp::{http_get, LanguageDialog, TaskViewer, ThemeDialog};
+use proxmox_yew_comp::utils::set_location_href;
+use proxmox_yew_comp::{LanguageDialog, TaskViewer, ThemeDialog, http_get};
 
 use pwt_macros::builder;
 

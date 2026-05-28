@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use wasm_bindgen::UnwrapThrowExt;
 use yew::{
-    html::{IntoEventCallback, IntoPropValue},
     AttrValue, Callback, Component, ContextHandle, Properties,
+    html::{IntoEventCallback, IntoPropValue},
 };
 
 use pdm_api_types::remotes::RemoteType;

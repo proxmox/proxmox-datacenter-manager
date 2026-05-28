@@ -1,17 +1,16 @@
 use std::rc::Rc;
 
 use yew::{
-    html,
+    AttrValue, Component, Properties, html,
     html::IntoPropValue,
     virtual_dom::{VComp, VNode},
-    AttrValue, Component, Properties,
 };
 
 use pbs_api_types::TaskListItem;
 use pdm_api_types::RemoteUpid;
 
 use proxmox_yew_comp::{
-    percent_encoding::percent_encode_component, utils::render_epoch_short, TaskViewer, Tasks,
+    TaskViewer, Tasks, percent_encoding::percent_encode_component, utils::render_epoch_short,
 };
 
 use pwt::{
@@ -19,8 +18,8 @@ use pwt::{
     props::{ContainerBuilder, FieldBuilder, WidgetBuilder},
     tr,
     widget::{
-        data_table::{DataTableColumn, DataTableHeader},
         Column, Fa, Row,
+        data_table::{DataTableColumn, DataTableHeader},
     },
 };
 use pwt_macros::builder;

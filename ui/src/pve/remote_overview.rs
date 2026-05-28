@@ -9,7 +9,7 @@ use pwt::{
     css::{AlignItems, FontStyle, TextAlign, WhiteSpace},
     prelude::*,
     props::WidgetBuilder,
-    widget::{error_message, Column, Container, Fa, Panel, Row},
+    widget::{Column, Container, Fa, Panel, Row, error_message},
 };
 use pwt_macros::widget;
 

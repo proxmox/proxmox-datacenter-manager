@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use anyhow::{anyhow, Error};
-use pwt::widget::{error_message, Column};
+use anyhow::{Error, anyhow};
+use pwt::widget::{Column, error_message};
 use yew::virtual_dom::{Key, VNode};
 use yew::{Callback, Component, Context, Html, Properties};
 
@@ -19,8 +19,8 @@ use pwt::widget::data_table::{
 use pwt::widget::{Fa, Row};
 use pwt_macros::widget;
 
-use crate::sdn::evpn::evpn_panel::DetailPanel;
 use crate::sdn::evpn::EvpnRouteTarget;
+use crate::sdn::evpn::evpn_panel::DetailPanel;
 
 #[widget(comp=RemoteTreeComponent)]
 #[derive(Clone, PartialEq, Properties)]

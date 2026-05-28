@@ -1,25 +1,25 @@
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use pdm_client::types::StorageContent;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use yew::{
-    html::{IntoEventCallback, IntoPropValue},
     Callback, Component, Properties,
+    html::{IntoEventCallback, IntoPropValue},
 };
 
 use proxmox_client::ApiResponseData;
 use proxmox_human_byte::HumanByte;
 use proxmox_yew_comp::{EditWindow, Status};
+use pwt::AsyncPool;
 use pwt::css;
 use pwt::prelude::*;
 use pwt::widget::{
-    form::{Checkbox, DisplayField, FormContext, Number},
     Column, Container, Fa, InputPanel, Row,
+    form::{Checkbox, DisplayField, FormContext, Number},
 };
-use pwt::AsyncPool;
 use pwt_macros::{builder, widget};
 
-use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::RemoteUpid;
+use pdm_api_types::remotes::RemoteType;
 use pdm_client::types::QemuMigratePreconditions;
 use pdm_client::{MigrateLxc, MigrateQemu, RemoteMigrateLxc, RemoteMigrateQemu};
 

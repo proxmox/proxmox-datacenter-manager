@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use yew::{
-    virtual_dom::{VComp, VNode},
     Component, Properties,
+    virtual_dom::{VComp, VNode},
 };
 
 use pwt::{css::FlexFit, props::WidgetBuilder, tr, widget::TabBarItem};
