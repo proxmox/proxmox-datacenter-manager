@@ -282,7 +282,9 @@ pub fn render_global_options_form(
         )
         .with_field(
             tr!("Reboot on Error"),
-            Checkbox::new().name("reboot-on-error"),
+            Checkbox::new()
+                .name("reboot-on-error")
+                .default(config.reboot_on_error),
         )
         .with_field(
             tr!("Post-Installation Action"),
