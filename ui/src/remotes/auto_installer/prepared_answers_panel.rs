@@ -206,6 +206,7 @@ impl LoadableComponent for PreparedAnswersPanelComponent {
             .with_spacer()
             .with_child(
                 Button::new(tr!("Copy"))
+                    .disabled(self.selection.is_empty())
                     .onclick(link.change_view_callback(|_| Some(ViewState::Copy))),
             )
             .with_child(
