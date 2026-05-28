@@ -43,7 +43,7 @@ pub struct MigrateWindow {
     pub guest_info: GuestInfo,
 
     /// The node the guest currently runs on. Threaded through to the target-node selector for
-    /// intra-cluster migrations so it can grey-out (and reject) the guest's current node.
+    /// intra-cluster migrations so it hides the guest's current node from the target list.
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
     pub source_node: Option<AttrValue>,
@@ -415,7 +415,7 @@ impl PdmMigrateWindow {
                 PveNodeSelector::new(target_remote.clone())
                     .name("node")
                     .required(same_remote)
-                    // only mark the current node in intra-cluster migrations; for remote
+                    // only hide the current node in intra-cluster migrations; for remote
                     // migrations the source node name does not exist on the target cluster
                     .source_node(same_remote.then(|| source_node.clone()).flatten())
                     .on_change(link.callback(Msg::LoadPreconditions))

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use anyhow::{Error, bail};
+use anyhow::Error;
 use proxmox_yew_comp::{Status, rrd_value_renderer};
 use yew::{
     AttrValue, Callback, Component, Properties, html,
@@ -10,13 +10,13 @@ use yew::{
 
 use pwt::{
     AsyncPool,
-    css::{FlexFit, Opacity},
+    css::FlexFit,
     props::{ContainerBuilder, FieldBuilder, WidgetBuilder, WidgetStyleBuilder},
     state::Store,
     tr,
     widget::{
         Fa, GridPicker, Row,
-        data_table::{DataTable, DataTableColumn, DataTableHeader, DataTableRowRenderArgs},
+        data_table::{DataTable, DataTableColumn, DataTableHeader},
         form::{Selector, SelectorRenderArgs},
     },
 };
@@ -55,9 +55,8 @@ pub struct PveNodeSelector {
     #[prop_or(true)]
     pub show_memory: bool,
 
-    /// Node that should be rendered as the current source (greyed out, suffixed with
-    /// "(current)") and rejected by validation. Used by the migration dialog so the user
-    /// cannot pick the guest's current node as a target.
+    /// Source node of the guest. Used by the migration dialog to hide the node from the
+    /// target list, so the user can only pick a different node as the migration target.
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
     pub source_node: Option<AttrValue>,
@@ -96,16 +95,16 @@ impl PveNodeSelectorComp {
         Ok(nodes)
     }
 
-    fn apply_filter(&mut self, excluded: &[String]) {
-        let filtered: Vec<ClusterNodeIndexResponse> = if excluded.is_empty() {
-            self.raw_nodes.clone()
-        } else {
-            self.raw_nodes
-                .iter()
-                .filter(|n| !excluded.iter().any(|e| e == &n.node))
-                .cloned()
-                .collect()
-        };
+    fn apply_filter(&mut self, excluded: &[String], source_node: Option<&str>) {
+        let filtered: Vec<ClusterNodeIndexResponse> = self
+            .raw_nodes
+            .iter()
+            .filter(|n| {
+                !excluded.iter().any(|e| e == &n.node)
+                    && source_node != Some(n.node.as_str())
+            })
+            .cloned()
+            .collect();
         self.store.set_data(filtered);
     }
 }
@@ -135,7 +134,10 @@ impl Component for PveNodeSelectorComp {
             Msg::UpdateNodeList(res) => match res {
                 Ok(result) => {
                     self.raw_nodes = result;
-                    self.apply_filter(&ctx.props().excluded_nodes);
+                    self.apply_filter(
+                        &ctx.props().excluded_nodes,
+                        ctx.props().source_node.as_deref(),
+                    );
                 }
                 Err(err) => self.last_err = Some(err.to_string().into()),
             },
@@ -145,8 +147,11 @@ impl Component for PveNodeSelectorComp {
     }
 
     fn changed(&mut self, ctx: &yew::Context<Self>, old_props: &Self::Properties) -> bool {
-        if old_props.excluded_nodes != ctx.props().excluded_nodes {
-            self.apply_filter(&ctx.props().excluded_nodes);
+        let props = ctx.props();
+        if old_props.excluded_nodes != props.excluded_nodes
+            || old_props.source_node != props.source_node
+        {
+            self.apply_filter(&props.excluded_nodes, props.source_node.as_deref());
         }
         true
     }
@@ -170,8 +175,7 @@ impl Component for PveNodeSelectorComp {
                 }
             }
         };
-        let mut selector = Selector::new(self.store.clone(), {
-            let source_node = source_node.clone();
+        Selector::new(self.store.clone(), {
             move |args: &SelectorRenderArgs<Store<ClusterNodeIndexResponse>>| {
                 if let Some(err) = &err {
                     return Row::new()
@@ -179,26 +183,11 @@ impl Component for PveNodeSelectorComp {
                         .with_child(err)
                         .into();
                 }
-                let source_node_for_row = source_node.clone();
                 GridPicker::new(
-                    DataTable::new(
-                        columns(show_memory, source_node.clone()),
-                        args.store.clone(),
-                    )
-                    .min_width(300)
-                    .header_focusable(false)
-                    // dim the source node so the user sees why it is in the list but
-                    // cannot pick it; selection itself is blocked via `validate` below
-                    .row_render_callback(
-                        move |args: &mut DataTableRowRenderArgs<ClusterNodeIndexResponse>| {
-                            if let Some(src) = &source_node_for_row {
-                                if args.record().node == src.as_str() {
-                                    args.add_class(Opacity::Half);
-                                }
-                            }
-                        },
-                    )
-                    .class(FlexFit),
+                    DataTable::new(columns(show_memory), args.store.clone())
+                        .min_width(300)
+                        .header_focusable(false)
+                        .class(FlexFit),
                 )
                 .selection(args.selection.clone())
                 .on_select(args.controller.on_select_callback())
@@ -207,55 +196,21 @@ impl Component for PveNodeSelectorComp {
         })
         .with_std_props(&props.std_props)
         .with_input_props(&props.input_props)
-        // Skip autoselect when migrating intra-cluster so the dialog does not open already
-        // pointed at the (rejected) source row; cross-remote callers (source_node: None) keep
-        // the convenience of a seeded selection.
         .autoselect(source_node.is_none())
         .editable(true)
         .on_change(on_change)
-        .default(props.default.clone());
-
-        if let Some(src) = source_node {
-            // reject the source node so an accidental click can't submit a no-op migration
-            selector = selector.validate(
-                move |(value, _store): &(String, Store<ClusterNodeIndexResponse>)| {
-                    if value == src.as_str() {
-                        bail!(tr!("Cannot migrate to the guest's current node"));
-                    }
-                    Ok(())
-                },
-            );
-        }
-
-        selector.into()
+        .default(props.default.clone())
+        .into()
     }
 }
 
-fn columns(
-    show_memory: bool,
-    source_node: Option<AttrValue>,
-) -> Rc<Vec<DataTableHeader<ClusterNodeIndexResponse>>> {
-    let node_column = if let Some(source_node) = source_node {
-        DataTableColumn::new(tr!("Node"))
-            .render(move |entry: &ClusterNodeIndexResponse| {
-                if entry.node == source_node.as_str() {
-                    html! { tr!("{0} (current)", entry.node) }
-                } else {
-                    html! { entry.node.clone() }
-                }
-            })
-            .sorter(
-                |a: &ClusterNodeIndexResponse, b: &ClusterNodeIndexResponse| a.node.cmp(&b.node),
-            )
-            .sort_order(true)
-            .into()
-    } else {
+fn columns(show_memory: bool) -> Rc<Vec<DataTableHeader<ClusterNodeIndexResponse>>> {
+    let mut columns = vec![
         DataTableColumn::new(tr!("Node"))
             .get_property(|entry: &ClusterNodeIndexResponse| &entry.node)
             .sort_order(true)
-            .into()
-    };
-    let mut columns = vec![node_column];
+            .into(),
+    ];
     if show_memory {
         columns.push(
             DataTableColumn::new(tr!("CPU Usage"))
