@@ -1,10 +1,10 @@
 //! Common API endpoints
 
-use anyhow::{bail, Error};
-use pdm_api_types::{remotes::RemoteType, RemoteUpid};
-use serde_json::{json, Value};
+use anyhow::{Error, bail};
+use pdm_api_types::{RemoteUpid, remotes::RemoteType};
+use serde_json::{Value, json};
 
-use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
+use proxmox_router::{Permission, Router, SubdirMap, list_subdirs_api_method};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 

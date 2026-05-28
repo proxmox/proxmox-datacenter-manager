@@ -1,11 +1,11 @@
 use anyhow::Error;
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 
-use proxmox_router::{http_bail, Router};
+use proxmox_router::{Router, http_bail};
 use proxmox_schema::api;
 
-use pdm_api_types::rrddata::PdmNodeDatapoint;
 use pdm_api_types::NODE_SCHEMA;
+use pdm_api_types::rrddata::PdmNodeDatapoint;
 
 use crate::api::rrd_common::{self, DataPoint};
 

@@ -1,7 +1,7 @@
 //! List Authentication domains/realms.
 
-use anyhow::{bail, format_err, Context, Error};
-use serde_json::{json, Value};
+use anyhow::{Context, Error, bail, format_err};
+use serde_json::{Value, json};
 
 use proxmox_auth_api::types::Realm;
 use proxmox_ldap::types::REMOVE_VANISHED_SCHEMA;

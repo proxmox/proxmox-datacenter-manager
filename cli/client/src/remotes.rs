@@ -1,16 +1,16 @@
 use anyhow::Error;
 
 use proxmox_router::cli::{
-    format_and_print_result, format_and_print_result_full, CliCommand, CliCommandMap,
-    CommandLineInterface, OutputFormat,
+    CliCommand, CliCommandMap, CommandLineInterface, OutputFormat, format_and_print_result,
+    format_and_print_result_full,
 };
 use proxmox_schema::property_string::PropertyString;
-use proxmox_schema::{api, property_string, ApiType, ReturnType, Schema};
+use proxmox_schema::{ApiType, ReturnType, Schema, api, property_string};
 
-use pdm_api_types::remotes::{
-    NodeUrl, Remote, RemoteType, RemoteUpdater, TlsProbeOutcome, REMOTE_ID_SCHEMA,
-};
 use pdm_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
+use pdm_api_types::remotes::{
+    NodeUrl, REMOTE_ID_SCHEMA, Remote, RemoteType, RemoteUpdater, TlsProbeOutcome,
+};
 
 use crate::{client, env};
 

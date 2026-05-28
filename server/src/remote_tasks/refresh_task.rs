@@ -5,8 +5,8 @@ use std::time::{Duration, Instant};
 use anyhow::Error;
 use tokio::{sync::Semaphore, task::JoinSet};
 
-use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::RemoteUpid;
+use pdm_api_types::remotes::{Remote, RemoteType};
 use proxmox_section_config::typed::SectionConfigData;
 
 use crate::api;
@@ -14,8 +14,8 @@ use crate::connection;
 use crate::parallel_fetcher::ParallelFetcher;
 use crate::pbs_client;
 use crate::remote_tasks::{
-    task_cache::{GetTasks, NodeFetchSuccessMap, State, TaskCache, TaskCacheItem},
     KEEP_OLD_FILES, ROTATE_AFTER,
+    task_cache::{GetTasks, NodeFetchSuccessMap, State, TaskCache, TaskCacheItem},
 };
 
 /// Interval in seconds at which to fetch the newest tasks from remotes (if there is no tracked

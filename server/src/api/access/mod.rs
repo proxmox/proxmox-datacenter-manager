@@ -2,16 +2,16 @@
 
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{bail, Context, Error};
+use anyhow::{Context, Error, bail};
 
-use proxmox_access_control::acl::AclTreeNode;
 use proxmox_access_control::CachedUserInfo;
-use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
+use proxmox_access_control::acl::AclTreeNode;
 use proxmox_router::{Permission, RpcEnvironment};
+use proxmox_router::{Router, SubdirMap, list_subdirs_api_method};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::{Authid, ACL_PATH_SCHEMA, PRIVILEGES, PRIV_ACCESS_AUDIT};
+use pdm_api_types::{ACL_PATH_SCHEMA, Authid, PRIV_ACCESS_AUDIT, PRIVILEGES};
 
 mod domains;
 mod openid;

@@ -1,21 +1,21 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use futures::StreamExt;
 
-use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
+use proxmox_router::{Permission, Router, SubdirMap, list_subdirs_api_method};
 use proxmox_schema::api;
 use proxmox_schema::property_string::PropertyString;
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remotes::{
-    NodeUrl, Remote, RemoteListEntry, RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA,
+    NodeUrl, REMOTE_ID_SCHEMA, Remote, RemoteListEntry, RemoteType, TlsProbeOutcome,
 };
 use pdm_api_types::{
-    Authid, RemoteUpid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_SYS_MODIFY,
+    Authid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_SYS_MODIFY, RemoteUpid,
 };
 
 use crate::{
     connection::{self, probe_tls_connection},
-    pbs_client::{self, get_remote, PbsClient},
+    pbs_client::{self, PbsClient, get_remote},
 };
 
 use crate::remote_tasks;

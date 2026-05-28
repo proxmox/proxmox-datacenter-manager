@@ -5,12 +5,12 @@ use std::{collections::BTreeMap, fmt::Debug};
 
 use proxmox_auth_api::types::Userid;
 use proxmox_installer_types::{
-    answer::SUBSCRIPTION_KEY_SCHEMA, post_hook::PostHookInfo, SystemInfo,
+    SystemInfo, answer::SUBSCRIPTION_KEY_SCHEMA, post_hook::PostHookInfo,
 };
 use proxmox_schema::{
-    api,
+    ApiStringFormat, Schema, StringSchema, Updater, api,
     api_types::{CERT_FINGERPRINT_SHA256_SCHEMA, COMMENT_SCHEMA, HTTP_URL_SCHEMA, UUID_FORMAT},
-    const_regex, ApiStringFormat, Schema, StringSchema, Updater,
+    const_regex,
 };
 use proxmox_uuid::Uuid;
 

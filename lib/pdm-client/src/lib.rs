@@ -20,7 +20,7 @@ use pdm_api_types::sdn::{ListVnet, ListZone};
 use pdm_api_types::{BasicRealmInfo, CertificateInfo};
 use pve_api_types::StartQemuMigrationType;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use proxmox_client::{ApiPathBuilder, Error, HttpApiClient};
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};

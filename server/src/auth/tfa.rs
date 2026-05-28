@@ -4,12 +4,12 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use nix::sys::stat::Mode;
 
 use proxmox_access_control::types::User;
 use proxmox_config_digest::ConfigDigest;
-use proxmox_product_config::{open_api_lockfile, ApiLockGuard};
+use proxmox_product_config::{ApiLockGuard, open_api_lockfile};
 use proxmox_sys::error::SysError;
 use proxmox_sys::fs::CreateOptions;
 use proxmox_tfa::totp::Totp;

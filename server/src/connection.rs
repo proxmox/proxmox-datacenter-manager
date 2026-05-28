@@ -5,16 +5,16 @@
 
 use std::collections::HashMap;
 use std::future::Future;
-use std::pin::{pin, Pin};
+use std::pin::{Pin, pin};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use std::sync::Once;
 use std::sync::{LazyLock, OnceLock};
 use std::time::{Duration, SystemTime};
 
-use anyhow::{bail, format_err, Error};
-use http::uri::Authority;
+use anyhow::{Error, bail, format_err};
 use http::Method;
+use http::uri::Authority;
 use openssl::x509::X509StoreContextRef;
 use serde::Serialize;
 

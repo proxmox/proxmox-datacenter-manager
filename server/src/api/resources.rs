@@ -1,19 +1,19 @@
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
-use anyhow::{bail, Context, Error};
-use futures::future::join_all;
+use anyhow::{Context, Error, bail};
 use futures::FutureExt;
+use futures::future::join_all;
 
 use pbs_api_types::{
     DataStoreStatusListItem, DatastoreBackendConfig, DatastoreBackendType, NodeStatus,
 };
 use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::resource::{
-    FailedRemote, NetworkFabricResource, NetworkZoneResource, PbsDatastoreResource,
-    PbsNodeResource, PveLxcResource, PveNetworkResource, PveNodeResource, PveQemuResource,
-    PveStorageResource, RemoteInfo, RemoteResources, RemoteStatus, Resource, ResourceType,
-    ResourcesStatus, SdnStatus, TopEntities, PBS_DATASTORE_HIGH_USAGE_THRESHOLD,
+    FailedRemote, NetworkFabricResource, NetworkZoneResource, PBS_DATASTORE_HIGH_USAGE_THRESHOLD,
+    PbsDatastoreResource, PbsNodeResource, PveLxcResource, PveNetworkResource, PveNodeResource,
+    PveQemuResource, PveStorageResource, RemoteInfo, RemoteResources, RemoteStatus, Resource,
+    ResourceType, ResourcesStatus, SdnStatus, TopEntities,
 };
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, RemoteSubscriptionState, RemoteSubscriptions, SubscriptionLevel,
@@ -22,7 +22,7 @@ use pdm_api_types::{Authid, CachedLocationInfo, PRIV_RESOURCE_AUDIT, VIEW_ID_SCH
 use pdm_search::{Search, SearchTerm};
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
-    http_bail, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
+    Permission, Router, RpcEnvironment, SubdirMap, http_bail, list_subdirs_api_method,
 };
 use proxmox_rrd_api_types::RrdTimeframe;
 use proxmox_schema::{api, parse_boolean};

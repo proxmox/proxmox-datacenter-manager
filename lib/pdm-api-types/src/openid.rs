@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::api_types::SAFE_ID_REGEX;
-use proxmox_schema::{api, ApiStringFormat, ArraySchema, Schema, StringSchema, Updater};
+use proxmox_schema::{ApiStringFormat, ArraySchema, Schema, StringSchema, Updater, api};
 
 use super::{
     GENERIC_URI_REGEX, PROXMOX_SAFE_ID_FORMAT, REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,

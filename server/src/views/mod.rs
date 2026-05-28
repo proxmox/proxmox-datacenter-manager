@@ -1,4 +1,4 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 
 use pdm_api_types::{
     resource::{Resource, ResourceType},

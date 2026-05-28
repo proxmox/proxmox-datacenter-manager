@@ -1,11 +1,11 @@
 use anyhow::Error;
 
-use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
+use proxmox_router::{Permission, Router, SubdirMap, list_subdirs_api_method};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use pdm_api_types::PRIV_RESOURCE_AUDIT;
+use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 
 use pbs_api_types::NODE_SCHEMA;
 

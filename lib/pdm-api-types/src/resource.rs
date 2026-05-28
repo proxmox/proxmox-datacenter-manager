@@ -1,11 +1,11 @@
 use std::convert::Infallible;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema};
+use proxmox_schema::{ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema, api};
 
-use super::remotes::{RemoteType, REMOTE_ID_SCHEMA};
+use super::remotes::{REMOTE_ID_SCHEMA, RemoteType};
 use super::{MemoryStatus, StorageStatus};
 
 use pve_api_types::ClusterResourceNetworkType;

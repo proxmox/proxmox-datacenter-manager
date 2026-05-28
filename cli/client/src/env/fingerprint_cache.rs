@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::sync::RwLock;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use openssl::hash::MessageDigest;
 use openssl::x509::X509StoreContextRef;
 

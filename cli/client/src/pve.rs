@@ -3,14 +3,14 @@
 use std::fmt;
 use std::time::Duration;
 
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 
 use proxmox_router::cli::{
-    format_and_print_result, format_and_print_result_full, CliCommand, CliCommandMap,
-    CommandLineInterface, OutputFormat,
+    CliCommand, CliCommandMap, CommandLineInterface, OutputFormat, format_and_print_result,
+    format_and_print_result_full,
 };
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
-use proxmox_schema::{api, ApiType, ArraySchema, ReturnType, Schema};
+use proxmox_schema::{ApiType, ArraySchema, ReturnType, Schema, api};
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
 use pdm_api_types::{CIDR_FORMAT, NODE_SCHEMA, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA};

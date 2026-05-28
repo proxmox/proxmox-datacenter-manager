@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Error};
+use anyhow::{Context, Error, bail};
 use serde_json::Value;
 
 use proxmox_apt_api_types::{
@@ -8,11 +8,11 @@ use proxmox_apt_api_types::{
 use proxmox_http::ProxyConfig;
 use proxmox_rest_server::WorkerTask;
 use proxmox_router::{
-    list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
+    Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap, list_subdirs_api_method,
 };
 use proxmox_schema::api;
 use proxmox_schema::api_types::NODE_SCHEMA;
-use proxmox_sys::fs::{replace_file, CreateOptions};
+use proxmox_sys::fs::{CreateOptions, replace_file};
 
 use proxmox_config_digest::ConfigDigest;
 

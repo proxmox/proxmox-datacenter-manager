@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use anyhow::{bail, format_err, Context, Error};
+use anyhow::{Context, Error, bail, format_err};
 
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
-    http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
+    Permission, Router, RpcEnvironment, SubdirMap, http_bail, http_err, list_subdirs_api_method,
 };
 use proxmox_schema::api;
 use proxmox_schema::property_string::PropertyString;
@@ -15,12 +15,12 @@ use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::remote_updates::RemoteUpdateSummary;
 use pdm_api_types::remotes::{
-    NodeUrl, Remote, RemoteListEntry, RemoteType, TlsProbeOutcome, REMOTE_ID_SCHEMA,
+    NodeUrl, REMOTE_ID_SCHEMA, Remote, RemoteListEntry, RemoteType, TlsProbeOutcome,
 };
 use pdm_api_types::resource::PveResource;
 use pdm_api_types::{
-    Authid, RemoteUpid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE,
-    PRIV_SYS_MODIFY,
+    Authid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_DELETE, PRIV_SYS_MODIFY,
+    RemoteUpid,
 };
 
 use pve_api_types::ClusterNodeStatus;

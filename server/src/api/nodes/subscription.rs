@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 
 use proxmox_router::{Permission, Router};
 use proxmox_schema::api;
@@ -9,11 +9,11 @@ use proxmox_subscription::files::update_apt_auth;
 use proxmox_subscription::{SubscriptionInfo, SubscriptionStatus};
 use proxmox_sys::fs::CreateOptions;
 
+use pdm_api_types::PRIV_SYS_MODIFY;
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::subscription::{
     NodeSubscriptionInfo, PdmSubscriptionInfo, SubscriptionLevel, SubscriptionStatistics,
 };
-use pdm_api_types::PRIV_SYS_MODIFY;
 
 use crate::api::resources::get_subscription_info_for_remote;
 
@@ -29,8 +29,8 @@ fn apt_auth_file_opts() -> CreateOptions {
     CreateOptions::new().perm(mode).owner(nix::unistd::ROOT)
 }
 
-async fn get_all_subscription_infos(
-) -> Result<HashMap<String, (RemoteType, HashMap<String, Option<NodeSubscriptionInfo>>)>, Error> {
+async fn get_all_subscription_infos()
+-> Result<HashMap<String, (RemoteType, HashMap<String, Option<NodeSubscriptionInfo>>)>, Error> {
     let (remotes_config, _digest) = pdm_config::remotes::config()?;
 
     let mut subscription_info = HashMap::new();
@@ -165,7 +165,9 @@ pub async fn check_subscription() -> Result<(), Error> {
                     && info.key.is_some()
                     && info.serverid.is_some()
                 {
-                    log::info!("Using subscription of node '{node}' of remote '{remote}' for enterprise repository access");
+                    log::info!(
+                        "Using subscription of node '{node}' of remote '{remote}' for enterprise repository access"
+                    );
                     update_apt_auth(
                         APT_AUTH_FN,
                         apt_auth_file_opts(),

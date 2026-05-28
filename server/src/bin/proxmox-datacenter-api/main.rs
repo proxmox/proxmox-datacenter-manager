@@ -4,15 +4,15 @@ use std::pin::pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anyhow::{bail, Context as _, Error};
+use anyhow::{Context as _, Error, bail};
 use futures::*;
-use http::request::Parts;
 use http::Response;
-use hyper::header;
+use http::request::Parts;
 use hyper::StatusCode;
+use hyper::header;
 use hyper_util::server::graceful::GracefulShutdown;
 use openssl::ssl::SslAcceptor;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tracing::level_filters::LevelFilter;
 use url::form_urlencoded;
 
@@ -321,9 +321,11 @@ async fn run(debug: bool) -> Result<(), Error> {
     // acquire the IO driver, if blocked, before going to sleep, which allows progress again
     // TODO: remove once tokio solves this at their level (see proposals in linked comments)
     let rt_handle = tokio::runtime::Handle::current();
-    std::thread::spawn(move || loop {
-        rt_handle.spawn(std::future::ready(()));
-        std::thread::sleep(Duration::from_secs(3));
+    std::thread::spawn(move || {
+        loop {
+            rt_handle.spawn(std::future::ready(()));
+            std::thread::sleep(Duration::from_secs(3));
+        }
     });
 
     start_task_scheduler();

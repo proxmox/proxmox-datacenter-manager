@@ -6,8 +6,9 @@ use std::{
 use anyhow::Error;
 use tokio::{
     sync::{
+        OwnedSemaphorePermit, Semaphore,
         mpsc::{Receiver, Sender},
-        oneshot, OwnedSemaphorePermit, Semaphore,
+        oneshot,
     },
     task::JoinSet,
     time::{Interval, MissedTickBehavior},
@@ -138,12 +139,16 @@ impl RemoteMetricCollectionTask {
         if let Some(remotes) = Self::load_remote_config() {
             let done_tx = match message {
                 ControlMsg::TriggerMetricCollection(Some(remote), done_tx) => {
-                    log::debug!("starting metric collection for remote '{remote}'- triggered by control message");
+                    log::debug!(
+                        "starting metric collection for remote '{remote}'- triggered by control message"
+                    );
                     self.fetch_remotes(&remotes, &[remote]).await;
                     done_tx
                 }
                 ControlMsg::TriggerMetricCollection(None, done_tx) => {
-                    log::debug!("starting metric collection from all remotes - triggered by control message");
+                    log::debug!(
+                        "starting metric collection from all remotes - triggered by control message"
+                    );
                     let to_fetch = remotes
                         .iter()
                         .map(|(name, _)| name.into())
@@ -594,11 +599,13 @@ pub(super) mod tests {
             // Our faked PVE client will return an error if the remote name contains
             // 'fail'.
             if remote.contains("fail") {
-                assert!(status
-                    .error
-                    .as_ref()
-                    .unwrap()
-                    .contains("internal server error"));
+                assert!(
+                    status
+                        .error
+                        .as_ref()
+                        .unwrap()
+                        .contains("internal server error")
+                );
                 assert_eq!(status.last_collection, None);
             } else {
                 assert!(now - status.most_recent_datapoint <= 10);

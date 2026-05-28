@@ -1,14 +1,14 @@
-use anyhow::{format_err, Context, Error};
+use anyhow::{Context, Error, format_err};
 use serde::{Deserialize, Serialize};
 
 use proxmox_access_control::CachedUserInfo;
 use proxmox_config_digest::ConfigDigest;
-use proxmox_router::{http_bail, http_err, Permission, Router, RpcEnvironment};
+use proxmox_router::{Permission, Router, RpcEnvironment, http_bail, http_err};
 use proxmox_schema::{api, param_bail};
 
 use pdm_api_types::{
-    views::{ViewConfig, ViewConfigEntry, ViewConfigUpdater, ViewTemplate},
     PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY, VIEW_ID_SCHEMA,
+    views::{ViewConfig, ViewConfigEntry, ViewConfigUpdater, ViewTemplate},
 };
 
 const VIEW_ROUTER: Router = Router::new()

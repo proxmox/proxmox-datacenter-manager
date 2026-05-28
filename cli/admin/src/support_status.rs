@@ -1,8 +1,8 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use proxmox_router::cli::{
-    format_and_print_result_full, get_output_format, CliCommand, CliCommandMap,
-    CommandLineInterface,
+    CliCommand, CliCommandMap, CommandLineInterface, format_and_print_result_full,
+    get_output_format,
 };
 use proxmox_router::{ApiHandler, RpcEnvironment};
 use proxmox_schema::api;

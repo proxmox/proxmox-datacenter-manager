@@ -1,7 +1,7 @@
 use std::io;
 use std::sync::OnceLock;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use once_cell::sync::Lazy;
 
 use proxmox_auth_api::types::Userid;

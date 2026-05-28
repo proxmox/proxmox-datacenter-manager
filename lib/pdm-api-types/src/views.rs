@@ -3,20 +3,20 @@ use std::fmt::{Debug, Display};
 use std::str::FromStr;
 use std::sync::OnceLock;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{
-    api, api_types::SAFE_ID_REGEX_STR, const_regex, ApiStringFormat, ApiType, ArraySchema, Schema,
-    StringSchema, Updater,
+    ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, Updater, api,
+    api_types::SAFE_ID_REGEX_STR, const_regex,
 };
-use proxmox_section_config::{typed::ApiSectionDataEntry, SectionConfig, SectionConfigPlugin};
+use proxmox_section_config::{SectionConfig, SectionConfigPlugin, typed::ApiSectionDataEntry};
 
 use crate::{
-    remotes::{RemoteType, REMOTE_ID_SCHEMA},
-    resource::{GuestType, ResourceType},
     PROXMOX_SAFE_ID_REGEX, VIEW_ID_SCHEMA,
+    remotes::{REMOTE_ID_SCHEMA, RemoteType},
+    resource::{GuestType, ResourceType},
 };
 
 const_regex! {

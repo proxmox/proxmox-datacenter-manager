@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use pdm_api_types::ConfigDigest;
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, ApiStringFormat, ApiType};
+use proxmox_schema::{ApiStringFormat, ApiType, api};
 
-use proxmox_acme_api::{AcmeConfig, AcmeDomain, ACME_DOMAIN_PROPERTY_SCHEMA};
-use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard};
+use proxmox_acme_api::{ACME_DOMAIN_PROPERTY_SCHEMA, AcmeConfig, AcmeDomain};
+use proxmox_product_config::{ApiLockGuard, open_api_lockfile, replace_config};
 
 use pdm_buildcfg::configdir;
 

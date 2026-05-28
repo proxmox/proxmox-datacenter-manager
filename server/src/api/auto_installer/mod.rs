@@ -1,37 +1,37 @@
 //! Implements all the methods under `/api2/json/auto-install/`.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use http::StatusCode;
 use std::collections::{BTreeMap, HashMap};
 
 use pdm_api_types::PROXMOX_TOKEN_NAME_SCHEMA;
 use pdm_api_types::{
+    Authid, ConfigDigest, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
     auto_installer::{
         AnswerToken, AnswerTokenCreateResult, AnswerTokenUpdateResult, AnswerTokenUpdater,
-        DeletableAnswerTokenProperty, DeletablePreparedInstallationConfigProperty, Installation,
-        InstallationStatus, PreparedInstallationConfig, PreparedInstallationConfigCreateResult,
-        PreparedInstallationConfigUpdateResult, PreparedInstallationConfigUpdater,
-        INSTALLATION_UUID_SCHEMA, PREPARED_INSTALL_CONFIG_ID_SCHEMA, TEMPLATE_COUNTER_NAME_REGEX,
-        UDEV_FILTER_KEY_REGEX,
+        DeletableAnswerTokenProperty, DeletablePreparedInstallationConfigProperty,
+        INSTALLATION_UUID_SCHEMA, Installation, InstallationStatus,
+        PREPARED_INSTALL_CONFIG_ID_SCHEMA, PreparedInstallationConfig,
+        PreparedInstallationConfigCreateResult, PreparedInstallationConfigUpdateResult,
+        PreparedInstallationConfigUpdater, TEMPLATE_COUNTER_NAME_REGEX, UDEV_FILTER_KEY_REGEX,
     },
-    Authid, ConfigDigest, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pdm_config::auto_install::types::PreparedInstallationSectionConfigWrapper;
 use proxmox_installer_types::{
+    SystemInfo,
     answer::{
-        self, fetch::AnswerFetchData, AutoInstallerConfig, PostNotificationHookInfo,
-        ROOT_PASSWORD_SCHEMA,
+        self, AutoInstallerConfig, PostNotificationHookInfo, ROOT_PASSWORD_SCHEMA,
+        fetch::AnswerFetchData,
     },
     post_hook::PostHookInfo,
-    SystemInfo,
 };
 use proxmox_network_types::fqdn::Fqdn;
 use proxmox_router::{
-    http_bail, list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission,
-    Router, RpcEnvironment, SubdirMap,
+    ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
+    http_bail, list_subdirs_api_method,
 };
 use proxmox_schema::{
-    api, api_types::COMMENT_SCHEMA, AllOfSchema, ApiType, ParameterSchema, ReturnType,
+    AllOfSchema, ApiType, ParameterSchema, ReturnType, api, api_types::COMMENT_SCHEMA,
 };
 use proxmox_sortable_macro::sortable;
 use proxmox_uuid::Uuid;

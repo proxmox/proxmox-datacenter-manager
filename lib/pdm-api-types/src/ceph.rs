@@ -25,7 +25,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, Schema, StringSchema, Updater};
+use proxmox_schema::{Schema, StringSchema, Updater, api};
 
 use crate::{Authid, PROXMOX_SAFE_ID_FORMAT};
 

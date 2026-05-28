@@ -1,4 +1,4 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 
 use proxmox_lang::try_block;
 use proxmox_rest_server::WorkerTask;

@@ -4,7 +4,7 @@ use proxmox_config_digest::PROXMOX_CONFIG_DIGEST_SCHEMA;
 use proxmox_router::cli::{CliCommand, CliCommandMap, CommandLineInterface, OutputFormat};
 use proxmox_schema::api;
 
-use pdm_api_types::{AclUgidType, Authid, Role, ACL_PATH_SCHEMA, ACL_PROPAGATE_SCHEMA};
+use pdm_api_types::{ACL_PATH_SCHEMA, ACL_PROPAGATE_SCHEMA, AclUgidType, Authid, Role};
 use pdm_client::{AclRecipient, ConfigDigest};
 
 use crate::{client, env};

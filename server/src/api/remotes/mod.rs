@@ -3,23 +3,23 @@
 use std::collections::HashSet;
 use std::error::Error as _;
 
-use anyhow::{bail, format_err, Context, Error};
+use anyhow::{Context, Error, bail, format_err};
 use serde::{Deserialize, Serialize};
 
 use proxmox_access_control::CachedUserInfo;
 use proxmox_router::{
-    http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
+    Permission, Router, RpcEnvironment, SubdirMap, http_bail, http_err, list_subdirs_api_method,
 };
 use proxmox_rrd_api_types::RrdMode;
 use proxmox_rrd_api_types::RrdTimeframe;
-use proxmox_schema::api;
 use proxmox_schema::Schema;
+use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 use proxmox_time::{epoch_i64, epoch_to_rfc2822};
 
 use pdm_api_types::remotes::{
-    Remote, RemoteType, RemoteUpdater, TlsProbeOutcome, REMOTE_ID_SCHEMA,
+    REMOTE_ID_SCHEMA, Remote, RemoteType, RemoteUpdater, TlsProbeOutcome,
 };
 use pdm_api_types::rrddata::RemoteDatapoint;
 use pdm_api_types::{Authid, ConfigDigest, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY};

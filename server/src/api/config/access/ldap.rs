@@ -1,11 +1,11 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use proxmox_config_digest::ConfigDigest;
-use proxmox_ldap::types::{LdapRealmConfig, LdapRealmConfigUpdater, REALM_ID_SCHEMA};
 use proxmox_ldap::Connection;
-use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
+use proxmox_ldap::types::{LdapRealmConfig, LdapRealmConfigUpdater, REALM_ID_SCHEMA};
+use proxmox_router::{Permission, Router, RpcEnvironment, http_bail};
 use proxmox_schema::{api, param_bail};
 
 use pdm_api_types::{PRIV_REALM_ALLOCATE, PRIV_SYS_AUDIT};

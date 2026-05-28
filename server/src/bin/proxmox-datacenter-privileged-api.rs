@@ -1,11 +1,11 @@
 use std::path::Path;
 use std::pin::pin;
 
-use anyhow::{bail, format_err, Context as _, Error};
+use anyhow::{Context as _, Error, bail, format_err};
 use futures::*;
 use hyper_util::server::graceful::GracefulShutdown;
 use nix::fcntl::AtFlags;
-use nix::sys::stat::{fchmodat, FchmodatFlags, Mode};
+use nix::sys::stat::{FchmodatFlags, Mode, fchmodat};
 use nix::unistd::fchownat;
 use tracing::level_filters::LevelFilter;
 
@@ -249,9 +249,11 @@ async fn run() -> Result<(), Error> {
     // acquire the IO driver, if blocked, before going to sleep, which allows progress again
     // TODO: remove once tokio solves this at their level (see proposals in linked comments)
     let rt_handle = tokio::runtime::Handle::current();
-    std::thread::spawn(move || loop {
-        rt_handle.spawn(std::future::ready(()));
-        std::thread::sleep(Duration::from_secs(3));
+    std::thread::spawn(move || {
+        loop {
+            rt_handle.spawn(std::future::ready(()));
+            std::thread::sleep(Duration::from_secs(3));
+        }
     });
 
     start_task_scheduler();

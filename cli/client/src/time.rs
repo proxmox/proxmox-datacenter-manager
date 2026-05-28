@@ -3,7 +3,7 @@
 use std::ffi::CStr;
 use std::io;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 
 pub fn format_epoch(epoch: i64) -> Result<String, Error> {
     let mut ts: libc::tm = unsafe { std::mem::zeroed() };

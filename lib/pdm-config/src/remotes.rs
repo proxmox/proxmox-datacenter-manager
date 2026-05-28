@@ -5,10 +5,10 @@
 
 use std::{collections::HashSet, sync::OnceLock};
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 
 use proxmox_config_digest::ConfigDigest;
-use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard};
+use proxmox_product_config::{ApiLockGuard, open_api_lockfile, replace_config};
 use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
 
 use pdm_api_types::remotes::{Remote, RemoteShadow};

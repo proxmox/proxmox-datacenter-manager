@@ -2,7 +2,7 @@ use std::pin::pin;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use nix::sys::stat::Mode;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::oneshot;

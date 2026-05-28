@@ -1,6 +1,6 @@
 use anyhow::Error;
 
-use proxmox_router::{list_subdirs_api_method, Permission, Router, SubdirMap};
+use proxmox_router::{Permission, Router, SubdirMap, list_subdirs_api_method};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 

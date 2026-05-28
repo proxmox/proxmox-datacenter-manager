@@ -6,24 +6,24 @@
 
 use std::collections::HashSet;
 
-use anyhow::{bail, format_err, Context, Error};
+use anyhow::{Context, Error, bail, format_err};
 use futures::future::join_all;
 
 use proxmox_access_control::CachedUserInfo;
 use proxmox_config_digest::ConfigDigest;
 use proxmox_log::{info, warn};
 use proxmox_router::{
-    http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
+    Permission, Router, RpcEnvironment, SubdirMap, http_bail, http_err, list_subdirs_api_method,
 };
 use proxmox_schema::api;
 use proxmox_section_config::typed::SectionConfigData;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::{Remote, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{REMOTE_ID_SCHEMA, Remote};
 use pdm_api_types::subscription::{
-    pick_best_pve_socket_key, socket_count_from_key, AddKeysResult, AdoptedEntry,
-    AutoAssignProposal, ClearPendingResult, ProductType, ProposedAssignment, RemoteNodeStatus,
-    SubscriptionKeyEntry, SubscriptionKeySource, SubscriptionLevel, SUBSCRIPTION_KEY_SCHEMA,
+    AddKeysResult, AdoptedEntry, AutoAssignProposal, ClearPendingResult, ProductType,
+    ProposedAssignment, RemoteNodeStatus, SUBSCRIPTION_KEY_SCHEMA, SubscriptionKeyEntry,
+    SubscriptionKeySource, SubscriptionLevel, pick_best_pve_socket_key, socket_count_from_key,
 };
 use pdm_api_types::{
     Authid, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,

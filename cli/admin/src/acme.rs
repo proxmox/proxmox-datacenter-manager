@@ -1,13 +1,13 @@
 use std::io::Write;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde_json::Value;
 
 use pdm_api_types::acme::AcmeRegistrationParams;
 use proxmox_acme::async_client::AcmeClient;
-use proxmox_acme_api::{completion::*, AcmeAccountName, DnsPluginCore, KNOWN_ACME_DIRECTORIES};
+use proxmox_acme_api::{AcmeAccountName, DnsPluginCore, KNOWN_ACME_DIRECTORIES, completion::*};
 use proxmox_rest_server::wait_for_local_worker;
-use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
+use proxmox_router::{ApiHandler, RpcEnvironment, cli::*};
 use proxmox_schema::api;
 use proxmox_sys::fs::file_get_contents;
 

@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, time::Duration};
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};
 

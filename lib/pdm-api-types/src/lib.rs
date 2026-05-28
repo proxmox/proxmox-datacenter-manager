@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::api_types::{DNS_NAME_STR, IPRE_BRACKET_STR, PORT_REGEX_STR};
 use proxmox_schema::{
-    api, const_regex, ApiStringFormat, ApiType, ArraySchema, IntegerSchema, ReturnType, Schema,
-    StringSchema, Updater,
+    ApiStringFormat, ApiType, ArraySchema, IntegerSchema, ReturnType, Schema, StringSchema,
+    Updater, api, const_regex,
 };
 use proxmox_time::parse_daily_duration;
 
@@ -36,12 +36,12 @@ pub use proxmox_apt_api_types::APTRepositoriesResult;
 pub use proxmox_apt_api_types::APTUpdateInfo;
 
 pub use proxmox_auth_api::types::{Authid, Userid};
-pub use proxmox_auth_api::types::{Realm, RealmRef};
-pub use proxmox_auth_api::types::{Tokenname, TokennameRef};
-pub use proxmox_auth_api::types::{Username, UsernameRef};
 pub use proxmox_auth_api::types::{
     PROXMOX_GROUP_ID_SCHEMA, PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN_NAME_SCHEMA,
 };
+pub use proxmox_auth_api::types::{Realm, RealmRef};
+pub use proxmox_auth_api::types::{Tokenname, TokennameRef};
+pub use proxmox_auth_api::types::{Username, UsernameRef};
 
 pub use proxmox_schema::api_types::SAFE_ID_FORMAT as PROXMOX_SAFE_ID_FORMAT;
 pub use proxmox_schema::api_types::SAFE_ID_REGEX as PROXMOX_SAFE_ID_REGEX;
@@ -52,7 +52,7 @@ pub use proxmox_schema::api_types::{
 pub use proxmox_schema::api_types::{DNS_ALIAS_REGEX, DNS_NAME_OR_IP_REGEX, DNS_NAME_REGEX};
 pub use proxmox_schema::api_types::{FINGERPRINT_SHA256_REGEX, SHA256_HEX_REGEX};
 pub use proxmox_schema::api_types::{
-    GENERIC_URI_REGEX, HOSTNAME_REGEX, HOST_PORT_REGEX, HTTP_URL_REGEX,
+    GENERIC_URI_REGEX, HOST_PORT_REGEX, HOSTNAME_REGEX, HTTP_URL_REGEX,
 };
 pub use proxmox_schema::api_types::{MULTI_LINE_COMMENT_REGEX, SINGLE_LINE_COMMENT_REGEX};
 pub use proxmox_schema::api_types::{PASSWORD_REGEX, SYSTEMD_DATETIME_REGEX, UUID_REGEX};
@@ -60,13 +60,13 @@ pub use proxmox_schema::api_types::{PASSWORD_REGEX, SYSTEMD_DATETIME_REGEX, UUID
 pub use proxmox_schema::api_types::{CIDR_FORMAT, CIDR_REGEX};
 pub use proxmox_schema::api_types::{CIDR_V4_FORMAT, CIDR_V4_REGEX};
 pub use proxmox_schema::api_types::{CIDR_V6_FORMAT, CIDR_V6_REGEX};
-pub use proxmox_schema::api_types::{IPRE_STR, IP_FORMAT, IP_REGEX};
-pub use proxmox_schema::api_types::{IPV4RE_STR, IP_V4_FORMAT, IP_V4_REGEX};
-pub use proxmox_schema::api_types::{IPV6RE_STR, IP_V6_FORMAT, IP_V6_REGEX};
+pub use proxmox_schema::api_types::{IP_FORMAT, IP_REGEX, IPRE_STR};
+pub use proxmox_schema::api_types::{IP_V4_FORMAT, IP_V4_REGEX, IPV4RE_STR};
+pub use proxmox_schema::api_types::{IP_V6_FORMAT, IP_V6_REGEX, IPV6RE_STR};
 
 pub use proxmox_schema::api_types::COMMENT_SCHEMA as SINGLE_LINE_COMMENT_SCHEMA;
-pub use proxmox_schema::api_types::HOSTNAME_SCHEMA;
 pub use proxmox_schema::api_types::HOST_PORT_SCHEMA;
+pub use proxmox_schema::api_types::HOSTNAME_SCHEMA;
 pub use proxmox_schema::api_types::HTTP_URL_SCHEMA;
 pub use proxmox_schema::api_types::MULTI_LINE_COMMENT_SCHEMA;
 pub use proxmox_schema::api_types::NODE_SCHEMA;

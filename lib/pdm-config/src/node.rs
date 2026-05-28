@@ -8,7 +8,7 @@ use proxmox_http::ProxyConfig;
 use pdm_api_types::ConfigDigest;
 
 use pdm_buildcfg::configdir;
-use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard};
+use proxmox_product_config::{ApiLockGuard, open_api_lockfile, replace_config};
 
 use pdm_api_types::NodeConfig;
 

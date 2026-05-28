@@ -3,7 +3,7 @@ use std::time::Duration;
 use anyhow::Error;
 use nix::sys::stat::Mode;
 
-use server::remote_tasks::{refresh_task, REMOTE_TASKS_DIR};
+use server::remote_tasks::{REMOTE_TASKS_DIR, refresh_task};
 use server::task_utils;
 
 /// Tick interval for the remote task fetching task.

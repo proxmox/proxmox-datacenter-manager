@@ -2,13 +2,13 @@ use std::error::Error as StdError;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{self, bail, Context};
+use anyhow::{self, Context, bail};
 
-use futures::{future::join_all, stream::FuturesUnordered, StreamExt, TryFutureExt};
-use pdm_api_types::{remotes::Remote, RemoteUpid};
+use futures::{StreamExt, TryFutureExt, future::join_all, stream::FuturesUnordered};
+use pdm_api_types::{RemoteUpid, remotes::Remote};
 use pve_api_types::{
-    client::PveClient, CreateSdnLock, CreateVnet, CreateZone, PveUpid, ReleaseSdnLock, ReloadSdn,
-    RollbackSdn,
+    CreateSdnLock, CreateVnet, CreateZone, PveUpid, ReleaseSdnLock, ReloadSdn, RollbackSdn,
+    client::PveClient,
 };
 
 use crate::api::pve::{connect, get_remote};
@@ -223,7 +223,10 @@ impl<C> LockedSdnClients<C> {
                         LockedSdnClientError::Client(proxmox_client::Error::Api(status, _msg))
                             if *status == 501 =>
                         {
-                            bail!("remote {} does not support the sdn locking api, please upgrade to PVE 9 or newer!", remote.id)
+                            bail!(
+                                "remote {} does not support the sdn locking api, please upgrade to PVE 9 or newer!",
+                                remote.id
+                            )
                         }
                         _ => Err(error).with_context(|| {
                             format!("could not lock sdn configuration for remote {}", remote.id)

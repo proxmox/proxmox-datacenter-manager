@@ -1,4 +1,4 @@
-use proxmox_schema::{api, ApiStringFormat, IntegerSchema, Schema, StringSchema};
+use proxmox_schema::{ApiStringFormat, IntegerSchema, Schema, StringSchema, api};
 use pve_api_types::{SdnController, SdnVnet, SdnZone};
 use serde::{Deserialize, Serialize};
 

@@ -1,5 +1,5 @@
 use std::error::Error as StdError;
-use std::ffi::{c_int, c_void, CStr, CString, OsStr};
+use std::ffi::{CStr, CString, OsStr, c_int, c_void};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};

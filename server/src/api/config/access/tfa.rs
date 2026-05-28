@@ -1,7 +1,7 @@
 //! For now this only has the TFA subdir, which is in this file.
 //! If we add more, it should be moved into a sub module.
 
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use serde::{Deserialize, Serialize};
 
 use proxmox_config_digest::ConfigDigest;

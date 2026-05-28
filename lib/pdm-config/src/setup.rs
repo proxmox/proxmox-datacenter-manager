@@ -3,7 +3,7 @@
 //use std::os::fd::OwnedFd;
 use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
 
-use anyhow::{bail, format_err, Context as _, Error};
+use anyhow::{Context as _, Error, bail, format_err};
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::unistd::{Gid, Uid};

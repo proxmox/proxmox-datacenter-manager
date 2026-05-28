@@ -2,13 +2,13 @@
 
 use anyhow::Error;
 
-use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
+use proxmox_router::{Permission, Router, RpcEnvironment, SubdirMap, list_subdirs_api_method};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::remotes::{RemoteType, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{REMOTE_ID_SCHEMA, RemoteType};
 use pdm_api_types::{
-    RemoteUpid, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MANAGE, TASKLOG_DOWNLOAD_PARAM_SCHEMA,
+    PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MANAGE, RemoteUpid, TASKLOG_DOWNLOAD_PARAM_SCHEMA,
     TASKLOG_LIMIT_PARAM_SCHEMA, TASKLOG_START_PARAM_SCHEMA,
 };
 

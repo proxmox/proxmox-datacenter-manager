@@ -1,10 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use serde::Deserialize;
 use serde_json::json;
 
-use pdm_api_types::{remotes::Remote, Authid, ConfigDigest};
+use pdm_api_types::{Authid, ConfigDigest, remotes::Remote};
 use pdm_config::remotes::RemoteConfig;
 use proxmox_client::Client;
 use proxmox_product_config::ApiLockGuard;

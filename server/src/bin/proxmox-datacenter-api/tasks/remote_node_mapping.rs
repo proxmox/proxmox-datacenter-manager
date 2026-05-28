@@ -17,7 +17,7 @@
 use std::future::Future;
 use std::pin::pin;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use tokio::task::JoinHandle;
 
 use proxmox_config_digest::ConfigDigest;

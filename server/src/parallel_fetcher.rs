@@ -373,7 +373,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
                             remote_name: remote.id,
                             remote_type: remote.ty,
                             response: MultipleNodesResponse { inner: Err(err) },
-                        }
+                        };
                     }
                 };
 

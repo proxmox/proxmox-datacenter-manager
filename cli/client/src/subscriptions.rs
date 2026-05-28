@@ -2,7 +2,7 @@ use anyhow::Error;
 
 use proxmox_config_digest::PROXMOX_CONFIG_DIGEST_SCHEMA;
 use proxmox_router::cli::{
-    format_and_print_result, CliCommand, CliCommandMap, CommandLineInterface, OutputFormat,
+    CliCommand, CliCommandMap, CommandLineInterface, OutputFormat, format_and_print_result,
 };
 use proxmox_schema::api;
 

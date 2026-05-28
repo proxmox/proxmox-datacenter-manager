@@ -1,10 +1,10 @@
-use anyhow::{bail, format_err, Context, Error};
+use anyhow::{Context, Error, bail, format_err};
 use openssl::pkey::PKey;
 use openssl::x509::X509;
 
 use proxmox_log::info;
-use proxmox_router::list_subdirs_api_method;
 use proxmox_router::SubdirMap;
+use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 

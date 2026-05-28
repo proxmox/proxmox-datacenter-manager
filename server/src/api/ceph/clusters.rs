@@ -7,12 +7,12 @@
 use anyhow::{Context, Error};
 use serde_json::Value;
 
-use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
+use proxmox_router::{Permission, Router, RpcEnvironment, SubdirMap, list_subdirs_api_method};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::ceph::{
-    CephClusterListEntry, CephClusterMember, CephClusterStatus, CephMember, CEPH_CLUSTER_ID_SCHEMA,
+    CEPH_CLUSTER_ID_SCHEMA, CephClusterListEntry, CephClusterMember, CephClusterStatus, CephMember,
 };
 use pdm_api_types::{Authid, PRIV_RESOURCE_AUDIT};
 

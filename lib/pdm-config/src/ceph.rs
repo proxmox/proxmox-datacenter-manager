@@ -23,16 +23,16 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
 use proxmox_config_digest::ConfigDigest;
-use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard};
+use proxmox_product_config::{ApiLockGuard, open_api_lockfile, replace_config};
 use proxmox_schema::ApiType;
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use pdm_api_types::ceph::{CephCluster, CephMember, CEPH_CLUSTER_ID_SCHEMA};
+use pdm_api_types::ceph::{CEPH_CLUSTER_ID_SCHEMA, CephCluster, CephMember};
 use pdm_buildcfg::configdir;
 
 pub const CEPH_CLUSTERS_CFG_FILENAME: &str = configdir!("/ceph-clusters.cfg");

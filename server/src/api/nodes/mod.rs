@@ -1,6 +1,6 @@
 //! Server/Node Configuration and Administration
 
-use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
+use proxmox_router::{Router, SubdirMap, list_subdirs_api_method};
 use proxmox_sortable_macro::sortable;
 
 pub mod apt;
@@ -21,7 +21,7 @@ pub mod time;
 pub mod vncwebsocket;
 
 use anyhow::Error;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use proxmox_schema::api;
 

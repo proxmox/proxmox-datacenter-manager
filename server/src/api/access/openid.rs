@@ -1,25 +1,25 @@
 //! OpenID redirect/login API
-use anyhow::{bail, format_err, Error};
-use hyper::http::request::Parts;
+use anyhow::{Error, bail, format_err};
 use hyper::Response;
-use serde_json::{json, Value};
+use hyper::http::request::Parts;
+use serde_json::{Value, json};
 
-use proxmox_access_control::types::{User, EMAIL_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA};
 use proxmox_access_control::CachedUserInfo;
-use proxmox_auth_api::api::{assemble_csrf_prevention_token, ApiTicket, AuthContext};
+use proxmox_access_control::types::{EMAIL_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA, User};
+use proxmox_auth_api::api::{ApiTicket, AuthContext, assemble_csrf_prevention_token};
 use proxmox_auth_api::ticket::Ticket;
 use proxmox_auth_api::types::{CreateTicketResponse, Userid};
 use proxmox_lang::try_block;
 use proxmox_openid::{OpenIdAuthenticator, OpenIdConfig};
 use proxmox_router::{
-    http_err, list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission,
-    Router, RpcEnvironment, SubdirMap,
+    ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
+    http_err, list_subdirs_api_method,
 };
-use proxmox_schema::{api, ApiType, ObjectSchema, ParameterSchema, StringSchema};
+use proxmox_schema::{ApiType, ObjectSchema, ParameterSchema, StringSchema, api};
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::{
-    OpenIdRealmConfig, HTTP_URL_SCHEMA, OPENID_DEFAULT_SCOPE_LIST, REALM_ID_SCHEMA,
+    HTTP_URL_SCHEMA, OPENID_DEFAULT_SCOPE_LIST, OpenIdRealmConfig, REALM_ID_SCHEMA,
 };
 use pdm_buildcfg::PDM_RUN_DIR_M;
 

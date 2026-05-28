@@ -3,7 +3,7 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::pin::Pin;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use pdm_buildcfg::configdir;
 use proxmox_auth_api::api::Authenticator;
 use proxmox_ldap::sync::{AdRealmSyncJob, GeneralSyncSettingsOverride, LdapRealmSyncJob};

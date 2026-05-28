@@ -2,16 +2,16 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
-use anyhow::{format_err, Context, Error};
+use anyhow::{Context, Error, format_err};
 use const_format::concatcp;
-use serde::de::{value, IntoDeserializer};
+use serde::de::{IntoDeserializer, value};
 use serde::{Deserialize, Serialize};
 
 use proxmox_access_control::types::User;
 use proxmox_auth_api::types::Authid;
 use proxmox_lang::constnamedbitmap;
 use proxmox_schema::api_types::SAFE_ID_REGEX_STR;
-use proxmox_schema::{api, const_regex, ApiStringFormat, BooleanSchema, Schema, StringSchema};
+use proxmox_schema::{ApiStringFormat, BooleanSchema, Schema, StringSchema, api, const_regex};
 use proxmox_section_config::SectionConfigData;
 
 const_regex! {

@@ -1,27 +1,27 @@
-use anyhow::{bail, format_err, Context, Error};
+use anyhow::{Context, Error, bail, format_err};
 use futures::{FutureExt, TryFutureExt};
 use http::{
+    Method, Request, StatusCode,
     header::{SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE},
     request::Parts,
-    Method, Request, StatusCode,
 };
 use hyper::upgrade::Upgraded;
 use hyper_util::rt::TokioIo;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use proxmox_auth_api::{
-    ticket::{Empty, Ticket},
     Keyring,
+    ticket::{Empty, Ticket},
 };
 use proxmox_client::ApiPathBuilder;
-use proxmox_http::{websocket::WebSocket, Body};
+use proxmox_http::{Body, websocket::WebSocket};
 use proxmox_router::{ApiHandler, ApiMethod, ApiResponseFuture, Permission, RpcEnvironment};
-use proxmox_schema::{api, IntegerSchema, ObjectSchema, StringSchema};
+use proxmox_schema::{IntegerSchema, ObjectSchema, StringSchema, api};
 use proxmox_sortable_macro::sortable;
 
 use pdm_api_types::{
-    remotes::{RemoteType, REMOTE_ID_SCHEMA},
     Authid, NODE_SCHEMA, PRIV_SYS_CONSOLE,
+    remotes::{REMOTE_ID_SCHEMA, RemoteType},
 };
 
 use crate::api::{nodes::vncwebsocket::required_string_param, remotes::get_remote};

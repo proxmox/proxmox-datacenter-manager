@@ -1,14 +1,14 @@
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde::{Deserialize, Serialize};
 
 use proxmox_apt_api_types::{APTRepositoriesResult, APTStandardRepoSummary, APTUpdateInfo};
 
+use pdm_api_types::RemoteUpid;
 use pdm_api_types::remote_updates::{
     NodeUpdateStatus, NodeUpdateSummary, NodeUpdateSummaryWrapper, PackageVersion,
     ProductRepositoryStatus, RemoteUpdateStatus, RemoteUpdateSummary, UpdateSummary,
 };
 use pdm_api_types::remotes::{Remote, RemoteType};
-use pdm_api_types::RemoteUpid;
 
 use crate::namespaced_cache::CacheError;
 use crate::parallel_fetcher::ParallelFetcher;

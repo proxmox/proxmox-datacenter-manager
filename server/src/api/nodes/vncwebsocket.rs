@@ -1,16 +1,16 @@
 //! Server/Node Configuration and Administration
 
-use anyhow::{bail, Context, Error};
+use anyhow::{Context, Error, bail};
 use futures::future::{FutureExt, TryFutureExt};
+use hyper::Request;
 use hyper::http::request::Parts;
 use hyper::upgrade::Upgraded;
-use hyper::Request;
 use hyper_util::rt::TokioIo;
 use serde_json::Value;
 
+use proxmox_auth_api::Keyring;
 use proxmox_auth_api::ticket::{Empty, Ticket};
 use proxmox_auth_api::types::Authid;
-use proxmox_auth_api::Keyring;
 
 use proxmox_http::websocket::WebSocket;
 use proxmox_router::{

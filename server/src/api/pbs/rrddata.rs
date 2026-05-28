@@ -1,8 +1,8 @@
 use anyhow::Error;
 use pdm_api_types::{
+    PRIV_RESOURCE_AUDIT,
     remotes::REMOTE_ID_SCHEMA,
     rrddata::{PbsDatastoreDataPoint, PbsNodeDataPoint},
-    PRIV_RESOURCE_AUDIT,
 };
 use proxmox_router::{Permission, Router};
 use proxmox_rrd_api_types::{RrdMode, RrdTimeframe};

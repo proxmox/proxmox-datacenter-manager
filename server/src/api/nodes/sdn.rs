@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Error};
+use anyhow::{Error, anyhow};
 use http::StatusCode;
 
-use pdm_api_types::{remotes::REMOTE_ID_SCHEMA, sdn::SDN_ID_SCHEMA, NODE_SCHEMA};
-use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
+use pdm_api_types::{NODE_SCHEMA, remotes::REMOTE_ID_SCHEMA, sdn::SDN_ID_SCHEMA};
+use proxmox_router::{Router, SubdirMap, list_subdirs_api_method};
 use proxmox_schema::api;
 use pve_api_types::{SdnVnetMacVrf, SdnZoneIpVrf};
 

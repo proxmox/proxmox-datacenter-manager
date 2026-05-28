@@ -1,4 +1,4 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use std::path::PathBuf;
 
 use proxmox_dns_api::read_etc_resolv_conf;

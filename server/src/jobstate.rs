@@ -6,12 +6,12 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use nix::sys::stat::Mode;
 use serde::{Deserialize, Serialize};
 
 use proxmox_product_config::ApiLockGuard;
-use proxmox_rest_server::{upid_read_status, worker_is_active_local, TaskState};
+use proxmox_rest_server::{TaskState, upid_read_status, worker_is_active_local};
 use proxmox_sys::fs::{create_path, file_read_optional_string, replace_file};
 use proxmox_time::CalendarEvent;
 

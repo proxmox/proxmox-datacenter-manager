@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use http::Uri;
 
 use proxmox_schema::{ApiStringFormat, Schema, StringSchema};

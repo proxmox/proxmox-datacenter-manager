@@ -3,20 +3,20 @@
 use std::io;
 use std::sync::OnceLock;
 
-use anyhow::{bail, format_err, Context as _, Error};
+use anyhow::{Context as _, Error, bail, format_err};
 use serde::{Deserialize, Serialize};
 
 use proxmox_auth_api::types::Userid;
 use proxmox_router::cli::OutputFormat;
 use proxmox_schema::api_types::DNS_NAME_OR_IP_SCHEMA;
 use proxmox_schema::{
-    api, ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema, Updater,
+    ApiStringFormat, ApiType, EnumEntry, OneOfSchema, Schema, StringSchema, Updater, api,
 };
 use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
 
-use crate::env::Fingerprint;
 use crate::XDG;
+use crate::env::Fingerprint;
 
 const CONFIG_FILE_NAME: &str = xdg_path!("config");
 

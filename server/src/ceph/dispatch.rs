@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 
 use pdm_api_types::ceph::{CephMember, CephMemberKind};
 
@@ -43,7 +43,7 @@ pub fn connect_cluster(members: &[CephMember]) -> Result<CephMemberClient, Error
                 return Ok(CephMemberClient {
                     member: member.clone(),
                     client,
-                })
+                });
             }
             Err(err) => last_err = Some(err),
         }

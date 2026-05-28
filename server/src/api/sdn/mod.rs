@@ -1,4 +1,4 @@
-use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
+use proxmox_router::{Router, SubdirMap, list_subdirs_api_method};
 use proxmox_sortable_macro::sortable;
 
 pub mod controllers;

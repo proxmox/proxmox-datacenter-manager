@@ -1,13 +1,13 @@
 use std::mem::{ManuallyDrop, MaybeUninit};
 use std::path::Path;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use nix::sys::stat::Mode;
 use once_cell::sync::OnceCell;
 
-use proxmox_sys::fs::{create_path, CreateOptions};
+use proxmox_sys::fs::{CreateOptions, create_path};
 
 // openssl::sha::sha256(b"Proxmox Backup ConfigVersionCache v1.0")[0..8];
 pub const PROXMOX_BACKUP_CONFIG_VERSION_CACHE_MAGIC_1_0: [u8; 8] =

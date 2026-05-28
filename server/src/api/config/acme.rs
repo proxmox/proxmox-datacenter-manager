@@ -1,6 +1,6 @@
 use anyhow::{Context, Error};
 
-use pdm_api_types::acme::{AcmeRegistrationParams, ACME_CONTACT_LIST_SCHEMA};
+use pdm_api_types::acme::{ACME_CONTACT_LIST_SCHEMA, AcmeRegistrationParams};
 use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{Router, RpcEnvironment, SubdirMap};
 
@@ -9,8 +9,8 @@ use proxmox_sortable_macro::sortable;
 
 use proxmox_acme_api::{
     AccountEntry, AccountInfo, AcmeAccountName, AcmeChallengeSchema, ChallengeSchemaWrapper,
-    DeletablePluginProperty, DnsPluginCore, DnsPluginCoreUpdater, KnownAcmeDirectory, PluginConfig,
-    PLUGIN_ID_SCHEMA,
+    DeletablePluginProperty, DnsPluginCore, DnsPluginCoreUpdater, KnownAcmeDirectory,
+    PLUGIN_ID_SCHEMA, PluginConfig,
 };
 
 use pdm_api_types::{ConfigDigest, PRIV_SYS_MODIFY};

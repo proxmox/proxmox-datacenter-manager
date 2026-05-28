@@ -2,17 +2,17 @@
 
 use anyhow::{Context, Error};
 
-use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::PRIV_RESOURCE_AUDIT;
+use pdm_api_types::remotes::{Remote, RemoteType};
 use pdm_api_types::{
-    remote_updates::UpdateSummary, remotes::REMOTE_ID_SCHEMA, APTRepositoriesResult, RemoteUpid,
-    NODE_SCHEMA, PRIV_RESOURCE_MODIFY, UPID,
+    APTRepositoriesResult, NODE_SCHEMA, PRIV_RESOURCE_MODIFY, RemoteUpid, UPID,
+    remote_updates::UpdateSummary, remotes::REMOTE_ID_SCHEMA,
 };
 use proxmox_access_control::CachedUserInfo;
 use proxmox_apt_api_types::{APTGetChangelogOptions, APTUpdateInfo};
 use proxmox_rest_server::WorkerTask;
 use proxmox_router::{
-    http_bail, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
+    Permission, Router, RpcEnvironment, SubdirMap, http_bail, list_subdirs_api_method,
 };
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;

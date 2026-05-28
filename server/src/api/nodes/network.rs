@@ -1,5 +1,5 @@
 use anyhow::{Context, Error};
-use serde_json::{to_value, Value};
+use serde_json::{Value, to_value};
 
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;

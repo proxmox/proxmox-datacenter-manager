@@ -1,9 +1,9 @@
 use anyhow::Error;
 
-use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard};
+use proxmox_product_config::{ApiLockGuard, open_api_lockfile, replace_config};
 use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
 
-use pdm_api_types::{views::ViewConfigEntry, ConfigDigest};
+use pdm_api_types::{ConfigDigest, views::ViewConfigEntry};
 
 use pdm_buildcfg::configdir;
 

@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, Updater};
+use proxmox_schema::{Updater, api};
 
 use crate::{
-    Translation, EMAIL_SCHEMA, HTTP_PROXY_SCHEMA, OPENSSL_CIPHERS_TLS_1_2_SCHEMA,
-    OPENSSL_CIPHERS_TLS_1_3_SCHEMA,
+    EMAIL_SCHEMA, HTTP_PROXY_SCHEMA, OPENSSL_CIPHERS_TLS_1_2_SCHEMA,
+    OPENSSL_CIPHERS_TLS_1_3_SCHEMA, Translation,
 };
 
 #[api(

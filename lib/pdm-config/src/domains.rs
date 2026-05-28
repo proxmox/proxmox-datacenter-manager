@@ -8,7 +8,7 @@ use proxmox_schema::{ApiType, Schema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pdm_api_types::{ConfigDigest, OpenIdRealmConfig, REALM_ID_SCHEMA};
-use proxmox_product_config::{open_api_lockfile, replace_privileged_config, ApiLockGuard};
+use proxmox_product_config::{ApiLockGuard, open_api_lockfile, replace_privileged_config};
 
 use pdm_buildcfg::configdir;
 

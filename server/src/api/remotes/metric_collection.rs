@@ -4,7 +4,7 @@ use proxmox_router::{Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
-use pdm_api_types::{remotes::REMOTE_ID_SCHEMA, RemoteMetricCollectionStatus};
+use pdm_api_types::{RemoteMetricCollectionStatus, remotes::REMOTE_ID_SCHEMA};
 
 use crate::metric_collection;
 

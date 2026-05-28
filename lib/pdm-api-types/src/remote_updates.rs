@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, ApiType, ObjectSchema};
+use proxmox_schema::{ApiType, ObjectSchema, api};
 
 use crate::remotes::RemoteType;
 

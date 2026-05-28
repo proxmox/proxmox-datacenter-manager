@@ -1,13 +1,13 @@
 //! Implements configuration for the auto-installer integration.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use std::collections::HashMap;
 
 use pdm_api_types::{
-    auto_installer::{AnswerToken, Installation},
     ConfigDigest,
+    auto_installer::{AnswerToken, Installation},
 };
-use proxmox_product_config::{open_api_lockfile, replace_config, ApiLockGuard};
+use proxmox_product_config::{ApiLockGuard, open_api_lockfile, replace_config};
 use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
 
 use crate::auto_install::types::AnswerTokenWrapper;
@@ -30,15 +30,15 @@ pub mod types {
     use std::{collections::BTreeMap, fmt::Debug};
 
     use pdm_api_types::{
-        auto_installer::{
-            answer, AnswerToken, DiskSelectionMode, PreparedInstallationConfig,
-            PREPARED_INSTALL_CONFIG_ID_SCHEMA,
-        },
         BLOCKDEVICE_NAME_SCHEMA, CERT_FINGERPRINT_SHA256_SCHEMA, HTTP_URL_SCHEMA,
         PROXMOX_TOKEN_NAME_SCHEMA, SINGLE_LINE_COMMENT_FORMAT,
+        auto_installer::{
+            AnswerToken, DiskSelectionMode, PREPARED_INSTALL_CONFIG_ID_SCHEMA,
+            PreparedInstallationConfig, answer,
+        },
     };
     use proxmox_installer_types::answer::SUBSCRIPTION_KEY_SCHEMA;
-    use proxmox_schema::{api, ApiStringFormat, ApiType, PropertyString};
+    use proxmox_schema::{ApiStringFormat, ApiType, PropertyString, api};
 
     #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
     /// API wrapper for a [`BTreeMap`].

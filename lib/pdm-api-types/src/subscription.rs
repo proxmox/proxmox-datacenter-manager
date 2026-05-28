@@ -5,7 +5,7 @@ use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
 use proxmox_config_digest::ConfigDigest;
-use proxmox_schema::{api, const_regex, ApiStringFormat, ApiType, Schema, StringSchema};
+use proxmox_schema::{ApiStringFormat, ApiType, Schema, StringSchema, api, const_regex};
 use proxmox_section_config::typed::ApiSectionDataEntry;
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
 use proxmox_subscription::{SubscriptionInfo, SubscriptionStatus};

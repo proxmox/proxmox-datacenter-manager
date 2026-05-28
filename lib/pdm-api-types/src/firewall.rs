@@ -1,4 +1,4 @@
-use proxmox_schema::{api, Schema};
+use proxmox_schema::{Schema, api};
 use serde::{Deserialize, Serialize};
 
 use crate::remotes::REMOTE_ID_SCHEMA;

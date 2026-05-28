@@ -1,6 +1,6 @@
 use std::fmt;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 
 use proxmox_schema::api_types::SAFE_ID_REGEX;
 use proxmox_schema::{ApiType, Schema, StringSchema};

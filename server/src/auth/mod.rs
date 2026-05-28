@@ -5,7 +5,7 @@ use std::net::IpAddr;
 use std::pin::Pin;
 use std::sync::OnceLock;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 
 use const_format::concatcp;
 use ldap::{AdAuthenticator, LdapAuthenticator};
@@ -16,7 +16,7 @@ use proxmox_auth_api::types::Authid;
 use proxmox_auth_api::{HMACKey, Keyring};
 use proxmox_ldap::types::{AdRealmConfig, LdapRealmConfig};
 use proxmox_rest_server::AuthError;
-use proxmox_router::{http_bail, UserInformation};
+use proxmox_router::{UserInformation, http_bail};
 use proxmox_tfa::api::{OpenUserChallengeData, TfaConfig};
 
 use pdm_api_types::{OpenIdRealmConfig, RealmRef, Userid, UsernameRef};

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use proxmox_acme_api::AcmeAccountName;
-use proxmox_schema::{api, ApiStringFormat, ArraySchema, Schema, StringSchema};
+use proxmox_schema::{ApiStringFormat, ArraySchema, Schema, StringSchema, api};
 
 use crate::EMAIL_SCHEMA;
 

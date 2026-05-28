@@ -13,7 +13,7 @@ use anyhow::Error;
 
 use proxmox_config_digest::ConfigDigest;
 use proxmox_product_config::{
-    open_api_lockfile, replace_config, replace_secret_config, ApiLockGuard,
+    ApiLockGuard, open_api_lockfile, replace_config, replace_secret_config,
 };
 use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
 

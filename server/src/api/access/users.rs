@@ -1,16 +1,16 @@
 //! User Management
 
-use anyhow::{bail, Context, Error};
+use anyhow::{Context, Error, bail};
 use std::collections::HashMap;
 
-use proxmox_access_control::types::{ApiToken, User, UserUpdater, UserWithTokens};
 use proxmox_access_control::CachedUserInfo;
+use proxmox_access_control::types::{ApiToken, User, UserUpdater, UserWithTokens};
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
 
 use pdm_api_types::{
-    Authid, ConfigDigest, DeletableUserProperty, Userid, PDM_PASSWORD_SCHEMA, PRIV_ACCESS_MODIFY,
-    PRIV_SYS_AUDIT,
+    Authid, ConfigDigest, DeletableUserProperty, PDM_PASSWORD_SCHEMA, PRIV_ACCESS_MODIFY,
+    PRIV_SYS_AUDIT, Userid,
 };
 
 fn new_user_with_tokens(user: User) -> UserWithTokens {

@@ -1,13 +1,14 @@
 use core::matches;
 
 use anyhow::{Context, Error};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use proxmox_router::cli::{
-    default_table_format_options, format_and_print_result_full, get_output_format,
-    run_async_cli_command, CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
-};
 use proxmox_router::RpcEnvironment;
+use proxmox_router::cli::{
+    CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
+    default_table_format_options, format_and_print_result_full, get_output_format,
+    run_async_cli_command,
+};
 use proxmox_schema::api;
 use proxmox_sys::fs::CreateOptions;
 

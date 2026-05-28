@@ -1,14 +1,14 @@
-use anyhow::{format_err, Error};
-use serde_json::{json, Value};
+use anyhow::{Error, format_err};
+use serde_json::{Value, json};
 
 use proxmox_router::cli::{
-    format_and_print_result_full, get_output_format, CliCommand, CliCommandMap,
-    CommandLineInterface, OUTPUT_FORMAT,
+    CliCommand, CliCommandMap, CommandLineInterface, OUTPUT_FORMAT, format_and_print_result_full,
+    get_output_format,
 };
 use proxmox_router::{ApiHandler, RpcEnvironment};
 use proxmox_schema::{api, property_string};
 
-use pdm_api_types::remotes::{Remote, RemoteType, RemoteUpdater, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{REMOTE_ID_SCHEMA, Remote, RemoteType, RemoteUpdater};
 use pdm_api_types::subscription::{RemoteSubscriptionState, RemoteSubscriptions};
 use server::api as dc_api;
 

@@ -513,9 +513,11 @@ impl WritableTaskCache {
     /// The list of task in `tasks` *must* be sorted by their timestamp and UPID (descending by
     /// timestamp, ascending by UPID).
     fn merge_tasks_into_archive(&self, tasks: Vec<TaskCacheItem>) -> Result<(), Error> {
-        debug_assert!(tasks
-            .iter()
-            .is_sorted_by(|a, b| compare_tasks(a, b).is_ge()));
+        debug_assert!(
+            tasks
+                .iter()
+                .is_sorted_by(|a, b| compare_tasks(a, b).is_ge())
+        );
 
         let files = self
             .cache
@@ -1023,7 +1025,9 @@ impl Iterator for InnerTaskArchiveIterator {
                             // File does not exist, nothing to log in this case.
                         }
                         Err(err) => {
-                            log::error!("could not create archive iterator while iteration over task archive files, skipping: {err:#}")
+                            log::error!(
+                                "could not create archive iterator while iteration over task archive files, skipping: {err:#}"
+                            )
                         }
                     }
                 },

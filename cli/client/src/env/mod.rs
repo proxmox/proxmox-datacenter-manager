@@ -6,7 +6,7 @@ use std::os::fd::AsRawFd;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use anyhow::{bail, format_err, Context as _, Error};
+use anyhow::{Context as _, Error, bail, format_err};
 use http::Uri;
 use openssl::x509;
 use serde::{Deserialize, Serialize};
@@ -15,8 +15,8 @@ use proxmox_auth_api::types::Userid;
 use proxmox_client::TfaChallenge;
 use proxmox_schema::api;
 
-use crate::config::{FormatArgs, PdmConnectArgs};
 use crate::XDG;
+use crate::config::{FormatArgs, PdmConnectArgs};
 
 mod fingerprint_cache;
 pub use fingerprint_cache::Fingerprint;
@@ -51,11 +51,7 @@ pub fn use_emoji() -> bool {
 
 /// Decide whether to print out an emoji into the terminal.
 pub fn emoji(which: &str) -> &str {
-    if use_emoji() {
-        which
-    } else {
-        ""
-    }
+    if use_emoji() { which } else { "" }
 }
 
 #[derive(Deserialize, Serialize)]

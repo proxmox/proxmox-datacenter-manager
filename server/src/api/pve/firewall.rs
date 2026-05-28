@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Error;
 
-use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
+use proxmox_router::{Permission, Router, RpcEnvironment, SubdirMap, list_subdirs_api_method};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 use pve_api_types::{ClusterResource, ClusterResourceKind, ClusterResourceType};
@@ -12,7 +12,7 @@ use pdm_api_types::firewall::{
     FirewallStatus, GuestFirewallStatus, GuestKind, NodeFirewallStatus, RemoteFirewallStatus,
     RuleStat,
 };
-use pdm_api_types::remotes::{Remote, REMOTE_ID_SCHEMA};
+use pdm_api_types::remotes::{REMOTE_ID_SCHEMA, Remote};
 use pdm_api_types::{NODE_SCHEMA, VMID_SCHEMA};
 use pdm_api_types::{PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY, PRIV_SYS_MODIFY};
 

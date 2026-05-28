@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tokio::task::JoinError;
 
 use proxmox_schema::api_types::SAFE_ID_REGEX;
@@ -598,7 +598,9 @@ fn set_if_newer_impl<T: Serialize + DeserializeOwned>(
         Err(CacheError::Serde(err)) => {
             // Special case, only log deserialization errors, in that case we want to override
             // the cache file anyways.
-            log::error!("could not deserialize existing cache file in set_if_newer, overwriting anyways: {err}");
+            log::error!(
+                "could not deserialize existing cache file in set_if_newer, overwriting anyways: {err}"
+            );
         }
         Err(err) => return Err(err),
     }
@@ -753,17 +755,21 @@ mod tests {
             .set_with_timestamp("somekey", 1, now - 1000)
             .unwrap();
 
-        assert!(write_guard
-            .get_with_max_age::<i32>("somekey", 999)
-            .unwrap()
-            .is_none());
+        assert!(
+            write_guard
+                .get_with_max_age::<i32>("somekey", 999)
+                .unwrap()
+                .is_none()
+        );
 
         drop(write_guard);
         let read_guard = cache.read_blocking("remote-a", TIMEOUT).unwrap();
-        assert!(read_guard
-            .get_with_max_age::<i32>("somekey", 999)
-            .unwrap()
-            .is_none());
+        assert!(
+            read_guard
+                .get_with_max_age::<i32>("somekey", 999)
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -774,16 +780,20 @@ mod tests {
 
         let now = proxmox_time::epoch_i64() + 200;
 
-        assert!(guard
-            .set_if_newer_with_timestamp("somekey", 1, now)
-            .unwrap()
-            .is_none());
+        assert!(
+            guard
+                .set_if_newer_with_timestamp("somekey", 1, now)
+                .unwrap()
+                .is_none()
+        );
 
         assert_eq!(guard.get::<i32>("somekey").unwrap().unwrap(), 1);
-        assert!(guard
-            .set_if_newer_with_timestamp("somekey", 2, now + 1)
-            .unwrap()
-            .is_none());
+        assert!(
+            guard
+                .set_if_newer_with_timestamp("somekey", 2, now + 1)
+                .unwrap()
+                .is_none()
+        );
         assert_eq!(guard.get::<i32>("somekey").unwrap().unwrap(), 2);
         assert!(matches!(
             guard
@@ -886,21 +896,23 @@ mod tests {
 
         lock.set_with_timestamp("somekey", 1234, now).await.unwrap();
 
-        assert!(lock
-            .get_with_max_age::<i32>("somekey", 900)
-            .await
-            .unwrap()
-            .is_none());
+        assert!(
+            lock.get_with_max_age::<i32>("somekey", 900)
+                .await
+                .unwrap()
+                .is_none()
+        );
 
         drop(lock);
 
         let lock = cache.read("some-remote", TIMEOUT).await.unwrap();
         assert_eq!(lock.get::<i32>("somekey").await.unwrap(), Some(1234));
-        assert!(lock
-            .get_with_max_age::<i32>("somekey", 900)
-            .await
-            .unwrap()
-            .is_none());
+        assert!(
+            lock.get_with_max_age::<i32>("somekey", 900)
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[tokio::test]

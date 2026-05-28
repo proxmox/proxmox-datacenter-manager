@@ -1,12 +1,12 @@
 use std::fmt;
 use std::io::Write;
 
-use anyhow::{bail, format_err, Context as _, Error};
+use anyhow::{Context as _, Error, bail, format_err};
 
 use proxmox_access_control::types::User;
 use proxmox_fido2::FidoOpt;
 use proxmox_router::cli::{
-    format_and_print_result, CliCommand, CliCommandMap, CommandLineInterface, OutputFormat,
+    CliCommand, CliCommandMap, CommandLineInterface, OutputFormat, format_and_print_result,
 };
 use proxmox_schema::api;
 use proxmox_tfa::TfaType;

@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 use anyhow::Error;
 
 use proxmox_sys::fs::file_get_contents;
-use proxmox_sys::fs::{replace_file, CreateOptions};
+use proxmox_sys::fs::{CreateOptions, replace_file};
 
 use proxmox_auth_api::HMACKey;
 

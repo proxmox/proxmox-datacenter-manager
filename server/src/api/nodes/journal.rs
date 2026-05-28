@@ -4,7 +4,7 @@ use serde_json::Value;
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use proxmox_syslog_api::{dump_journal, JournalFilter};
+use proxmox_syslog_api::{JournalFilter, dump_journal};
 
 use pdm_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT};
 

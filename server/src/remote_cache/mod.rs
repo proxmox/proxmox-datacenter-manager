@@ -23,7 +23,7 @@ use anyhow::{Context as _, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_product_config::replace_config;
-use proxmox_product_config::{open_api_lockfile, ApiLockGuard};
+use proxmox_product_config::{ApiLockGuard, open_api_lockfile};
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_config::ConfigVersionCache;

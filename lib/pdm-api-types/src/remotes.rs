@@ -4,7 +4,7 @@ use http::Uri;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::property_string::PropertyString;
-use proxmox_schema::{api, ApiType, Schema, StringSchema, Updater};
+use proxmox_schema::{ApiType, Schema, StringSchema, Updater, api};
 use proxmox_section_config::typed::ApiSectionDataEntry;
 use proxmox_section_config::{SectionConfig, SectionConfigPlugin};
 
