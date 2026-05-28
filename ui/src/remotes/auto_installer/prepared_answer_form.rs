@@ -16,12 +16,14 @@ use pdm_api_types::{
 use proxmox_installer_types::{
     EMAIL_DEFAULT_PLACEHOLDER,
     answer::{
-        BTRFS_COMPRESS_OPTIONS, BtrfsCompressOption, BtrfsOptions, FILESYSTEM_TYPE_OPTIONS,
-        FilesystemOptions, FilesystemType, FilterMatch, KeyboardLayout, LvmOptions,
-        ROOT_PASSWORD_SCHEMA, RebootMode, SUBSCRIPTION_KEY_SCHEMA, ZFS_CHECKSUM_OPTIONS,
-        ZFS_COMPRESS_OPTIONS, ZfsChecksumOption, ZfsCompressOption, ZfsOptions,
+        BTRFS_COMPRESS_OPTIONS, BtrfsCompressOption, BtrfsOptions, DiskSetup,
+        FILESYSTEM_TYPE_OPTIONS, Filesystem, FilesystemOptions, FilesystemType, FilterMatch,
+        KeyboardLayout, LvmOptions, ROOT_PASSWORD_SCHEMA, RebootMode, SUBSCRIPTION_KEY_SCHEMA,
+        ZFS_CHECKSUM_OPTIONS, ZFS_COMPRESS_OPTIONS, ZfsChecksumOption, ZfsCompressOption,
+        ZfsOptions, email_validate,
     },
 };
+use proxmox_network_types::fqdn::Fqdn;
 use proxmox_schema::api_types::{CIDR_SCHEMA, IP_SCHEMA};
 use proxmox_yew_comp::{KeyValueList, SchemaValidation, utils::copy_text_to_clipboard};
 use pwt::{
@@ -54,6 +56,23 @@ pub fn prepare_form_data(mut value: serde_json::Value) -> Result<serde_json::Val
                 .map(|s| s.split(',').map(|s| s.trim().to_owned()).collect())
         })
         .unwrap_or_default();
+
+    let (filesystem, lvm, zfs, btrfs) = match &fs_opts {
+        FilesystemOptions::Ext4(opts) => (Filesystem::Ext4, Some(*opts), None, None),
+        FilesystemOptions::Xfs(opts) => (Filesystem::Xfs, Some(*opts), None, None),
+        FilesystemOptions::Zfs(opts) => (Filesystem::Zfs, None, Some(*opts), None),
+        FilesystemOptions::Btrfs(opts) => (Filesystem::Btrfs, None, None, Some(*opts)),
+    };
+    DiskSetup {
+        filesystem,
+        disk_list: disk_list.clone(),
+        filter: BTreeMap::new(),
+        filter_match: None,
+        zfs,
+        lvm,
+        btrfs,
+    }
+    .filesystem_details()?;
 
     let root_ssh_keys = collect_lines_into_array(obj.remove("root-ssh-keys"));
 
@@ -263,11 +282,10 @@ pub fn render_global_options_form(
                 .value(config.mailto.clone())
                 .schema(&EMAIL_SCHEMA)
                 .validate(|s: &String| {
-                    if s.ends_with(".invalid") {
-                        bail!(tr!("Invalid (default) email address"))
-                    } else {
-                        Ok(())
+                    if contains_minijinja_variable(s) {
+                        return Ok(());
                     }
+                    email_validate(s)
                 })
                 .required(true),
         )
@@ -390,11 +408,13 @@ pub fn render_network_options_form(
                     "Hostname and domain to set for the target installation. Allows templating."
                 ))
                 .validate(|s: &String| {
-                    if s != "{{product.product}}{{installation_nr}}.example.com" {
-                        Ok(())
-                    } else {
-                        Err(anyhow!("Please adapt the default FQDN template!"))
+                    if s == "{{product.product}}{{installation_nr}}.example.com" {
+                        bail!(tr!("Please adapt the default FQDN template!"));
                     }
+                    if !contains_minijinja_variable(s) {
+                        Fqdn::from(s).map_err(|e| anyhow!("{e}"))?;
+                    }
+                    Ok(())
                 })
                 .required(!use_dhcp_fqdn),
         )
