@@ -194,7 +194,7 @@ impl Component for PdmTopNavBar {
                                 .expect_throw("could not open documentation in a new window");
                         }),
                 )
-                .tip(tr!("Open the Beta documentation in a new tab.")),
+                .tip(tr!("Open the documentation in a new tab.")),
             );
 
         if let Some(username) = &props.username {
