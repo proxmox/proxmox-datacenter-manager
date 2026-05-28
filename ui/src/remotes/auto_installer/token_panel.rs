@@ -218,6 +218,7 @@ impl LoadableComponent for AuthTokenPanelComponent {
                         All existing ISOs with this token will lose access!"
                     ))
                     .disabled(self.selection.is_empty())
+                    .dangerous(true)
                     .on_activate(link.callback(|_| Message::RegenerateSecret)),
             )
             .with_flex_spacer()
