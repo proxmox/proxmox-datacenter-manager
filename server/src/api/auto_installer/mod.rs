@@ -1248,6 +1248,11 @@ fn render_prepared_config(
                 .ok_or_else(|| anyhow!("no host address"))
                 .and_then(|cidr| render("cidr", cidr))
                 .and_then(|s| {
+                    // require an explicit netmask; parsing would otherwise default to a /32
+                    // (or /128), which is rarely what a templated host address intends
+                    if !s.contains('/') {
+                        anyhow::bail!("rendered 'cidr' {s:?} has no netmask, append e.g. /24");
+                    }
                     s.parse()
                         .with_context(|| format!("rendered 'cidr' is not a valid CIDR: {s:?}"))
                 })?;
