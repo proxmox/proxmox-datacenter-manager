@@ -60,20 +60,18 @@ standard Debian installation. After configuring the
 .. code-block:: console
 
   # apt update
-  # apt install proxmox-datacenter-manager proxmox-datacenter-manager-ui
+  # apt install proxmox-datacenter-manager-container-meta
 
 The above commands keep the current (Debian) kernel and install a minimal set
 of required packages.
 
-You can install the Proxmox default kernel with ZFS support by using:
+You can install the Proxmox default kernel with ZFS support by using the regular
+meta-package:
 
 .. code-block:: console
 
   # apt update
-  # apt install proxmox-default-kernel
-
-..
-  add meta package
+  # apt install proxmox-datacenter-manager-meta
 
 .. caution:: Installing Proxmox Datacenter Manager on top of an existing Debian_
   installation looks easy, but it assumes that the base system and local
