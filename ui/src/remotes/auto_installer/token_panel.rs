@@ -1,6 +1,6 @@
 //! Implements the UI for the auto-installer authentication authentication token panel.
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use core::clone::Clone;
 use std::{future::Future, pin::Pin, rc::Rc};
 use yew::{
@@ -437,7 +437,15 @@ fn add_expiry_fields(panel: &mut InputPanel, form_ctx: &FormContext, expire_at: 
             .required(active)
             .default(value.clone())
             .value(value)
-            .input_type(InputType::DatetimeLocal),
+            .input_type(InputType::DatetimeLocal)
+            .validate(|s: &String| {
+                match proxmox_time::parse_rfc3339(s) {
+                    Ok(t) if t <= proxmox_time::epoch_i64() => {
+                        bail!(tr!("expiry must be in the future"))
+                    }
+                    _ => Ok(()),
+                }
+            }),
     );
 }
 
