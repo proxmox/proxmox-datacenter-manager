@@ -1,3 +1,39 @@
+proxmox-datacenter-manager-ui (1.1.2) trixie; urgency=medium
+
+  * auto-installer:
+    - run the installer's own validators (email, FQDN, and disk setup) on a
+      prepared answer in the form, so a malformed email or FQDN, or a disk
+      count that cannot satisfy the chosen ZFS or Btrfs RAID level, now fails
+      immediately instead of only at save or install time; templated values
+      still pass, as they resolve to concrete values only at install time
+    - reject a token expiry that is malformed or already in the past, rather
+      than silently storing it as "never" or as an immediately-dead token
+    - restore the "Reboot on Error" checkbox state from the saved answer, which
+      previously always showed up unchecked
+    - require confirming a token-secret regeneration as a dangerous action, as
+      it invalidates the current secret
+    - disable the Copy button while no prepared answer is selected, matching the
+      existing Edit and Remove buttons
+    - validate create-wizard steps that contain advanced fields correctly, so
+      such steps no longer wrongly block moving on
+    - drop a stray fixed height on the preparation-command field that added a
+      scrollbar in Chrome
+
+  * migrate: hide the guest's current node from the target-node list rather than
+    offering it greyed-out and rejected, and clear the target endpoint when the
+    target remote changes, so remote and endpoint stay in sync.
+
+  * dashboard: show a dedicated "no remotes configured" placeholder with an
+    add-remote button on the default dashboard, where the status widget cannot
+    show anything useful without a remote.
+
+  * views: vertically center gauge charts so they line up with taller
+    neighboring panels.
+
+  * navbar: drop the stale "Beta" mention from the documentation button tooltip.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 29 May 2026 22:22:09 +0200
+
 proxmox-datacenter-manager-ui (1.1.1) trixie; urgency=medium
 
   * views: map widget: keep an open info card aligned with its marker while
