@@ -1,19 +1,23 @@
 use anyhow::{Context, Error, bail};
+use serde_json::Value;
 
 use proxmox_access_control::CachedUserInfo;
+use proxmox_router::{ApiHandler, ApiMethod, ApiResponseFuture};
 use proxmox_router::{
     Permission, Router, RpcEnvironment, SubdirMap, http_bail, list_subdirs_api_method,
 };
-use proxmox_schema::api;
+use proxmox_schema::{IntegerSchema, ObjectSchema, StringSchema, api};
 use proxmox_sortable_macro::sortable;
 use pve_api_types::PendingConfigValue;
 
 use pdm_api_types::remotes::REMOTE_ID_SCHEMA;
+use pdm_api_types::remotes::Remote;
 use pdm_api_types::{
     Authid, ConfigurationState, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MANAGE,
-    PRIV_RESOURCE_MIGRATE, RemoteUpid, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
+    PRIV_RESOURCE_MIGRATE, PRIV_SYS_CONSOLE, RemoteUpid, SNAPSHOT_NAME_SCHEMA, VMID_SCHEMA,
 };
 
+use crate::api::nodes::vncwebsocket::required_integer_param;
 use crate::api::pve::get_remote;
 
 use super::{
@@ -51,6 +55,14 @@ const LXC_VM_SUBDIRS: SubdirMap = &sorted!([
     (
         "remote-migrate",
         &Router::new().post(&API_METHOD_LXC_REMOTE_MIGRATE)
+    ),
+    (
+        "termproxy",
+        &Router::new().post(&API_METHOD_LXC_SHELL_TICKET)
+    ),
+    (
+        "vncwebsocket",
+        &Router::new().upgrade(&API_METHOD_LXC_WEBSOCKET)
     ),
 ]);
 
@@ -730,4 +742,108 @@ pub async fn lxc_remote_migrate(
     let upid = source_conn.remote_migrate_lxc(&node, vmid, params).await?;
 
     new_remote_upid(source, upid).await
+}
+
+fn encode_term_ticket_path(remote: &str, vmid: u32) -> String {
+    format!("/lxc-shell/{remote}/{vmid}")
+}
+
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            vmid: { schema: VMID_SCHEMA },
+        },
+    },
+    returns: {
+        type: Object,
+        description: "Object with the user and ticket",
+        properties: {
+            user: {
+                description: "User that obtained the VNC ticket.",
+                type: String,
+            },
+            port: {
+                description: "Always '0'.",
+                type: Integer,
+            }
+        }
+    },
+    access: {
+        description: "Restricted to users",
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_SYS_CONSOLE, false),
+    }
+)]
+/// Call termproxy and return shell ticket
+fn lxc_shell_ticket(
+    remote: String,
+    vmid: u32,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+    crate::api::remotes::shell::create_term_ticket(rpcenv, move || {
+        encode_term_ticket_path(&remote, vmid)
+    })
+}
+
+#[sortable]
+pub const API_METHOD_LXC_WEBSOCKET: ApiMethod = ApiMethod::new(
+    &ApiHandler::AsyncHttp(&upgrade_to_websocket),
+    &ObjectSchema::new(
+        "Upgraded to websocket",
+        &sorted!([
+            ("remote", false, &REMOTE_ID_SCHEMA),
+            ("vmid", false, &VMID_SCHEMA),
+            (
+                "vncticket",
+                false,
+                &StringSchema::new("Terminal ticket").schema()
+            ),
+            ("port", false, &IntegerSchema::new("Terminal port").schema()),
+        ]),
+    ),
+)
+.access(
+    Some("The user needs Sys.Console on /resource/{remote}/node/{node}."),
+    &Permission::Privilege(
+        &["resource", "{remote}", "node", "{node}"],
+        PRIV_SYS_CONSOLE,
+        false,
+    ),
+);
+
+fn upgrade_to_websocket(
+    parts: http::request::Parts,
+    req_body: hyper::body::Incoming,
+    param: Value,
+    _info: &ApiMethod,
+    rpcenv: Box<dyn RpcEnvironment>,
+) -> ApiResponseFuture {
+    Box::pin(upgrade_to_websocket_do(parts, req_body, param, rpcenv))
+}
+
+crate::api::remotes::shell::upgrade_to_websocket_impl! {
+    upgrade_to_websocket_do,
+    |param: &Value| -> Result<u32, Error> {
+        Ok(u32::try_from(required_integer_param(param, "vmid")?)?)
+    },
+    |remote, &vmid| encode_term_ticket_path(remote, vmid),
+    async |remote: &Remote, vmid: &u32| -> Result<(String, i64, String), Error> {
+        if remote.ty != pdm_api_types::remotes::RemoteType::Pve {
+            bail!("expected a PVE remote type for console ticket");
+        }
+        let vmid = *vmid;
+        let pve = crate::connection::make_pve_client(remote)?;
+        let node = find_node_for_vm(None, vmid, pve.as_ref()).await?;
+        let ticket = pve.lxc_termproxy(&node, vmid).await?;
+        Ok((ticket.ticket, ticket.port, node))
+    },
+    |vmid: u32, node: String, ticket: &str, port: i64| {
+         proxmox_client::ApiPathBuilder::new(format!(
+            "/api2/json/nodes/{node}/lxc/{vmid}/vncwebsocket"
+        ))
+        .arg("vncticket", ticket)
+        .arg("port", port)
+        .build()
+    }
 }
