@@ -724,6 +724,9 @@ macro_rules! try_request {
 
             let mut last_err: Option<proxmox_client::Error> = None;
             let mut timed_out = false;
+            // remember the first endpoint to retry once at the end if it only failed to connect
+            let mut connect_retry = None;
+            let mut first = true;
             // The iterator in use here will automatically mark a client as faulty if we move on to
             // the `next()` one.
             for TryClient {
@@ -746,6 +749,9 @@ macro_rules! try_request {
                 match tokio::time::timeout($self.timeout, request).await {
                     Ok(Err(err @ proxmox_client::Error::Client(_)))
                     | Ok(Err(err @ proxmox_client::Error::Connect(_))) => {
+                        if first && matches!(err, proxmox_client::Error::Connect(_)) {
+                            connect_retry = Some((Arc::clone(&client), hostname.clone()));
+                        }
                         last_err = Some(err);
                     }
                     Ok(result) => {
@@ -762,6 +768,24 @@ macro_rules! try_request {
                     Err(_) => {
                         timed_out = true;
                     }
+                }
+                first = false;
+            }
+
+            // best-effort: give the first endpoint one more try after all others, but only on a
+            // connect failure (the request never reached the server, so repeating is safe)
+            if let Some((client, hostname)) = connect_retry {
+                let path = $path_and_query;
+                log::warn!("all endpoints failed, retrying {hostname:?} once - {path}");
+                let request = client.$how($method.clone(), $path_and_query, params.as_ref());
+                if let Ok(result) = tokio::time::timeout($self.timeout, request).await {
+                    if result.is_ok() {
+                        if let Ok(mut cache) = crate::remote_cache::RemoteMappingCache::write() {
+                            cache.mark_host_reachable(&$self.remote, &hostname, true);
+                            let _ = cache.save();
+                        }
+                    }
+                    return result;
                 }
             }
 
