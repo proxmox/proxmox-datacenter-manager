@@ -52,8 +52,13 @@ pub fn prepare_form_data(mut value: serde_json::Value) -> Result<serde_json::Val
     let disk_list: Vec<String> = obj
         .remove("disk-list")
         .and_then(|s| {
-            s.as_str()
-                .map(|s| s.split(',').map(|s| s.trim().to_owned()).collect())
+            s.as_str().map(|s| {
+                s.split(',')
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(ToOwned::to_owned)
+                    .collect()
+            })
         })
         .unwrap_or_default();
 
