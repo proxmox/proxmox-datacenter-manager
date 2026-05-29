@@ -1,3 +1,17 @@
+proxmox-datacenter-manager (1.1.3) trixie; urgency=medium
+
+  * remote connections: fail over to another cluster node again when a node
+    fails to connect (DNS, TCP, or TLS handshake); such failures had stopped
+    triggering failover, so a transient issue on one node could fail a request
+    that another node could have served.
+
+  * remote connections: retry a transient connect failure on a node once per
+    request - for a single-node remote its only recovery, and for a cluster a
+    best-effort retry of the first node that runs only after every other node
+    was tried, so it never delays failover.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 30 May 2026 00:29:22 +0200
+
 proxmox-datacenter-manager (1.1.2) trixie; urgency=medium
 
   * auto-installer: reject a rendered host address (CIDR) that carries no
