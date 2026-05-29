@@ -153,6 +153,8 @@ pub fn create_gauge_panel(
             };
 
             Row::new()
+                .flex(1.0)
+                .class(css::AlignItems::Center)
                 .padding(4)
                 .with_optional_child(cpu.map(|(used, total)| {
                     let pct = if total == 0.0 { 0.0 } else { used / total };
