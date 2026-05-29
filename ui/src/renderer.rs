@@ -1,10 +1,8 @@
 use proxmox_yew_comp::MeterLabel;
-use pwt::{
-    css::AlignItems,
-    prelude::*,
-    props::ContainerBuilder,
-    widget::{Container, Fa, Row},
-};
+use pwt::css::AlignItems;
+use pwt::prelude::*;
+use pwt::props::ContainerBuilder;
+use pwt::widget::{Container, Fa, Row};
 
 use proxmox_human_byte::HumanByte;
 
