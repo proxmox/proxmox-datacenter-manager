@@ -178,6 +178,7 @@ async fn run(debug: bool) -> Result<(), Error> {
             ("locale", "/usr/share/pdm-i18n"),
             ("docs", "/usr/share/doc/proxmox-datacenter-manager/html"),
             ("geojson", "/usr/share/proxmox-geojson-data"),
+            ("novnc", "/usr/share/novnc-pve"),
         ])
         .formatted_router(&["api2"], &server::api::ROUTER)
         // FIXME: disabled for testing on pure debian

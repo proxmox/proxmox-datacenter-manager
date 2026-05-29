@@ -60,6 +60,7 @@ Multi-Arch: allowed
 Depends: fonts-font-awesome,
          pdm-i18n,
          pve-xtermjs,
+         novnc-pve,
          ${misc:Depends},
          ${shlibs:Depends},
 Recommends: proxmox-datacenter-manager,

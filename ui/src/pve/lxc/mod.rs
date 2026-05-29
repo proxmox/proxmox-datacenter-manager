@@ -186,6 +186,40 @@ impl yew::Component for LxcPanelComp {
                     }
                 },
             )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("shell_view")
+                    .label(tr!("Shell"))
+                    .icon_class("fa fa-terminal"),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    let supported = props
+                        .pve_manager_version
+                        .as_ref()
+                        .map(|ver| ver >= &Version::new("9.1.0", None))
+                        .unwrap_or(true);
+                    let vmid = props.info.vmid;
+                    move |_| {
+                        if supported {
+                            let mut xtermjs = proxmox_yew_comp::XTermJs::new();
+                            xtermjs.set_node_name(node.clone());
+                            xtermjs.set_console_type(proxmox_yew_comp::ConsoleType::RemotePveLXC(
+                                remote.clone(),
+                                vmid as u64,
+                            ));
+                            xtermjs.into()
+                        } else {
+                            Row::new()
+                                .class(pwt::css::FlexFit)
+                                .class(pwt::css::JustifyContent::Center)
+                                .class(pwt::css::AlignItems::Center)
+                                .with_child(html! { tr!("pve-manager version too old") })
+                                .into()
+                        }
+                    }
+                },
+            )
             .into()
     }
 }
