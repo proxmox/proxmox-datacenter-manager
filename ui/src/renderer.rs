@@ -1,8 +1,8 @@
 use proxmox_yew_comp::MeterLabel;
-use pwt::css::AlignItems;
+use pwt::css::{AlignItems, FlexFit, FontStyle, JustifyContent};
 use pwt::prelude::*;
 use pwt::props::ContainerBuilder;
-use pwt::widget::{Container, Fa, Row};
+use pwt::widget::{Column, Container, Fa, Row};
 
 use proxmox_human_byte::HumanByte;
 
@@ -108,4 +108,22 @@ pub(crate) fn render_title_row(title: String, icon: &str) -> Row {
         .gap(2)
         .with_child(Fa::new(icon))
         .with_child(title)
+}
+
+/// A centered, large-icon empty state with a title and an explanatory hint.
+pub(crate) fn empty_state(icon: &str, title: String, hint: String) -> Html {
+    Column::new()
+        .class(FlexFit)
+        .class(JustifyContent::Center)
+        .class(AlignItems::Center)
+        .gap(2)
+        .padding(4)
+        .with_child(Fa::new(icon).large_3x())
+        .with_child(
+            Container::from_tag("span")
+                .class(FontStyle::TitleMedium)
+                .with_child(title),
+        )
+        .with_child(Container::from_tag("span").with_child(hint))
+        .into()
 }

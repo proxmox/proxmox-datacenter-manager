@@ -24,7 +24,7 @@ use proxmox_yew_comp::{
     LoadableComponentScopeExt, LoadableComponentState, rrd_value_renderer,
 };
 
-use pwt::css::{AlignItems, ColorScheme, FlexFit, FontStyle, JustifyContent};
+use pwt::css::{AlignItems, ColorScheme, FlexFit, JustifyContent};
 use pwt::prelude::*;
 use pwt::props::{
     ContainerBuilder, CssPaddingBuilder, ExtractPrimaryKey, StorageLocation, WidgetBuilder,
@@ -44,7 +44,7 @@ use pdm_search::SearchTerm;
 
 use crate::pve::utils::{guest_is_live, guest_status_label, render_guest_tags};
 use crate::pve::{GuestInfo, GuestType};
-use crate::renderer::{render_resource_name, render_status_icon, render_tree_column};
+use crate::renderer::{empty_state, render_resource_name, render_status_icon, render_tree_column};
 use crate::{
     get_deep_url, get_resource_node,
     widget::{MigrateWindow, SnapshotWindow},
@@ -604,24 +604,6 @@ impl LoadableComponent for GuestPanelComp {
             Ok(())
         })
     }
-}
-
-/// A centered, large-icon empty state with a title and an explanatory hint.
-fn empty_state(icon: &str, title: String, hint: String) -> Html {
-    Column::new()
-        .class(FlexFit)
-        .class(JustifyContent::Center)
-        .class(AlignItems::Center)
-        .gap(2)
-        .padding(4)
-        .with_child(Fa::new(icon).large_3x())
-        .with_child(
-            Container::from_tag("span")
-                .class(FontStyle::TitleMedium)
-                .with_child(title),
-        )
-        .with_child(Container::from_tag("span").with_child(hint))
-        .into()
 }
 
 fn failed_remotes_banner(failed: &[String]) -> Html {
