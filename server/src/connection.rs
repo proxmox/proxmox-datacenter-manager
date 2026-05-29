@@ -722,7 +722,7 @@ macro_rules! try_request {
                 .transpose()
                 .map_err(|err| proxmox_client::Error::Anyhow(err.into()))?;
 
-            let mut last_err = None;
+            let mut last_err: Option<proxmox_client::Error> = None;
             let mut timed_out = false;
             // The iterator in use here will automatically mark a client as faulty if we move on to
             // the `next()` one.
@@ -744,7 +744,8 @@ macro_rules! try_request {
 
                 let request = client.$how($method.clone(), $path_and_query, params.as_ref());
                 match tokio::time::timeout($self.timeout, request).await {
-                    Ok(Err(proxmox_client::Error::Client(err))) => {
+                    Ok(Err(err @ proxmox_client::Error::Client(_)))
+                    | Ok(Err(err @ proxmox_client::Error::Connect(_))) => {
                         last_err = Some(err);
                     }
                     Ok(result) => {
@@ -767,7 +768,7 @@ macro_rules! try_request {
             if let Some(err) = last_err {
                 let path = $path_and_query;
                 log::error!("client error on request {path}, giving up - {err:?}");
-                Err(proxmox_client::Error::Client(err))
+                Err(err)
             } else if timed_out {
                 let path = $path_and_query;
                 log::error!("client timed out on request {path}, no remotes reachable, giving up");
