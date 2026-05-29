@@ -1,3 +1,16 @@
+proxmox-datacenter-manager (1.1.2) trixie; urgency=medium
+
+  * auto-installer: reject a rendered host address (CIDR) that carries no
+    netmask, which the parser would otherwise silently treat as a single-host
+    /32 (or /128), yielding a misconfigured network for a templated address.
+
+  * cli: support listing the guests of multiple remotes in a single invocation.
+
+  * docs: recommend the dedicated container meta-package for container
+    installations, so installing does not pull in a host kernel.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 29 May 2026 22:22:09 +0200
+
 proxmox-datacenter-manager (1.1.1) trixie; urgency=medium
 
   * api: certificates: let any authenticated user query the host's TLS
