@@ -15,8 +15,8 @@ use pwt::prelude::*;
 use pwt::props::StorageLocation;
 use pwt::state::{PersistentState, SharedState};
 use pwt::widget::container::span;
+use pwt::widget::{Button, Fa, Panel, Row};
 use pwt::widget::{Column, Container, Progress, error_message, form::FormContext};
-use pwt::widget::{Fa, Panel, Row};
 
 use crate::dashboard::refresh_config_edit::{
     DEFAULT_MAX_AGE_S, DEFAULT_REFRESH_INTERVAL_S, FORCE_RELOAD_MAX_AGE_S, INITIAL_MAX_AGE_S,
@@ -31,8 +31,9 @@ use crate::dashboard::{
     create_task_summary_panel, create_top_entities_panel,
 };
 use crate::remotes::AddWizard;
+use crate::renderer::empty_state;
 use crate::widget::RedrawController;
-use crate::{LoadResult, pdm_client};
+use crate::{LoadResult, RemoteList, pdm_client};
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_api_types::resource::ResourcesStatus;
@@ -100,6 +101,7 @@ pub enum Msg {
     LayoutUpdate(ViewLayout),
     UpdateResult(Result<(), Error>),
     ForceSubscriptionUpdate,
+    RemoteListUpdate(RemoteList),
 }
 
 struct ViewComp {
@@ -114,6 +116,9 @@ struct ViewComp {
     show_config_window: bool,
     show_create_wizard: Option<RemoteType>,
     subscriptions_dialog: bool,
+
+    remote_list: Option<RemoteList>,
+    _remote_list_handle: Option<ContextHandle<RemoteList>>,
 
     editing_state: SharedState<Vec<EditingMessage>>,
     update_result: LoadResult<(), Error>,
@@ -336,6 +341,7 @@ impl Component for ViewComp {
     type Properties = View;
 
     fn create(ctx: &yew::Context<Self>) -> Self {
+        let link = ctx.link();
         let view = ctx.props().view.clone();
         let refresh_id = match view.as_ref() {
             Some(view) => format!("view-{view}"),
@@ -344,8 +350,18 @@ impl Component for ViewComp {
         let refresh_config: PersistentState<RefreshConfig> =
             PersistentState::new(StorageLocation::local(refresh_config_id(&refresh_id)));
 
+        // only query the remotes if we're the default dashboard to show the warning
+        let (remote_list, _remote_list_handle) = if view.is_none() {
+            let (list, handle) = link
+                .context(link.callback(Msg::RemoteListUpdate))
+                .expect("no remote list context");
+            (Some(list), Some(handle))
+        } else {
+            (None, None)
+        };
+
         let async_pool = AsyncPool::new();
-        async_pool.send_future(ctx.link().clone(), async move {
+        async_pool.send_future(link.clone(), async move {
             Msg::ViewTemplateLoaded(load_template(view).await)
         });
 
@@ -362,6 +378,9 @@ impl Component for ViewComp {
 
             editing_state: SharedState::new(Vec::new()),
             update_result: LoadResult::new(),
+
+            remote_list,
+            _remote_list_handle,
 
             render_args: WidgetRenderArgs {
                 status: SharedState::new(LoadResult::new()),
@@ -414,7 +433,6 @@ impl Component for ViewComp {
                     self.reload(ctx);
                 }
             }
-
             Msg::ConfigWindow(show) => {
                 self.show_config_window = show;
             }
@@ -474,6 +492,18 @@ impl Component for ViewComp {
                     link.send_message(Msg::LoadingResult(LoadingResult::SubscriptionInfo(res)));
                 });
             }
+            Msg::RemoteListUpdate(remote_list) => {
+                let needs_reload = match &self.remote_list {
+                    Some(list) => list.is_empty() && !remote_list.is_empty(),
+                    _ => false,
+                };
+                self.remote_list = Some(remote_list);
+                if needs_reload {
+                    // reset loading time to trigger a fresh reload
+                    self.load_finished_time = None;
+                    self.reload(ctx);
+                }
+            }
         }
         true
     }
@@ -490,9 +520,51 @@ impl Component for ViewComp {
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let props = ctx.props();
+        let link = ctx.link();
         if !self.template.has_data() {
             return Progress::new().into();
         }
+
+        match self.remote_list.as_ref() {
+            Some(list) if list.is_empty() => {
+                return Column::new()
+                    .class(css::FlexFit)
+                    .class(css::AlignItems::Center)
+                    .class(css::JustifyContent::Center)
+                    .gap(2)
+                    .with_child(Container::new().with_child(empty_state(
+                        "server",
+                        tr!("No remotes configured yet"),
+                        tr!("Add a remote to see data here."),
+                    )))
+                    .with_child(
+                        Row::new()
+                            .gap(2)
+                            .with_child(
+                                Button::new("Add PVE Remote")
+                                    .class(css::ColorScheme::Primary)
+                                    .on_activate(
+                                        link.callback(|_| Msg::CreateWizard(Some(RemoteType::Pve))),
+                                    ),
+                            )
+                            .with_child(
+                                Button::new("Add PBS Remote")
+                                    .class(css::ColorScheme::Primary)
+                                    .on_activate(
+                                        link.callback(|_| Msg::CreateWizard(Some(RemoteType::Pbs))),
+                                    ),
+                            ),
+                    )
+                    .with_optional_child(self.show_create_wizard.map(|remote_type| {
+                        AddWizard::new(remote_type)
+                            .on_close(link.callback(|_| Msg::CreateWizard(None)))
+                            .on_submit(move |ctx| crate::remotes::create_remote(ctx, remote_type))
+                    }))
+                    .into();
+            }
+            _ => {}
+        }
+
         let mut view = Column::new().class(css::FlexFit).with_child(
             Container::new()
                 .padding(4)
