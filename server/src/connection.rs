@@ -722,14 +722,8 @@ macro_rules! try_request {
                 .transpose()
                 .map_err(|err| proxmox_client::Error::Anyhow(err.into()))?;
 
-            let mut last_err: Option<proxmox_client::Error> = None;
+            let mut last_err = None;
             let mut timed_out = false;
-            // One same-endpoint retry budget for connect errors per outer request. A
-            // `proxmox_client::Error::Connect` guarantees the request never reached the server, so
-            // retrying is safe regardless of HTTP method. The retry covers transient TCP/TLS blips
-            // and, importantly, gives single-node remotes a second attempt where the per-endpoint
-            // iterator below has no other node to fall back to.
-            let mut connect_retry_used = false;
             // The iterator in use here will automatically mark a client as faulty if we move on to
             // the `next()` one.
             for TryClient {
@@ -748,26 +742,9 @@ macro_rules! try_request {
                     log::error!("client timed out on request {path}, trying another remote");
                 }
 
-                // Try this endpoint; on a connect error we retry it once before moving on, see
-                // the comment on `connect_retry_used` above.
-                let outcome = loop {
-                    let request = client.$how($method.clone(), $path_and_query, params.as_ref());
-                    match tokio::time::timeout($self.timeout, request).await {
-                        Ok(Err(proxmox_client::Error::Connect(err))) if !connect_retry_used => {
-                            connect_retry_used = true;
-                            let path = $path_and_query;
-                            log::warn!(
-                                "connect error on {hostname:?} for {path}, retrying same endpoint once - {err:?}"
-                            );
-                            continue;
-                        }
-                        other => break other,
-                    }
-                };
-
-                match outcome {
-                    Ok(Err(err @ proxmox_client::Error::Client(_)))
-                    | Ok(Err(err @ proxmox_client::Error::Connect(_))) => {
+                let request = client.$how($method.clone(), $path_and_query, params.as_ref());
+                match tokio::time::timeout($self.timeout, request).await {
+                    Ok(Err(proxmox_client::Error::Client(err))) => {
                         last_err = Some(err);
                     }
                     Ok(result) => {
@@ -790,7 +767,7 @@ macro_rules! try_request {
             if let Some(err) = last_err {
                 let path = $path_and_query;
                 log::error!("client error on request {path}, giving up - {err:?}");
-                Err(err)
+                Err(proxmox_client::Error::Client(err))
             } else if timed_out {
                 let path = $path_and_query;
                 log::error!("client timed out on request {path}, no remotes reachable, giving up");
