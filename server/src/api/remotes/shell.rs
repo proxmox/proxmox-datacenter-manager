@@ -1,12 +1,5 @@
 use anyhow::{Context, Error, bail, format_err};
 use futures::TryFutureExt;
-use http::{
-    Method, Request, StatusCode,
-    header::{SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE},
-    request::Parts,
-};
-use hyper::upgrade::Upgraded;
-use hyper_util::rt::TokioIo;
 use serde_json::{Value, json};
 
 use proxmox_auth_api::{
@@ -129,7 +122,7 @@ pub const API_METHOD_SHELL_WEBSOCKET: ApiMethod = ApiMethod::new(
 );
 
 fn upgrade_to_websocket(
-    parts: Parts,
+    parts: http::request::Parts,
     req_body: hyper::body::Incoming,
     param: Value,
     _info: &ApiMethod,
@@ -141,7 +134,7 @@ fn upgrade_to_websocket(
 async fn upgrade_to_websocket_do(
     parts: http::request::Parts,
     req_body: hyper::body::Incoming,
-    param: serde_json::Value,
+    param: Value,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<http::Response<proxmox_http::Body>, Error> {
     // intentionally user only for now
@@ -172,7 +165,7 @@ async fn upgrade_to_websocket_do(
     let (mut ws, response) = WebSocket::new(parts.headers.clone())?;
 
     proxmox_rest_server::spawn_internal_task(async move {
-        let incoming_ws: Upgraded = match hyper::upgrade::on(Request::from_parts(parts, req_body))
+        let incoming_ws = match hyper::upgrade::on(http::Request::from_parts(parts, req_body))
             .map_err(Error::from)
             .await
         {
@@ -227,17 +220,17 @@ async fn upgrade_to_websocket_do(
             .map_err(|err| format_err!("failed to build Uri - {err}"))?;
 
         let auth = raw_client.login_auth()?;
-        let req = Request::builder()
-            .method(Method::GET)
+        let req = http::Request::builder()
+            .method(http::Method::GET)
             .uri(uri)
-            .header(UPGRADE, "websocket")
-            .header(SEC_WEBSOCKET_VERSION, "13")
-            .header(SEC_WEBSOCKET_KEY, ws_key);
+            .header(http::header::UPGRADE, "websocket")
+            .header(http::header::SEC_WEBSOCKET_VERSION, "13")
+            .header(http::header::SEC_WEBSOCKET_KEY, ws_key);
 
         let req = auth.set_auth_headers(req).body(Body::empty())?;
 
         let res = raw_client.http_client().request(req).await?;
-        if res.status() != StatusCode::SWITCHING_PROTOCOLS {
+        if res.status() != http::StatusCode::SWITCHING_PROTOCOLS {
             bail!("server didn't upgrade: {}", res.status());
         }
 
@@ -256,8 +249,8 @@ async fn upgrade_to_websocket_do(
 
         if let Err(err) = ws
             .proxy_connection(
-                TokioIo::new(incoming_ws),
-                TokioIo::new(pve_ws),
+                hyper_util::rt::TokioIo::new(incoming_ws),
+                hyper_util::rt::TokioIo::new(pve_ws),
                 preamble.as_bytes(),
             )
             .await
