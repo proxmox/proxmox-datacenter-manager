@@ -69,6 +69,13 @@ pub(crate) async fn shell_ticket(
     node: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
+    create_term_ticket(rpcenv, move || encode_term_ticket_path(&remote, &node))
+}
+
+pub(crate) fn create_term_ticket<F: FnOnce() -> String>(
+    rpcenv: &mut dyn RpcEnvironment,
+    make_path: F,
+) -> Result<Value, Error> {
     // intentionally user only for now
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -80,7 +87,7 @@ pub(crate) async fn shell_ticket(
     }
 
     let userid = auth_id.user();
-    let path = encode_term_ticket_path(&remote, &node);
+    let path = make_path();
 
     let private_auth_keyring =
         Keyring::with_private_key(crate::auth::key::private_auth_key().clone());
