@@ -280,11 +280,11 @@ pub fn render_global_options_form(
                 .placeholder(EMAIL_DEFAULT_PLACEHOLDER.to_owned())
                 .input_type(InputType::Email)
                 .value(config.mailto.clone())
-                .schema(&EMAIL_SCHEMA)
                 .validate(|s: &String| {
                     if contains_minijinja_variable(s) {
                         return Ok(());
                     }
+                    EMAIL_SCHEMA.parse_simple_value(s)?;
                     email_validate(s)
                 })
                 .required(true),
