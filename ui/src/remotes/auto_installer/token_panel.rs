@@ -439,11 +439,15 @@ fn add_expiry_fields(panel: &mut InputPanel, form_ctx: &FormContext, expire_at: 
             .value(value)
             .input_type(InputType::DatetimeLocal)
             .validate(|s: &String| {
+                if s.is_empty() {
+                    return Ok(());
+                }
                 match proxmox_time::parse_rfc3339(s) {
                     Ok(t) if t <= proxmox_time::epoch_i64() => {
                         bail!(tr!("expiry must be in the future"))
                     }
-                    _ => Ok(()),
+                    Ok(_) => Ok(()),
+                    Err(_) => bail!(tr!("invalid expiry date")),
                 }
             }),
     );
