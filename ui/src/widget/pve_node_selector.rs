@@ -100,8 +100,7 @@ impl PveNodeSelectorComp {
             .raw_nodes
             .iter()
             .filter(|n| {
-                !excluded.iter().any(|e| e == &n.node)
-                    && source_node != Some(n.node.as_str())
+                !excluded.iter().any(|e| e == &n.node) && source_node != Some(n.node.as_str())
             })
             .cloned()
             .collect();
