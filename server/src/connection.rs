@@ -255,7 +255,10 @@ pub trait ClientFactory {
     /// This is intended for API calls that accept a user in addition to tokens.
     ///
     /// Note: currently does not support two factor authentication.
-    async fn make_pbs_client_and_login(&self, remote: &Remote) -> Result<Box<PbsClient>, Error>;
+    async fn make_pbs_client_and_login(
+        &self,
+        remote: &Remote,
+    ) -> Result<Box<PbsClient<Client>>, Error>;
 
     /// Create a new API client for raw access to the given remote
     fn make_raw_client(&self, remote: &Remote) -> Result<Box<Client>, Error>;
@@ -358,7 +361,7 @@ impl ClientFactory for DefaultClientFactory {
     }
 
     fn make_pbs_client(&self, remote: &Remote) -> Result<Box<PbsClient>, Error> {
-        let client = crate::connection::connect(remote, None)?;
+        let client = crate::connection::multi_connect(remote)?;
         Ok(Box::new(PbsClient(client)))
     }
 
@@ -390,7 +393,10 @@ impl ClientFactory for DefaultClientFactory {
         Ok(Arc::new(PveClientImpl(client)))
     }
 
-    async fn make_pbs_client_and_login(&self, remote: &Remote) -> Result<Box<PbsClient>, Error> {
+    async fn make_pbs_client_and_login(
+        &self,
+        remote: &Remote,
+    ) -> Result<Box<PbsClient<Client>>, Error> {
         let client = connect_or_login(remote, None).await?;
         Ok(Box::new(PbsClient(client)))
     }
@@ -455,7 +461,7 @@ pub async fn make_pve_client_and_login(remote: &Remote) -> Result<Arc<PveClient>
 /// This is intended for API calls that accept a user in addition to tokens.
 ///
 /// Note: currently does not support two factor authentication.
-pub async fn make_pbs_client_and_login(remote: &Remote) -> Result<Box<PbsClient>, Error> {
+pub async fn make_pbs_client_and_login(remote: &Remote) -> Result<Box<PbsClient<Client>>, Error> {
     instance().make_pbs_client_and_login(remote).await
 }
 
@@ -483,7 +489,7 @@ struct MultiClientEntry {
 /// # Possible improvements
 ///
 /// - For `GET` requests we could also start a 2nd request after a shorter time out (eg. 10s).
-struct MultiClient {
+pub struct MultiClient {
     state: StdMutex<MultiClientState>,
     remote: String,
     timeout: Duration,

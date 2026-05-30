@@ -450,7 +450,7 @@ pub(super) mod tests {
         async fn make_pbs_client_and_login(
             &self,
             _remote: &Remote,
-        ) -> Result<Box<PbsClient>, Error> {
+        ) -> Result<Box<PbsClient<Client>>, Error> {
             bail!("not implemented")
         }
     }

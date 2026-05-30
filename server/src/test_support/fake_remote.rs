@@ -117,7 +117,10 @@ impl ClientFactory for FakeClientFactory {
         bail!("not implemented")
     }
 
-    async fn make_pbs_client_and_login(&self, _remote: &Remote) -> Result<Box<PbsClient>, Error> {
+    async fn make_pbs_client_and_login(
+        &self,
+        _remote: &Remote,
+    ) -> Result<Box<PbsClient<Client>>, Error> {
         bail!("not implemented")
     }
 }

@@ -28,7 +28,9 @@ pub fn get_remote<'a>(
     Ok(remote)
 }
 
-pub async fn connect_or_login(remote: &Remote) -> Result<Box<PbsClient>, anyhow::Error> {
+pub async fn connect_or_login(
+    remote: &Remote,
+) -> Result<Box<PbsClient<proxmox_client::Client>>, anyhow::Error> {
     crate::connection::make_pbs_client_and_login(remote).await
 }
 
@@ -49,21 +51,12 @@ pub fn connect_to_remote_by_id(id: &str) -> Result<Box<PbsClient>, anyhow::Error
     connect_to_remote(&remotes, id)
 }
 
-pub struct PbsClient(pub proxmox_client::Client);
-
-impl std::ops::Deref for PbsClient {
-    type Target = proxmox_client::Client;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for PbsClient {
-    fn deref_mut(&mut self) -> &mut proxmox_client::Client {
-        &mut self.0
-    }
-}
+/// A PBS API client.
+///
+/// Defaults to wrapping a `MultiClient` so it shares the same per-request timeout, node failover
+/// and reachability tracking as the PVE client; the login path (`make_pbs_client_and_login`) wraps
+/// a raw `proxmox_client::Client` instead.
+pub struct PbsClient<C: HttpApiClient = crate::connection::MultiClient>(pub C);
 
 #[api]
 /// Create token response.
@@ -159,7 +152,7 @@ pub struct TaskLogLine {
     pub t: String,
 }
 
-impl PbsClient {
+impl<C: HttpApiClient<Body = proxmox_http::Body>> PbsClient<C> {
     /// API version details, including some parts of the global datacenter config.
     pub async fn version(&self) -> Result<pve_api_types::VersionResponse, Error> {
         Ok(self.0.get("/api2/extjs/version").await?.expect_json()?.data)

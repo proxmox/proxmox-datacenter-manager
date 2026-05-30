@@ -224,7 +224,9 @@ async fn probe_tls(
     probe_tls_connection(RemoteType::Pbs, hostname, fingerprint).await
 }
 
-pub async fn connect_or_login(remote: &Remote) -> Result<Box<PbsClient>, Error> {
+pub async fn connect_or_login(
+    remote: &Remote,
+) -> Result<Box<PbsClient<proxmox_client::Client>>, Error> {
     connection::make_pbs_client_and_login(remote).await
 }
 
