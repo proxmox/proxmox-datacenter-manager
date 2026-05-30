@@ -70,6 +70,22 @@ pub(super) struct CollectionStats {
     pub(super) total_time: f64,
 }
 
+/// Store a remote's metric datapoints and return the most recent timestamp seen.
+fn store_datapoints<T>(
+    cache: &RrdCache,
+    remote: &str,
+    data: Vec<T>,
+    timestamp_of: impl Fn(&T) -> i64,
+    store: impl Fn(&RrdCache, &str, &T),
+) -> i64 {
+    let mut most_recent_timestamp = 0;
+    for data_point in data {
+        most_recent_timestamp = most_recent_timestamp.max(timestamp_of(&data_point));
+        store(cache, remote, &data_point);
+    }
+    most_recent_timestamp
+}
+
 /// Task which stores received metrics in the RRD. Metric data is fed into
 /// this task via a MPSC channel.
 pub(super) async fn store_in_rrd_task(
@@ -80,8 +96,6 @@ pub(super) async fn store_in_rrd_task(
         let cache_clone = Arc::clone(&cache);
         // Involves some blocking file IO
         let res = tokio::task::spawn_blocking(move || {
-            let mut most_recent_timestamp = 0;
-
             match msg {
                 RrdStoreRequest::Pve {
                     remote,
@@ -90,19 +104,23 @@ pub(super) async fn store_in_rrd_task(
                     response_time,
                     request_at,
                 } => {
-                    for data_point in metrics.data {
-                        most_recent_timestamp = most_recent_timestamp.max(data_point.timestamp);
-                        store_metric_pve(&cache_clone, &remote, &data_point);
-                    }
+                    let most_recent_timestamp = store_datapoints(
+                        &cache_clone,
+                        &remote,
+                        metrics.data,
+                        |data_point| data_point.timestamp,
+                        store_metric_pve,
+                    );
                     store_response_time(&cache_clone, &remote, response_time, request_at);
 
-                    let result = RrdStoreResult {
-                        most_recent_timestamp,
-                    };
-
-                    if channel.send(result).is_err() {
+                    if channel
+                        .send(RrdStoreResult {
+                            most_recent_timestamp,
+                        })
+                        .is_err()
+                    {
                         log::error!("could not send RrdStoreStoreResult to metric collection task");
-                    };
+                    }
                 }
                 RrdStoreRequest::Pbs {
                     remote,
@@ -111,19 +129,23 @@ pub(super) async fn store_in_rrd_task(
                     response_time,
                     request_at,
                 } => {
-                    for data_point in metrics.data {
-                        most_recent_timestamp = most_recent_timestamp.max(data_point.timestamp);
-                        store_metric_pbs(&cache_clone, &remote, &data_point);
-                    }
+                    let most_recent_timestamp = store_datapoints(
+                        &cache_clone,
+                        &remote,
+                        metrics.data,
+                        |data_point| data_point.timestamp,
+                        store_metric_pbs,
+                    );
                     store_response_time(&cache_clone, &remote, response_time, request_at);
 
-                    let result = RrdStoreResult {
-                        most_recent_timestamp,
-                    };
-
-                    if channel.send(result).is_err() {
+                    if channel
+                        .send(RrdStoreResult {
+                            most_recent_timestamp,
+                        })
+                        .is_err()
+                    {
                         log::error!("could not send RrdStoreStoreResult to metric collection task");
-                    };
+                    }
                 }
                 RrdStoreRequest::CollectionStats { timestamp, stats } => {
                     store_stats(&cache_clone, &stats, timestamp)
