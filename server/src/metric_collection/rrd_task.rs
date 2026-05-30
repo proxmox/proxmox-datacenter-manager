@@ -70,18 +70,38 @@ pub(super) struct CollectionStats {
     pub(super) total_time: f64,
 }
 
+/// Datapoints dated more than this far past the request time are dropped: a future-skewed sample
+/// would otherwise poison the RRD and silently drop later real samples.
+const FUTURE_DATAPOINT_TOLERANCE: i64 = 60;
+
 /// Store a remote's metric datapoints and return the most recent timestamp seen.
+///
+/// Datapoints dated too far into the future (see [`FUTURE_DATAPOINT_TOLERANCE`]) are dropped.
 fn store_datapoints<T>(
     cache: &RrdCache,
     remote: &str,
     data: Vec<T>,
+    request_at: i64,
     timestamp_of: impl Fn(&T) -> i64,
     store: impl Fn(&RrdCache, &str, &T),
 ) -> i64 {
+    let future_cutoff = request_at + FUTURE_DATAPOINT_TOLERANCE;
     let mut most_recent_timestamp = 0;
+    let mut skipped_future = 0u64;
     for data_point in data {
-        most_recent_timestamp = most_recent_timestamp.max(timestamp_of(&data_point));
+        let timestamp = timestamp_of(&data_point);
+        if timestamp > future_cutoff {
+            skipped_future += 1;
+            continue;
+        }
+        most_recent_timestamp = most_recent_timestamp.max(timestamp);
         store(cache, remote, &data_point);
+    }
+    if skipped_future > 0 {
+        log::warn!(
+            "ignored {skipped_future} future-dated metric datapoint(s) \
+             from {remote:?} (clock skew?)"
+        );
     }
     most_recent_timestamp
 }
@@ -108,6 +128,7 @@ pub(super) async fn store_in_rrd_task(
                         &cache_clone,
                         &remote,
                         metrics.data,
+                        request_at,
                         |data_point| data_point.timestamp,
                         store_metric_pve,
                     );
@@ -133,6 +154,7 @@ pub(super) async fn store_in_rrd_task(
                         &cache_clone,
                         &remote,
                         metrics.data,
+                        request_at,
                         |data_point| data_point.timestamp,
                         store_metric_pbs,
                     );
