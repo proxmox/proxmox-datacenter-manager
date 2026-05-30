@@ -523,4 +523,38 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn store_datapoints_drops_future_dated() -> Result<(), Error> {
+        let dir = NamedTempDir::new()?;
+        let options = get_create_options().perm(nix::sys::stat::Mode::from_bits_truncate(0o700));
+        let cache = RrdCache::new(dir.path(), options, options)?;
+
+        let request_at = 1_700_000_000;
+        let stored = std::cell::RefCell::new(Vec::<i64>::new());
+
+        // A datapoint right at the tolerance boundary is kept; one past it is dropped.
+        let most_recent = store_datapoints(
+            &cache,
+            "test-remote",
+            vec![
+                request_at - 30,
+                request_at + FUTURE_DATAPOINT_TOLERANCE,
+                request_at + FUTURE_DATAPOINT_TOLERANCE + 1,
+            ],
+            request_at,
+            |timestamp| *timestamp,
+            |_cache, _remote, timestamp| stored.borrow_mut().push(*timestamp),
+        );
+
+        // The future-dated datapoint is not stored ...
+        assert_eq!(
+            *stored.borrow(),
+            vec![request_at - 30, request_at + FUTURE_DATAPOINT_TOLERANCE],
+        );
+        // ... and the returned cursor never advances onto it.
+        assert_eq!(most_recent, request_at + FUTURE_DATAPOINT_TOLERANCE);
+
+        Ok(())
+    }
 }
