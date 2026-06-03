@@ -277,12 +277,11 @@ impl yew::Component for QemuOverviewPanelComp {
         }
 
         let ha_text = if status.ha["managed"].as_i64().unwrap_or_default() > 0 {
-            let ha_state = status
+            status
                 .ha
                 .get("state")
-                .and_then(|c| c.as_str())
-                .unwrap_or_default();
-            tr!("{0}", ha_state)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
         } else {
             tr!("none")
         };
