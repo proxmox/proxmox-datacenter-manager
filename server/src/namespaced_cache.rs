@@ -554,6 +554,10 @@ fn get_impl<T: Serialize + DeserializeOwned>(
     // Namespace should already be verified at this point, no point in checking it again.
     ensure_valid_key(key)?;
 
+    if max_age == Some(0) {
+        return Ok(None);
+    }
+
     let path = get_path(base, namespace, key);
 
     Ok(get_from_path(&path, max_age)?.map(|a| a.value))
