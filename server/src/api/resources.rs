@@ -866,6 +866,19 @@ pub async fn get_subscription_info_for_remote(
     }
 }
 
+/// Always fetches fresh complete subscription information for a remote.
+///
+/// The cache will be updated, but never read from. This guarantees that the `serverid` is set, as
+/// it cannot be stored in the cache.
+pub async fn fetch_complete_subscription_info_for_remote(
+    remote: &Remote,
+) -> Result<HashMap<String, Option<NodeSubscriptionInfo>>, Error> {
+    let node_info = fetch_remote_subscription_info(remote).await?;
+    let now = proxmox_time::epoch_i64();
+    let _ = update_cached_subscription_info(&remote.id, node_info.clone(), now).await?;
+    Ok(node_info)
+}
+
 const SUBSCRIPTION_STATE_CACHE_KEY: &str = "subscription-state";
 
 async fn get_cached_subscription_info(

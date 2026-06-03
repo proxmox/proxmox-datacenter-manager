@@ -15,7 +15,9 @@ use pdm_api_types::subscription::{
     NodeSubscriptionInfo, PdmSubscriptionInfo, SubscriptionLevel, SubscriptionStatistics,
 };
 
-use crate::api::resources::get_subscription_info_for_remote;
+use crate::api::resources::{
+    fetch_complete_subscription_info_for_remote, get_subscription_info_for_remote,
+};
 
 const PRODUCT_URL: &str = "https://pdm.proxmox.com/faq.html";
 const APT_AUTH_FN: &str = "/etc/apt/auth.conf.d/pdm.conf";
@@ -153,7 +155,7 @@ pub async fn check_subscription() -> Result<(), Error> {
     }
 
     let mut found = false;
-    'outer: for (remote, (remote_type, remote_info)) in infos.iter() {
+    'outer: for (remote_name, (remote_type, remote_info)) in infos.iter() {
         if *remote_type != RemoteType::Pve && *remote_type != RemoteType::Pbs {
             log::warn!("skipping unknown remote type {remote_type}");
             continue;
@@ -163,12 +165,43 @@ pub async fn check_subscription() -> Result<(), Error> {
                 if info.status == SubscriptionStatus::Active
                     && info.level >= SubscriptionLevel::Basic
                     && info.key.is_some()
-                    && info.serverid.is_some()
                 {
-                    log::info!(
-                        "Using subscription of node '{node}' of remote '{remote}' for enterprise \
-                         repository access"
-                    );
+                    // Get fresh subscription info. The cache does not store the serverid, so we
+                    // need to fetch it from the remote. This has the upside of always yielding
+                    // fresh results.
+                    let (remote_config, _digest) = pdm_config::remotes::config()?;
+                    let Some(remote) = remote_config.get(remote_name) else {
+                        log::debug!(
+                            "Remote vanished while updating subscription information \
+                            '{remote_name}'."
+                        );
+                        continue 'outer;
+                    };
+                    let node_info = fetch_complete_subscription_info_for_remote(remote).await?;
+                    let Some(info) = node_info.iter().find_map(|(node, val)| {
+                        if let Some(info) = val.as_ref() {
+                            if info.status == SubscriptionStatus::Active
+                                && info.level >= SubscriptionLevel::Basic
+                                && info.key.is_some()
+                                && info.serverid.is_some()
+                            {
+                                log::info!(
+                                    "Using subscription of node '{node}' of remote '{remote_name}' \
+                                    for enterprise repository access"
+                                );
+
+                                return Some(info.clone());
+                            }
+                        }
+                        None
+                    }) else {
+                        log::debug!(
+                            "Could not find any eligibile subscription information for remote \
+                            '{remote_name}' while updating the subscription information."
+                        );
+                        continue 'outer;
+                    };
+
                     update_apt_auth(
                         APT_AUTH_FN,
                         apt_auth_file_opts(),
