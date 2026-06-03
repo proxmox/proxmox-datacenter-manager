@@ -1,3 +1,22 @@
+proxmox-datacenter-manager (1.1.4) trixie; urgency=medium
+
+  * remote PBS connections: use MultiClient which has timeout support, to avoid
+    stalling metric collection.
+
+  * metric collection: drop datapoints more than a minute ahead of the request
+    time, to avoid large gaps in metrics in case remote clock jumped ahead.
+
+  * remote connections: only fail over client errors for idempotent methods,
+    but keep fail over on Connect errors for all methods.
+
+  * support status: always fetch fresh subscription information from remote
+    candidates on update, the cache lacks required information.
+
+  * cache: return early instead of doing an unnecessary cache lookup if queried
+    with special max age value 0
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 03 Jun 2026 14:40:32 +0200
+
 proxmox-datacenter-manager (1.1.3) trixie; urgency=medium
 
   * remote connections: fail over to another cluster node again when a node
