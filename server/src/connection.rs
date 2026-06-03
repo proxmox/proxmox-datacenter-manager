@@ -753,12 +753,22 @@ macro_rules! try_request {
 
                 let request = client.$how($method.clone(), $path_and_query, params.as_ref());
                 match tokio::time::timeout($self.timeout, request).await {
-                    Ok(Err(err @ proxmox_client::Error::Client(_)))
-                    | Ok(Err(err @ proxmox_client::Error::Connect(_))) => {
-                        if first && matches!(err, proxmox_client::Error::Connect(_)) {
+                    // Connection error: the request never reached the server, so failing over to
+                    // another node is safe for any method. Remember the first endpoint for retry.
+                    Ok(Err(err @ proxmox_client::Error::Connect(_))) => {
+                        if first {
                             connect_retry = Some((Arc::clone(&client), hostname.clone()));
                         }
                         last_err = Some(err);
+                    }
+                    // Post-connect error: the server may already have processed the request, so
+                    // only fail over for idempotent methods; otherwise surface it right away.
+                    Ok(Err(err @ proxmox_client::Error::Client(_))) => {
+                        if $method.is_idempotent() {
+                            last_err = Some(err);
+                        } else {
+                            return Err(err);
+                        }
                     }
                     Ok(result) => {
                         if !reachable {
