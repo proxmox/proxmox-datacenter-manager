@@ -1,5 +1,6 @@
 //! Implements the UI for the proxmox-auto-installer integration.
 
+mod command_line_display_field;
 mod installations_panel;
 mod prepared_answer_add_wizard;
 mod prepared_answer_edit_window;

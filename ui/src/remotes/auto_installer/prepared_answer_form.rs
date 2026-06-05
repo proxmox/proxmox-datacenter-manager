@@ -33,7 +33,7 @@ use pwt::{
     props::FieldStdProps,
     state::Store,
     widget::{
-        Button, Column, Container, Dialog, Fa, FieldLabel, FieldPosition, InputPanel, Row, Tooltip,
+        Button, Container, Dialog, Fa, FieldLabel, FieldPosition, InputPanel, Row, Tooltip,
         form::{
             Checkbox, Combobox, DisplayField, Field, FormContext, InputType, Number, TextArea,
             ValidateFn,
@@ -42,7 +42,9 @@ use pwt::{
 };
 
 use super::pdm_origin;
-use crate::remotes::auto_installer::token_selector::TokenSelector;
+use crate::remotes::auto_installer::{
+    command_line_display_field::CommandLineDisplayField, token_selector::TokenSelector,
+};
 
 pub fn prepare_form_data(mut value: serde_json::Value) -> Result<serde_json::Value> {
     let obj = value
@@ -1114,7 +1116,7 @@ pub fn render_show_secret_dialog(
 
     let copy_token_view = Container::new()
         .key("copy-token-view")
-        .class("pwt-form-grid-col4")
+        .class("pwt-form-grid-col4 pwt-w-100")
         .with_child(FieldLabel::new(tr!("Token")))
         .with_child(
             Row::new()
@@ -1147,45 +1149,27 @@ pub fn render_show_secret_dialog(
             .unwrap_or_else(|| "https://pdm.example.com:8443")
     );
 
-    let mut commandline = format!(
-        "proxmox-auto-install-assistant prepare-iso --fetch-from http --url {answer_url} --answer-auth-token {token}",
-    );
+    let mut commandline = vec![
+        "proxmox-auto-install-assistant prepare-iso".into(),
+        "--fetch-from http".into(),
+        format!("--url {answer_url}"),
+        format!("--answer-auth-token {token}"),
+    ];
 
     if let Some(fingerprint) = fingerprint {
-        commandline = format!("{commandline} --cert-fingerprint {fingerprint}");
+        commandline.push(format!("--cert-fingerprint {fingerprint}"));
     }
 
-    commandline = format!("{commandline} INPUT.iso");
+    commandline.push("INPUT.iso".into());
+    let commandline = commandline.join(" \\\n  ");
 
     let copy_commandline_view = Container::new()
         .key("copy-commandline-view")
-        .class("pwt-form-grid-col4")
+        .class("pwt-form-grid-col4 pwt-w-100")
         .with_child(FieldLabel::new(tr!("Command Line")))
-        .with_child(
-            Row::new()
-                .class("pwt-fill-grid-row")
-                .gap(2)
-                .with_child(
-                    Field::new()
-                        .input_type(InputType::Password)
-                        .class(FlexFit)
-                        .value(commandline.to_owned())
-                        .read_only(true),
-                )
-                .with_child(
-                    Tooltip::new(
-                        Button::new_icon("fa fa-clipboard")
-                            .class(ColorScheme::Primary)
-                            .on_activate({
-                                let commandline = commandline.to_owned();
-                                move |_| copy_text_to_clipboard(&commandline)
-                            }),
-                    )
-                    .tip(tr!("Copy template command line to clipboard. Replace INPUT.iso with your installation ISO.")),
-                ),
-        );
+        .with_child(CommandLineDisplayField::new().value(commandline.clone().into()));
 
-    let mut panel = InputPanel::new().padding(4);
+    let mut panel = InputPanel::new().padding(4).class("pwt-w-100");
 
     if let Some(id) = config_id {
         panel.add_large_field(
@@ -1199,7 +1183,10 @@ pub fn render_show_secret_dialog(
     panel.add_large_custom_child(copy_token_view);
     panel.add_large_custom_child(copy_commandline_view);
 
-    let dialog = Dialog::new(tr!("New Answer Token")).on_close(on_close).with_child(Column::new().with_child(panel))
+    let dialog = Dialog::new(tr!("New Answer Token"))
+        .width(900)
+        .on_close(on_close)
+        .with_child(Container::new().class(FlexFit).class("pwt-w-100").with_child(panel))
         .with_child(
             Container::new()
                 .padding(4)
