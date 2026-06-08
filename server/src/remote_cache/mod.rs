@@ -24,9 +24,13 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_product_config::replace_config;
 use proxmox_product_config::{ApiLockGuard, open_api_lockfile};
+use proxmox_time::epoch_i64;
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_config::ConfigVersionCache;
+
+mod back_off;
+use back_off::BackOffState;
 
 const CACHE_FILENAME: &str = concat!(
     pdm_buildcfg::PDM_CACHE_DIR_M!(),
@@ -198,16 +202,26 @@ impl RemoteMappingCache {
     }
 
     /// Mark a host as reachable.
-    pub fn mark_host_reachable(&mut self, remote_name: &str, hostname: &str, reachable: bool) {
+    pub fn mark_host_reachable(
+        &mut self,
+        remote_name: &str,
+        hostname: &str,
+        connection_state: ConnectionState,
+    ) {
         if let Some(info) = self.info_by_hostname_mut(remote_name, hostname) {
-            info.reachable = reachable;
+            info.set_reachable(connection_state);
         }
     }
 
     /// Mark a host as reachable.
-    pub fn mark_node_reachable(&mut self, remote_name: &str, node_name: &str, reachable: bool) {
+    pub fn mark_node_reachable(
+        &mut self,
+        remote_name: &str,
+        node_name: &str,
+        connection_state: ConnectionState,
+    ) {
         if let Some(info) = self.info_by_node_name_mut(remote_name, node_name) {
-            info.reachable = reachable;
+            info.set_reachable(connection_state);
         }
     }
 
@@ -222,8 +236,68 @@ impl RemoteMappingCache {
     /// Check if a host is reachable.
     pub fn host_is_reachable(&self, remote: &str, hostname: &str) -> bool {
         self.info_by_hostname(remote, hostname)
-            .is_none_or(|info| info.reachable)
+            .is_none_or(|info| info.is_reachable())
     }
+
+    /// Get the next time to try the host and the last error if it was not reachable.
+    pub fn host_time_to_next_try(
+        &self,
+        remote: &str,
+        hostname: &str,
+        current_time: i64,
+    ) -> Option<(u64, String)> {
+        self.info_by_hostname(remote, hostname)
+            .and_then(|info| info.back_off.as_ref())
+            .map(|back_off| {
+                (
+                    back_off.time_to_next_try(current_time),
+                    back_off.last_error(),
+                )
+            })
+    }
+
+    /// Returns the remaining back-off time and optionally the last error we got.
+    pub fn remote_time_to_next_try(
+        &self,
+        remote: &str,
+        current_time: i64,
+    ) -> Option<(u64, String)> {
+        match self.remotes.get(remote) {
+            Some(remote) => {
+                let mut time = u64::MAX;
+                let mut err = String::new();
+                for info in remote.hosts.values() {
+                    if let Some(back_off) = &info.back_off {
+                        let node_time = back_off.time_to_next_try(current_time);
+                        // use the least time from the hosts
+                        if node_time < time {
+                            time = node_time;
+                            err = back_off.last_error();
+                        }
+                    } else {
+                        // we found a node that is reachable, return immediately
+                        return None;
+                    }
+                }
+
+                if time == u64::MAX {
+                    // we had no node information so we're allowed to try
+                    return None;
+                }
+
+                Some((time, err))
+            }
+            None => None, // no info about remote, are we allowed to try
+        }
+    }
+}
+
+/// If a remote is reachable or not
+pub enum ConnectionState {
+    /// The host/remote/etc. is reachable
+    Reachable,
+    /// The remote/host/etc. is not reachable. Contains the error.
+    Unreachable(String),
 }
 
 /// An entry for a remote in a [`RemoteMappingCache`].
@@ -271,9 +345,9 @@ pub struct HostInfo {
     /// This is the cluster side node name, if we know it.
     node_name: Option<String>,
 
-    /// This means we were able to reach the node.
-    /// When a client fails to connect it may update this to mark it as unreachable.
-    pub reachable: bool,
+    /// Per host back off config
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    back_off: Option<BackOffState>,
 }
 
 impl HostInfo {
@@ -281,11 +355,33 @@ impl HostInfo {
         Self {
             hostname,
             node_name: None,
-            reachable: true,
+            back_off: None,
         }
     }
 
     pub fn node_name(&self) -> Option<&str> {
         self.node_name.as_deref()
+    }
+
+    /// Sets the host's reachable status.
+    /// Returns the next timestamp when it's allowed to retry if set.
+    pub fn set_reachable(&mut self, connection_state: ConnectionState) -> Option<i64> {
+        match connection_state {
+            ConnectionState::Reachable => {
+                self.back_off = None;
+            }
+            ConnectionState::Unreachable(err) => {
+                let time = epoch_i64();
+                match &mut self.back_off {
+                    Some(back_off) => return back_off.retried(time, err),
+                    None => self.back_off = Some(BackOffState::new(time, err)),
+                }
+            }
+        }
+        None
+    }
+
+    pub fn is_reachable(&self) -> bool {
+        self.back_off.is_none()
     }
 }

@@ -25,7 +25,7 @@ use proxmox_section_config::typed::SectionConfigData;
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 
-use server::remote_cache::{self, RemoteMappingCache};
+use server::remote_cache::{self, ConnectionState, RemoteMappingCache};
 use server::task_utils;
 
 const CONFIG_POLL_INTERVAL: u64 = 60;
@@ -188,22 +188,21 @@ impl CachingTask {
             log::debug!("querying remote {:?} node {:?}", remote.id, node.hostname);
 
             // if the host is new, we need to query its name
-            let query_result = match query_node_name(remote, &node.hostname).await {
-                Ok(node_name) => Some(node_name),
-                Err(err) => {
-                    log::error!(
-                        "failed to query info for remote '{}' node '{}' - {err:?}",
-                        remote.id,
-                        node.hostname
-                    );
-                    None
-                }
-            };
+            let (query_result, connection_state) =
+                match query_node_name(remote, &node.hostname).await {
+                    Ok(node_name) => (Some(node_name), ConnectionState::Reachable),
+                    Err(err) => {
+                        log::error!(
+                            "failed to query info for remote '{}' node '{}' - {err:?}",
+                            remote.id,
+                            node.hostname
+                        );
+                        (None, ConnectionState::Unreachable(err.to_string()))
+                    }
+                };
 
             let mut cache = RemoteMappingCache::write()?;
-            if let Some(info) = cache.info_by_hostname_mut(&remote.id, &node.hostname) {
-                info.reachable = query_result.is_some();
-            }
+            cache.mark_host_reachable(&remote.id, &node.hostname, connection_state);
             if let Some(node_name) = query_result {
                 cache.set_node_name(&remote.id, &node.hostname, Some(node_name));
             }

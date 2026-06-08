@@ -25,6 +25,7 @@ use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, TlsProbeOutcome};
 use pve_api_types::client::PveClientImpl;
 
 use crate::pbs_client::PbsClient;
+use crate::remote_cache::ConnectionState;
 
 static INSTANCE: OnceLock<Box<dyn ClientFactory + Send + Sync>> = OnceLock::new();
 
@@ -381,7 +382,7 @@ impl ClientFactory for DefaultClientFactory {
     ) -> Result<Arc<PveClient>, Error> {
         let cache = crate::remote_cache::RemoteMappingCache::get();
         match cache.info_by_node_name(&remote.id, node) {
-            Some(info) if info.reachable => {
+            Some(info) if info.is_reachable() => {
                 self.make_pve_client_with_endpoint(remote, Some(&info.hostname))
             }
             _ => self.make_pve_client(remote),
@@ -550,7 +551,11 @@ impl MultiClientState {
             let entry = self.get_entry();
             log::error!("marking client {} as unreachable", entry.hostname);
             if let Ok(mut cache) = crate::remote_cache::RemoteMappingCache::write() {
-                cache.mark_host_reachable(&self.remote, &entry.hostname, false);
+                cache.mark_host_reachable(
+                    &self.remote,
+                    &entry.hostname,
+                    ConnectionState::Unreachable("unknown error".to_string()),
+                );
                 let _ = cache.save();
             }
             self.next();
@@ -775,7 +780,11 @@ macro_rules! try_request {
                             log::error!("marking {hostname:?} as reachable again!");
                             if let Ok(mut cache) = crate::remote_cache::RemoteMappingCache::write()
                             {
-                                cache.mark_host_reachable(&$self.remote, &hostname, true);
+                                cache.mark_host_reachable(
+                                    &$self.remote,
+                                    &hostname,
+                                    ConnectionState::Reachable,
+                                );
                                 let _ = cache.save();
                             }
                         }
@@ -797,7 +806,11 @@ macro_rules! try_request {
                 if let Ok(result) = tokio::time::timeout($self.timeout, request).await {
                     if result.is_ok() {
                         if let Ok(mut cache) = crate::remote_cache::RemoteMappingCache::write() {
-                            cache.mark_host_reachable(&$self.remote, &hostname, true);
+                            cache.mark_host_reachable(
+                                &$self.remote,
+                                &hostname,
+                                ConnectionState::Reachable,
+                            );
                             let _ = cache.save();
                         }
                     }
