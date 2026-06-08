@@ -127,6 +127,14 @@ impl WriteRemoteMappingCache {
 pub struct RemoteMappingCache {
     /// This maps a remote name to its mapping.
     pub remotes: HashMap<String, RemoteMapping>,
+
+    /// A remote that is designated canary for which the back-off rules are not applied.
+    /// This is used in case all remotes are marked as offline, so we have a single remote
+    /// that is queried more often than the others.
+    ///
+    /// Used to detect total network failure (and restoration) on the PDM side.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    canary_remote: Option<String>,
 }
 
 impl RemoteMappingCache {
@@ -201,6 +209,25 @@ impl RemoteMappingCache {
         self.remotes.get_mut(remote)?.hosts.get_mut(hostname)
     }
 
+    // checks to see if a canary is needed and sets it,
+    // and checks if we can reset all back-off states
+    fn set_or_reset_canary(&mut self, remote_name: &str, unreachable: bool) {
+        // if all remotes are marked offline, use this last one as canary
+        if unreachable && self.canary_is_needed() {
+            log::debug!("all remotes were marked unreachable, selecting {remote_name} as canary");
+            self.canary_remote = Some(remote_name.to_string());
+        }
+
+        // if we marked a host (and with it a remote) as reachable and we had a canary (meaning
+        // all remotes were offline at the same time) reset the whole back-off state of all remotes
+        if !unreachable && self.canary_remote.is_some() {
+            log::debug!(
+                "{remote_name} became reachable again after all were offline, resetting all back-off states"
+            );
+            self.reset_all_back_off_states();
+        }
+    }
+
     /// Mark a host as reachable.
     pub fn mark_host_reachable(
         &mut self,
@@ -208,9 +235,13 @@ impl RemoteMappingCache {
         hostname: &str,
         connection_state: ConnectionState,
     ) {
+        let unreachable = matches!(&connection_state, ConnectionState::Unreachable(_));
+
         if let Some(info) = self.info_by_hostname_mut(remote_name, hostname) {
             info.set_reachable(connection_state);
         }
+
+        self.set_or_reset_canary(remote_name, unreachable);
     }
 
     /// Mark a host as reachable.
@@ -220,9 +251,13 @@ impl RemoteMappingCache {
         node_name: &str,
         connection_state: ConnectionState,
     ) {
+        let unreachable = matches!(&connection_state, ConnectionState::Unreachable(_));
+
         if let Some(info) = self.info_by_node_name_mut(remote_name, node_name) {
             info.set_reachable(connection_state);
         }
+
+        self.set_or_reset_canary(remote_name, unreachable);
     }
 
     /// Update the node name for a host, if the remote and host exist (otherwise this does
@@ -246,6 +281,11 @@ impl RemoteMappingCache {
         hostname: &str,
         current_time: i64,
     ) -> Option<(u64, String)> {
+        if let Some(canary) = &self.canary_remote {
+            if remote == canary {
+                return None;
+            }
+        }
         self.info_by_hostname(remote, hostname)
             .and_then(|info| info.back_off.as_ref())
             .map(|back_off| {
@@ -256,12 +296,48 @@ impl RemoteMappingCache {
             })
     }
 
-    /// Returns the remaining back-off time and optionally the last error we got.
+    // resets the back-off state of all hosts of all remotes. Used when a remote comes online again
+    // when none were reachable before
+    fn reset_all_back_off_states(&mut self) {
+        self.canary_remote = None;
+
+        for remote in self.remotes.values_mut() {
+            remote.reset_back_off();
+        }
+    }
+
+    // checks if a canary is needed: If none is set and all remotes are unreachable
+    fn canary_is_needed(&mut self) -> bool {
+        if let Some(canary) = &self.canary_remote {
+            if self.remotes.contains_key(canary) {
+                return false;
+            }
+
+            // the canary remote vanished from the cache, probably was de-configured
+            self.canary_remote = None;
+        }
+
+        for remote in self.remotes.values() {
+            if remote.is_reachable() {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Get the next time to try the remote and the last error if it was not reachable.
     pub fn remote_time_to_next_try(
         &self,
         remote: &str,
         current_time: i64,
     ) -> Option<(u64, String)> {
+        // We're the designated canary remote, so pretend we don't have back-off state
+        if let Some(canary) = &self.canary_remote {
+            if canary == remote {
+                return None;
+            }
+        }
+
         match self.remotes.get(remote) {
             Some(remote) => {
                 let mut time = u64::MAX;
@@ -332,6 +408,24 @@ impl RemoteMapping {
             if let Some(new) = &info.node_name {
                 self.node_to_host.insert(new.clone(), hostname.to_string());
             }
+        }
+    }
+
+    fn is_reachable(&self) -> bool {
+        if self.hosts.is_empty() {
+            return true;
+        }
+        for host in self.hosts.values() {
+            if host.is_reachable() {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn reset_back_off(&mut self) {
+        for host in self.hosts.values_mut() {
+            host.set_reachable(ConnectionState::Reachable);
         }
     }
 }
