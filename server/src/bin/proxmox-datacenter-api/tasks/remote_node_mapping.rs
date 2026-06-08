@@ -140,11 +140,6 @@ impl CachingTask {
             *entry = remote_cache::RemoteMapping::new(remote.ty);
         }
 
-        // Only PVE entries currently have a node cache, so skip non-PVE remotes:
-        if remote.ty != RemoteType::Pve {
-            return;
-        }
-
         // prune nodes which were removed:
         entry.hosts.retain(|hostname, info| {
             let retain = remote.nodes.iter().any(|node| node.hostname == *hostname);
