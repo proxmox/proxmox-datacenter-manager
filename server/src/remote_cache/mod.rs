@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_product_config::replace_config;
 use proxmox_product_config::{ApiLockGuard, open_api_lockfile};
-use proxmox_time::epoch_i64;
+use proxmox_time::{epoch_i64, epoch_to_rfc2822};
 
 use pdm_api_types::remotes::RemoteType;
 use pdm_config::ConfigVersionCache;
@@ -238,7 +238,14 @@ impl RemoteMappingCache {
         let unreachable = matches!(&connection_state, ConnectionState::Unreachable(_));
 
         if let Some(info) = self.info_by_hostname_mut(remote_name, hostname) {
-            info.set_reachable(connection_state);
+            if let Some(next_try) = info.set_reachable(connection_state) {
+                log::warn!(
+                    "could not reach host {} of {} for some time, backing off until {}",
+                    hostname,
+                    remote_name,
+                    epoch_to_rfc2822(next_try).unwrap_or_else(|_| next_try.to_string())
+                );
+            }
         }
 
         self.set_or_reset_canary(remote_name, unreachable);
@@ -254,7 +261,14 @@ impl RemoteMappingCache {
         let unreachable = matches!(&connection_state, ConnectionState::Unreachable(_));
 
         if let Some(info) = self.info_by_node_name_mut(remote_name, node_name) {
-            info.set_reachable(connection_state);
+            if let Some(next_try) = info.set_reachable(connection_state) {
+                log::warn!(
+                    "could not reach node {} of {} for some time, backing off until {}",
+                    node_name,
+                    remote_name,
+                    epoch_to_rfc2822(next_try).unwrap_or_else(|_| next_try.to_string())
+                );
+            }
         }
 
         self.set_or_reset_canary(remote_name, unreachable);

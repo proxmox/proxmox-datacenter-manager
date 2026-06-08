@@ -20,6 +20,7 @@ use serde::Serialize;
 
 use proxmox_acme_api::CertificateInfo;
 use proxmox_client::{Client, HttpApiClient, HttpApiResponse, HttpApiResponseStream, TlsOptions};
+use proxmox_time::epoch_i64;
 
 use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, TlsProbeOutcome};
 use pve_api_types::client::PveClientImpl;
@@ -540,29 +541,6 @@ impl MultiClientState {
         self.current = self.current.wrapping_add(1);
     }
 
-    /// Whenever a request fails with the *current* client we move the current entry forward.
-    ///
-    /// # Note:
-    ///
-    /// With our current strategy `failed_index` is always less than `current`, but if we change
-    /// the strategy, we may want to change this to something like `1 + max(current, failed)`.
-    fn failed(&mut self, failed_index: usize) {
-        if self.current == failed_index {
-            let entry = self.get_entry();
-            log::error!("marking client {} as unreachable", entry.hostname);
-            if let Ok(mut cache) = crate::remote_cache::RemoteMappingCache::write() {
-                cache.mark_host_reachable(
-                    &self.remote,
-                    &entry.hostname,
-                    ConnectionState::Unreachable("unknown error".to_string()),
-                );
-                let _ = cache.save();
-            }
-            self.next();
-            self.skip_unreachable();
-        }
-    }
-
     /// Skip ahead as long as we're pointing to an unreachable.
     fn skip_unreachable(&mut self) {
         let cache = crate::remote_cache::RemoteMappingCache::get();
@@ -588,8 +566,7 @@ impl MultiClientState {
         &self.entries[self.index()]
     }
 
-    /// Get the current entry and its index which can be passed to `failed()` if the client fails
-    /// to connect.
+    /// Get the current entry and its index.
     fn get(&self) -> (&MultiClientEntry, usize) {
         let index = self.index();
         (&self.entries[index], self.current)
@@ -656,8 +633,8 @@ impl MultiClient {
     ///
     /// This is basically a "generator" for clients to try.
     ///
-    /// We share the "state" with other tasks. When a client fails, it is "marked" as failed and
-    /// the state "rotates" through the clients.
+    /// We share the "state" with other tasks. When a client fails, it should be "marked" as failed
+    /// so that the state "rotates" through the clients.
     /// We might be skipping clients if other tasks already tried "more" clients, but that's fine,
     /// since there's no point in trying the same remote twice simultaneously if it is currently
     /// offline...
@@ -688,10 +665,14 @@ impl MultiClient {
                     Some(TryClient::reachable(client))
                 }
                 Some((start, current)) => {
-                    // If our last request failed, the retry-loop asks for another client, mark the
-                    // one we just used as failed and check if all clients have gone through a
-                    // retry loop...
-                    state.failed(current);
+                    // If our last request failed, the retry-loop asks for another client, it marked
+                    // the one we just used as failed and we check if all clients have gone through
+                    // a retry loop...
+                    if state.current == current {
+                        state.next();
+                        state.skip_unreachable();
+                    }
+
                     if state.tried_all_since(start) {
                         // This iterator (and therefore this retry-loop) has tried all clients.
                         // Give up.
@@ -701,8 +682,7 @@ impl MultiClient {
                             state.get_at(try_unreachable.as_mut()?.next()?),
                         ));
                     }
-                    // finally just get the new current client and update `current` for the later
-                    // call to `failed()`
+                    // finally just get the new current client and update `current`
                     let (client, new_current) = state.get();
                     start_current = Some((start, new_current));
 
@@ -729,6 +709,23 @@ macro_rules! try_request {
     ($self:expr, $method:expr, $path_and_query:expr, $params:expr, $how:ident) => {
         let params = $params.map(serde_json::to_value);
         Box::pin(async move {
+            // check if we're still in the back-off time frame of the remote
+            {
+                let cache = crate::remote_cache::RemoteMappingCache::get();
+                if let Some((back_off_time, last_error)) =
+                    cache.remote_time_to_next_try(&$self.remote, epoch_i64())
+                {
+                    if back_off_time > 0 {
+                        log::debug!(
+                            "wanted to retry '{}' but still {}s until retry time",
+                            $self.remote,
+                            back_off_time
+                        );
+                        return Err(proxmox_client::Error::Connect(last_error.into()));
+                    }
+                }
+            }
+
             let params = params
                 .transpose()
                 .map_err(|err| proxmox_client::Error::Anyhow(err.into()))?;
@@ -738,14 +735,31 @@ macro_rules! try_request {
             // remember the first endpoint to retry once at the end if it only failed to connect
             let mut connect_retry = None;
             let mut first = true;
-            // The iterator in use here will automatically mark a client as faulty if we move on to
-            // the `next()` one.
+            // If a call fails here, we have to mark the host as faulty.
             for TryClient {
                 client,
                 hostname,
                 reachable,
             } in $self.try_clients()
             {
+                // check if we're still in the back-off time frame of the host
+                {
+                    let cache = crate::remote_cache::RemoteMappingCache::get();
+                    if let Some((back_off_time, _)) =
+                        cache.host_time_to_next_try(&$self.remote, &hostname, epoch_i64())
+                    {
+                        if back_off_time > 0 {
+                            log::debug!(
+                                "wanted to retry '{}' - '{}', but still {}s until retry time",
+                                $self.remote,
+                                hostname,
+                                back_off_time
+                            );
+                            continue;
+                        }
+                    }
+                }
+
                 if let Some(err) = last_err.take() {
                     let path = $path_and_query;
                     log::error!("client error on request {path}, trying another remote - {err:?}");
@@ -795,6 +809,29 @@ macro_rules! try_request {
                     }
                 }
                 first = false;
+
+                // if this client was not able to reach the remote, mark the current hostname as
+                // unreachable
+                let err = match (timed_out, last_err.as_ref()) {
+                    (true, _) => Some("request timed out".to_string()),
+                    (false, Some(err)) => Some(err.to_string()),
+                    (false, None) => None,
+                };
+                if let Some(err) = err {
+                    if let Ok(mut cache) = crate::remote_cache::RemoteMappingCache::write() {
+                        log::debug!(
+                            "could not reach host '{}' on remote '{}', marking as unreachable",
+                            hostname,
+                            $self.remote
+                        );
+                        cache.mark_host_reachable(
+                            &$self.remote,
+                            &hostname,
+                            ConnectionState::Unreachable(err),
+                        );
+                        let _ = cache.save();
+                    }
+                }
             }
 
             // best-effort: give the first endpoint one more try after all others, but only on a
