@@ -99,17 +99,25 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<proxmo
     let csrf_token = csrf_token.unwrap_or_else(|| String::from(""));
 
     let mut debug = false;
-    let mut template_file = "index";
+    let mut is_console = false;
+    let mut is_novnc = false;
 
     if let Some(query_str) = parts.uri.query() {
         for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
             if k == "debug" && v != "0" && v != "false" {
                 debug = true;
             } else if k == "console" {
-                template_file = "console";
+                is_console = true;
+            } else if k == "novnc" {
+                is_novnc = true;
             }
         }
     }
+    let template_file = match (is_console, is_novnc) {
+        (true, true) => "novnc",
+        (true, false) => "console",
+        (false, _) => "index",
+    };
 
     let data = json!({
         "NodeName": nodename,
@@ -162,6 +170,7 @@ async fn run(debug: bool) -> Result<(), Error> {
         .auth_handler_func(|h, m| Box::pin(auth::check_auth(h, m)))
         .register_template("index", &indexpath)?
         .register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
+        .register_template("novnc", "/usr/share/novnc-pve/index.html.hbs")?
         .aliases([
             ("qrcodejs", "/usr/share/javascript/qrcodejs"),
             ("fontawesome", "/usr/share/fonts-font-awesome"),
