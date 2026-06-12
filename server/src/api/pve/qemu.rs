@@ -20,6 +20,7 @@ use serde_json::Value;
 
 use crate::api::nodes::vncwebsocket::required_integer_param;
 use crate::api::pve::get_remote;
+use crate::api::remotes::shell::TermTicketType;
 
 use super::{
     check_guest_delete_perms, check_guest_list_permissions, check_guest_permissions,
@@ -69,6 +70,7 @@ const QEMU_VM_SUBDIRS: SubdirMap = &sorted!([
         "vncwebsocket",
         &Router::new().upgrade(&API_METHOD_QEMU_WEBSOCKET)
     ),
+    ("vncproxy", &Router::new().post(&API_METHOD_QEMU_VNC_TICKET)),
 ]);
 
 const QEMU_SNAPSHOT_ROUTER: Router = Router::new()
@@ -868,9 +870,11 @@ fn qemu_shell_ticket(
     vmid: u32,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    crate::api::remotes::shell::create_term_ticket(rpcenv, move || {
-        encode_term_ticket_path(&remote, vmid)
-    })
+    crate::api::remotes::shell::create_term_ticket(
+        rpcenv,
+        move || encode_term_ticket_path(&remote, vmid),
+        move || TermTicketType::QemuTerm,
+    )
 }
 
 #[sortable]
@@ -915,16 +919,30 @@ crate::api::remotes::shell::upgrade_to_websocket_impl! {
         Ok(u32::try_from(required_integer_param(param, "vmid")?)?)
     },
     |remote, &vmid| encode_term_ticket_path(remote, vmid),
-    async |remote: &Remote, vmid: &u32| -> Result<(String, i64, String), Error> {
+    TermTicketType,
+    async |
+        remote: &Remote,
+        vmid: &u32,
+        kind: TermTicketType,
+    | -> Result<(String, i64, String, bool), Error> {
         if remote.ty != pdm_api_types::remotes::RemoteType::Pve {
             bail!("expected a PVE remote type for console ticket");
         }
         let vmid = *vmid;
         let pve = crate::connection::make_pve_client(remote)?;
         let node = find_node_for_vm(None, vmid, pve.as_ref()).await?;
-        let param = pve_api_types::QemuTermProxy { serial: None };
-        let ticket = pve.qemu_termproxy(&node, vmid, param).await?;
-        Ok((ticket.ticket, ticket.port, node))
+        match kind {
+            TermTicketType::QemuTerm => {
+                let param = pve_api_types::QemuTermProxy { serial: None };
+                let ticket = pve.qemu_termproxy(&node, vmid, param).await?;
+                Ok((ticket.ticket, ticket.port, node, true))
+            }
+            TermTicketType::QemuVnc { ticket, port } => {
+                log::error!("Here on {node} with {port} and {ticket:?}");
+                Ok((ticket, port, node, false))
+            }
+            _ => bail!("expected qemu term/vnc ticket, got '{kind}'"),
+        }
     },
     |vmid: u32, node: String, ticket: &str, port: i64| {
          proxmox_client::ApiPathBuilder::new(format!(
@@ -933,5 +951,79 @@ crate::api::remotes::shell::upgrade_to_websocket_impl! {
         .arg("vncticket", ticket)
         .arg("port", port)
         .build()
+    },
+}
+
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            remote: { schema: REMOTE_ID_SCHEMA },
+            vmid: { schema: VMID_SCHEMA },
+            websocket: {
+                description: "Prepare for websocket upgrade",
+                type: Boolean,
+                optional: true,
+                default: false,
+            },
+        },
+    },
+    returns: {
+        type: Object,
+        description: "Object with the user and ticket",
+        properties: {
+            user: {
+                description: "User that obtained the VNC ticket.",
+                type: String,
+            },
+            port: {
+                description: "Always '0'.",
+                type: Integer,
+            },
+            password: {
+                description: "VNC protocol password for this session.",
+                type: String,
+                optional: true,
+            },
+        }
+    },
+    access: {
+        description: "Restricted to users",
+        permission: &Permission::Privilege(&["resource", "{remote}", "guest", "{vmid}"], PRIV_SYS_CONSOLE, false),
     }
+)]
+/// Call vncproxy and return shell ticket.
+async fn qemu_vnc_ticket(
+    remote: String,
+    vmid: u32,
+    websocket: bool,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+    let (remotes, _digest) = pdm_config::remotes::config()?;
+    let remote = get_remote(&remotes, &remote)?;
+
+    let pve = crate::connection::make_pve_client(remote)?;
+
+    let node = find_node_for_vm(None, vmid, pve.as_ref()).await?;
+
+    let param = pve_api_types::QemuVncProxy {
+        generate_password: None,
+        websocket: websocket.then_some(true),
+    };
+    let ticket = pve.qemu_vncproxy(&node, vmid, param).await?;
+
+    let mut output = crate::api::remotes::shell::create_term_ticket(
+        rpcenv,
+        move || encode_term_ticket_path(&remote.id, vmid),
+        move || TermTicketType::QemuVnc {
+            ticket: ticket.ticket,
+            port: ticket.port,
+        },
+    )?;
+
+    if let Some(password) = ticket.password {
+        output["password"] = password.into();
+    }
+
+    Ok(output)
 }

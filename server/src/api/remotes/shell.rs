@@ -1,4 +1,7 @@
+use std::fmt;
+
 use anyhow::{Context, Error, bail};
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use proxmox_auth_api::{
@@ -19,6 +22,33 @@ use crate::api::remotes::get_remote;
 
 fn encode_term_ticket_path(remote: &str, node: &str) -> String {
     format!("/shell/{remote}/{node}")
+}
+
+#[derive(Clone, Eq, PartialEq, Deserialize, Serialize)]
+pub(crate) enum TermTicketType {
+    Lxc,
+    QemuTerm,
+    QemuVnc { ticket: String, port: i64 },
+}
+
+impl fmt::Display for TermTicketType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match serde_json::to_string(self) {
+            Ok(s) => f.write_str(&s),
+            Err(err) => {
+                log::error!("error building json string: {err:?}");
+                Err(fmt::Error)
+            }
+        }
+    }
+}
+
+impl std::str::FromStr for TermTicketType {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Error> {
+        serde_json::from_str(s).context("failed to parse vnc/term ticket information")
+    }
 }
 
 #[api(
@@ -60,13 +90,24 @@ pub(crate) async fn shell_ticket(
     node: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    create_term_ticket(rpcenv, move || encode_term_ticket_path(&remote, &node))
+    create_term_ticket(
+        rpcenv,
+        move || encode_term_ticket_path(&remote, &node),
+        || Empty,
+    )
 }
 
-pub(crate) fn create_term_ticket<F: FnOnce() -> String>(
+pub(crate) fn create_term_ticket<T, FPath, FContent>(
     rpcenv: &mut dyn RpcEnvironment,
-    make_path: F,
-) -> Result<Value, Error> {
+    make_path: FPath,
+    make_content: FContent,
+) -> Result<Value, Error>
+where
+    FPath: FnOnce() -> String,
+    FContent: FnOnce() -> T,
+    T: ToString + std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
     // intentionally user only for now
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -83,7 +124,8 @@ pub(crate) fn create_term_ticket<F: FnOnce() -> String>(
     let private_auth_keyring =
         Keyring::with_private_key(crate::auth::key::private_auth_key().clone());
 
-    let ticket = Ticket::new(crate::auth::TERM_PREFIX, &Empty)?
+    let content = make_content();
+    let ticket = Ticket::new(crate::auth::TERM_PREFIX, &content)?
         .sign(&private_auth_keyring, Some(&format!("{}{}", userid, path)))?;
 
     Ok(json!({
@@ -143,19 +185,30 @@ fn upgrade_to_websocket(
 /// The signatures are as follows:
 /// ```ignore
 /// $get_params: fn(param: &Value) -> Result<P1, Error>;
-/// $make_ticket_path: fn(remote: &Remote, args1: &P1) -> String;
-/// $get_ticket_and_port: async fn (remote: &Remote, args1: &P1) -> Result<(String, i64, P2), Error>;
+/// $make_ticket_path: fn(remote: &Remote, args1: &P1, ticket_content: &$ticket_type) -> String;
+/// $get_ticket_and_port: async fn (
+///     remote: &Remote,
+///     args1: &P1,
+///     ticket_data: $ticket_type,
+/// ) -> Result<(String, i64, P2), Error>;
 /// $make_vncwebsocket_path: fn (args1: P1, args2: P2, ticket: &str, port: i64) -> String;
 /// ```
 macro_rules! upgrade_to_websocket_impl {
-    ($name:ident, $get_params:expr, $make_ticket_path:expr, $get_ticket_and_port:expr, $make_vncwebsocket_path:expr) => {
+    (
+        $name:ident,
+        $get_params:expr,
+        $make_ticket_path:expr,
+        $ticket_type:ty,
+        $get_ticket_and_port:expr,
+        $make_vncwebsocket_path:expr,
+    ) => {
         async fn $name(
             parts: ::http::request::Parts,
             req_body: ::hyper::body::Incoming,
             param: ::serde_json::Value,
             rpcenv: Box<dyn RpcEnvironment>,
         ) -> Result<::http::Response<::proxmox_http::Body>, Error> {
-            use ::proxmox_auth_api::ticket::{Empty, Ticket};
+            use ::proxmox_auth_api::ticket::Ticket;
             use ::proxmox_http::{Body, websocket::WebSocket};
 
             // intentionally user only for now
@@ -181,7 +234,7 @@ macro_rules! upgrade_to_websocket_impl {
             let shell_params = $get_params(&param)?;
             let ticket_path = $make_ticket_path(&remote, &shell_params);
 
-            Ticket::<Empty>::parse(ticket)?.verify(
+            let ticket_data = Ticket::<$ticket_type>::parse(ticket)?.verify(
                 &public_auth_keyring,
                 crate::auth::TERM_PREFIX,
                 Some(&format!("{}{}", userid, ticket_path)),
@@ -203,8 +256,8 @@ macro_rules! upgrade_to_websocket_impl {
 
                 let (remotes, _digest) = pdm_config::remotes::config()?;
                 let remote = get_remote(&remotes, &remote)?;
-                let (ticket, port, further_args) =
-                    $get_ticket_and_port(&remote, &shell_params).await?;
+                let (ticket, port, further_args, use_preamble) =
+                    $get_ticket_and_port(&remote, &shell_params, ticket_data).await?;
 
                 let raw_client = crate::connection::make_raw_client(remote)?;
 
@@ -251,7 +304,11 @@ macro_rules! upgrade_to_websocket_impl {
                     bail!("shell not supported with ticket-based authentication")
                 };
 
-                let preamble = format!("{username}:{ticket}\n", ticket = ticket);
+                let preamble = if use_preamble {
+                    format!("{username}:{ticket}\n", ticket = ticket)
+                } else {
+                    String::new()
+                };
                 ws.mask = Some([0, 0, 0, 0]);
 
                 if let Err(err) = ws
@@ -282,7 +339,8 @@ upgrade_to_websocket_impl! {
             .map(str::to_owned)
     },
     encode_term_ticket_path,
-    async |remote: &Remote, node: &String| -> Result<(String, i64, ()), Error> {
+    Empty,
+    async |remote: &Remote, node: &String, _: Empty| -> Result<(String, i64, (), bool), Error> {
         Ok(match remote.ty {
             RemoteType::Pve => {
                 let pve = crate::connection::make_pve_client(remote)?;
@@ -295,12 +353,12 @@ upgrade_to_websocket_impl! {
                         },
                     )
                     .await?;
-                (pve_term_ticket.ticket, pve_term_ticket.port, ())
+                (pve_term_ticket.ticket, pve_term_ticket.port, (), true)
             }
             RemoteType::Pbs => {
                 let pbs = crate::connection::make_pbs_client(remote)?;
                 let pbs_term_ticket = pbs.node_shell_termproxy().await?;
-                (pbs_term_ticket.ticket, pbs_term_ticket.port as i64, ())
+                (pbs_term_ticket.ticket, pbs_term_ticket.port as i64, (), true)
             }
         })
     },
@@ -309,5 +367,5 @@ upgrade_to_websocket_impl! {
             .arg("vncticket", ticket)
             .arg("port", port)
             .build()
-    })
+    }),
 }

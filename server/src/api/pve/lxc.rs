@@ -19,6 +19,7 @@ use pdm_api_types::{
 
 use crate::api::nodes::vncwebsocket::required_integer_param;
 use crate::api::pve::get_remote;
+use crate::api::remotes::shell::TermTicketType;
 
 use super::{
     check_guest_delete_perms, check_guest_list_permissions, check_guest_permissions,
@@ -781,9 +782,11 @@ fn lxc_shell_ticket(
     vmid: u32,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    crate::api::remotes::shell::create_term_ticket(rpcenv, move || {
-        encode_term_ticket_path(&remote, vmid)
-    })
+    crate::api::remotes::shell::create_term_ticket(
+        rpcenv,
+        move || encode_term_ticket_path(&remote, vmid),
+        move || TermTicketType::Lxc,
+    )
 }
 
 #[sortable]
@@ -828,15 +831,23 @@ crate::api::remotes::shell::upgrade_to_websocket_impl! {
         Ok(u32::try_from(required_integer_param(param, "vmid")?)?)
     },
     |remote, &vmid| encode_term_ticket_path(remote, vmid),
-    async |remote: &Remote, vmid: &u32| -> Result<(String, i64, String), Error> {
+    TermTicketType,
+    async |
+        remote: &Remote,
+        vmid: &u32,
+        kind: TermTicketType,
+    | -> Result<(String, i64, String, bool), Error> {
         if remote.ty != pdm_api_types::remotes::RemoteType::Pve {
             bail!("expected a PVE remote type for console ticket");
+        }
+        if kind != TermTicketType::Lxc {
+            bail!("expected ticket for an LXC terminal, got: '{kind}'");
         }
         let vmid = *vmid;
         let pve = crate::connection::make_pve_client(remote)?;
         let node = find_node_for_vm(None, vmid, pve.as_ref()).await?;
         let ticket = pve.lxc_termproxy(&node, vmid).await?;
-        Ok((ticket.ticket, ticket.port, node))
+        Ok((ticket.ticket, ticket.port, node, true))
     },
     |vmid: u32, node: String, ticket: &str, port: i64| {
          proxmox_client::ApiPathBuilder::new(format!(
@@ -845,5 +856,5 @@ crate::api::remotes::shell::upgrade_to_websocket_impl! {
         .arg("vncticket", ticket)
         .arg("port", port)
         .build()
-    }
+    },
 }
