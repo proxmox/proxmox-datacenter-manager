@@ -1293,6 +1293,13 @@ mod tests {
         cache.update(tasks, &node_map, HashSet::new())
     }
 
+    fn get_cutoff(cache: &WritableTaskCache) -> i64 {
+        cache
+            .read_state()
+            .cutoff_timestamp("pve-remote", "pve")
+            .unwrap_or(0)
+    }
+
     const DEFAULT_MAX_SIZE: u64 = 10000;
 
     #[test]
@@ -1314,10 +1321,7 @@ mod tests {
 
         add_tasks(&cache, vec![task(1000, Some(1010)), task(1001, Some(1011))])?;
 
-        assert_eq!(
-            cache.read_state().cutoff_timestamp("pve-remote", "pve"),
-            Some(1001)
-        );
+        assert_eq!(get_cutoff(&cache), 1001);
 
         cache.rotate(1500)?;
 
@@ -1326,10 +1330,7 @@ mod tests {
         add_tasks(&cache, vec![task(1500, Some(1510)), task(1501, Some(1511))])?;
         add_tasks(&cache, vec![task(1200, Some(1210)), task(1300, Some(1310))])?;
 
-        assert_eq!(
-            cache.read_state().cutoff_timestamp("pve-remote", "pve"),
-            Some(1501),
-        );
+        assert_eq!(get_cutoff(&cache), 1501);
 
         cache.rotate(2000)?;
         assert_eq!(cache.cache.archive_files(&cache.lock)?.len(), 3);
