@@ -1302,8 +1302,7 @@ mod tests {
 
     const DEFAULT_MAX_SIZE: u64 = 10000;
 
-    #[test]
-    fn test_add_tasks() -> Result<(), Error> {
+    fn make_cache() -> Result<(NamedTempDir, TaskCache), Error> {
         let tmp_dir = NamedTempDir::new()?;
         let cache = TaskCache::new(
             tmp_dir.path(),
@@ -1313,8 +1312,15 @@ mod tests {
             0,
             DEFAULT_MAX_SIZE,
         )
-        .unwrap()
-        .write()?;
+        .unwrap();
+
+        Ok((tmp_dir, cache))
+    }
+
+    #[test]
+    fn test_add_tasks() -> Result<(), Error> {
+        let (_tmp_dir, cache) = make_cache().unwrap();
+        let cache = cache.write().unwrap();
 
         cache.new_file(1000, false)?;
         assert_eq!(cache.cache.archive_files(&cache.lock)?.len(), 1);
@@ -1366,17 +1372,8 @@ mod tests {
 
     #[test]
     fn test_active_tasks_are_migrated_to_archive() -> Result<(), Error> {
-        let tmp_dir = NamedTempDir::new()?;
-        let cache = TaskCache::new(
-            tmp_dir.path(),
-            CreateOptions::new(),
-            3,
-            1,
-            0,
-            DEFAULT_MAX_SIZE,
-        )
-        .unwrap()
-        .write()?;
+        let (_tmp_dir, cache) = make_cache().unwrap();
+        let cache = cache.write().unwrap();
 
         cache.new_file(1000, false)?;
         add_tasks(&cache, vec![task(1000, None), task(1001, None)])?;
@@ -1393,17 +1390,9 @@ mod tests {
 
     #[test]
     fn test_init() -> Result<(), Error> {
-        let tmp_dir = NamedTempDir::new()?;
-        let cache = TaskCache::new(
-            tmp_dir.path(),
-            CreateOptions::new(),
-            3,
-            1,
-            100,
-            DEFAULT_MAX_SIZE,
-        )
-        .unwrap()
-        .write()?;
+        let (_tmp_dir, mut cache) = make_cache().unwrap();
+        cache.rotate_after = 100;
+        let cache = cache.write().unwrap();
 
         cache.init(1000)?;
         assert_eq!(cache.cache.archive_files(&cache.lock)?.len(), 3);
@@ -1434,17 +1423,9 @@ mod tests {
 
     #[test]
     fn test_tracking_tasks() -> Result<(), Error> {
-        let tmp_dir = NamedTempDir::new()?;
-        let cache = TaskCache::new(
-            tmp_dir.path(),
-            CreateOptions::new(),
-            3,
-            1,
-            100,
-            DEFAULT_MAX_SIZE,
-        )
-        .unwrap()
-        .write()?;
+        let (_tmp_dir, mut cache) = make_cache().unwrap();
+        cache.rotate_after = 100;
+        let cache = cache.write().unwrap();
 
         cache.init(1000)?;
 
@@ -1475,22 +1456,14 @@ mod tests {
 
     #[test]
     fn journal_is_applied_if_max_size_exceeded() -> Result<(), Error> {
-        let tmp_dir = NamedTempDir::new()?;
-
         // Should be *just* enough to fit a single task, which means that we apply the journal
         // after adding a second one.
         const ENOUGH_FOR_SINGLE_TASK: u64 = 200;
 
-        let cache = TaskCache::new(
-            tmp_dir.path(),
-            CreateOptions::new(),
-            3,
-            1,
-            100,
-            ENOUGH_FOR_SINGLE_TASK,
-        )
-        .unwrap()
-        .write()?;
+        let (_tmp_dir, mut cache) = make_cache().unwrap();
+        cache.rotate_after = 100;
+        cache.journal_max_size = ENOUGH_FOR_SINGLE_TASK;
+        let cache = cache.write().unwrap();
 
         add_tasks(&cache, vec![task(1000, Some(1010))])?;
         assert!(cache.journal_size()? > 0);
