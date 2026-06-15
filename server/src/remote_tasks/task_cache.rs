@@ -1257,11 +1257,11 @@ mod tests {
         Ok(())
     }
 
-    fn task(starttime: i64, ended: bool) -> TaskCacheItem {
-        let (status, endtime) = if ended {
-            (Some("OK".into()), Some(starttime + 10))
+    fn task(starttime: i64, endtime: Option<i64>) -> TaskCacheItem {
+        let status = if endtime.is_some() {
+            Some("OK".into())
         } else {
-            (None, None)
+            None
         };
 
         TaskCacheItem {
@@ -1312,7 +1312,7 @@ mod tests {
         cache.new_file(1000, false)?;
         assert_eq!(cache.cache.archive_files(&cache.lock)?.len(), 1);
 
-        add_tasks(&cache, vec![task(1000, true), task(1001, true)])?;
+        add_tasks(&cache, vec![task(1000, Some(1010)), task(1001, Some(1011))])?;
 
         assert_eq!(
             cache.read_state().cutoff_timestamp("pve-remote", "pve"),
@@ -1323,8 +1323,8 @@ mod tests {
 
         assert_eq!(cache.cache.archive_files(&cache.lock)?.len(), 2);
 
-        add_tasks(&cache, vec![task(1500, true), task(1501, true)])?;
-        add_tasks(&cache, vec![task(1200, true), task(1300, true)])?;
+        add_tasks(&cache, vec![task(1500, Some(1510)), task(1501, Some(1511))])?;
+        add_tasks(&cache, vec![task(1200, Some(1210)), task(1300, Some(1310))])?;
 
         assert_eq!(
             cache.read_state().cutoff_timestamp("pve-remote", "pve"),
@@ -1334,15 +1334,15 @@ mod tests {
         cache.rotate(2000)?;
         assert_eq!(cache.cache.archive_files(&cache.lock)?.len(), 3);
 
-        add_tasks(&cache, vec![task(2000, true)])?;
-        add_tasks(&cache, vec![task(1502, true)])?;
-        add_tasks(&cache, vec![task(1002, true)])?;
+        add_tasks(&cache, vec![task(2000, Some(2010))])?;
+        add_tasks(&cache, vec![task(1502, Some(1512))])?;
+        add_tasks(&cache, vec![task(1002, Some(1012))])?;
 
         // These are before the cut-off of 1000, so they will be discarded.
         // add_tasks(&cache, vec![task(800, true), task(900, true)])?;
 
         // This one should be deduped
-        add_tasks(&cache, vec![task(1000, true)])?;
+        add_tasks(&cache, vec![task(1000, Some(1010))])?;
 
         assert_starttimes(
             &cache,
@@ -1378,10 +1378,10 @@ mod tests {
         .write()?;
 
         cache.new_file(1000, false)?;
-        add_tasks(&cache, vec![task(1000, false), task(1001, false)])?;
+        add_tasks(&cache, vec![task(1000, None), task(1001, None)])?;
         assert_eq!(cache.get_tasks(GetTasks::Active)?.count(), 2);
 
-        add_tasks(&cache, vec![task(1000, true), task(1001, true)])?;
+        add_tasks(&cache, vec![task(1000, Some(1010)), task(1001, Some(1011))])?;
 
         assert_starttimes(&cache, &[1001, 1000]);
 
@@ -1409,7 +1409,11 @@ mod tests {
 
         add_tasks(
             &cache,
-            vec![task(1050, true), task(950, true), task(850, true)],
+            vec![
+                task(1050, Some(1060)),
+                task(950, Some(960)),
+                task(850, Some(860)),
+            ],
         )?;
 
         assert_eq!(cache.get_tasks(GetTasks::Archived)?.count(), 3);
@@ -1418,7 +1422,7 @@ mod tests {
     }
 
     fn add_finished_tracked(cache: &WritableTaskCache, starttime: i64) -> Result<(), Error> {
-        let t = task(starttime, true);
+        let t = task(starttime, Some(starttime + 10));
         let upid = t.upid.clone();
 
         let mut node_map = NodeFetchSuccessMap::default();
@@ -1443,10 +1447,10 @@ mod tests {
 
         cache.init(1000)?;
 
-        cache.add_tracked_task(task(1050, false))?;
+        cache.add_tracked_task(task(1050, Some(1060)))?;
 
         assert_eq!(cache.get_tasks(GetTasks::Active)?.count(), 1);
-        cache.add_tracked_task(task(1060, false))?;
+        cache.add_tracked_task(task(1060, Some(1070)))?;
         assert_eq!(cache.get_tasks(GetTasks::Active)?.count(), 2);
 
         assert_eq!(cache.read_state().tracked_tasks().count(), 2);
@@ -1487,10 +1491,10 @@ mod tests {
         .unwrap()
         .write()?;
 
-        add_tasks(&cache, vec![task(1000, true)])?;
+        add_tasks(&cache, vec![task(1000, Some(1010))])?;
         assert!(cache.journal_size()? > 0);
 
-        add_tasks(&cache, vec![task(1000, true)])?;
+        add_tasks(&cache, vec![task(1000, Some(1010))])?;
 
         assert_eq!(cache.journal_size()?, 0);
 
