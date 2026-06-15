@@ -102,22 +102,34 @@ impl State {
         self.tracked_tasks.remove(upid);
     }
 
-    /// Update the per-node cutoff timestamp if it is higher than the current one.
-    fn update_cutoff_timestamp(&mut self, remote_id: &str, node: &str, starttime: i64) {
+    /// Update the per-node cutoff timestamp with a provided update function.
+    fn update_cutoff_timestamp<F: Fn(Option<i64>) -> i64>(
+        &mut self,
+        remote_id: &str,
+        node: &str,
+        update_fn: F,
+    ) {
         match self.remote_state.get_mut(remote_id) {
             Some(remote_state) => match remote_state.node_state.get_mut(node) {
                 Some(node_state) => {
-                    node_state.cutoff = node_state.cutoff.max(starttime);
+                    node_state.cutoff = update_fn(Some(node_state.cutoff));
                 }
                 None => {
-                    remote_state
-                        .node_state
-                        .insert(node.to_string(), NodeState { cutoff: starttime });
+                    remote_state.node_state.insert(
+                        node.to_string(),
+                        NodeState {
+                            cutoff: update_fn(None),
+                        },
+                    );
                 }
             },
             None => {
-                let node_state =
-                    HashMap::from_iter([(node.to_string(), NodeState { cutoff: starttime })]);
+                let node_state = HashMap::from_iter([(
+                    node.to_string(),
+                    NodeState {
+                        cutoff: update_fn(None),
+                    },
+                )]);
 
                 self.remote_state
                     .insert(remote_id.to_string(), RemoteState { node_state });
@@ -389,7 +401,7 @@ impl WritableTaskCache {
 
     fn write_tasks_to_journal(
         &self,
-        tasks: Vec<TaskCacheItem>,
+        finished_tasks: Vec<TaskCacheItem>,
         active_tasks: &mut HashMap<RemoteUpid, TaskCacheItem>,
         node_success_map: &NodeFetchSuccessMap,
         state: &mut State,
@@ -400,7 +412,7 @@ impl WritableTaskCache {
             .create(true)
             .open(filename)?;
 
-        for task in tasks {
+        for task in finished_tasks {
             // Remove this finished task from our set of active tasks.
             active_tasks.remove(&task.upid);
 
@@ -416,11 +428,35 @@ impl WritableTaskCache {
             let remote = task.upid.remote();
 
             if node_success_map.node_successful(remote, node) {
-                state.update_cutoff_timestamp(remote, node, task.starttime);
+                state.update_cutoff_timestamp(remote, node, |existing| {
+                    existing.unwrap_or(0).max(task.starttime)
+                });
             }
 
             serde_json::to_writer(&mut file, &task)?;
             writeln!(&file)?;
+        }
+
+        // For all remaining active tasks, set the cutoff timestamp to the
+        // start time of the *oldest* running task. This is to avoid
+        // gaps in the task archive if tasks run overlappingly
+        for task in active_tasks.values() {
+            let native_upid = match task.upid.native_upid() {
+                Ok(native_upid) => native_upid,
+                Err(err) => {
+                    log::error!("could not parse UPID: {err:#}");
+                    continue;
+                }
+            };
+
+            let node = native_upid.node();
+            let remote = task.upid.remote();
+
+            if node_success_map.node_successful(remote, node) {
+                state.update_cutoff_timestamp(remote, node, |existing| {
+                    existing.unwrap_or(i64::MAX).min(task.starttime)
+                });
+            }
         }
 
         file.sync_all()?;
@@ -1473,5 +1509,39 @@ mod tests {
         assert_eq!(cache.journal_size()?, 0);
 
         Ok(())
+    }
+
+    #[test]
+    fn cutoff_is_oldest_running_task() {
+        let (_tmp_dir, cache) = make_cache().unwrap();
+        let cache = cache.write().unwrap();
+
+        cache.init(500).unwrap();
+
+        // Establish the baseline cutoff with a single, finished task
+        add_tasks(&cache, vec![task(900, Some(910))]).unwrap();
+        assert_eq!(get_cutoff(&cache), 900);
+
+        // Add two running tasks
+        add_tasks(&cache, vec![task(1000, None), task(1100, None)]).unwrap();
+        assert_eq!(cache.get_tasks(GetTasks::Active).unwrap().count(), 2);
+        assert_eq!(cache.get_tasks(GetTasks::Archived).unwrap().count(), 1);
+
+        // Two new *running* tasks, cutoff should remain the same
+        assert_eq!(get_cutoff(&cache), 900);
+
+        add_tasks(&cache, vec![task(1000, None), task(1100, Some(1150))]).unwrap();
+        assert_eq!(cache.get_tasks(GetTasks::Active).unwrap().count(), 1);
+        assert_eq!(cache.get_tasks(GetTasks::Archived).unwrap().count(), 2);
+
+        // The cutoff should stick to the *oldest* running task
+        assert_eq!(get_cutoff(&cache), 1000);
+
+        add_tasks(&cache, vec![task(1000, Some(1200)), task(1100, Some(1150))]).unwrap();
+        // If there is no running task anymore, the youngest finished tasks' starttime determines
+        // the cutoff
+        assert_eq!(get_cutoff(&cache), 1100);
+        assert_eq!(cache.get_tasks(GetTasks::Active).unwrap().count(), 0);
+        assert_eq!(cache.get_tasks(GetTasks::Archived).unwrap().count(), 3);
     }
 }

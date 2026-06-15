@@ -284,7 +284,7 @@ async fn fetch_tasks_from_single_node(
     match remote.ty {
         RemoteType::Pve => {
             let params = pve_api_types::ListTasks {
-                source: Some(pve_api_types::ListTasksSource::Archive),
+                source: Some(pve_api_types::ListTasksSource::All),
                 since: Some(since),
                 // If `limit` is not provided, we only receive 50 tasks
                 limit: Some(MAX_TASKS_TO_FETCH),
@@ -315,14 +315,7 @@ async fn fetch_tasks_from_single_node(
                 .get_task_list(params)
                 .await?
                 .into_iter()
-                .filter_map(|task| {
-                    if task.endtime.is_some() {
-                        // We only care about finished tasks.
-                        Some(map_pbs_task(task, remote.id.clone()))
-                    } else {
-                        None
-                    }
-                })
+                .map(|task| map_pbs_task(task, remote.id.clone()))
                 .collect();
 
             Ok(task_list)
