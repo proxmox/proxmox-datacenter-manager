@@ -28,7 +28,7 @@ const TASK_FETCH_INTERVAL: Duration = Duration::from_secs(600);
 // NOTE: Since we at the moment never query active tasks from remotes, this is merely a safeguard
 // to clear stuck active tasks from a previous bug. If we at some point query active tasks, we
 // might lower this interval.
-const POLL_ACTIVE_INTERVAL: Duration = Duration::from_secs(600);
+const POLL_ACTIVE_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Interval at which to check for task cache rotation.
 const CHECK_ROTATE_INTERVAL: Duration = Duration::from_secs(3600);
