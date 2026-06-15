@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_sys::fs::CreateOptions;
 
-use pdm_api_types::{NativeUpid, RemoteUpid};
+use pdm_api_types::RemoteUpid;
 
 /// Filename for the file containing running tasks.
 const ACTIVE_FILENAME: &str = "active";
@@ -404,27 +404,19 @@ impl WritableTaskCache {
             // Remove this finished task from our set of active tasks.
             active_tasks.remove(&task.upid);
 
-            match task.upid.native_upid() {
-                Ok(NativeUpid::PveUpid(upid)) => {
-                    let node = &upid.node;
-                    let remote = task.upid.remote();
-
-                    if node_success_map.node_successful(remote, node) {
-                        state.update_cutoff_timestamp(remote, node, task.starttime);
-                    }
-                }
-                Ok(NativeUpid::PbsUpid(upid)) => {
-                    let node = &upid.node;
-                    let remote = task.upid.remote();
-
-                    if node_success_map.node_successful(remote, node) {
-                        state.update_cutoff_timestamp(remote, node, task.starttime);
-                    }
-                }
-                Err(error) => {
-                    log::error!("could not parse PVE UPID - not saving to task cache: {error:#}");
+            let native_upid = match task.upid.native_upid() {
+                Ok(native_upid) => native_upid,
+                Err(err) => {
+                    log::error!("could not parse UPID - not saving to task cache: {err:#}");
                     continue;
                 }
+            };
+
+            let node = native_upid.node();
+            let remote = task.upid.remote();
+
+            if node_success_map.node_successful(remote, node) {
+                state.update_cutoff_timestamp(remote, node, task.starttime);
             }
 
             serde_json::to_writer(&mut file, &task)?;

@@ -26,6 +26,16 @@ pub enum NativeUpid {
     PbsUpid(pbs_api_types::UPID),
 }
 
+impl NativeUpid {
+    /// Convenience getter to query the 'node' property of a task.
+    pub fn node(&self) -> &str {
+        match self {
+            NativeUpid::PveUpid(upid) => upid.node.as_str(),
+            NativeUpid::PbsUpid(upid) => upid.node.as_str(),
+        }
+    }
+}
+
 impl RemoteUpid {
     /// Create a new remote UPID.
     pub fn new(remote: String, remote_type: RemoteType, upid: String) -> Self {
