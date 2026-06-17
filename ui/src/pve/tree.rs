@@ -362,7 +362,7 @@ impl LoadableComponent for PveTreeComp {
                         };
 
                         match res {
-                            Ok(upid) => link.show_task_progres(upid.to_string()),
+                            Ok(upid) => link.show_task_progress(upid.to_string()),
                             Err(err) => link.show_error(tr!("Error"), err.to_string(), true),
                         }
                     }),
@@ -386,7 +386,7 @@ impl LoadableComponent for PveTreeComp {
                         };
 
                         match res {
-                            Ok(upid) => link.show_task_progres(upid.to_string()),
+                            Ok(upid) => link.show_task_progress(upid.to_string()),
                             Err(err) => link.show_error(tr!("Error"), err.to_string(), true),
                         }
                     }),
@@ -566,7 +566,7 @@ impl LoadableComponent for PveTreeComp {
                     .on_close(ctx.link().change_view_callback(|_| None))
                     .on_submit({
                         let link = ctx.link().clone();
-                        move |upid: RemoteUpid| link.show_task_progres(upid.to_string())
+                        move |upid: RemoteUpid| link.show_task_progress(upid.to_string())
                     })
                     .into(),
             ),

@@ -428,7 +428,7 @@ impl LoadableComponent for UpdateTreeComponent {
 
                     match client.refresh_remote_update_summary().await {
                         Ok(upid) => {
-                            link.show_task_progres(upid.to_string());
+                            link.show_task_progress(upid.to_string());
                         }
                         Err(err) => {
                             link.show_error(tr!("Could not refresh update status."), err, false);

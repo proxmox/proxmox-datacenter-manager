@@ -885,7 +885,7 @@ impl LoadableComponent for SubscriptionRegistryComp {
                         Ok(None) => link.change_view(None),
                         Ok(Some(upid)) => {
                             link.change_view(None);
-                            link.show_task_progres(upid);
+                            link.show_task_progress(upid);
                         }
                         Err(err) => link.show_error(tr!("Apply Pending"), err.to_string(), true),
                     }

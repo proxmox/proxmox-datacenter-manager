@@ -340,7 +340,7 @@ impl LoadableComponent for GuestPanelComp {
                 // another remote that ran concurrently cannot point the task
                 // viewer at the wrong remote
                 self.set_task_base_url(format!("/pve/remotes/{}/tasks", upid.remote()).into());
-                ctx.link().show_task_progres(upid.to_string());
+                ctx.link().show_task_progress(upid.to_string());
             }
             Msg::GuestAction(action, key) => {
                 let Some(entry) = self.store.read().lookup_record(&key).cloned() else {

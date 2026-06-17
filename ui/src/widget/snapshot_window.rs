@@ -228,7 +228,7 @@ impl PdmSnapshotWindow {
         self.set_task_base_url(
             format!("/{}/remotes/{}/tasks", upid.remote_type(), upid.remote()).into(),
         );
-        ctx.link().show_task_progres(upid.to_string());
+        ctx.link().show_task_progress(upid.to_string());
     }
 
     fn create_input_panel(guest_type: GuestType) -> InputPanel {
