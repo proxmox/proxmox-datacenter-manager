@@ -51,7 +51,8 @@ fn render_subscription_status(subs: &[RemoteSubscriptions]) -> Row {
 
     let (status, title, msg) = if none > 0 {
         let msg = tr!(
-            "At least one remote does not have a valid subscription. Please visit <a target=\"_blank\" href=\"https://www.proxmox.com\">www.proxmox.com</a> to get a list of available options."
+            "At least one remote does not have a valid subscription. Please visit {url} to get a list of available options.",
+            url = "<a target=\"_blank\" href=\"https://www.proxmox.com\">www.proxmox.com</a>",
         );
 
         let msg = Html::from_html_unchecked(msg.into());
