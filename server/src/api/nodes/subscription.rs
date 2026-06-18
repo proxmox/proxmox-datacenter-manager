@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{Error, bail};
 
@@ -57,6 +57,9 @@ fn count_subscriptions(
     >,
 ) -> SubscriptionStatistics {
     let mut stats = SubscriptionStatistics::default();
+    // make sure that a subscription is never counted twice.
+    let mut subscriptions = HashSet::new();
+
     for (_remote, (_remote_type, remote_infos)) in subscription_infos.iter() {
         if remote_infos.is_empty() {
             // count remotes without info as at least one node
@@ -66,10 +69,19 @@ fn count_subscriptions(
         for (_node, node_info) in remote_infos.iter() {
             stats.total_nodes += 1;
             if let Some(info) = node_info {
-                if info.status == SubscriptionStatus::Active {
-                    stats.active_subscriptions += 1;
-                    if info.level == SubscriptionLevel::Community {
-                        stats.community += 1;
+                if let Some(key) = info.key.as_ref() {
+                    if info.status == SubscriptionStatus::Active && !subscriptions.contains(key) {
+                        subscriptions.insert(key.clone());
+                        stats.active_subscriptions += 1;
+                        if info.level == SubscriptionLevel::Community {
+                            stats.community += 1;
+                        }
+                    } else if info.status == SubscriptionStatus::Active {
+                        // This means we have already seen the same subscription on a "different"
+                        // remote's node as an active subscription before. That case can only
+                        // really happen, if the same remote is added to PDM multiple times. So
+                        // subtract this node from the node total to avoid counting it twice here.
+                        stats.total_nodes -= 1;
                     }
                 }
             }
