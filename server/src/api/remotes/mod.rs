@@ -263,7 +263,11 @@ const CREATE_TOKEN_SCHEMA: Schema = pdm_api_types::PROXMOX_TOKEN_NAME_SCHEMA
         permission: &Permission::Privilege(&["resource"], PRIV_RESOURCE_MODIFY, false),
     },
 )]
-/// List all the remotes this instance is managing.
+/// Add a new remote to manage.
+///
+/// If `create-token` is specified, a new API token is generated on the target
+/// remote with the given name and used instead of the existing authentication
+/// details in the entry.
 pub async fn add_remote(mut entry: Remote, create_token: Option<String>) -> Result<(), Error> {
     let _lock = pdm_config::remotes::lock_config()?;
     let (mut remotes, _) = pdm_config::remotes::config()?;
@@ -388,7 +392,7 @@ pub enum DeletableProperty {
         permission: &Permission::Privilege(&["resource", "{id}"], PRIV_RESOURCE_MODIFY, false),
     },
 )]
-/// List all the remotes this instance is managing.
+/// Update an existing managed remote.
 pub fn update_remote(
     id: String,
     updater: RemoteUpdater,
