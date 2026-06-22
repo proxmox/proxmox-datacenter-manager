@@ -237,7 +237,7 @@ impl RemoteMappingCache {
     ) {
         let unreachable = matches!(&connection_state, ConnectionState::Unreachable(_));
 
-        if let Some(info) = self.info_by_hostname_mut(remote_name, hostname) {
+        let found = if let Some(info) = self.info_by_hostname_mut(remote_name, hostname) {
             if let Some(next_try) = info.set_reachable(connection_state) {
                 log::warn!(
                     "could not reach host {} of {} for some time, backing off until {}",
@@ -246,9 +246,16 @@ impl RemoteMappingCache {
                     epoch_to_rfc2822(next_try).unwrap_or_else(|_| next_try.to_string())
                 );
             }
-        }
+            true
+        } else {
+            false
+        };
 
-        self.set_or_reset_canary(remote_name, unreachable);
+        // only touch the canary state if the host exists in the cache, otherwise a mark for an
+        // unknown host could reset the back-off of all remotes without any host having recovered
+        if found {
+            self.set_or_reset_canary(remote_name, unreachable);
+        }
     }
 
     /// Mark a host as reachable.
@@ -260,7 +267,7 @@ impl RemoteMappingCache {
     ) {
         let unreachable = matches!(&connection_state, ConnectionState::Unreachable(_));
 
-        if let Some(info) = self.info_by_node_name_mut(remote_name, node_name) {
+        let found = if let Some(info) = self.info_by_node_name_mut(remote_name, node_name) {
             if let Some(next_try) = info.set_reachable(connection_state) {
                 log::warn!(
                     "could not reach node {} of {} for some time, backing off until {}",
@@ -269,9 +276,16 @@ impl RemoteMappingCache {
                     epoch_to_rfc2822(next_try).unwrap_or_else(|_| next_try.to_string())
                 );
             }
-        }
+            true
+        } else {
+            false
+        };
 
-        self.set_or_reset_canary(remote_name, unreachable);
+        // only touch the canary state if the node exists in the cache, otherwise a mark for an
+        // unknown node could reset the back-off of all remotes without any host having recovered
+        if found {
+            self.set_or_reset_canary(remote_name, unreachable);
+        }
     }
 
     /// Update the node name for a host, if the remote and host exist (otherwise this does
