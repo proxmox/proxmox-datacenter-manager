@@ -63,7 +63,9 @@ pub const SHELL_CMD_SCHEMA: Schema = StringSchema::new("The command to run.")
         }
     },
     access: {
-        description: "Restricted to users on realm 'pam'",
+        description: "The user requires `Sys.Console` privilege on `/system`.
+        All users who are not root@pam will have a login shell, so the user
+        must possess PAM login credentials.",
         permission: &Permission::Privilege(&["system"], PRIV_SYS_CONSOLE, false),
     }
 )]
@@ -80,10 +82,6 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
     }
 
     let userid = auth_id.user();
-
-    if userid.realm() != "pam" {
-        bail!("only pam users can use the console");
-    }
 
     let path = "/system";
 
