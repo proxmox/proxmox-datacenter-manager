@@ -1,47 +1,72 @@
-use anyhow::Error;
+use std::process::Stdio;
+
+use futures::FutureExt;
+use http::request::Parts;
+use http::{Response, StatusCode, header};
 use serde_json::Value;
+use tokio::process::Command;
 
-use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
-use proxmox_schema::api;
+use proxmox_async::stream::AsyncReaderStream;
+use proxmox_http::Body;
+use proxmox_router::{
+    ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment,
+};
+use proxmox_schema::{AllOfSchema, ApiType, ObjectSchema, ParameterSchema, Schema};
 
-use proxmox_syslog_api::{JournalFilter, dump_journal};
+use proxmox_syslog_api::JournalFilter;
 
 use pdm_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT};
 
-#[api(
-    protected: true,
-    input: {
-        properties: {
-            node: {
-                schema: NODE_SCHEMA,
-            },
-            filter: {
-                type: JournalFilter,
-                flatten: true,
-            },
-        },
-    },
-    returns: {
-        type: Array,
-        description: "Returns a list of journal entries.",
-        items: {
-            type: String,
-            description: "Line text.",
-        },
-    },
-    access: {
-        permission: &Permission::Privilege(&["system", "log"], PRIV_SYS_AUDIT, false),
-    },
-)]
+const NODE_OBJECT_SCHEMA: Schema =
+    ObjectSchema::new("Node parameter.", &[("node", false, &NODE_SCHEMA)]).schema();
+
+pub const API_METHOD_GET_JOURNAL: ApiMethod = ApiMethod::new_full(
+    &ApiHandler::AsyncHttp(&get_journal),
+    ParameterSchema::AllOf(&AllOfSchema::new(
+        "Read syslog entries.",
+        &[&NODE_OBJECT_SCHEMA, &<JournalFilter as ApiType>::API_SCHEMA],
+    )),
+)
+.protected(true)
+.access(
+    None,
+    &Permission::Privilege(&["system", "log"], PRIV_SYS_AUDIT, false),
+);
+
 /// Read syslog entries.
-#[allow(clippy::too_many_arguments)]
 fn get_journal(
-    filter: JournalFilter,
-    _param: Value,
+    _parts: Parts,
+    _req_body: hyper::body::Incoming,
+    param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<String>, Error> {
-    dump_journal(filter)
+    _rpcenv: Box<dyn RpcEnvironment>,
+) -> ApiResponseFuture {
+    async move {
+        let filter: JournalFilter = serde_json::from_value(param)?;
+        let args = proxmox_syslog_api::journal_args(&filter);
+
+        let mut child = Command::new("mini-journalreader")
+            .args(&args)
+            .stdout(Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()?;
+
+        let stdout = child.stdout.take().expect("piped stdout is available");
+
+        // reap the short-lived child so it does not turn into a zombie
+        tokio::spawn(async move {
+            let _ = child.wait().await;
+        });
+
+        let stream = AsyncReaderStream::new(stdout);
+
+        Ok(Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::wrap_stream(stream))
+            .unwrap())
+    }
+    .boxed()
 }
 
 pub const ROUTER: Router = Router::new().get(&API_METHOD_GET_JOURNAL);
