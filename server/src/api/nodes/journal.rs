@@ -53,9 +53,15 @@ fn get_journal(
 
         let stdout = child.stdout.take().expect("piped stdout is available");
 
-        // reap the short-lived child so it does not turn into a zombie
+        // reap the short-lived child, logging a failure so a broken reader is not silently empty
         tokio::spawn(async move {
-            let _ = child.wait().await;
+            match child.wait().await {
+                Ok(status) if !status.success() => {
+                    log::error!("mini-journalreader exited with {status}");
+                }
+                Err(err) => log::error!("waiting for mini-journalreader failed: {err}"),
+                _ => {}
+            }
         });
 
         let stream = AsyncReaderStream::new(stdout);
