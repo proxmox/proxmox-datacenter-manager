@@ -118,8 +118,8 @@ impl Component for PdmServerAdministration {
                     Container::new()
                         .class("pwt-content-spacer")
                         .class(pwt::css::FlexFit)
-                        .with_child(Syslog::new())
-                        .into() // fixme: use JournalView instead?
+                        .with_child(Syslog::new().structured(true))
+                        .into()
                 },
             )
             .with_item_builder(
