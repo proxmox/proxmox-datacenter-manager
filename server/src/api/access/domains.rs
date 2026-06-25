@@ -27,21 +27,7 @@ use pdm_api_types::{Authid, BasicRealmInfo, RealmRef, RealmType, UPID_SCHEMA};
 )]
 /// Authentication domain/realm index.
 fn list_domains(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<BasicRealmInfo>, Error> {
-    let mut list = vec![
-        BasicRealmInfo {
-            realm: "pam".to_string(),
-            ty: RealmType::Pam,
-            default: None,
-            comment: Some("Linux PAM standard authentication".to_string()),
-        },
-        BasicRealmInfo {
-            realm: "pdm".to_string(),
-            ty: RealmType::Pdm,
-            default: None,
-            comment: Some("Proxmox Datacenter Manager authentication".to_string()),
-        },
-    ];
-
+    let mut list = Vec::new();
     let (config, digest) = pdm_config::domains::config()?;
 
     for (_, (section_type, v)) in config.sections.iter() {

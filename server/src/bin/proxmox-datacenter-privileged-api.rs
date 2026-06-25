@@ -118,6 +118,7 @@ async fn run() -> Result<(), Error> {
     auth::init(true);
 
     proxmox_acme_api::init(configdir!("/acme"), true)?;
+    pdm_config::domains::add_default_realms()?;
 
     let api_user = pdm_config::api_user()?;
     let mut command_sock = proxmox_daemon::command_socket::CommandSocket::new(api_user.gid);

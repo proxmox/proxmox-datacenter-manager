@@ -391,6 +391,102 @@ pub struct BasicRealmInfo {
     pub comment: Option<String>,
 }
 
+#[api(
+    properties: {
+        realm: {
+            schema: REALM_ID_SCHEMA,
+        },
+        "type": {
+            type: RealmType,
+        },
+        comment: {
+            optional: true,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+        },
+        "default": {
+            optional: true,
+            default: false,
+        },
+    }
+)]
+#[derive(Serialize, Deserialize, Updater, Clone)]
+#[serde(rename_all = "kebab-case")]
+/// Built-in PAM realm configuration properties.
+pub struct PamRealmConfig {
+    /// Realm name. Always "pam".
+    #[updater(skip)]
+    pub realm: String,
+    /// Realm type. Always [`RealmType::Pam`].
+    #[updater(skip)]
+    #[serde(rename = "type")]
+    pub ty: RealmType,
+    /// Comment for this realm
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+    /// True if you want this to be the default realm selected on login.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<bool>,
+}
+
+impl Default for PamRealmConfig {
+    fn default() -> Self {
+        Self {
+            realm: "pam".to_owned(),
+            ty: RealmType::Pam,
+            comment: Some("Linux PAM standard authentication".to_owned()),
+            default: None,
+        }
+    }
+}
+
+#[api(
+    properties: {
+        realm: {
+            schema: REALM_ID_SCHEMA,
+        },
+        "type": {
+            type: RealmType,
+        },
+        comment: {
+            optional: true,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+        },
+        "default": {
+            optional: true,
+            default: false,
+        },
+    }
+)]
+#[derive(Serialize, Deserialize, Updater, Clone)]
+#[serde(rename_all = "kebab-case")]
+/// Built-in Proxmox Datacenter Manager realm configuration properties.
+pub struct PdmRealmConfig {
+    /// Realm name. Always "pdm".
+    #[updater(skip)]
+    pub realm: String,
+    /// Realm type. Always [`RealmType::Pdm`].
+    #[updater(skip)]
+    #[serde(rename = "type")]
+    pub ty: RealmType,
+    /// Comment for this realm
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+    /// True if you want this to be the default realm selected on login.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<bool>,
+}
+
+impl Default for PdmRealmConfig {
+    fn default() -> Self {
+        Self {
+            realm: "pdm".to_owned(),
+            ty: RealmType::Pdm,
+            comment: Some("Proxmox Datacenter Manager authentication server".to_owned()),
+            default: None,
+        }
+    }
+}
+
 #[api]
 /// Guest configuration access.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, Updater)]
