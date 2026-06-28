@@ -81,7 +81,7 @@ proxmox-product-config = "1"
 proxmox-dns-api = "1"
 proxmox-time-api = "1"
 proxmox-network-api = "1"
-proxmox-syslog-api = "1"
+proxmox-syslog-api = "1.1"
 proxmox-acme-api = "1"
 proxmox-node-status = "1"
 
