@@ -161,7 +161,7 @@ Architecture: any
 Multi-Arch: allowed
 Depends: libproxmox-acme-plugins,
          proxmox-datacenter-manager-docs,
-         proxmox-mini-journalreader,
+         proxmox-mini-journalreader (>= 1.7),
          proxmox-termproxy,
          proxmox-geojson-data,
          novnc-pve (>= 1.7.0-2),
