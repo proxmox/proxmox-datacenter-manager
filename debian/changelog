@@ -1,3 +1,45 @@
+proxmox-datacenter-manager (1.1.5) trixie; urgency=medium
+
+  * fix #7639: remote task cache: when advancing the per-node poll cutoff,
+    account for tasks that are still running, so a long-running task that
+    overlaps a shorter, already-finished one is no longer skipped and lost from
+    the task archive:
+    - running tasks not started by the Datacenter Manager now also show up in
+      the task views
+    - poll known active tasks every 30 seconds instead of waiting up to ten
+      minutes for the next regular poll, so a running task no longer appears
+      stuck
+
+  * remote guest consoles: connect to a guest's console directly from the
+    Datacenter Manager. The API daemon now proxies both the noVNC graphical
+    console and the xterm.js serial console of QEMU and LXC guests on Proxmox
+    VE remotes, and serves the noVNC and xterm.js web assets:
+    - pin the novnc-pve and pve-xtermjs dependencies to the versions that
+      provide the index templates and serial-console URL handling the daemon
+      relies on, so an older asset package cannot silently break console
+      serving
+
+  * remote connections: back off from unreachable remotes instead of retrying
+    a connection on every request, so API calls to an offline remote return the
+    last error immediately rather than stalling on a connection timeout each
+    time:
+    - resume probing in growing intervals and reset the back-off as soon as the
+      host answers again
+    - when no remote is reachable at all, assume the local network is at fault
+      and keep probing a single remote without backing off, so all remotes
+      recover promptly once connectivity returns
+    - apply the same host cache and back-off handling to Proxmox Backup Server
+      remotes
+
+  * subscription: count each remote subscription only once toward the node
+    total, so adding the same subscribed remote multiple times can no longer
+    inflate the count.
+
+  * node system log: stream the reader's output directly instead of buffering
+    the whole journal, so large logs no longer load fully into memory.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 29 Jun 2026 01:25:26 +0200
+
 proxmox-datacenter-manager (1.1.4) trixie; urgency=medium
 
   * remote PBS connections: use MultiClient which has timeout support, to avoid
