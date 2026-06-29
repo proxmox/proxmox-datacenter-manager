@@ -1,3 +1,30 @@
+proxmox-datacenter-manager-ui (1.1.3) trixie; urgency=medium
+
+  * guests: add console access for Proxmox VE guests, opened against the
+    guest's current node - a noVNC console and an xterm.js serial console for
+    virtual machines, and a shell console for containers.
+
+  * show the system log in a structured journal view that colors entries by
+    syslog priority, marks reboots and indents multi-line messages, and adds
+    server-side filters for the minimum priority, a systemd unit, a syslog
+    identifier and kernel-only messages.
+
+  * task lists: stop sending further "load more" requests once the end of the
+    list has been reached, fixing an endless request loop at the bottom of a
+    fully loaded list.
+
+  * metric graphs: fix broken rendering, and a panic in debug builds, when a
+    graph becomes too narrow, for example on a small viewport.
+
+  * users: ask for confirmation before removing a user instead of deleting the
+    account immediately, and disable the "Remove" button for the "root" user.
+
+  * harden authentication cookie handling: pin the ticket to the site root so
+    it is one canonical value shared across all paths, and clear it across all
+    paths on logout so no stale copy keeps a session alive.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 29 Jun 2026 01:25:26 +0200
+
 proxmox-datacenter-manager-ui (1.1.2) trixie; urgency=medium
 
   * auto-installer:
