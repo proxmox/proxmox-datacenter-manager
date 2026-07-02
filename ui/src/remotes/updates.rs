@@ -76,6 +76,7 @@ struct RemoteEntry {
     number_of_updatable_nodes: u32,
     repo_status: ProductRepositoryStatus,
     poll_status: RemoteUpdateStatus,
+    poll_message: Option<String>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -236,6 +237,7 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
             number_of_failed_nodes: 0,
             repo_status: ProductRepositoryStatus::Ok,
             poll_status: remote_summary.status.clone(),
+            poll_message: remote_summary.status_message.clone(),
         }));
         remote_entry.set_expanded(false);
 
@@ -262,7 +264,11 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
                 }
             }
 
-            if node_summary.repository_status > repo_status {
+            // A failed node carries no meaningful repository status, so only successfully polled
+            // nodes contribute to the aggregate.
+            if node_summary.status == NodeUpdateStatus::Success
+                && node_summary.repository_status > repo_status
+            {
                 repo_status = node_summary.repository_status;
             }
             let entry = NodeEntry {
@@ -588,6 +594,39 @@ impl UpdateTreeComponent {
                     panel = panel.title(title).with_child(error_widget);
                 }
             }
+            Some(UpdateTreeEntry::Remote(remote_entry)) => {
+                let title: Html = Row::new()
+                    .gap(2)
+                    .class(AlignItems::Baseline)
+                    .with_child(Fa::new("server"))
+                    // TRANSLATORS: The parameter is the name of the remote.
+                    .with_child(tr!("Update List - {0}", remote_entry.remote))
+                    .into();
+
+                panel = panel.title(title);
+                match remote_entry.poll_status {
+                    RemoteUpdateStatus::Error => {
+                        let fallback = tr!("the remote could not be reached");
+                        let err = remote_entry.poll_message.as_deref().unwrap_or(&fallback);
+                        panel = panel.with_child(pwt::widget::error_message(&tr!(
+                            "Could not fetch update status: {0}",
+                            err
+                        )));
+                    }
+                    RemoteUpdateStatus::Unknown => {
+                        panel = panel.with_child(centered_message(
+                            tr!("Not polled yet"),
+                            tr!("The update status for this remote has not been fetched yet."),
+                        ));
+                    }
+                    RemoteUpdateStatus::Success => {
+                        panel = panel.with_child(centered_message(
+                            tr!("No node selected"),
+                            tr!("Select a node to show available updates."),
+                        ));
+                    }
+                }
+            }
             _ => {
                 let title: Html = Row::new()
                     .gap(2)
@@ -596,23 +635,25 @@ impl UpdateTreeComponent {
                     .with_child(tr!("Update List"))
                     .into();
 
-                let header = tr!("No node selected");
-                let msg = tr!("Select a node to show available updates.");
-
-                let select_node_msg = Column::new()
-                    .class(FlexFit)
-                    .padding(2)
-                    .class(AlignItems::Center)
-                    .class(TextAlign::Center)
-                    .with_child(html! {<h1 class="pwt-font-headline-medium">{header}</h1>})
-                    .with_child(Container::new().with_child(msg));
-
-                panel = panel.title(title).with_child(select_node_msg)
+                panel = panel.title(title).with_child(centered_message(
+                    tr!("No node selected"),
+                    tr!("Select a node to show available updates."),
+                ));
             }
         }
 
         panel
     }
+}
+
+fn centered_message(header: String, msg: String) -> Column {
+    Column::new()
+        .class(FlexFit)
+        .padding(2)
+        .class(AlignItems::Center)
+        .class(TextAlign::Center)
+        .with_child(html! {<h1 class="pwt-font-headline-medium">{header}</h1>})
+        .with_child(Container::new().with_child(msg))
 }
 
 fn render_update_status_column(tree_entry: &UpdateTreeEntry, expanded: bool) -> Html {
@@ -688,16 +729,38 @@ fn render_repo_status_column(tree_entry: &UpdateTreeEntry, expanded: bool) -> Ht
             html!()
         }
         UpdateTreeEntry::Remote(remote_info) => {
-            if !expanded {
+            // Without at least one successfully polled node the repository status is unknown,
+            // rather than the default "OK" the aggregation would otherwise fall back to.
+            let polled_nodes = remote_info
+                .number_of_nodes
+                .saturating_sub(remote_info.number_of_failed_nodes);
+            if remote_info.poll_status != RemoteUpdateStatus::Success || polled_nodes == 0 {
+                render_repo_status_unknown()
+            } else if !expanded {
                 render_repo_status(remote_info.repo_status)
             } else {
                 html!()
             }
         }
         UpdateTreeEntry::Node(node_info) => {
-            render_repo_status(node_info.summary.repository_status).into()
+            if node_info.summary.status == NodeUpdateStatus::Error {
+                render_repo_status_unknown()
+            } else {
+                render_repo_status(node_info.summary.repository_status)
+            }
         }
     }
+}
+
+fn render_repo_status_unknown() -> Html {
+    let row = Row::new()
+        .class(css::AlignItems::Baseline)
+        .gap(2)
+        .with_child(render_status_icon(StatusIcon::Unknown));
+
+    Tooltip::new(row)
+        .tip(tr!("Repository status unknown, could not fetch update data"))
+        .into()
 }
 
 fn render_repo_status(status: ProductRepositoryStatus) -> Html {
