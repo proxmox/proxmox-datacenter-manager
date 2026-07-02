@@ -52,6 +52,9 @@ pub struct RemoteUpdateSummary {
     pub nodes: NodeUpdateSummaryWrapper,
     pub remote_type: RemoteType,
     pub status: RemoteUpdateStatus,
+    /// Status message, e.g. the error when the remote could not be polled at all.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_message: Option<String>,
 }
 
 #[api]

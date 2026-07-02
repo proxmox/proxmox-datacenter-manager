@@ -145,6 +145,7 @@ pub async fn get_available_updates_summary() -> Result<UpdateSummary, Error> {
                         nodes: NodeUpdateSummaryWrapper::default(),
                         remote_type: remote.ty,
                         status: RemoteUpdateStatus::Unknown,
+                        status_message: None,
                     },
                 );
             }
@@ -168,6 +169,7 @@ pub async fn get_available_updates_for_remote(remote: &str) -> Result<RemoteUpda
                 nodes: NodeUpdateSummaryWrapper::default(),
                 remote_type: remote.ty,
                 status: RemoteUpdateStatus::Unknown,
+                status_message: None,
             }))
     } else {
         bail!("no such remote '{remote}'");
@@ -212,6 +214,7 @@ async fn update_cached_summary_for_node(
                 nodes: Default::default(),
                 remote_type: remote.ty,
                 status: RemoteUpdateStatus::Success,
+                status_message: None,
             });
 
     remote_entry.nodes.insert(node, node_data);
@@ -263,6 +266,7 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
                 nodes: Default::default(),
                 remote_type: remote_response.remote_type(),
                 status: RemoteUpdateStatus::Success,
+                status_message: None,
             });
 
         match remote_response.nodes() {
@@ -273,6 +277,7 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
                     .retain(|name, _| node_responses.iter().any(|n| n.node_name() == name));
 
                 entry.status = RemoteUpdateStatus::Success;
+                entry.status_message = None;
 
                 for node_response in node_responses {
                     let node_name = node_response.node_name().to_string();
@@ -295,6 +300,7 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
             }
             Err(err) => {
                 entry.status = RemoteUpdateStatus::Error;
+                entry.status_message = Some(format!("{err:#}"));
                 entry.nodes.clear();
                 log::error!("could not fetch available updates from remote '{remote_name}': {err}");
             }
