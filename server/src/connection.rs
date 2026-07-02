@@ -628,6 +628,18 @@ impl TryClient {
     }
 }
 
+/// Build a [`TryClient`] for `entry`, labeled reachable per the cached state.
+///
+/// Consulting the cache lets a success clear a stale unreachable flag even on single-node remotes
+/// (all PBS remotes, standalone PVE nodes) where `skip_unreachable` cannot rotate away.
+fn try_client_for_entry(remote: &str, entry: &MultiClientEntry) -> TryClient {
+    if crate::remote_cache::RemoteMappingCache::get().host_is_reachable(remote, &entry.hostname) {
+        TryClient::reachable(entry)
+    } else {
+        TryClient::unreachable(entry)
+    }
+}
+
 impl MultiClient {
     /// This is the client usage strategy.
     ///
@@ -661,8 +673,8 @@ impl MultiClient {
                     // first attempt, just use the current client and remember the starting index
                     let (client, index) = state.get();
                     start_current = Some((index, index));
-                    log::trace!("trying reachable client {index}");
-                    Some(TryClient::reachable(client))
+                    log::trace!("trying client {index}");
+                    Some(try_client_for_entry(&state.remote, client))
                 }
                 Some((start, current)) => {
                     // If our last request failed, the retry-loop asks for another client, it marked
@@ -693,8 +705,8 @@ impl MultiClient {
                         unreachable_clients.push(at);
                         at = at.wrapping_add(1);
                     }
-                    log::trace!("trying reachable client {new_current}");
-                    Some(TryClient::reachable(client))
+                    log::trace!("trying client {new_current}");
+                    Some(try_client_for_entry(&state.remote, client))
                 }
             }
         })
@@ -791,7 +803,7 @@ macro_rules! try_request {
                     }
                     Ok(result) => {
                         if !reachable {
-                            log::error!("marking {hostname:?} as reachable again!");
+                            log::info!("marking {hostname:?} as reachable again");
                             if let Ok(mut cache) = crate::remote_cache::RemoteMappingCache::write()
                             {
                                 cache.mark_host_reachable(
