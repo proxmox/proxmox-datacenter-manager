@@ -40,6 +40,18 @@ impl From<&NodeUpdateInfo> for NodeUpdateSummary {
     }
 }
 
+/// Build a [`NodeUpdateSummary`] describing a failed fetch for a single node.
+fn node_error_summary(err: &Error) -> NodeUpdateSummary {
+    NodeUpdateSummary {
+        number_of_updates: 0,
+        last_refresh: 0,
+        status: NodeUpdateStatus::Error,
+        status_message: Some(format!("{err:#}")),
+        versions: Vec::new(),
+        repository_status: ProductRepositoryStatus::Error,
+    }
+}
+
 /// Return a list of available updates for a given remote node.
 pub async fn list_available_updates(
     remote: Remote,
@@ -209,11 +221,27 @@ async fn update_cached_summary_for_node(
 }
 
 /// Refresh the remote update cache.
+///
+/// Each node's result is cached as it arrives, so one slow or unreachable node or remote only
+/// delays its own entry. The final pass records whole-remote failures and prunes vanished
+/// remotes and nodes.
 pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Error> {
     let fetcher = ParallelFetcher::new(());
 
     let fetch_response = fetcher
-        .do_for_all_remote_nodes(remotes.clone().into_iter(), fetch_available_updates)
+        .do_for_all_remote_nodes(remotes.into_iter(), |context, remote, node| async move {
+            let result = fetch_available_updates(context, remote.clone(), node.clone()).await;
+
+            let summary = match &result {
+                Ok(update_info) => update_info.into(),
+                Err(err) => node_error_summary(err),
+            };
+            if let Err(err) = update_cached_summary_for_node(remote, node, summary).await {
+                log::error!("could not update 'remote-updates' API cache entry: {err}");
+            }
+
+            result
+        })
         .await;
 
     let cache = api_cache::write_global().await?;
@@ -255,17 +283,9 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
                         }
                         Err(err) => {
                             // Could not fetch updates from node
-                            entry.nodes.insert(
-                                node_name.clone(),
-                                NodeUpdateSummary {
-                                    number_of_updates: 0,
-                                    last_refresh: 0,
-                                    status: NodeUpdateStatus::Error,
-                                    status_message: Some(format!("{err:#}")),
-                                    versions: Vec::new(),
-                                    repository_status: ProductRepositoryStatus::Error,
-                                },
-                            );
+                            entry
+                                .nodes
+                                .insert(node_name.clone(), node_error_summary(err));
                             log::error!(
                                 "could not fetch available updates from node '{node_name}': {err}"
                             );
