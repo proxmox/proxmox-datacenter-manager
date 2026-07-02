@@ -1,3 +1,28 @@
+proxmox-datacenter-manager (1.1.6) trixie; urgency=medium
+
+  * access control: allow configuring the built-in PAM and PDM
+    authentication realms, so either can be set as the default realm and
+    have its comment edited; both realms are now also ensured to exist in
+    the domains configuration.
+
+  * remote system updates: refresh the available updates of managed
+    remotes incrementally, caching each node's result as soon as it is
+    fetched, so a single slow or unreachable remote no longer holds back
+    the update status of all others until the whole refresh finishes:
+    - also report the reason a remote could not be polled at all,
+      instead of only logging it internally
+
+  * remote connections: fix single-node remotes, in particular Proxmox
+    Backup Server remotes, staying flagged as unreachable after a brief
+    outage, which left them needlessly skipped until the API daemon was
+    restarted; their reachability now clears on the first request that
+    succeeds again:
+    - the message logged when skipping an unreachable host is now clearer
+      and logged as a warning instead of an error, so it no longer looks
+      like a hard failure in the task log
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 02 Jul 2026 11:33:42 +0200
+
 proxmox-datacenter-manager (1.1.5) trixie; urgency=medium
 
   * fix #7639: remote task cache: when advancing the per-node poll cutoff,
