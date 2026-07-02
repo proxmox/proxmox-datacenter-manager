@@ -548,7 +548,7 @@ impl MultiClientState {
         for _ in 0..self.entries.len() {
             let entry = self.get_entry();
             if !cache.host_is_reachable(&self.remote, &entry.hostname) {
-                log::error!("skipping host {} - marked unreachable", entry.hostname);
+                log::warn!("skipping host {} as it is still marked unreachable", entry.hostname);
                 self.next();
             } else {
                 return;
