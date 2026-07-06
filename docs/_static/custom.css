@@ -98,6 +98,7 @@ div.document, div.footer {
         --pdt-grey-100: hsl(0deg, 0%, 10%);
         --pdt-primary-800: hsl(205deg, 100%, 80%);
         --pdt-primary-700: hsl(205deg, 100%, 70%);
+        --pdt-secondary-800: hsl(275deg, 100%, 80%);
         --pdt-red-200: hsl(360deg, 30%, 20%);
         --pdt-red-350: hsl(360deg, 30%, 35%);
         --pdt-yellow-250: hsl(40deg, 100%, 25%);
@@ -107,6 +108,7 @@ div.document, div.footer {
         --pdt-shadow: var(--pdt-grey-100);
         --pdt-headline: var(--pdt-primary-800);
         --pdt-link: var(--pdt-primary-700);
+        --pdt-link-visited: var(--pdt-secondary-800);
         --pdt-admonition-background: var(--pdt-grey-250);
         --pdt-topic-background: var(--pdt-grey-200);
         --pdt-warn: var(--pdt-yellow-250);
@@ -134,6 +136,10 @@ div.document, div.footer {
     a.headerlink:hover {
         color: var(--pdt-text);
         background-color: var(--pdt-admonition-background)
+    }
+
+    a:visited {
+        color: var(--pdt-link-visited);
     }
 
     div.sphinxsidebar ul ul a {
