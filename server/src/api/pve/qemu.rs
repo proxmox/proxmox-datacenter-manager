@@ -895,9 +895,9 @@ pub const API_METHOD_QEMU_WEBSOCKET: ApiMethod = ApiMethod::new(
     ),
 )
 .access(
-    Some("The user needs Sys.Console on /resource/{remote}/node/{node}."),
+    Some("The user needs Sys.Console on /resource/{remote}/guest/{vmid}."),
     &Permission::Privilege(
-        &["resource", "{remote}", "node", "{node}"],
+        &["resource", "{remote}", "guest", "{vmid}"],
         PRIV_SYS_CONSOLE,
         false,
     ),
