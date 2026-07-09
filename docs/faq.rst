@@ -41,6 +41,12 @@ with:
   apt update
   apt full-upgrade
 
+.. warning:: As Proxmox Datacenter Manager uses a rolling release model on
+   top of Debian, performing an `apt upgrade` may result in a partially
+   upgraded or broken package state. This is because `apt full-upgrade`
+   can also remove existing packages to satisfy dependencies if needed,
+   while `apt upgrade` cannot.
+
 .. note:: Always ensure you correctly setup the :ref:`package repositories
    <sysadmin_package_repositories>` and only continue with the actual upgrade if `apt update` did
    not hit any error.
