@@ -122,11 +122,11 @@ impl Default for TaskState {
 /// Handle a single timer tick.
 /// Will handle archive file rotation, polling of tracked tasks and fetching or remote tasks.
 pub async fn handle_timer_tick(task_state: &mut TaskState) -> Result<(), Error> {
-    let cache = super::get_cache()?;
+    let cache = super::get_cache();
 
     if task_state.is_due_for_rotate_check() {
         log::debug!("checking if remote task archive should be rotated");
-        if rotate_cache(cache.clone()).await? {
+        if rotate_cache(cache).await? {
             log::info!("rotated remote task archive");
 
             // rotation always applies the journal as well
@@ -137,7 +137,7 @@ pub async fn handle_timer_tick(task_state: &mut TaskState) -> Result<(), Error> 
     }
 
     if task_state.is_due_for_journal_apply() {
-        apply_journal(cache.clone()).await?;
+        apply_journal(cache).await?;
         task_state.reset_journal_apply();
     }
 
@@ -151,7 +151,7 @@ pub async fn handle_timer_tick(task_state: &mut TaskState) -> Result<(), Error> 
         let mut tasks_to_poll: HashSet<RemoteUpid> =
             HashSet::from_iter(cache_state.tracked_tasks().cloned());
 
-        let active_tasks = get_active_tasks(cache.clone()).await?;
+        let active_tasks = get_active_tasks(cache).await?;
         tasks_to_poll.extend(active_tasks.into_iter());
 
         let poll_results = poll_tracked_tasks(
@@ -188,7 +188,7 @@ pub async fn handle_timer_tick(task_state: &mut TaskState) -> Result<(), Error> 
             .iter()
             .any(|(_, result)| matches!(result, PollResult::RemoteGone | PollResult::RequestError))
     {
-        update_task_cache(cache, all_tasks, update_state_for_remote, poll_results).await?;
+        update_task_cache(all_tasks, update_state_for_remote, poll_results).await?;
     }
 
     Ok(())
@@ -196,13 +196,13 @@ pub async fn handle_timer_tick(task_state: &mut TaskState) -> Result<(), Error> 
 
 /// Manually trigger task collection from a list of remotes.
 pub async fn refresh_taskcache(remotes: Vec<Remote>) -> Result<(), Error> {
-    let cache = super::get_cache()?;
+    let cache = super::get_cache();
     let cache_state = cache.read_state();
 
     let (all_tasks, update_state_for_remote) = fetch_remotes(remotes, Arc::new(cache_state)).await;
 
     if !all_tasks.is_empty() {
-        update_task_cache(cache, all_tasks, update_state_for_remote, HashMap::new()).await?;
+        update_task_cache(all_tasks, update_state_for_remote, HashMap::new()).await?;
     }
 
     Ok(())
@@ -215,7 +215,7 @@ pub async fn refresh_taskcache(remotes: Vec<Remote>) -> Result<(), Error> {
 /// without any prior task archive rotation.
 pub async fn init_cache() -> Result<(), Error> {
     tokio::task::spawn_blocking(|| {
-        let cache = super::get_cache()?;
+        let cache = super::get_cache();
         cache.write()?.init(align_timestamp(
             proxmox_time::epoch_i64(),
             ROTATE_AFTER as i64,
@@ -362,7 +362,7 @@ fn get_remotes_with_finished_tasks(
 /// Rotate the task cache if necessary.
 ///
 /// Returns Ok(true) the cache's files were rotated.
-async fn rotate_cache(cache: TaskCache) -> Result<bool, Error> {
+async fn rotate_cache(cache: &'static TaskCache) -> Result<bool, Error> {
     tokio::task::spawn_blocking(move || {
         cache.write()?.rotate(align_timestamp(
             proxmox_time::epoch_i64(),
@@ -373,12 +373,12 @@ async fn rotate_cache(cache: TaskCache) -> Result<bool, Error> {
 }
 
 /// Apply the task cache journal.
-async fn apply_journal(cache: TaskCache) -> Result<(), Error> {
+async fn apply_journal(cache: &'static TaskCache) -> Result<(), Error> {
     tokio::task::spawn_blocking(move || cache.write()?.apply_journal()).await?
 }
 
 /// Get a list of active tasks.
-async fn get_active_tasks(cache: TaskCache) -> Result<Vec<RemoteUpid>, Error> {
+async fn get_active_tasks(cache: &'static TaskCache) -> Result<Vec<RemoteUpid>, Error> {
     tokio::task::spawn_blocking(move || {
         let tasks: Vec<RemoteUpid> = cache
             .read()?
@@ -526,7 +526,6 @@ fn map_pbs_task(task: pbs_api_types::TaskListItem, remote: String) -> TaskCacheI
 
 /// Update task cache with results from tracked task polling & regular task fetching.
 async fn update_task_cache(
-    cache: TaskCache,
     new_tasks: Vec<TaskCacheItem>,
     update_state_for_remote: NodeFetchSuccessMap,
     poll_results: HashMap<RemoteUpid, PollResult>,
@@ -542,7 +541,7 @@ async fn update_task_cache(
             })
             .collect();
 
-        cache
+        super::get_cache()
             .write()?
             .update(new_tasks, &update_state_for_remote, drop_tracked)?;
 

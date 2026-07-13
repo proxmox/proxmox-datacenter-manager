@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::sync::LazyLock;
 
 use anyhow::Error;
 
@@ -38,7 +38,7 @@ pub async fn get_tasks(
     let view = views::get_optional_view(view.as_deref())?;
 
     tokio::task::spawn_blocking(move || {
-        let cache = get_cache()?.read()?;
+        let cache = get_cache().read()?;
 
         let which = if filters.running {
             GetTasks::Active
@@ -171,7 +171,7 @@ pub async fn get_tasks(
 pub async fn track_running_pve_task(remote: String, upid: PveUpid) -> Result<RemoteUpid, Error> {
     tokio::task::spawn_blocking(move || {
         let remote_upid: RemoteUpid = (remote, upid.to_string()).try_into()?;
-        let cache = get_cache()?.write()?;
+        let cache = get_cache().write()?;
 
         let task = TaskCacheItem {
             upid: remote_upid.clone(),
@@ -198,7 +198,7 @@ pub async fn track_running_pbs_task(
 ) -> Result<RemoteUpid, Error> {
     tokio::task::spawn_blocking(move || {
         let remote_upid: RemoteUpid = (remote, upid.to_string()).try_into()?;
-        let cache = get_cache()?.write()?;
+        let cache = get_cache().write()?;
 
         let task = TaskCacheItem {
             upid: remote_upid.clone(),
@@ -213,22 +213,20 @@ pub async fn track_running_pbs_task(
     .await?
 }
 
-/// Get a new [`TaskCache`] instance.
-///
-/// No heavy-weight operations are done here, it's fine to call this regularly as part of the
-/// update loop.
-pub fn get_cache() -> Result<TaskCache, Error> {
-    let file_options = proxmox_product_config::default_create_options();
+/// Get a reference to the [`TaskCache`] instance.
+pub fn get_cache() -> &'static TaskCache {
+    static CACHE: LazyLock<TaskCache> = LazyLock::new(|| {
+        let file_options = proxmox_product_config::default_create_options();
 
-    let cache_path = Path::new(REMOTE_TASKS_DIR);
-    let cache = TaskCache::new(
-        cache_path,
-        file_options,
-        KEEP_OLD_FILES,
-        NUMBER_OF_UNCOMPRESSED_FILES,
-        ROTATE_AFTER,
-        JOURNAL_MAX_SIZE,
-    )?;
+        TaskCache::new(
+            REMOTE_TASKS_DIR,
+            file_options,
+            KEEP_OLD_FILES,
+            NUMBER_OF_UNCOMPRESSED_FILES,
+            ROTATE_AFTER,
+            JOURNAL_MAX_SIZE,
+        )
+    });
 
-    Ok(cache)
+    &CACHE
 }

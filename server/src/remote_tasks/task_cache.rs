@@ -175,14 +175,14 @@ pub struct TaskCache {
 }
 
 /// A [`TaskCache`] locked for writing.
-pub struct WritableTaskCache {
-    cache: TaskCache,
+pub struct WritableTaskCache<'a> {
+    cache: &'a TaskCache,
     lock: TaskCacheLock,
 }
 
 /// A [`TaskCache`] locked for reading.
-pub struct ReadableTaskCache {
-    cache: TaskCache,
+pub struct ReadableTaskCache<'a> {
+    cache: &'a TaskCache,
     lock: TaskCacheLock,
 }
 
@@ -223,7 +223,7 @@ impl NodeFetchSuccessMap {
     }
 }
 
-impl ReadableTaskCache {
+impl<'a> ReadableTaskCache<'a> {
     /// Iterate over cached tasks.
     pub fn get_tasks(&self, mode: GetTasks) -> Result<TaskArchiveIterator<'_>, Error> {
         self.cache
@@ -232,7 +232,7 @@ impl ReadableTaskCache {
     }
 }
 
-impl WritableTaskCache {
+impl<'a> WritableTaskCache<'a> {
     /// Create initial task archive files that can be backfilled with the
     /// recent task history from a remote.
     ///
@@ -796,7 +796,7 @@ impl TaskCache {
         uncompressed: u32,
         rotate_after: u64,
         journal_max_size: u64,
-    ) -> Result<Self, Error> {
+    ) -> Self {
         let base_path = path.into();
 
         let journal_path = base_path.join(WAL_FILENAME);
@@ -804,7 +804,7 @@ impl TaskCache {
         let active_path = base_path.join(ACTIVE_FILENAME);
         let lock_path = base_path.join(LOCKFILE_FILENAME);
 
-        Ok(Self {
+        Self {
             base_path,
             journal_path,
             state_path,
@@ -815,18 +815,18 @@ impl TaskCache {
             max_files,
             rotate_after,
             uncompressed_files: uncompressed,
-        })
+        }
     }
 
     /// Lock the cache for reading.
-    pub fn read(self) -> Result<ReadableTaskCache, Error> {
+    pub fn read(&self) -> Result<ReadableTaskCache<'_>, Error> {
         let lock = self.lock_impl(false)?;
 
         Ok(ReadableTaskCache { cache: self, lock })
     }
 
     /// Lock the cache for writing.
-    pub fn write(self) -> Result<WritableTaskCache, Error> {
+    pub fn write(&self) -> Result<WritableTaskCache<'_>, Error> {
         let lock = self.lock_impl(true)?;
 
         Ok(WritableTaskCache { cache: self, lock })
@@ -1400,8 +1400,7 @@ mod tests {
             1,
             0,
             DEFAULT_MAX_SIZE,
-        )
-        .unwrap();
+        );
 
         Ok((tmp_dir, cache))
     }
