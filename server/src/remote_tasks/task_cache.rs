@@ -1555,4 +1555,70 @@ mod tests {
         assert_eq!(cache.get_tasks(GetTasks::Active).unwrap().count(), 0);
         assert_eq!(cache.get_tasks(GetTasks::Archived).unwrap().count(), 3);
     }
+
+    #[test]
+    #[allow(clippy::get_first)]
+    fn archive_file_rotation() {
+        let (_tmp_dir, mut cache) = make_cache().unwrap();
+        cache.rotate_after = 100;
+        cache.uncompressed_files = 1;
+        cache.max_files = 2;
+
+        let cache = cache.write().unwrap();
+        cache.init(1000).unwrap();
+
+        add_tasks(&cache, vec![task(1010, Some(1011)), task(1020, Some(1021))]).unwrap();
+        cache.apply_journal().unwrap();
+
+        cache.rotate(1100).unwrap();
+
+        let files = cache.cache.archive_files(&cache.lock).unwrap();
+        assert_eq!(files.len(), 2);
+        let first = files.get(0).unwrap();
+        let second = files.get(1).unwrap();
+
+        assert!(!first.compressed);
+        assert_eq!(first.starttime, 1100);
+        assert!(second.compressed);
+        assert_eq!(second.starttime, 1000);
+
+        assert_eq!(first.iter().unwrap().unwrap().count(), 0);
+        assert_eq!(second.iter().unwrap().unwrap().count(), 2);
+
+        add_tasks(&cache, vec![task(1110, Some(1111))]).unwrap();
+        cache.apply_journal().unwrap();
+
+        cache.rotate(1200).unwrap();
+
+        add_tasks(&cache, vec![task(1210, Some(1211))]).unwrap();
+        cache.apply_journal().unwrap();
+
+        let files = cache.cache.archive_files(&cache.lock).unwrap();
+        assert_eq!(files.len(), 2);
+        let first = files.get(0).unwrap();
+        let second = files.get(1).unwrap();
+
+        assert!(!first.compressed);
+        assert_eq!(first.starttime, 1200);
+        assert!(second.compressed);
+        assert_eq!(second.starttime, 1100);
+
+        assert_eq!(first.iter().unwrap().unwrap().count(), 1);
+        assert_eq!(second.iter().unwrap().unwrap().count(), 1);
+
+        cache.rotate(1300).unwrap();
+
+        let files = cache.cache.archive_files(&cache.lock).unwrap();
+        assert_eq!(files.len(), 2);
+        let first = files.get(0).unwrap();
+        let second = files.get(1).unwrap();
+
+        assert!(!first.compressed);
+        assert_eq!(first.starttime, 1300);
+        assert!(second.compressed);
+        assert_eq!(second.starttime, 1200);
+
+        assert_eq!(first.iter().unwrap().unwrap().count(), 0);
+        assert_eq!(second.iter().unwrap().unwrap().count(), 1);
+    }
 }
