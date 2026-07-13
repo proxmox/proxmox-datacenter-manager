@@ -12,6 +12,7 @@ use std::{
 
 use anyhow::{Context, Error};
 use serde::{Deserialize, Serialize};
+use zstd::Encoder;
 
 use proxmox_sys::fs::CreateOptions;
 
@@ -665,36 +666,13 @@ impl<'a> WritableTaskCache<'a> {
     /// The tasks are first written to a temporary file, which is then used
     /// to atomically replace the original.
     fn write_active_tasks(&self, tasks: impl Iterator<Item = TaskCacheItem>) -> Result<(), Error> {
-        let target = self.cache.active_path();
+        let file = self.cache.active_file();
+        let mut writer = file.writer(self.cache.create_options)?;
 
-        let (fd, path) = proxmox_sys::fs::make_tmp_file(target, self.cache.create_options)?;
-        let mut fd = BufWriter::new(fd);
-
-        Self::write_tasks(&mut fd, tasks)?;
-
-        if let Err(err) = fd.flush() {
-            log::error!("could not flush 'active' file: {err:#}");
-        }
-        drop(fd);
-
-        let res = std::fs::rename(&path, target).with_context(|| {
-            format!(
-                "failed to replace {} with {}",
-                target.display(),
-                path.display(),
-            )
-        });
-
-        if let Err(err) = res {
-            if let Err(err) = std::fs::remove_file(&path) {
-                log::error!(
-                    "failed to cleanup temporary file {}: {err:#}",
-                    path.display()
-                );
-            }
-
-            return Err(err);
-        }
+        writer.write_tasks(tasks)?;
+        writer
+            .commit()
+            .context("could not finalize 'active' file")?;
 
         Ok(())
     }
@@ -712,17 +690,7 @@ impl<'a> WritableTaskCache<'a> {
             return Ok(());
         }
 
-        // TODO: Might be nice to also move this to ArchiveFile
-        let (temp_file, temp_file_path) =
-            proxmox_sys::fs::make_tmp_file(&file.path, self.cache.create_options)?;
-        let mut writer = if file.compressed {
-            let encoder =
-                zstd::stream::write::Encoder::new(temp_file, zstd::DEFAULT_COMPRESSION_LEVEL)?
-                    .auto_finish();
-            Box::new(BufWriter::new(encoder)) as Box<dyn Write>
-        } else {
-            Box::new(BufWriter::new(temp_file)) as Box<dyn Write>
-        };
+        let mut writer = file.writer(self.cache.create_options)?;
 
         let archive_iter = file
             .iter()?
@@ -742,43 +710,8 @@ impl<'a> WritableTaskCache<'a> {
             .peekable();
         let task_iter = tasks.into_iter().peekable();
 
-        Self::write_tasks(&mut writer, MergeTaskIterator::new(archive_iter, task_iter))?;
-
-        if let Err(err) = writer.flush() {
-            log::error!("could not flush BufWriter for {file:?}: {err:#}");
-        }
-        drop(writer);
-
-        if let Err(err) = std::fs::rename(&temp_file_path, &file.path).with_context(|| {
-            format!(
-                "failed to replace {} with {}",
-                file.path.display(),
-                temp_file_path.display()
-            )
-        }) {
-            if let Err(err) = std::fs::remove_file(&temp_file_path) {
-                log::error!(
-                    "failed to clean up temporary file {}: {err:#}",
-                    temp_file_path.display()
-                );
-            }
-
-            return Err(err);
-        }
-
-        Ok(())
-    }
-
-    /// Write an iterator of [`TaskCacheItem`] to a something that implements [`Write`].
-    /// The individual items are encoded as JSON followed by a newline.
-    fn write_tasks(
-        writer: &mut impl Write,
-        tasks: impl Iterator<Item = TaskCacheItem>,
-    ) -> Result<(), Error> {
-        for task in tasks {
-            serde_json::to_writer(&mut *writer, &task)?;
-            writeln!(writer)?;
-        }
+        writer.write_tasks(MergeTaskIterator::new(archive_iter, task_iter))?;
+        writer.commit()?;
 
         Ok(())
     }
@@ -872,21 +805,12 @@ impl TaskCache {
             GetTasks::All => {
                 let mut archive_files = self.archive_files(lock)?;
                 archive_files.reverse();
-
-                archive_files.push(ArchiveFile {
-                    path: self.active_path().into(),
-                    compressed: false,
-                    starttime: 0,
-                });
+                archive_files.push(self.active_file());
 
                 TaskArchiveIterator::new(Some(journal_file.into()), archive_files, lock)
             }
             GetTasks::Active => {
-                let archive_files = vec![ArchiveFile {
-                    path: self.active_path().into(),
-                    compressed: false,
-                    starttime: 0,
-                }];
+                let archive_files = vec![self.active_file()];
 
                 TaskArchiveIterator::new(None, archive_files, lock)
             }
@@ -976,6 +900,15 @@ impl TaskCache {
 
         self.base_path
             .join(format!("{ARCHIVE_FILENAME_PREFIX}{starttime}{suffix}"))
+    }
+
+    /// Return the [`ArchiveFile`] instance for the `active` file.
+    fn active_file(&self) -> ArchiveFile {
+        ArchiveFile {
+            path: self.active_path().into(),
+            compressed: false,
+            starttime: 0,
+        }
     }
 }
 
@@ -1161,6 +1094,29 @@ impl ArchiveFile {
         Ok(Some(iter))
     }
 
+    /// Create an [`ArchiveFileWriter`] for this archive file.
+    fn writer(&self, create_options: CreateOptions) -> Result<ArchiveFileWriter<'_>, Error> {
+        let (temp_file, temp_file_path) =
+            proxmox_sys::fs::make_tmp_file(&self.path, create_options)?;
+
+        if self.compressed {
+            let encoder =
+                zstd::stream::write::Encoder::new(temp_file, zstd::DEFAULT_COMPRESSION_LEVEL)?;
+            Ok(ArchiveFileWriter {
+                archive_file: self,
+                writer: Some((ArchiveFileWriterInner::ZstdEncoder(encoder), temp_file_path)),
+            })
+        } else {
+            Ok(ArchiveFileWriter {
+                archive_file: self,
+                writer: Some((
+                    ArchiveFileWriterInner::Plain(BufWriter::new(temp_file)),
+                    temp_file_path,
+                )),
+            })
+        }
+    }
+
     fn compress(&mut self, options: CreateOptions) -> Result<(), Error> {
         let uncompressed_file_path = &self.path;
 
@@ -1191,6 +1147,102 @@ impl ArchiveFile {
         self.compressed = true;
 
         Ok(())
+    }
+}
+
+/// Writer for an [`ArchiveFile`].
+///
+/// Instantiate this via [`ArchiveFile::writer`]. When calling [`Self::commit`], the
+/// original archive file is replaced with the contents that were written to the writer.
+///
+/// `[Drop::drop]` will remove the temporary file and effectively discards any pending changes.
+struct ArchiveFileWriter<'a> {
+    /// The [`ArchiveFile`] instance for the archive file we want to write to.
+    archive_file: &'a ArchiveFile,
+    /// Writer for the *temporary* intermediate file.
+    /// Path to the temporary file that later replaces the original.
+    writer: Option<(ArchiveFileWriterInner<'a>, PathBuf)>,
+}
+
+enum ArchiveFileWriterInner<'a> {
+    ZstdEncoder(Encoder<'a, File>),
+    Plain(BufWriter<File>),
+}
+
+impl<'a> ArchiveFileWriter<'a> {
+    /// Write the contents of an iterator of [`TaskCacheItem`] to this archive file.
+    /// The individual items are encoded as JSON followed by a newline.
+    pub(crate) fn write_tasks(
+        &mut self,
+        tasks: impl Iterator<Item = TaskCacheItem>,
+    ) -> Result<(), Error> {
+        if let Some((writer, _)) = self.writer.as_mut() {
+            let writer = match writer {
+                ArchiveFileWriterInner::ZstdEncoder(encoder) => encoder as &mut dyn Write,
+                ArchiveFileWriterInner::Plain(buf_writer) => buf_writer as &mut dyn Write,
+            };
+
+            for task in tasks {
+                serde_json::to_writer(&mut *writer, &task)?;
+                writeln!(writer)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Finalize and drop the internal writer and replace the original
+    /// archive file with the new contents. This method consumes `self`.
+    pub(crate) fn commit(mut self) -> Result<(), Error> {
+        if let Some((writer, tmp_path)) = self.writer.take() {
+            let file = match writer {
+                ArchiveFileWriterInner::ZstdEncoder(mut encoder) => {
+                    encoder.flush()?;
+                    encoder.finish()?
+                }
+                ArchiveFileWriterInner::Plain(mut buf_writer) => {
+                    buf_writer.flush()?;
+                    buf_writer.into_inner()?
+                }
+            };
+
+            file.sync_all()
+                .with_context(|| format!("could not fsync {}", tmp_path.display()))?;
+
+            if let Err(err) =
+                std::fs::rename(&tmp_path, &self.archive_file.path).with_context(|| {
+                    format!(
+                        "failed to replace {} with {}",
+                        tmp_path.display(),
+                        self.archive_file.path.display()
+                    )
+                })
+            {
+                if let Err(err) = std::fs::remove_file(&tmp_path) {
+                    log::error!(
+                        "failed to clean up temporary file {path}: {err:#}",
+                        path = tmp_path.display()
+                    );
+                }
+
+                return Err(err);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Drop for ArchiveFileWriter<'a> {
+    fn drop(&mut self) {
+        if let Some((_, tmp_path)) = self.writer.take() {
+            if let Err(err) = std::fs::remove_file(&tmp_path) {
+                log::error!(
+                    "failed to clean up temporary file {path}: {err:#}",
+                    path = tmp_path.display()
+                );
+            }
+        }
     }
 }
 
@@ -1702,5 +1754,33 @@ mod tests {
             .expect("file truncated");
 
         assert_eq!(cache.get_tasks(GetTasks::Archived).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn temporary_file_when_writer_lives_is_not_enumerated() {
+        let (_tmp_dir, mut cache) = make_cache().unwrap();
+        cache.rotate_after = 100;
+        cache.uncompressed_files = 1;
+        cache.max_files = 2;
+
+        let cache = cache.write().unwrap();
+        cache.init(1000).unwrap();
+
+        let files = cache.cache.archive_files(&cache.lock).unwrap();
+
+        assert_eq!(files.len(), 2);
+
+        let _writer = files
+            .first()
+            .unwrap()
+            .writer(cache.cache.create_options)
+            .unwrap();
+
+        let files = cache.cache.archive_files(&cache.lock).unwrap();
+        assert_eq!(
+            files.len(),
+            2,
+            "the tmp file created by the writer should not show up in the list of archive files"
+        );
     }
 }
