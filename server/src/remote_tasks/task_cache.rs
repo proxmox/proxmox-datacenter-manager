@@ -256,19 +256,16 @@ impl<'a> WritableTaskCache<'a> {
     fn new_file(&self, now: i64, compress: bool) -> Result<ArchiveFile, Error> {
         let path = self.cache.archive_path(now, compress);
 
-        let mut file = File::create(&path)?;
-        self.cache.create_options.apply_to(&mut file, &path)?;
-
-        if compress {
-            let encoder = zstd::stream::write::Encoder::new(file, zstd::DEFAULT_COMPRESSION_LEVEL)?;
-            encoder.finish()?;
-        }
-
-        Ok(ArchiveFile {
+        let file = ArchiveFile {
             path,
             compressed: compress,
             starttime: now,
-        })
+        };
+
+        let writer = file.writer(self.cache.create_options)?;
+        writer.commit()?;
+
+        Ok(file)
     }
 
     /// Rotate task archive if the the newest archive file is older than `rotate_after`.
