@@ -531,7 +531,7 @@ impl<'a> WritableTaskCache<'a> {
 
         let count = tasks.len();
 
-        self.merge_tasks_into_archive(tasks)?;
+        let corrupted_archive_files = self.merge_tasks_into_archive(tasks)?;
 
         // truncate the journal file
         OpenOptions::new()
@@ -539,6 +539,10 @@ impl<'a> WritableTaskCache<'a> {
             .truncate(true)
             .open(journal_path)
             .context("failed to truncate journal file")?;
+
+        if !corrupted_archive_files.is_empty() {
+            self.request_repair(&corrupted_archive_files)?;
+        }
 
         log::info!(
             "committed {count} tasks in {:.3}.s to task cache archive",
@@ -551,7 +555,10 @@ impl<'a> WritableTaskCache<'a> {
     /// Merge a list of *finished* tasks into the remote task archive files.
     /// The list of task in `tasks` *must* be sorted by their timestamp and UPID (descending by
     /// timestamp, ascending by UPID).
-    fn merge_tasks_into_archive(&self, tasks: Vec<TaskCacheItem>) -> Result<(), Error> {
+    fn merge_tasks_into_archive(
+        &self,
+        tasks: Vec<TaskCacheItem>,
+    ) -> Result<Vec<CorruptedArchiveFile>, Error> {
         debug_assert!(
             tasks
                 .iter()
@@ -568,6 +575,8 @@ impl<'a> WritableTaskCache<'a> {
         let mut current = files.next();
         let mut next = files.peek();
 
+        let mut corrupted = Vec::new();
+
         let mut tasks_for_current_file = Vec::new();
 
         // Tasks are sorted youngest to oldest (biggest start time first)
@@ -581,13 +590,18 @@ impl<'a> WritableTaskCache<'a> {
                     // The next entry's cut-off is larger then the task's start time, that means
                     // we want to finalized the current file by merging all tasks that
                     // should be stored in it...
-                    self.merge_single_archive_file(
-                        std::mem::take(&mut tasks_for_current_file),
-                        current,
-                    )
-                    .with_context(|| {
-                        format!("failed to merge archive file {}", current.path.display())
-                    })?;
+                    if self
+                        .merge_single_archive_file(
+                            std::mem::take(&mut tasks_for_current_file),
+                            current,
+                        )
+                        .with_context(|| {
+                            format!("failed to merge archive file {}", current.path.display())
+                        })?
+                        == ArchiveFileState::Corrupted
+                    {
+                        corrupted.push(CorruptedArchiveFile(current.clone()))
+                    };
                 }
 
                 // ... and the `current` file to the next entry.
@@ -605,10 +619,52 @@ impl<'a> WritableTaskCache<'a> {
 
         // Merge tasks for the last file.
         if let Some(current) = current {
-            self.merge_single_archive_file(tasks_for_current_file, current)
+            if self
+                .merge_single_archive_file(tasks_for_current_file, current)
                 .with_context(|| {
                     format!("failed to merge archive file {}", current.path.display())
-                })?;
+                })?
+                == ArchiveFileState::Corrupted
+            {
+                corrupted.push(CorruptedArchiveFile(current.clone()));
+            }
+        }
+
+        Ok(corrupted)
+    }
+
+    /// Repair archive files that were detected as corrupted when accessed.
+    ///
+    /// This resets the task fetching cutoff timestamps to the lower bound of the
+    /// oldest corrupted file, so its contents are re-fetched from the remotes on
+    /// the next fetch cycle.
+    pub fn request_repair(
+        &self,
+        corrupted_archive_files: &[CorruptedArchiveFile],
+    ) -> Result<(), Error> {
+        let reset_cutoff = corrupted_archive_files.iter().map(|c| {
+            log::warn!(
+                "{} seems to be corrupted, attempting recovery by resetting task cutoff timestamps",
+                c.0.path.display()
+            );
+            c.0.starttime
+        }).min();
+
+        if let Some(reset_cutoff) = reset_cutoff {
+            log::warn!(
+                "resetting task cutoff timestamp in state file to {reset_cutoff} to recover task archive"
+            );
+            let mut state = self.read_state();
+
+            for remote in state.remote_state.values_mut() {
+                for node in remote.node_state.values_mut() {
+                    node.cutoff = node.cutoff.min(reset_cutoff);
+                }
+            }
+
+            self.write_state(state).context(
+                "failed to write state when resetting cutoff after archive file corruption event",
+            )?;
         }
 
         Ok(())
@@ -682,9 +738,11 @@ impl<'a> WritableTaskCache<'a> {
         &self,
         tasks: Vec<TaskCacheItem>,
         file: &ArchiveFile,
-    ) -> Result<(), Error> {
+    ) -> Result<ArchiveFileState, Error> {
+        let mut file_state = ArchiveFileState::Valid;
+
         if tasks.is_empty() {
-            return Ok(());
+            return Ok(file_state);
         }
 
         let mut writer = file.writer(self.cache.create_options)?;
@@ -700,6 +758,7 @@ impl<'a> WritableTaskCache<'a> {
             .flat_map(|item| match item {
                 Ok(item) => Some(item),
                 Err(err) => {
+                    file_state = ArchiveFileState::Corrupted;
                     log::error!("could not read task cache item while merging: {err:#}");
                     None
                 }
@@ -710,7 +769,7 @@ impl<'a> WritableTaskCache<'a> {
         writer.write_tasks(MergeTaskIterator::new(archive_iter, task_iter))?;
         writer.commit()?;
 
-        Ok(())
+        Ok(file_state)
     }
 }
 
@@ -1243,6 +1302,20 @@ impl<'a> Drop for ArchiveFileWriter<'a> {
     }
 }
 
+/// Marker to signal the state of an [`ArchiveFile`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ArchiveFileState {
+    /// The archive file is valid and contains no errors.
+    Valid,
+    /// The archive file is corrupted.
+    Corrupted,
+}
+
+/// Newtype wrapper to make the return type of [`WritableTaskCache::merge_tasks_into_archive`]
+/// more expressive.
+///
+pub struct CorruptedArchiveFile(ArchiveFile);
+
 /// Iterator that merges two _sorted_ `Iterator<Item = TaskCacheItem>`, returning the items
 /// from both iterators sorted.
 /// The two iterators are expected to be sorted descendingly based on the task's starttime and
@@ -1468,6 +1541,14 @@ mod tests {
         );
 
         Ok((tmp_dir, cache))
+    }
+
+    fn truncate_archive_file(file: &ArchiveFile) {
+        OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&file.path)
+            .expect("file truncated");
     }
 
     #[test]
@@ -1744,11 +1825,7 @@ mod tests {
         let file = files.first().expect("there is one archive file");
 
         // truncate existing compressed file, corrupting the zstd file header
-        let _file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(&file.path)
-            .expect("file truncated");
+        truncate_archive_file(file);
 
         assert_eq!(cache.get_tasks(GetTasks::Archived).unwrap().count(), 0);
     }
@@ -1779,5 +1856,62 @@ mod tests {
             2,
             "the tmp file created by the writer should not show up in the list of archive files"
         );
+    }
+
+    #[test]
+    fn reset_cutoff_timestamp_after_corruption() {
+        let testcases = [
+            (
+                "corruption of task file with lower bound of 900 determines the new cutoff",
+                vec![
+                    task(810, Some(811)),
+                    task(910, Some(911)),
+                    task(1010, Some(1011)),
+                ],
+                900,
+            ),
+            (
+                "older active task determines cutoff",
+                vec![
+                    task(810, None),
+                    task(910, Some(920)),
+                    task(1010, Some(1011)),
+                ],
+                810,
+            ),
+        ];
+
+        for (description, initial_tasks, expected_cutoff) in testcases {
+            let (_tmp_dir, mut cache) = make_cache().unwrap();
+            cache.rotate_after = 100;
+            let cache = cache.write().unwrap();
+
+            cache.init(1000).unwrap();
+
+            add_tasks(&cache, initial_tasks).unwrap();
+
+            cache.apply_journal().unwrap();
+
+            let files = cache.cache.archive_files(&cache.lock).unwrap();
+            let file = files.get(1).expect("there is one archive file");
+
+            assert_eq!(file.starttime, 900);
+            assert!(
+                file.compressed,
+                "the file we are about to corrupt should be compressed"
+            );
+
+            // truncate existing compressed file, corrupting the zstd file header
+            truncate_archive_file(file);
+
+            add_tasks(&cache, vec![task(920, Some(930))]).unwrap();
+
+            // When applying the journal and writing to the corrupted file, the cache
+            // should notice that something is broken and reset the cutoff timestamp to the
+            // start of the affected archive file, resulting in a repair in the
+            // next fetch cycle
+            cache.apply_journal().unwrap();
+            assert_eq!(get_cutoff(&cache), expected_cutoff, "{}", description);
+        }
     }
 }
