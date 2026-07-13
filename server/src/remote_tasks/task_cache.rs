@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_sys::fs::CreateOptions;
 
-use pdm_api_types::RemoteUpid;
+use pdm_api_types::{RemoteUpid, remotes::RemoteType};
 
 /// Filename for the file containing running tasks.
 const ACTIVE_FILENAME: &str = "active";
@@ -424,7 +424,12 @@ impl WritableTaskCache {
                 }
             };
 
-            let node = native_upid.node();
+            let node = match task.upid.remote_type() {
+                RemoteType::Pve => native_upid.node(),
+                // The node success map uses 'localhost' as a node name for PBS remotes,
+                // not the one from the UPID.
+                RemoteType::Pbs => "localhost",
+            };
             let remote = task.upid.remote();
 
             if node_success_map.node_successful(remote, node) {
@@ -449,7 +454,12 @@ impl WritableTaskCache {
                 }
             };
 
-            let node = native_upid.node();
+            let node = match task.upid.remote_type() {
+                RemoteType::Pve => native_upid.node(),
+                // The node success map uses 'localhost' as a node name for PBS remotes,
+                // not the one from the UPID.
+                RemoteType::Pbs => "localhost",
+            };
             let remote = task.upid.remote();
 
             if node_success_map.node_successful(remote, node) {
