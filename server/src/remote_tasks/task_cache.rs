@@ -289,13 +289,43 @@ impl<'a> WritableTaskCache<'a> {
         Ok(file)
     }
 
-    /// Rotate task archive if the the newest archive file is older than `rotate_after`.
+    /// Rotate task archive if the newest archive file is older than `rotate_after`.
     ///
     /// The oldest archive files are removed if the total number of archive files exceeds
     /// `max_files`. `now` is supposed to be a UNIX timestamp (seconds).
+    ///
+    /// If there are any duplicate archive files (can happen if `compress` is interrupted at the
+    /// wrong time), the uncompressed version is deleted.
     pub fn rotate(&self, now: i64) -> Result<bool, Error> {
         let mut did_rotate = false;
-        let mut archive_files = self.cache.archive_files(&self.lock)?;
+
+        let archive_files_with_dupes = self.cache.archive_files_with_dupes(&self.lock)?;
+
+        // NOTE: Given the naming scheme of the archive files, `archive.{starttime}[.zst]`, the
+        // only real way to have duplicates is to have two archives with the same starttimes, one
+        // compressed (.zst), one uncompressed. This can occur if there is a crash during `rotate`.
+        // Thus, to clean up dupes, we just need to check if there are any duplicate timestamps.
+
+        let mut seen_starttimes = HashSet::with_capacity(archive_files_with_dupes.len());
+        let mut archive_files: Vec<ArchiveFile> =
+            Vec::with_capacity(archive_files_with_dupes.len());
+
+        for file in archive_files_with_dupes {
+            if seen_starttimes.insert(file.starttime) {
+                archive_files.push(file);
+            } else {
+                // Found dupe, remove it. Given the ordering establish by
+                // `archive_files_with_dupes`, we get the compressed file first and then the
+                // uncompressed, which means that we will remove the uncompressed version
+                // if there is a duplicate.
+                if let Err(err) = std::fs::remove_file(&file.path) {
+                    log::error!(
+                        "could not clean up duplicate archive file '{path}': {err}",
+                        path = file.path.display()
+                    )
+                }
+            }
+        }
 
         let mut start_new_file = |files: &mut Vec<ArchiveFile>| -> Result<(), Error> {
             let new_file = self.new_file(now, self.cache.uncompressed_files == 0)?;
@@ -848,6 +878,11 @@ impl<'a> WritableTaskCache<'a> {
             return Err(err);
         }
 
+        // If we crash here or if `remove_file` fails, we might end up with the original,
+        // uncompressed file as well as the new, compressed file. `archive_files` filters
+        // duplicates out, so we should never read from the duplicated file. Any left-over
+        // duplicates are cleaned during `rotate`.
+
         std::fs::remove_file(&file.path).context("failed to remove uncompressed archive file")?;
 
         Ok(file_state)
@@ -970,7 +1005,7 @@ impl TaskCache {
     /// cut-off timestamp. The result is sorted ascending by cut-off timestamp (most recent one
     /// first).
     /// The task archive should be locked for reading when calling this function.
-    fn archive_files(&self, _lock: &TaskCacheLock) -> Result<Vec<ArchiveFile>, Error> {
+    fn archive_files_with_dupes(&self, _lock: &TaskCacheLock) -> Result<Vec<ArchiveFile>, Error> {
         let mut names = Vec::new();
 
         for entry in std::fs::read_dir(&self.base_path)? {
@@ -983,7 +1018,23 @@ impl TaskCache {
             }
         }
 
-        names.sort_by_key(|e| -e.starttime);
+        names.sort_by(|a, b| {
+            b.starttime
+                .cmp(&a.starttime)
+                .then(b.compressed.cmp(&a.compressed))
+        });
+
+        Ok(names)
+    }
+
+    /// Returns a list of existing archive files, together with their respective
+    /// cut-off timestamp. The result is sorted ascending by cut-off timestamp (most recent one
+    /// first). Any duplicates (equal starttime but different compression status) are removed.
+    ///
+    /// The task archive should be locked for reading when calling this function.
+    fn archive_files(&self, lock: &TaskCacheLock) -> Result<Vec<ArchiveFile>, Error> {
+        let mut names = self.archive_files_with_dupes(lock)?;
+        names.dedup_by_key(|e| e.starttime);
 
         Ok(names)
     }
@@ -2093,5 +2144,53 @@ mod tests {
             1000,
             "cutoff timestamp should be reset to the lower bound of the corrupted archive file"
         );
+    }
+
+    /// Ensure that if for any reason there exist multiple files with the same start time (only
+    /// possible if one of them is compressed and the other one uncompressed), we only return one
+    /// of them. Also verify that compressed files are preferred.
+    #[test]
+    #[allow(clippy::get_first)]
+    fn dedup_duplicate_archive_files() {
+        let (_tmp_dir, mut cache) = make_cache().unwrap();
+        cache.rotate_after = 100;
+        cache.uncompressed_files = 1;
+        cache.max_files = 3;
+
+        let cache = cache.write().unwrap();
+
+        cache.new_file(1000, false).unwrap();
+        cache.new_file(1000, true).unwrap();
+        cache.new_file(2000, true).unwrap();
+        cache.new_file(2000, false).unwrap();
+
+        let files = cache.cache.archive_files(&cache.lock).unwrap();
+
+        assert_eq!(files.len(), 2);
+        let first = files.get(0).unwrap();
+        let second = files.get(1).unwrap();
+
+        assert!(first.compressed);
+        assert_eq!(first.starttime, 2000);
+
+        assert!(second.compressed);
+        assert_eq!(second.starttime, 1000);
+
+        let files = cache.cache.archive_files_with_dupes(&cache.lock).unwrap();
+        assert_eq!(files.len(), 4);
+
+        cache.rotate(2050).unwrap();
+
+        let files = cache.cache.archive_files_with_dupes(&cache.lock).unwrap();
+        assert_eq!(files.len(), 2);
+
+        let first = files.get(0).unwrap();
+        let second = files.get(1).unwrap();
+
+        assert!(first.compressed);
+        assert_eq!(first.starttime, 2000);
+
+        assert!(second.compressed);
+        assert_eq!(second.starttime, 1000);
     }
 }
