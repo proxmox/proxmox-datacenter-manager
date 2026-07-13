@@ -1065,8 +1065,8 @@ impl Iterator for TaskArchiveIterator<'_> {
 struct InnerTaskArchiveIterator {
     /// Archive files to read.
     files: Vec<ArchiveFile>,
-    /// Archive iterator we are currently using, if any
-    current: Option<ArchiveIterator>,
+    /// Archive iterator we are currently using, and the corresponding archive file, if any.
+    current: Option<(ArchiveIterator, ArchiveFile)>,
 }
 
 impl InnerTaskArchiveIterator {
@@ -1085,10 +1085,14 @@ impl Iterator for InnerTaskArchiveIterator {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match &mut self.current {
-                Some(current) => {
+                Some((current, file)) => {
                     let next = current.next();
                     if next.is_some() {
-                        return next;
+                        return next.map(|res| {
+                            res.with_context(|| {
+                                format!("failed to read from {file}", file = file.path.display())
+                            })
+                        });
                     } else {
                         self.current = None;
                     }
@@ -1099,7 +1103,7 @@ impl Iterator for InnerTaskArchiveIterator {
 
                     match next_file.iter() {
                         Ok(Some(iter)) => {
-                            self.current = Some(iter);
+                            self.current = Some((iter, next_file));
                             break 'inner;
                         }
                         Ok(None) => {
@@ -1107,7 +1111,8 @@ impl Iterator for InnerTaskArchiveIterator {
                         }
                         Err(err) => {
                             log::error!(
-                                "could not create archive iterator while iteration over task archive files, skipping: {err:#}"
+                                "could not create task archive iterator for {file}, skipping: {err:#}",
+                                file = next_file.path.display()
                             )
                         }
                     }
@@ -1292,7 +1297,7 @@ impl JournalIterator {
             .flat_map(|task| match task {
                 Ok(task) => Some(task),
                 Err(err) => {
-                    log::error!("could not read task while iterating over archive file: {err:#}");
+                    log::error!("could not read task while iterating over journal file: {err:#}");
                     None
                 }
             })
