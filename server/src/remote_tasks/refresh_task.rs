@@ -216,7 +216,10 @@ pub async fn refresh_taskcache(remotes: Vec<Remote>) -> Result<(), Error> {
 pub async fn init_cache() -> Result<(), Error> {
     tokio::task::spawn_blocking(|| {
         let cache = super::get_cache()?;
-        cache.write()?.init(proxmox_time::epoch_i64())?;
+        cache.write()?.init(align_timestamp(
+            proxmox_time::epoch_i64(),
+            ROTATE_AFTER as i64,
+        ))?;
         Ok(())
     })
     .await?
@@ -360,7 +363,13 @@ fn get_remotes_with_finished_tasks(
 ///
 /// Returns Ok(true) the cache's files were rotated.
 async fn rotate_cache(cache: TaskCache) -> Result<bool, Error> {
-    tokio::task::spawn_blocking(move || cache.write()?.rotate(proxmox_time::epoch_i64())).await?
+    tokio::task::spawn_blocking(move || {
+        cache.write()?.rotate(align_timestamp(
+            proxmox_time::epoch_i64(),
+            super::ROTATE_AFTER as i64,
+        ))
+    })
+    .await?
 }
 
 /// Apply the task cache journal.
@@ -540,4 +549,19 @@ async fn update_task_cache(
         Ok(())
     })
     .await?
+}
+
+/// Align a UNIX timestamp to the specified interval.
+fn align_timestamp(now: i64, interval: i64) -> i64 {
+    now - (now.rem_euclid(interval))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::remote_tasks::refresh_task::align_timestamp;
+
+    #[test]
+    fn test_align_timestamp() {
+        assert_eq!(align_timestamp(1782898009, 24 * 3600), 1782864000);
+    }
 }

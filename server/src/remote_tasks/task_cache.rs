@@ -285,7 +285,8 @@ impl WritableTaskCache {
 
         match archive_files.first() {
             Some(bound) => {
-                if now > bound.starttime && now - bound.starttime > self.cache.rotate_after as i64 {
+                if now > bound.starttime && now - bound.starttime >= self.cache.rotate_after as i64
+                {
                     start_new_file(&mut archive_files)?;
                 }
             }
