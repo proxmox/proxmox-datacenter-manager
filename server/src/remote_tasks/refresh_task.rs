@@ -128,6 +128,9 @@ pub async fn handle_timer_tick(task_state: &mut TaskState) -> Result<(), Error> 
         log::debug!("checking if remote task archive should be rotated");
         if rotate_cache(cache.clone()).await? {
             log::info!("rotated remote task archive");
+
+            // rotation always applies the journal as well
+            task_state.reset_journal_apply();
         }
 
         task_state.reset_rotate_check();
