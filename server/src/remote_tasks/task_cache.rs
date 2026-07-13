@@ -1244,6 +1244,7 @@ where
 /// tasks are read line by line, without leading the entire archive file into memory.
 struct ArchiveIterator {
     iter: Lines<Box<dyn BufRead>>,
+    failed: bool,
 }
 
 impl ArchiveIterator {
@@ -1251,7 +1252,10 @@ impl ArchiveIterator {
     pub fn new(reader: Box<dyn BufRead>) -> Self {
         let lines = reader.lines();
 
-        Self { iter: lines }
+        Self {
+            iter: lines,
+            failed: false,
+        }
     }
 }
 
@@ -1259,11 +1263,18 @@ impl Iterator for ArchiveIterator {
     type Item = Result<TaskCacheItem, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|result| {
-            result
-                .and_then(|line| Ok(serde_json::from_str(&line)?))
-                .map_err(Into::into)
-        })
+        if self.failed {
+            // Don't return any more items if we have failed reading a line once
+            return None;
+        }
+
+        self.iter.next().map(|line| match line {
+            Ok(line) => Some(serde_json::from_str(&line).context("failed to decode JSON")),
+            Err(err) => {
+                self.failed = true;
+                Some(Err(err).context("failed to read line"))
+            }
+        })?
     }
 }
 
@@ -1661,5 +1672,30 @@ mod tests {
 
         assert_eq!(first.iter().unwrap().unwrap().count(), 0);
         assert_eq!(second.iter().unwrap().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn corrupted_archive_file_does_not_lead_to_endless_loop() {
+        let (_tmp_dir, cache) = make_cache().unwrap();
+        let cache = cache.write().unwrap();
+
+        // Create compressed file
+        cache.new_file(1000, true).unwrap();
+        add_tasks(&cache, vec![task(1100, Some(1110))]).unwrap();
+        cache.apply_journal().unwrap();
+
+        assert_eq!(cache.get_tasks(GetTasks::Archived).unwrap().count(), 1);
+
+        let files = cache.cache.archive_files(&cache.lock).unwrap();
+        let file = files.first().expect("there is one archive file");
+
+        // truncate existing compressed file, corrupting the zstd file header
+        let _file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&file.path)
+            .expect("file truncated");
+
+        assert_eq!(cache.get_tasks(GetTasks::Archived).unwrap().count(), 0);
     }
 }
