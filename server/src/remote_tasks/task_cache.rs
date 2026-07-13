@@ -1,5 +1,6 @@
 //! Task cache implementation, based on rotating files.
 use std::{
+    cell::RefCell,
     cmp::Ordering,
     collections::{HashMap, HashSet},
     fs::{File, OpenOptions},
@@ -7,6 +8,7 @@ use std::{
     iter::Peekable,
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
+    rc::Rc,
     time::{Duration, Instant},
 };
 
@@ -185,6 +187,10 @@ pub struct WritableTaskCache<'a> {
 pub struct ReadableTaskCache<'a> {
     cache: &'a TaskCache,
     lock: TaskCacheLock,
+    /// Archive files found to be corrupted while iterating over tasks. Populated
+    /// as tasks are read (see [`InnerTaskArchiveIterator`]); query it via
+    /// [`Self::take_corrupted_files`] once iteration is done to trigger a repair.
+    corrupted: CorruptedArchiveFiles,
 }
 
 /// Lock for the cache.
@@ -226,10 +232,25 @@ impl NodeFetchSuccessMap {
 
 impl<'a> ReadableTaskCache<'a> {
     /// Iterate over cached tasks.
+    ///
+    /// Archive file corruption encountered while iterating is recorded and can be
+    /// queried via [`Self::take_corrupted_files`] once iteration is done, so the
+    /// caller can trigger a repair.
     pub fn get_tasks(&self, mode: GetTasks) -> Result<TaskArchiveIterator<'_>, Error> {
         self.cache
-            .get_tasks_impl(mode, &self.lock)
+            .get_tasks_impl(mode, &self.lock, self.corrupted.clone())
             .context("failed to create task archive iterator")
+    }
+
+    /// Take the list of archive files that were found to be corrupted while
+    /// iterating over tasks returned by [`Self::get_tasks`].
+    ///
+    /// Corruption is detected lazily while iterating, so this only reflects the
+    /// files that were actually read; call it after the iterator has been consumed.
+    /// Pass the result to [`WritableTaskCache::request_repair`] to reset the
+    /// fetch cutoff and repair the archive on the next fetch cycle.
+    pub fn take_corrupted_files(&self) -> Vec<CorruptedArchiveFile> {
+        self.corrupted.take()
     }
 }
 
@@ -326,9 +347,12 @@ impl<'a> WritableTaskCache<'a> {
     }
 
     /// Iterate over cached tasks.
+    ///
+    /// Corruption is not tracked here: the writable cache already repairs the
+    /// archive via its write paths (`apply_journal`, `rotate`).
     pub fn get_tasks(&self, mode: GetTasks) -> Result<TaskArchiveIterator<'_>, Error> {
         self.cache
-            .get_tasks_impl(mode, &self.lock)
+            .get_tasks_impl(mode, &self.lock, Default::default())
             .context("failed to create task archive iterator")
     }
 
@@ -868,7 +892,11 @@ impl TaskCache {
     pub fn read(&self) -> Result<ReadableTaskCache<'_>, Error> {
         let lock = self.lock_impl(false)?;
 
-        Ok(ReadableTaskCache { cache: self, lock })
+        Ok(ReadableTaskCache {
+            cache: self,
+            lock,
+            corrupted: Default::default(),
+        })
     }
 
     /// Lock the cache for writing.
@@ -911,6 +939,7 @@ impl TaskCache {
         &self,
         mode: GetTasks,
         lock: &'a TaskCacheLock,
+        corrupted: CorruptedArchiveFiles,
     ) -> Result<TaskArchiveIterator<'a>, Error> {
         let journal_file = self.journal_path();
 
@@ -920,19 +949,19 @@ impl TaskCache {
                 archive_files.reverse();
                 archive_files.push(self.active_file());
 
-                TaskArchiveIterator::new(Some(journal_file.into()), archive_files, lock)
+                TaskArchiveIterator::new(Some(journal_file.into()), archive_files, lock, corrupted)
             }
             GetTasks::Active => {
                 let archive_files = vec![self.active_file()];
 
-                TaskArchiveIterator::new(None, archive_files, lock)
+                TaskArchiveIterator::new(None, archive_files, lock, corrupted)
             }
             #[cfg(test)]
             GetTasks::Archived => {
                 let mut files = self.archive_files(lock)?;
                 files.reverse();
 
-                TaskArchiveIterator::new(Some(journal_file.into()), files, lock)
+                TaskArchiveIterator::new(Some(journal_file.into()), files, lock, corrupted)
             }
         }
     }
@@ -1060,8 +1089,9 @@ impl<'a> TaskArchiveIterator<'a> {
         journal: Option<PathBuf>,
         files: Vec<ArchiveFile>,
         lock: &'a TaskCacheLock,
+        corrupted: CorruptedArchiveFiles,
     ) -> Result<Self, Error> {
-        let inner = InnerTaskArchiveIterator::new(files)
+        let inner = InnerTaskArchiveIterator::new(files, corrupted)
             .filter_map(|res| match res {
                 Ok(task) => Some(task),
                 Err(err) => {
@@ -1113,14 +1143,17 @@ struct InnerTaskArchiveIterator {
     files: Vec<ArchiveFile>,
     /// Archive iterator we are currently using, and the corresponding archive file, if any.
     current: Option<(ArchiveIterator, ArchiveFile)>,
+    /// Archive files found to be corrupted while iterating.
+    corrupted: CorruptedArchiveFiles,
 }
 
 impl InnerTaskArchiveIterator {
     /// Create a new task archive iterator.
-    pub fn new(files: Vec<ArchiveFile>) -> Self {
+    pub fn new(files: Vec<ArchiveFile>, corrupted: CorruptedArchiveFiles) -> Self {
         Self {
             files,
             current: None,
+            corrupted,
         }
     }
 }
@@ -1131,18 +1164,28 @@ impl Iterator for InnerTaskArchiveIterator {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match &mut self.current {
-                Some((current, file)) => {
-                    let next = current.next();
-                    if next.is_some() {
-                        return next.map(|res| {
-                            res.with_context(|| {
-                                format!("failed to read from {file}", file = file.path.display())
-                            })
-                        });
-                    } else {
+                Some((current, file)) => match current.next() {
+                    Some(res) => {
+                        if res.is_err() {
+                            // The archive file is corrupted. Record it so a repair can be
+                            // triggered by resetting the fetch cutoff to the file's lower
+                            // bound. The active file (starttime 0) is rewritten on every
+                            // update and needs no cutoff-based repair, so skip it.
+                            if file.starttime != 0 {
+                                self.corrupted
+                                    .borrow_mut()
+                                    .push(CorruptedArchiveFile(file.clone()));
+                            }
+                        }
+
+                        return Some(res.with_context(|| {
+                            format!("failed to read from {file}", file = file.path.display())
+                        }));
+                    }
+                    None => {
                         self.current = None;
                     }
-                }
+                },
                 None => 'inner: loop {
                     // Returns `None` if no more files are available, stopping iteration.
                     let next_file = self.files.pop()?;
@@ -1354,8 +1397,14 @@ enum ArchiveFileState {
 
 /// Newtype wrapper to make the return type of [`WritableTaskCache::merge_tasks_into_archive`]
 /// more expressive.
-///
 pub struct CorruptedArchiveFile(ArchiveFile);
+
+/// Shared collection of archive files found to be corrupted while iterating.
+///
+/// This is populated during read access (see [`InnerTaskArchiveIterator`]) and shared with the
+/// [`ReadableTaskCache`]. To request the array of corrupted files after iteration,
+/// [`ReadableTaskCache::take_corrupted_files`] can be used.
+type CorruptedArchiveFiles = Rc<RefCell<Vec<CorruptedArchiveFile>>>;
 
 /// Iterator that merges two _sorted_ `Iterator<Item = TaskCacheItem>`, returning the items
 /// from both iterators sorted.
@@ -1953,6 +2002,67 @@ mod tests {
             // next fetch cycle
             cache.apply_journal().unwrap();
             assert_eq!(get_cutoff(&cache), expected_cutoff, "{}", description);
+        }
+    }
+
+    #[test]
+    fn reset_cutoff_after_corruption_during_read() {
+        let (_tmp_dir, mut cache) = make_cache().unwrap();
+        cache.rotate_after = 100;
+
+        // Populate the archive and corrupt one of the compressed files. Scope the
+        // writable cache so its exclusive lock is released before we read.
+        {
+            let writable = cache.write().unwrap();
+            writable.init(1000).unwrap();
+
+            add_tasks(
+                &writable,
+                vec![
+                    task(810, Some(811)),
+                    task(910, Some(911)),
+                    task(1010, Some(1011)),
+                ],
+            )
+            .unwrap();
+            writable.apply_journal().unwrap();
+
+            assert_eq!(get_cutoff(&writable), 1010);
+
+            let files = writable.cache.archive_files(&writable.lock).unwrap();
+            let file = files.get(1).expect("there is a second archive file");
+            assert_eq!(file.starttime, 900);
+
+            // truncate existing compressed file, corrupting the zstd file header
+            truncate_archive_file(file);
+        }
+
+        // A read access should notice the corruption while iterating. The caller can
+        // then query the corrupted files and, after releasing the read lock, reset the
+        // cutoff timestamp to the lower bound of the corrupted file so the next fetch
+        // cycle repairs it.
+        let corrupted = {
+            let readable = cache.read().unwrap();
+            let count = readable.get_tasks(GetTasks::All).unwrap().count();
+
+            // The task in the corrupted file (starttime 910) is skipped.
+            assert_eq!(count, 2);
+
+            readable.take_corrupted_files()
+        };
+
+        assert_eq!(corrupted.len(), 1);
+
+        {
+            let writable = cache.write().unwrap();
+
+            writable.request_repair(&corrupted).unwrap();
+
+            assert_eq!(
+                get_cutoff(&writable),
+                900,
+                "cutoff should be reset to the corrupted file's lower bound after a read"
+            );
         }
     }
 

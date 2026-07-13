@@ -157,6 +157,21 @@ pub async fn get_tasks(
             .take(limit)
             .collect();
 
+        let corrupted = cache.take_corrupted_files();
+        drop(cache);
+
+        if !corrupted.is_empty() {
+            // If we noticed corrupted archive files while iterating, drop the read lock,
+            // acquire the write lock and reset the fetch cutoff so the affected files are
+            // repaired on the next fetch cycle.
+            if let Err(err) = get_cache()
+                .write()
+                .and_then(|cache| cache.request_repair(&corrupted))
+            {
+                log::error!("failed to request repair of corrupted task archive file: {err:#}");
+            }
+        }
+
         Ok(returned_tasks)
     })
     .await?
