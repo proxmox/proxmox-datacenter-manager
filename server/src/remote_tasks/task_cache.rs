@@ -1335,8 +1335,9 @@ impl ArchiveFile {
 
         self.compressed = compressed;
 
+        let starttime = self.starttime;
         self.path
-            .set_extension(format!("{}{suffix}", self.starttime));
+            .set_file_name(format!("{ARCHIVE_FILENAME_PREFIX}{starttime}{suffix}"));
     }
 }
 
@@ -1603,6 +1604,19 @@ mod tests {
         assert_eq!(a.path, PathBuf::from("/tmp/archive.1234.zst"));
         assert_eq!(a.starttime, 1234);
         assert!(a.compressed);
+    }
+
+    #[test]
+    fn set_compressed_updates_path_in_both_directions() {
+        let mut a = TaskCache::parse_archive_filename(&PathBuf::from("/tmp/archive.1000")).unwrap();
+
+        a.set_compressed(true);
+        assert_eq!(a.path, PathBuf::from("/tmp/archive.1000.zst"));
+        assert!(a.compressed);
+
+        a.set_compressed(false);
+        assert_eq!(a.path, PathBuf::from("/tmp/archive.1000"));
+        assert!(!a.compressed);
     }
 
     #[test]
