@@ -142,7 +142,6 @@ impl State {
 }
 
 /// Cache for remote tasks.
-#[derive(Clone)]
 pub struct TaskCache {
     /// Path where the cache's files should be placed.
     base_path: PathBuf,
