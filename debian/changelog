@@ -1,3 +1,58 @@
+proxmox-datacenter-manager (1.1.7) trixie; urgency=medium
+
+  * fix #7795: remote guest consoles: use the correct privilege path when
+    opening the shell of a QEMU or container guest, so users without root
+    privileges are no longer rejected with a "403 Forbidden" error.
+
+  * node shell: allow users from realms other than PAM to open a login
+    shell on the Datacenter Manager host itself, provided they have the
+    Sys.Console privilege and valid PAM login credentials on that host.
+    This helps setups that integrate with a central directory such as
+    LDAP or Active Directory.
+
+  * remote task cache: make the on-disk task archive more robust and fix
+    task-history fetching for Proxmox Backup Server remotes:
+    - detect corrupted archive files while reading, compressing, or
+      merging them and repair the affected time range automatically by
+      re-fetching it from the remotes on the next poll cycle
+    - avoid an endless retry loop when reading a truncated or otherwise
+      damaged zstd-compressed archive file
+    - create archive files atomically, so an interrupted write can no
+      longer leave a compressed file without its header or a duplicate
+      file behind
+    - record the task-fetch cutoff for Proxmox Backup Server remotes,
+      which was never persisted, so each poll no longer re-requests the
+      remote's full task history
+
+  * update the statically linked proxmox-sys library, which handles the
+    low-level file operations for the state, configuration, and task
+    cache files:
+    - fix #7690: atomically replacing a file now also works on write-once
+      (WORM) file systems and no longer leaves behind stray temporary
+      files on FUSE mounts
+    - leftover temporary files now keep the original file name as a
+      prefix, making them easier to identify
+
+  * LDAP and Active Directory realms: pull in fixes from the statically
+    linked proxmox-ldap library:
+    - escape the user name in the LDAP search filter that looks up a
+      user's distinguished name
+    - log which properties of an existing user changed when synchronizing
+      users, instead of only reporting that the user was updated
+
+  * auto-installer: pull in a proxmox-installer-types fix that renames the
+    ZFS `arc_max` root-disk option to `arc-max` in the answer-file schema,
+    so prepared answer files that set the maximum ARC size validate
+    correctly.
+
+  * documentation:
+    - warn against running `apt upgrade`, which can leave the system in a
+      partially upgraded state; use `apt full-upgrade` instead
+    - improve the contrast of visited links in the dark theme so they
+      meet the WCAG AAA accessibility level
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 15 Jul 2026 09:03:43 +0200
+
 proxmox-datacenter-manager (1.1.6) trixie; urgency=medium
 
   * access control: allow configuring the built-in PAM and PDM
