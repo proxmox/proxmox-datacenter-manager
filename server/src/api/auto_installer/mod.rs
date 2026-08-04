@@ -1217,7 +1217,7 @@ fn render_prepared_config(
 
     let global = answer::GlobalOptions {
         country: conf.country.clone(),
-        fqdn,
+        fqdn: fqdn.into(),
         keyboard: conf.keyboard,
         mailto,
         timezone: conf.timezone.clone(),

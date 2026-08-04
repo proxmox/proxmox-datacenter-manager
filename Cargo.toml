@@ -68,7 +68,7 @@ proxmox-tfa = { version = "6", features = [ "api-types" ], default-features = fa
 proxmox-time = "2"
 proxmox-upgrade-checks = "1"
 proxmox-uuid = "1"
-proxmox-installer-types = "0.1"
+proxmox-installer-types = "0.2"
 proxmox-network-types = "1.1"
 
 # other proxmox crates
