@@ -13,6 +13,7 @@ use proxmox_schema::api;
 use proxmox_sys::fs::CreateOptions;
 
 mod acme;
+mod cert;
 mod remotes;
 mod support_status;
 
@@ -39,6 +40,7 @@ async fn run() -> Result<(), Error> {
 
     let cmd_def = CliCommandMap::new()
         .insert("acme", acme::acme_mgmt_cli())
+        .insert("cert", cert::cert_mgmt_cli())
         .insert("remote", remotes::cli())
         .insert(
             "report",

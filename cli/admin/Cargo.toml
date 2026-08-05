@@ -29,3 +29,4 @@ pdm-api-types.workspace = true
 pdm-config.workspace = true
 pdm-buildcfg.workspace = true
 server.workspace = true
+proxmox-time.workspace = true
