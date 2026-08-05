@@ -399,6 +399,7 @@ pub fn update_remote(
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<ConfigDigest>,
 ) -> Result<(), Error> {
+    let _lock = pdm_config::remotes::lock_config()?;
     let (mut remotes, config_digest) = pdm_config::remotes::config()?;
     config_digest.detect_modification(digest.as_ref())?;
 
