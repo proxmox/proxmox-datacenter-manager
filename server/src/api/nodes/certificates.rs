@@ -50,7 +50,7 @@ fn get_certificate_pem() -> Result<Vec<u8>, Error> {
 
 fn get_certificate_info() -> Result<CertificateInfo, Error> {
     let cert_pem = get_certificate_pem()?;
-    CertificateInfo::from_pem("proxy.pem", &cert_pem)
+    CertificateInfo::from_pem(API_CERT_FN, &cert_pem)
 }
 
 #[api(
