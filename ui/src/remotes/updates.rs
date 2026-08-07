@@ -759,7 +759,9 @@ fn render_repo_status_unknown() -> Html {
         .with_child(render_status_icon(StatusIcon::Unknown));
 
     Tooltip::new(row)
-        .tip(tr!("Repository status unknown, could not fetch update data"))
+        .tip(tr!(
+            "Repository status unknown, could not fetch update data"
+        ))
         .into()
 }
 
