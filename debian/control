@@ -159,7 +159,10 @@ Rules-Requires-Root: no
 Package: proxmox-datacenter-manager
 Architecture: any
 Multi-Arch: allowed
-Depends: libproxmox-acme-plugins,
+Depends: ethtool,
+         iproute2,
+         libproxmox-acme-plugins,
+         procps,
          proxmox-datacenter-manager-docs,
          proxmox-mini-journalreader (>= 1.7),
          proxmox-termproxy,
@@ -172,6 +175,8 @@ Recommends: ifupdown2,
             proxmox-datacenter-manager-client,
             proxmox-datacenter-manager-meta,
             proxmox-datacenter-manager-ui,
+            proxmox-kernel-helper,
+            zfsutils-linux,
 Description: Manage multiple Proxmox VE cluster and other Proxmox projects
  This package provides the API daemons of the Proxmox Datacenter Manager (PDM)
  which allows one to add multiple Proxmox VE and Proxmox Backup Server
