@@ -271,14 +271,16 @@ pub fn openid_auth_url(
     redirect_url: String,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-    let (domains, _digest) = pdm_config::domains::config()?;
-    let config: OpenIdRealmConfig = domains.lookup("openid", &realm)?;
+    let url_result: Result<String, Error> = try_block!({
+        let (domains, _digest) = pdm_config::domains::config()?;
+        let config: OpenIdRealmConfig = domains.lookup("openid", &realm)?;
 
-    let open_id = openid_authenticator(&config, &redirect_url)?;
+        let open_id = openid_authenticator(&config, &redirect_url)?;
 
-    let url = open_id.authorize_url(PDM_RUN_DIR_M!(), &realm)?;
+        open_id.authorize_url(PDM_RUN_DIR_M!(), &realm)
+    });
 
-    Ok(url)
+    url_result.inspect_err(|err| log::error!("could not get openid auth url: {err:#}"))
 }
 
 #[sortable]
