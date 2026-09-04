@@ -63,6 +63,10 @@ impl RemoteConfig for FakeRemoteConfig {
         unsafe { Ok(proxmox_product_config::create_mocked_lock()) }
     }
 
+    fn lock_remote(&self, _id: &str) -> Result<ApiLockGuard, Error> {
+        unsafe { Ok(proxmox_product_config::create_mocked_lock()) }
+    }
+
     fn save_config(&self, _remotes: SectionConfigData<Remote>) -> Result<(), Error> {
         Ok(())
     }

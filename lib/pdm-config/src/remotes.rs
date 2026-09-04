@@ -1,9 +1,13 @@
 //! Read/write remotes configuration
 //!
 //! Make sure to call [`init`] to inject a concrete `RemoteConfig` instance
-//! before calling the [`lock_config`], [`config`] or [`save_config`] functions.
+//! before calling the [`lock_config`], [`lock_remote`], [`config`] or [`save_config`] functions.
 
-use std::{collections::HashSet, sync::OnceLock};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+    sync::OnceLock,
+};
 
 use anyhow::{Error, bail};
 
@@ -11,13 +15,22 @@ use proxmox_config_digest::ConfigDigest;
 use proxmox_product_config::{ApiLockGuard, open_api_lockfile, replace_config};
 use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
 
-use pdm_api_types::remotes::{Remote, RemoteShadow};
+use pdm_api_types::remotes::{REMOTE_ID_SCHEMA, Remote, RemoteShadow};
 
 use pdm_buildcfg::configdir;
 
 pub const REMOTES_CFG_FILENAME: &str = configdir!("/remotes.cfg");
 const REMOTES_SHADOW_FILENAME: &str = configdir!("/remotes.shadow");
 pub const REMOTES_CFG_LOCKFILE: &str = configdir!("/.remotes.lock");
+
+fn remote_lockfile_path(id: &str) -> Result<PathBuf, Error> {
+    REMOTE_ID_SCHEMA.parse_simple_value(id)?;
+
+    let lock_dir = Path::new(REMOTES_CFG_LOCKFILE)
+        .parent()
+        .expect("remotes config lock has no parent directory");
+    Ok(lock_dir.join(format!(".remote-{id}.lock")))
+}
 
 static INSTANCE: OnceLock<Box<dyn RemoteConfig + Send + Sync>> = OnceLock::new();
 
@@ -36,6 +49,15 @@ fn instance() -> &'static (dyn RemoteConfig + Send + Sync) {
 /// Will panic if the the remote config instance has not been set before.
 pub fn lock_config() -> Result<ApiLockGuard, Error> {
     instance().lock_config()
+}
+
+/// Lock mutations for one remote.
+///
+/// Callers must acquire this before [`lock_config`] to keep lock ordering consistent. The lock is
+/// file-backed so API daemons and command-line invocations serialize mutations across processes.
+pub fn lock_remote(id: &str) -> Result<ApiLockGuard, Error> {
+    REMOTE_ID_SCHEMA.parse_simple_value(id)?;
+    instance().lock_remote(id)
 }
 
 /// Return contents of the remotes config
@@ -63,6 +85,10 @@ pub trait RemoteConfig {
     fn get_secret_token(&self, remote: &Remote) -> Result<String, Error>;
     /// Lock the remotes config
     fn lock_config(&self) -> Result<ApiLockGuard, Error>;
+    /// Lock mutations for one remote.
+    fn lock_remote(&self, id: &str) -> Result<ApiLockGuard, Error> {
+        open_api_lockfile(remote_lockfile_path(id)?, None, true)
+    }
     /// Replace the currently persisted remotes config
     fn save_config(&self, remotes: SectionConfigData<Remote>) -> Result<(), Error>;
 }
@@ -161,5 +187,23 @@ impl RemoteConfig for DefaultRemoteConfig {
 pub fn init(instance: Box<dyn RemoteConfig + Send + Sync>) {
     if INSTANCE.set(instance).is_err() {
         panic!("remote config instance already set");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::{REMOTES_CFG_LOCKFILE, remote_lockfile_path};
+
+    #[test]
+    fn remote_lockfile_stays_in_config_directory() {
+        let path = remote_lockfile_path("site-1").expect("valid remote ID");
+
+        assert_eq!(path.file_name().unwrap(), ".remote-site-1.lock");
+        assert_eq!(path.parent(), Path::new(REMOTES_CFG_LOCKFILE).parent());
+
+        assert!(remote_lockfile_path("../outside").is_err());
+        assert!(remote_lockfile_path("site/other").is_err());
     }
 }
