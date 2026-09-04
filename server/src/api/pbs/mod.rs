@@ -230,6 +230,14 @@ pub async fn connect_or_login(
     connection::make_pbs_client_and_login(remote).await
 }
 
+async fn validate_credentials<C>(client: &PbsClient<C>) -> Result<(), proxmox_client::Error>
+where
+    C: proxmox_client::HttpApiClient<Body = proxmox_http::Body>,
+{
+    client.version().await?;
+    Ok(())
+}
+
 #[api(
     input: {
         properties: {
@@ -279,9 +287,14 @@ pub async fn scan_remote_pbs(
         web_url: None,
     };
 
-    let _client = connect_or_login(&remote)
+    let client = connect_or_login(&remote)
         .await
         .map_err(|err| format_err!("could not login: {err}"))?;
+    if remote.authid.is_token() {
+        validate_credentials(&client)
+            .await
+            .map_err(|err| format_err!("could not login: {err}"))?;
+    }
 
     Ok(remote)
 }
@@ -354,4 +367,83 @@ async fn get_status(remote: String) -> Result<pbs_api_types::NodeStatus, Error> 
     Ok(pbs_client::connect_to_remote_by_id(&remote)?
         .node_status()
         .await?)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+
+    use futures::future::{Pending, Ready, pending, ready};
+    use http::{Method, StatusCode};
+    use proxmox_client::{
+        Error as ClientError, HttpApiClient, HttpApiResponse, HttpApiResponseStream,
+    };
+    use serde::Serialize;
+
+    use crate::pbs_client::PbsClient;
+
+    use super::validate_credentials;
+
+    #[derive(Default)]
+    struct UnauthorizedClient {
+        requests: RefCell<Vec<(Method, String)>>,
+    }
+
+    impl HttpApiClient for UnauthorizedClient {
+        type ResponseFuture<'a>
+            = Ready<Result<HttpApiResponse, ClientError>>
+        where
+            Self: 'a;
+        type Body = proxmox_http::Body;
+        type ResponseStreamFuture<'a>
+            = Pending<Result<HttpApiResponseStream<Self::Body>, ClientError>>
+        where
+            Self: 'a;
+
+        fn request<'a, T>(
+            &'a self,
+            method: Method,
+            path_and_query: &'a str,
+            _params: Option<T>,
+        ) -> Self::ResponseFuture<'a>
+        where
+            T: Serialize + 'a,
+        {
+            self.requests
+                .borrow_mut()
+                .push((method, path_and_query.to_string()));
+            ready(Err(ClientError::Api(
+                StatusCode::UNAUTHORIZED,
+                "authentication failed".to_string(),
+            )))
+        }
+
+        fn streaming_request<'a, T>(
+            &'a self,
+            _method: Method,
+            _path_and_query: &'a str,
+            _params: Option<T>,
+        ) -> Self::ResponseStreamFuture<'a>
+        where
+            T: Serialize + 'a,
+        {
+            pending()
+        }
+    }
+
+    #[tokio::test]
+    async fn credential_validation_rejects_failed_api_request() {
+        let client = PbsClient(UnauthorizedClient::default());
+
+        let error = validate_credentials(&client).await.unwrap_err();
+
+        assert!(matches!(
+            error,
+            ClientError::Api(StatusCode::UNAUTHORIZED, _)
+        ));
+        assert_eq!(
+            client.0.requests.into_inner(),
+            [(Method::GET, "/api2/extjs/version".to_string())]
+        );
+    }
 }
