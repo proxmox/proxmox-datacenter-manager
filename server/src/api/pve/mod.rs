@@ -467,10 +467,7 @@ async fn probe_tls(
     },
     returns: { type: Remote },
 )]
-/// Scans the given connection info for pve cluster information
-///
-/// For each node that is returned, the TLS connection is probed, to check if using
-/// a fingerprint is necessary.
+/// Scans the given connection info for pve cluster information.
 pub async fn scan_remote_pve(
     hostname: String,
     fingerprint: Option<String>,
@@ -493,23 +490,12 @@ pub async fn scan_remote_pve(
         .await
         .map_err(|err| format_err!("could not login: {err}"))?;
 
-    let mut nodes = Vec::new();
-
-    for node in client.list_nodes().await? {
-        // probe without fingerprint to see if the certificate is trusted
-        // TODO: how can we get the fqdn here?, otherwise it'll fail in most scenarios...
-        let fingerprint = match probe_tls_connection(RemoteType::Pve, node.node.clone(), None).await
-        {
-            Ok(TlsProbeOutcome::UntrustedCertificate(cert)) => cert.fingerprint,
-            Ok(TlsProbeOutcome::TrustedCertificate) => None,
-            Err(_) => node.ssl_fingerprint,
-        };
-
-        nodes.push(PropertyString::new(NodeUrl {
-            hostname: node.node,
-            fingerprint,
-        }));
-    }
+    let nodes: Vec<_> = client
+        .list_nodes()
+        .await?
+        .into_iter()
+        .map(scanned_node_url)
+        .collect();
 
     if nodes.is_empty() {
         bail!("no node list returned");
@@ -533,6 +519,13 @@ pub async fn scan_remote_pve(
     }
 
     Ok(remote)
+}
+
+fn scanned_node_url(node: pve_api_types::ClusterNodeIndexResponse) -> PropertyString<NodeUrl> {
+    PropertyString::new(NodeUrl {
+        hostname: node.node,
+        fingerprint: node.ssl_fingerprint,
+    })
 }
 
 #[api(
@@ -619,4 +612,26 @@ pub async fn get_updates(remote: String) -> Result<RemoteUpdateSummary, Error> {
     let update_summary = get_available_updates_for_remote(&remote).await?;
 
     Ok(update_summary)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::scanned_node_url;
+
+    #[test]
+    fn scanned_node_keeps_api_fingerprint() {
+        let node = serde_json::from_value(json!({
+            "node": "node-a",
+            "ssl_fingerprint": "AA:BB:CC",
+            "status": "online",
+        }))
+        .unwrap();
+
+        let node = scanned_node_url(node).into_inner();
+
+        assert_eq!(node.hostname, "node-a");
+        assert_eq!(node.fingerprint.as_deref(), Some("AA:BB:CC"));
+    }
 }

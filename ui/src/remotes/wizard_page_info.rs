@@ -105,37 +105,42 @@ async fn scan(
         }
     };
 
-    // try to deduplicate the entered info from the first page with the nodelist here
-    // either via the hostname or the fingerprint. if none matches the entered info will
-    // be an extra entry in the first position
-    let mut found_matching_host = false;
-    for node in result.nodes.iter_mut() {
-        if node.hostname == hostname {
-            if fingerprint.is_none() {
-                node.fingerprint = None;
-            }
-            found_matching_host = true;
-            continue;
-        }
-        if node.fingerprint.as_ref().map(|fp| fp.to_uppercase())
-            == fingerprint.as_ref().map(|fp| fp.to_uppercase())
-        {
-            found_matching_host = true;
-            node.hostname = hostname.clone();
-            continue;
-        }
-    }
-    if !found_matching_host {
-        result.nodes.insert(
+    merge_initial_endpoint(&mut result, hostname, fingerprint);
+    Ok(result)
+}
+
+fn merge_initial_endpoint(remote: &mut Remote, hostname: String, fingerprint: Option<String>) {
+    let matching_index = remote
+        .nodes
+        .iter()
+        .position(|node| node.hostname == hostname)
+        .or_else(|| {
+            let fingerprint = fingerprint.as_deref()?;
+            let mut matches = remote.nodes.iter().enumerate().filter(|(_, node)| {
+                node.fingerprint.as_deref().is_some_and(|node_fingerprint| {
+                    node_fingerprint.eq_ignore_ascii_case(fingerprint)
+                })
+            });
+            let (index, _) = matches.next()?;
+            matches.next().is_none().then_some(index)
+        });
+
+    if let Some(index) = matching_index {
+        remote.nodes[index].hostname = hostname;
+        remote.nodes[index].fingerprint = fingerprint;
+    } else {
+        remote.nodes.insert(
             0,
             PropertyString::new(NodeUrl {
                 hostname,
-                fingerprint: fingerprint.map(|fp| fp.to_uppercase()),
+                fingerprint,
             }),
         );
     }
-    result.nodes.sort_by(|a, b| a.hostname.cmp(&b.hostname));
-    Ok(result)
+
+    remote
+        .nodes
+        .sort_by(|left, right| left.hostname.cmp(&right.hostname));
 }
 
 impl PdmWizardPageInfo {
@@ -409,5 +414,128 @@ impl From<WizardPageInfo> for VNode {
     fn from(val: WizardPageInfo) -> Self {
         let comp = VComp::new::<PdmWizardPageInfo>(Rc::new(val), None);
         VNode::from(comp)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pdm_api_types::Authid;
+    use pdm_api_types::remotes::RemoteType;
+
+    use super::*;
+
+    fn remote_with_nodes(nodes: Vec<NodeUrl>) -> Remote {
+        Remote {
+            ty: RemoteType::Pve,
+            id: "cluster".to_string(),
+            nodes: nodes.into_iter().map(PropertyString::new).collect(),
+            authid: Authid::root_auth_id().clone(),
+            token: String::new(),
+            web_url: None,
+        }
+    }
+
+    fn assert_nodes(remote: &Remote, expected: &[(&str, Option<&str>)]) {
+        let nodes = remote
+            .nodes
+            .iter()
+            .map(|node| (node.hostname.as_str(), node.fingerprint.as_deref()))
+            .collect::<Vec<_>>();
+
+        assert_eq!(nodes, expected);
+    }
+
+    #[test]
+    fn exact_hostname_wins_over_an_earlier_shared_fingerprint() {
+        let mut remote = remote_with_nodes(vec![
+            NodeUrl {
+                hostname: "node-a".to_string(),
+                fingerprint: Some("AA:BB:CC".to_string()),
+            },
+            NodeUrl {
+                hostname: "node-b".to_string(),
+                fingerprint: Some("AA:BB:CC".to_string()),
+            },
+        ]);
+
+        merge_initial_endpoint(
+            &mut remote,
+            "node-b".to_string(),
+            Some("aa:bb:cc".to_string()),
+        );
+
+        assert_nodes(
+            &remote,
+            &[("node-a", Some("AA:BB:CC")), ("node-b", Some("aa:bb:cc"))],
+        );
+    }
+
+    #[test]
+    fn unique_fingerprint_replaces_discovered_hostname_with_alias() {
+        let mut remote = remote_with_nodes(vec![
+            NodeUrl {
+                hostname: "node-a".to_string(),
+                fingerprint: Some("AA:BB:CC".to_string()),
+            },
+            NodeUrl {
+                hostname: "node-b".to_string(),
+                fingerprint: Some("DD:EE:FF".to_string()),
+            },
+        ]);
+
+        merge_initial_endpoint(
+            &mut remote,
+            "10.0.0.1".to_string(),
+            Some("aa:bb:cc".to_string()),
+        );
+
+        assert_nodes(
+            &remote,
+            &[("10.0.0.1", Some("aa:bb:cc")), ("node-b", Some("DD:EE:FF"))],
+        );
+    }
+
+    #[test]
+    fn shared_fingerprint_preserves_discovered_nodes_and_adds_alias() {
+        let mut remote = remote_with_nodes(vec![
+            NodeUrl {
+                hostname: "node-a".to_string(),
+                fingerprint: Some("AA:BB:CC".to_string()),
+            },
+            NodeUrl {
+                hostname: "node-b".to_string(),
+                fingerprint: Some("AA:BB:CC".to_string()),
+            },
+        ]);
+
+        merge_initial_endpoint(
+            &mut remote,
+            "10.0.0.1".to_string(),
+            Some("AA:BB:CC".to_string()),
+        );
+
+        assert_nodes(
+            &remote,
+            &[
+                ("10.0.0.1", Some("AA:BB:CC")),
+                ("node-a", Some("AA:BB:CC")),
+                ("node-b", Some("AA:BB:CC")),
+            ],
+        );
+    }
+
+    #[test]
+    fn absent_fingerprint_adds_unmatched_hostname() {
+        let mut remote = remote_with_nodes(vec![NodeUrl {
+            hostname: "node-a".to_string(),
+            fingerprint: Some("AA:BB:CC".to_string()),
+        }]);
+
+        merge_initial_endpoint(&mut remote, "initial-address".to_string(), None);
+
+        assert_nodes(
+            &remote,
+            &[("initial-address", None), ("node-a", Some("AA:BB:CC"))],
+        );
     }
 }

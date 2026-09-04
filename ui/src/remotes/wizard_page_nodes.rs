@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use futures::StreamExt;
 use pdm_api_types::remotes::TlsProbeOutcome;
 use proxmox_schema::property_string::PropertyString;
 use serde_json::Value;
@@ -34,17 +35,38 @@ impl WizardPageNodes {
     }
 }
 
+const MAX_CONCURRENT_ENDPOINT_CHECKS: usize = 4;
+
+type ProbeResult = Result<TlsProbeOutcome, proxmox_client::Error>;
+
+struct EndpointCheck {
+    node: NodeUrl,
+    result: Option<ProbeResult>,
+}
+
 pub enum Msg {
     Scan,
-    ScanResult(Vec<(String, Result<TlsProbeOutcome, proxmox_client::Error>)>),
+    ScanResult {
+        scan_id: usize,
+        index: usize,
+        result: Result<TlsProbeOutcome, proxmox_client::Error>,
+    },
+    ScanFinished(usize),
     ConfirmResult(bool),
 }
 
 pub struct PdmWizardPageNodes {
-    scan_results: Vec<(String, Result<TlsProbeOutcome, proxmox_client::Error>)>,
+    endpoint_checks: Vec<EndpointCheck>,
     scan_guard: Option<AsyncAbortGuard>,
+    scan_id: usize,
     loading: bool,
     certificate_rows: Rc<Vec<KVGridRow>>,
+}
+
+fn set_endpoint_result(checks: &mut [EndpointCheck], index: usize, result: ProbeResult) {
+    if let Some(check) = checks.get_mut(index) {
+        check.result = Some(result);
+    }
 }
 
 impl PdmWizardPageNodes {
@@ -125,8 +147,9 @@ impl Component for PdmWizardPageNodes {
             }
         });
         Self {
-            scan_results: Vec::new(),
+            endpoint_checks: Vec::new(),
             scan_guard: None,
+            scan_id: 0,
             loading: false,
             certificate_rows: Rc::new(rows()),
         }
@@ -136,42 +159,76 @@ impl Component for PdmWizardPageNodes {
         let props = ctx.props();
         match msg {
             Msg::Scan => {
-                self.loading = true;
-                let link = ctx.link().clone();
                 let nodes = props.info.form_ctx.read().get_field_value("nodes");
                 let Some(Value::Array(nodes)) = nodes else {
                     return true;
                 };
-                self.scan_guard = Some(AsyncAbortGuard::spawn(async move {
-                    let futures = nodes.into_iter().filter_map(|node| {
-                        let node = match serde_json::from_value::<PropertyString<NodeUrl>>(node) {
-                            Ok(node) => node.into_inner(),
-                            Err(_) => return None,
-                        };
+                let nodes: Vec<_> = nodes
+                    .into_iter()
+                    .filter_map(|node| {
+                        serde_json::from_value::<PropertyString<NodeUrl>>(node)
+                            .ok()
+                            .map(PropertyString::into_inner)
+                    })
+                    .collect();
+                if nodes.is_empty() {
+                    return true;
+                }
 
-                        let future = async move {
-                            let res = crate::pdm_client()
+                self.loading = true;
+                self.scan_id = self.scan_id.wrapping_add(1);
+                self.endpoint_checks = nodes
+                    .iter()
+                    .cloned()
+                    .map(|node| EndpointCheck { node, result: None })
+                    .collect();
+
+                let link = ctx.link().clone();
+                let scan_id = self.scan_id;
+                self.scan_guard = Some(AsyncAbortGuard::spawn(async move {
+                    let checks = futures::stream::iter(nodes.into_iter().enumerate().map(
+                        |(index, node)| async move {
+                            let result = crate::pdm_client()
                                 .pve_probe_tls(&node.hostname, node.fingerprint.as_deref())
                                 .await;
-                            (node.hostname, res)
-                        };
-                        Some(future)
-                    });
+                            (index, result)
+                        },
+                    ))
+                    .buffer_unordered(MAX_CONCURRENT_ENDPOINT_CHECKS);
+                    futures::pin_mut!(checks);
 
-                    let res = futures::future::join_all(futures).await;
-                    link.send_message(Msg::ScanResult(res));
+                    while let Some((index, result)) = checks.next().await {
+                        link.send_message(Msg::ScanResult {
+                            scan_id,
+                            index,
+                            result,
+                        });
+                    }
+                    link.send_message(Msg::ScanFinished(scan_id));
                 }));
             }
-            Msg::ScanResult(scan_results) => {
-                self.loading = false;
-                self.scan_results = scan_results;
-                let mut success = true;
-                for (_hostname, result) in &self.scan_results {
-                    match result {
-                        Ok(TlsProbeOutcome::TrustedCertificate) => {}
-                        _ => success = false,
-                    }
+            Msg::ScanResult {
+                scan_id,
+                index,
+                result,
+            } => {
+                if scan_id == self.scan_id {
+                    set_endpoint_result(&mut self.endpoint_checks, index, result);
                 }
+            }
+            Msg::ScanFinished(scan_id) => {
+                if scan_id != self.scan_id {
+                    return false;
+                }
+
+                self.loading = false;
+                let success = !self.endpoint_checks.is_empty()
+                    && self.endpoint_checks.iter().all(|check| {
+                        matches!(
+                            check.result.as_ref(),
+                            Some(Ok(TlsProbeOutcome::TrustedCertificate))
+                        )
+                    });
 
                 if success {
                     props.info.go_to_next_page();
@@ -182,10 +239,11 @@ impl Component for PdmWizardPageNodes {
                     // update connect information with gathered certificate information
                     // and navigate to next page
                     let mut map = HashMap::new();
-                    for (hostname, res) in self.scan_results.drain(..) {
-                        if let Ok(TlsProbeOutcome::UntrustedCertificate(cert)) = res {
+                    for check in self.endpoint_checks.drain(..) {
+                        if let Some(Ok(TlsProbeOutcome::UntrustedCertificate(cert))) = check.result
+                        {
                             if let Some(fp) = cert.fingerprint {
-                                map.insert(hostname, fp);
+                                map.insert(check.node.hostname, fp);
                             }
                         }
                     }
@@ -217,7 +275,7 @@ impl Component for PdmWizardPageNodes {
                     drop(form);
                     props.info.go_to_next_page();
                 } else {
-                    self.scan_results.clear();
+                    self.endpoint_checks.clear();
                 }
             }
         }
@@ -235,14 +293,14 @@ impl Component for PdmWizardPageNodes {
         let mut errors = Vec::new();
         let mut certificates = Vec::new();
 
-        for (hostname, result) in &self.scan_results {
-            match result {
-                Ok(TlsProbeOutcome::UntrustedCertificate(cert)) => {
-                    certificates.push((hostname, cert));
+        for check in &self.endpoint_checks {
+            match &check.result {
+                Some(Ok(TlsProbeOutcome::UntrustedCertificate(cert))) => {
+                    certificates.push((&check.node.hostname, cert));
                 }
-                Ok(_) => {}
-                Err(err) => {
-                    errors.push(error_message(&format!("{hostname} - {err}")).into());
+                Some(Ok(_)) | None => {}
+                Some(Err(err)) => {
+                    errors.push(error_message(&format!("{} - {err}", check.node.hostname)).into());
                 }
             }
         }
@@ -266,10 +324,25 @@ impl Component for PdmWizardPageNodes {
             )
             .with_optional_child((has_errors).then_some(Column::new().children(errors)))
             .with_optional_child(
-                (!has_errors && !certificates.is_empty())
+                (!self.loading && !has_errors && !certificates.is_empty())
                     .then_some(self.create_certificate_confirmation_dialog(ctx, certificates)),
             );
-        Mask::new(content).visible(self.loading).into()
+        let completed = self
+            .endpoint_checks
+            .iter()
+            .filter(|check| check.result.is_some())
+            .count();
+        let total = self.endpoint_checks.len();
+        // Up to four endpoints are checked at once, so report progress rather than a position.
+        let operation = tr!(
+            "Checked {0} of {n} endpoint" | "Checked {0} of {n} endpoints" % total,
+            completed
+        );
+
+        Mask::new(content)
+            .text(operation)
+            .visible(self.loading)
+            .into()
     }
 }
 
