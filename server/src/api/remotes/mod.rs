@@ -819,7 +819,7 @@ mod tests {
         RemoteIterator, create_pbs_token, create_pve_token, create_token_with_timeout,
         short_create_err, update_remote,
     };
-    use crate::pbs_client::PbsClient;
+    use crate::pbs_client::{CreateToken, PbsClient};
     use pve_api_types::client::PveClientImpl;
 
     /// Parse a `remotes.cfg`-style string into a [`SectionConfigData`].
@@ -1061,6 +1061,63 @@ pbs: pbs-offsite
             status: 200,
             content_type: Some("application/json".to_string()),
             body: body.as_bytes().to_vec(),
+        }
+    }
+
+    #[tokio::test]
+    async fn pbs_acl_rejection_reports_cleanup_outcome() {
+        for cleanup_succeeds in [true, false] {
+            let cleanup = if cleanup_succeeds {
+                Ok(extjs_response(r#"{"data":null,"success":true}"#))
+            } else {
+                Err(deletion_failure())
+            };
+            let client = PbsClient(ScriptedClient::new(vec![
+                Ok(extjs_response(
+                    r#"{"data":{"tokenid":"root@pam!pdm","value":"created-secret"},"success":true}"#,
+                )),
+                Ok(extjs_response(
+                    r#"{"success":false,"status":403,"message":"no permission","data":null}"#,
+                )),
+                cleanup,
+            ]));
+
+            let error = client
+                .create_admin_token(
+                    "root@pam".parse().unwrap(),
+                    pbs_api_types::Tokenname::try_from("pdm".to_string()).unwrap(),
+                    CreateToken {
+                        comment: None,
+                        enable: Some(true),
+                        expire: None,
+                    },
+                )
+                .await
+                .expect_err("rejected ACL must fail token creation");
+
+            if cleanup_succeeds {
+                assert!(matches!(error, ClientError::Api(StatusCode::FORBIDDEN, _)));
+            } else {
+                let message = short_create_err(error).to_string();
+                assert!(message.contains("no permission"));
+                assert!(message.contains("deletion failed"));
+                assert!(message.contains("could not be confirmed"));
+                assert_eq!(message.matches("before retrying").count(), 1);
+            }
+            assert_eq!(
+                client.0.requests(),
+                [
+                    (
+                        Method::POST,
+                        "/api2/extjs/access/users/root@pam/token/pdm".to_string()
+                    ),
+                    (Method::PUT, "/api2/extjs/access/acl".to_string()),
+                    (
+                        Method::DELETE,
+                        "/api2/extjs/access/users/root%40pam/token/pdm".to_string()
+                    ),
+                ]
+            );
         }
     }
 

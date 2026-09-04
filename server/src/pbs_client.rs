@@ -233,7 +233,10 @@ impl<C: HttpApiClient<Body = proxmox_http::Body>> PbsClient<C> {
         }
     }
 
-    /// create an API-Token on the PBS remote and give the token admin ACL on everything.
+    /// Create an API token on the PBS remote and give it the Admin ACL on everything.
+    ///
+    /// A token whose ACL could not be assigned is deleted again, so a failure does not leave a
+    /// privilege-less token behind that a retry with the same name would then trip over.
     pub async fn create_admin_token(
         &self,
         userid: Userid,
@@ -253,13 +256,31 @@ impl<C: HttpApiClient<Body = proxmox_http::Body>> PbsClient<C> {
         // having some very coarse roles here, like admin and audit for when PDM is used mostly for
         // monitoring.
         let acl = UpdateAcl {
-            auth_id: (userid, Some(tokenid)).into(),
+            auth_id: (userid.clone(), Some(tokenid.clone())).into(),
             path: "/".to_string(),
             role: pbs_api_types::Role::Admin,
             propagate: true,
         };
 
-        self.0.put("/api2/extjs/access/acl", &acl).await?;
+        // The ExtJS formatter reports API errors inside a successful HTTP response, so the body
+        // must be checked to notice a rejected ACL update at all.
+        let acl_result = match self.0.put("/api2/extjs/access/acl", &acl).await {
+            Ok(response) => response.nodata(),
+            Err(err) => Err(err),
+        };
+        if let Err(err) = acl_result {
+            return Err(match self.delete_token(&userid, &tokenid).await {
+                Ok(()) => err,
+                // Report the failed cleanup, as the caller cannot tell a deleted token from a
+                // remaining one otherwise. Either request may have succeeded with only its answer
+                // lost, so the message claims nothing certain.
+                Err(cleanup_err) => Error::Anyhow(anyhow::format_err!(
+                    "setting the ACL for the new token '{userid}!{}' failed ({err}), and deleting \
+                     the token could not be confirmed ({cleanup_err})",
+                    tokenid.as_str()
+                )),
+            });
+        }
 
         Ok(token)
     }
