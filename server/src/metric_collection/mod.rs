@@ -2,8 +2,9 @@ use std::pin::pin;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
-use anyhow::{Error, bail};
+use anyhow::{Error, bail, format_err};
 use nix::sys::stat::Mode;
+use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::oneshot;
 
@@ -86,21 +87,39 @@ pub fn start_task() -> Result<(), Error> {
 /// metric collection run.
 ///
 /// Has no effect if the tx end of the channel has not been initialized yet.
-/// Returns an error if the mpsc channel has been closed already.
+/// Returns an error if the mpsc channel has been closed already, or if it is
+/// full and `wait` is `false`.
 pub async fn trigger_remote_metric_collection(
     remote: Option<String>,
     wait: bool,
 ) -> Result<(), Error> {
-    let (done_sender, done_receiver) = oneshot::channel();
-
     if let Some(sender) = CONTROL_MESSAGE_TX.get() {
-        sender
-            .send(ControlMsg::TriggerMetricCollection(remote, done_sender))
-            .await?;
+        send_trigger(sender, remote, wait).await?;
+    }
 
-        if wait {
-            done_receiver.await?;
-        }
+    Ok(())
+}
+
+async fn send_trigger(
+    sender: &Sender<ControlMsg>,
+    remote: Option<String>,
+    wait: bool,
+) -> Result<(), Error> {
+    let (done_sender, done_receiver) = oneshot::channel();
+    let message = ControlMsg::TriggerMetricCollection(remote, done_sender);
+
+    if wait {
+        sender.send(message).await?;
+        done_receiver.await?;
+    } else {
+        // A best-effort trigger must not stall its caller behind a full control queue. The next
+        // periodic collection run covers the remote anyway.
+        sender.try_send(message).map_err(|err| match err {
+            TrySendError::Full(_) => {
+                format_err!("too many pending metric collection requests, try again later")
+            }
+            closed => closed.into(),
+        })?;
     }
 
     Ok(())
@@ -124,4 +143,30 @@ pub fn remote_metric_collection_status() -> Result<Vec<RemoteMetricCollectionSta
     }
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn best_effort_trigger_does_not_wait_for_queue_capacity() {
+        let (sender, _receiver) = mpsc::channel(1);
+        let (done_sender, _done_receiver) = oneshot::channel();
+        sender
+            .try_send(ControlMsg::TriggerMetricCollection(None, done_sender))
+            .unwrap();
+
+        let result = tokio::time::timeout(
+            Duration::from_millis(100),
+            send_trigger(&sender, Some("pve-a".to_string()), false),
+        )
+        .await
+        .expect("best-effort trigger waited for a full control queue");
+
+        let error = result.expect_err("a full control queue must reject the trigger");
+        assert!(error.to_string().contains("too many pending"));
+    }
 }
