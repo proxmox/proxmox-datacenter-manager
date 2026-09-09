@@ -9,10 +9,10 @@ use proxmox_schema::property_string::PropertyString;
 use proxmox_yew_comp::{SchemaValidation, WizardPageRenderInfo};
 use pwt::{
     AsyncPool,
-    css::{self, FlexFit},
+    css::FlexFit,
     prelude::*,
     widget::{
-        Column, Container, InputPanel, Mask, Row, error_message,
+        Column, Container, InputPanel, Row,
         form::{Field, FormContext, FormContextObserver, InputType, RadioButton},
     },
 };
@@ -21,6 +21,7 @@ use pdm_api_types::remotes::{NodeUrl, REMOTE_ID_SCHEMA, Remote, RemoteType};
 
 use pwt_macros::builder;
 
+use super::connection_attempt::{ConnectionAttempt, attempt_mask, failure_notice};
 use super::wizard_page_connect::ConnectParams;
 use crate::{get_nodename, widget::RemoteRealmSelector};
 
@@ -36,6 +37,7 @@ pub struct WizardPageInfo {
     #[builder]
     #[prop_or_default]
     connect_info: Option<ConnectParams>,
+
     remote_type: RemoteType,
 }
 
@@ -53,13 +55,21 @@ pub struct PdmWizardPageInfo {
     loading: bool,
     _form_observer: FormContextObserver,
     async_pool: AsyncPool,
+    attempt: Option<ConnectionAttempt>,
+    scan_id: usize,
 }
 
 pub enum Msg {
     ToggleCreateToken(bool),
     FormChange,
     Connect,
-    ConnectResult(Result<Remote, Error>),
+    ConnectResult {
+        scan_id: usize,
+        result: Result<Remote, Error>,
+    },
+    Cancel,
+    Retry,
+    Tick,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -144,6 +154,40 @@ fn merge_initial_endpoint(remote: &mut Remote, hostname: String, fingerprint: Op
 }
 
 impl PdmWizardPageInfo {
+    fn abort_scan(&mut self) {
+        self.async_pool = AsyncPool::new();
+        self.attempt = None;
+        self.loading = false;
+        self.scan_id = self.scan_id.wrapping_add(1);
+    }
+
+    /// Starts a scan for the current input. Invalid input has nothing to send, and a scan that
+    /// succeeded for it would advance the wizard past a page the user still has to correct.
+    fn start_scan(&mut self, ctx: &Context<Self>) {
+        if !ctx.props().info.form_ctx.read().is_valid() {
+            return;
+        }
+
+        self.abort_scan();
+        self.update_server_info(ctx, None);
+        self.loading = true;
+        self.last_error = None;
+        ctx.props().info.page_lock(true);
+
+        let Some(connection_info) = ctx.props().connect_info.clone() else {
+            unreachable!("Settings page must have connection info");
+        };
+        let form_ctx = ctx.props().info.form_ctx.clone();
+        let remote_type = ctx.props().remote_type;
+        let link = ctx.link().clone();
+        self.attempt = Some(ConnectionAttempt::new(link.callback(|_| Msg::Tick)));
+        let scan_id = self.scan_id;
+        self.async_pool.spawn(async move {
+            let result = scan(connection_info, form_ctx, remote_type).await;
+            link.send_message(Msg::ConnectResult { scan_id, result });
+        });
+    }
+
     fn update_credentials(form_ctx: &FormContext) {
         let user = form_ctx.read().get_field_text("user");
         let realm = form_ctx.read().get_field_text("realm");
@@ -207,6 +251,8 @@ impl Component for PdmWizardPageInfo {
             loading: false,
             credentials: None,
             async_pool: AsyncPool::new(),
+            attempt: None,
+            scan_id: 0,
         }
     }
 
@@ -238,7 +284,11 @@ impl Component for PdmWizardPageInfo {
                     form.set_field_value("nodes", serde_json::Value::Null);
                     form.reset_form();
                 }
-                props.info.page_lock(self.credentials.is_none());
+                props.info.page_lock(
+                    self.loading
+                        || self.credentials.is_none()
+                        || !props.info.form_ctx.read().is_valid(),
+                );
             }
             Msg::Connect => {
                 if self.server_info.is_some() {
@@ -246,28 +296,16 @@ impl Component for PdmWizardPageInfo {
                     props.info.go_to_next_page();
                     return true;
                 }
-                let link = ctx.link().clone();
-                self.update_server_info(ctx, None);
-                let form_ctx = props.info.form_ctx.clone();
-                self.loading = true;
-                self.last_error = None;
-                props.info.page_lock(true);
-
-                if let Some(connection_info) = props.connect_info.clone() {
-                    let remote_type = props.remote_type;
-
-                    self.async_pool.spawn(async move {
-                        let result = scan(connection_info, form_ctx, remote_type).await;
-                        link.send_message(Msg::ConnectResult(result));
-                    });
-                } else {
-                    unreachable!("Settings page must have connection info");
-                }
+                self.start_scan(ctx);
             }
-            Msg::ConnectResult(server_info) => {
+            Msg::ConnectResult { scan_id, result } => {
+                if scan_id != self.scan_id {
+                    return false;
+                }
+                self.attempt = None;
                 self.loading = false;
                 props.info.page_lock(false);
-                match server_info {
+                match result {
                     Ok(server_info) => {
                         self.update_server_info(ctx, Some(server_info));
                     }
@@ -283,6 +321,26 @@ impl Component for PdmWizardPageInfo {
                     props.info.go_to_next_page();
                 }
             }
+            Msg::Cancel => {
+                self.abort_scan();
+                props.info.page_lock(!props.info.form_ctx.read().is_valid());
+            }
+            Msg::Retry => {
+                self.start_scan(ctx);
+            }
+            Msg::Tick => {
+                return self.attempt.as_mut().is_some_and(ConnectionAttempt::tick);
+            }
+        }
+        true
+    }
+
+    fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {
+        if old_props.info.visible && !ctx.props().info.visible && self.loading {
+            self.abort_scan();
+            ctx.props()
+                .info
+                .page_lock(!ctx.props().info.form_ctx.read().is_valid());
         }
         true
     }
@@ -333,7 +391,8 @@ impl Component for PdmWizardPageInfo {
             )
             .with_field(
                 tr!("Realm"),
-                RemoteRealmSelector::new(hostname, fingerprint, props.remote_type)
+                RemoteRealmSelector::new(hostname.clone(), fingerprint, props.remote_type)
+                    .active(props.info.visible)
                     .name("realm")
                     .disabled(!self.user_mode)
                     .required(self.user_mode),
@@ -392,21 +451,24 @@ impl Component for PdmWizardPageInfo {
         let content = Column::new()
             .class(FlexFit)
             .with_child(Row::new().with_child(input_panel))
-            .with_child(
-                Row::new()
-                    .padding(2)
-                    .gap(2)
-                    .class(css::AlignItems::Center)
-                    .with_optional_child(
-                        self.last_error
-                            .as_deref()
-                            .map(|err| error_message(&err.to_string())),
-                    ),
-            );
-        Mask::new(content)
-            .class(FlexFit)
-            .visible(self.loading)
-            .into()
+            .with_optional_child(self.last_error.as_ref().map(|err| {
+                let on_retry = props
+                    .info
+                    .form_ctx
+                    .read()
+                    .is_valid()
+                    .then(|| ctx.link().callback(|_| Msg::Retry));
+                failure_notice(err, &hostname, on_retry)
+            }));
+
+        attempt_mask(
+            content,
+            self.attempt.as_ref(),
+            &tr!("Scanning remote"),
+            ctx.link().callback(|_| Msg::Cancel),
+        )
+        .class(FlexFit)
+        .into()
     }
 }
 

@@ -1,3 +1,5 @@
+pub(crate) mod connection_attempt;
+
 mod wizard_page_connect;
 use wizard_page_connect::WizardPageConnect;
 

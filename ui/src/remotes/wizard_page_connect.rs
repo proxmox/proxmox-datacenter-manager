@@ -8,9 +8,11 @@ use yew::virtual_dom::{Key, VComp, VNode};
 
 use pwt::css::{FlexFit, JustifyContent};
 use pwt::widget::form::{Field, FormContext, FormContextObserver};
-use pwt::widget::{Button, Column, Container, Dialog, InputPanel, Mask, Row, error_message};
+use pwt::widget::{Button, Column, Container, Dialog, InputPanel, Row};
 use pwt::{AsyncAbortGuard, prelude::*};
 use pwt_macros::builder;
+
+use super::connection_attempt::{ConnectionAttempt, attempt_mask, failure_notice};
 
 use proxmox_yew_comp::{KVGrid, KVGridRow, SchemaValidation, WizardPageRenderInfo};
 
@@ -64,17 +66,62 @@ pub enum Msg {
     FormChange,
     ConfirmResult(bool), // accept or dismiss
     Connect,
-    ConnectResult(Result<TlsProbeOutcome, Error>),
+    ConnectResult {
+        attempt_id: usize,
+        result: Result<TlsProbeOutcome, Error>,
+    },
+    Cancel,
+    Retry,
+    Tick,
 }
 pub struct PdmWizardPageConnect {
     _form_observer: FormContextObserver,
     loading: bool,
     scan_result: Option<Result<TlsProbeOutcome, Error>>,
     scan_guard: Option<AsyncAbortGuard>,
+    attempt: Option<ConnectionAttempt>,
+    attempt_id: usize,
     rows: Rc<Vec<KVGridRow>>,
 }
 
 impl PdmWizardPageConnect {
+    fn abort_connect(&mut self) {
+        self.scan_guard = None;
+        self.attempt = None;
+        self.loading = false;
+        self.attempt_id = self.attempt_id.wrapping_add(1);
+    }
+
+    /// Starts a probe for the current input. Invalid input has nothing to probe.
+    fn start_connect(&mut self, ctx: &Context<Self>) {
+        if !ctx.props().info.form_ctx.read().is_valid() {
+            return;
+        }
+
+        self.abort_connect();
+        self.loading = true;
+        self.scan_result = None;
+        ctx.props().info.page_lock(true);
+
+        let form_ctx = ctx.props().info.form_ctx.clone();
+        let mut guard = form_ctx.write();
+        let hostname = guard.get_field_text("hostname");
+        let new_hostname = normalize_hostname(hostname.clone());
+        if hostname != new_hostname {
+            guard.set_field_value("hostname", new_hostname.into());
+        }
+        drop(guard);
+
+        let link = ctx.link().clone();
+        self.attempt = Some(ConnectionAttempt::new(link.callback(|_| Msg::Tick)));
+        let attempt_id = self.attempt_id;
+        let remote_type = ctx.props().remote_type;
+        self.scan_guard = Some(AsyncAbortGuard::spawn(async move {
+            let result = connect(form_ctx, remote_type).await;
+            link.send_message(Msg::ConnectResult { attempt_id, result });
+        }));
+    }
+
     fn create_certificate_confirmation_dialog(&self, ctx: &Context<Self>) -> Option<Dialog> {
         let link = ctx.link();
         let certificate = match &self.scan_result {
@@ -149,6 +196,8 @@ impl Component for PdmWizardPageConnect {
             loading: false,
             scan_result: None,
             scan_guard: None,
+            attempt: None,
+            attempt_id: 0,
             rows: Rc::new(rows()),
         }
     }
@@ -157,7 +206,9 @@ impl Component for PdmWizardPageConnect {
         let props = ctx.props();
         match msg {
             Msg::FormChange => {
-                props.info.page_lock(!props.info.form_ctx.read().is_valid());
+                props
+                    .info
+                    .page_lock(self.loading || !props.info.form_ctx.read().is_valid());
                 props.info.reset_remaining_valid_pages();
                 for page in ["nodes", "info"] {
                     if let Some(form_ctx) = props.info.lookup_form_context(&Key::from(page)) {
@@ -167,32 +218,17 @@ impl Component for PdmWizardPageConnect {
                 self.scan_result = None;
             }
             Msg::Connect => {
-                self.loading = true;
-                props.info.page_lock(true);
-
-                let form_ctx = props.info.form_ctx.clone();
-
-                let mut guard = form_ctx.write();
-                let hostname = guard.get_field_text("hostname");
-                let new_hostname = normalize_hostname(hostname);
-                guard.set_field_value("hostname", new_hostname.into());
-                drop(guard);
-
-                self.scan_guard = Some(AsyncAbortGuard::spawn({
-                    let link = ctx.link().clone();
-                    let form_ctx = props.info.form_ctx.clone();
-                    let remote_type = props.remote_type;
-
-                    async move {
-                        let result = connect(form_ctx, remote_type).await;
-                        link.send_message(Msg::ConnectResult(result));
-                    }
-                }));
+                self.start_connect(ctx);
             }
-            Msg::ConnectResult(scan_result) => {
+            Msg::ConnectResult { attempt_id, result } => {
+                if attempt_id != self.attempt_id {
+                    return false;
+                }
+                self.scan_guard = None;
+                self.attempt = None;
                 self.loading = false;
                 props.info.page_lock(false);
-                self.scan_result = Some(scan_result);
+                self.scan_result = Some(result);
                 match &self.scan_result {
                     Some(Ok(TlsProbeOutcome::TrustedCertificate)) => {
                         return <Self as Component>::update(self, ctx, Msg::ConfirmResult(true));
@@ -200,6 +236,16 @@ impl Component for PdmWizardPageConnect {
                     Some(Err(_)) => props.info.page_lock(true),
                     _ => {}
                 }
+            }
+            Msg::Cancel => {
+                self.abort_connect();
+                props.info.page_lock(!props.info.form_ctx.read().is_valid());
+            }
+            Msg::Retry => {
+                self.start_connect(ctx);
+            }
+            Msg::Tick => {
+                return self.attempt.as_mut().is_some_and(ConnectionAttempt::tick);
             }
             Msg::ConfirmResult(confirm) => {
                 if !confirm {
@@ -223,6 +269,16 @@ impl Component for PdmWizardPageConnect {
                     props.info.go_to_next_page();
                 }
             }
+        }
+        true
+    }
+
+    fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {
+        if old_props.info.visible && !ctx.props().info.visible && self.loading {
+            self.abort_connect();
+            ctx.props()
+                .info
+                .page_lock(!ctx.props().info.form_ctx.read().is_valid());
         }
         true
     }
@@ -251,16 +307,30 @@ impl Component for PdmWizardPageConnect {
                     .placeholder(tr!("Server certificate SHA-256 fingerprint, required for self-signed certificates"))
                     .schema(&CERT_FINGERPRINT_SHA256_SCHEMA),
             );
+        let hostname = ctx.props().info.form_ctx.read().get_field_text("hostname");
         let content = Column::new()
             .class(FlexFit)
             .with_child(input_panel)
-            .with_optional_child(error.map(|err| error_message(&err.to_string())))
+            .with_optional_child(error.map(|err| {
+                let on_retry = ctx
+                    .props()
+                    .info
+                    .form_ctx
+                    .read()
+                    .is_valid()
+                    .then(|| ctx.link().callback(|_| Msg::Retry));
+                failure_notice(err, &hostname, on_retry)
+            }))
             .with_optional_child(self.create_certificate_confirmation_dialog(ctx));
 
-        Mask::new(content)
-            .class(FlexFit)
-            .visible(self.loading)
-            .into()
+        attempt_mask(
+            content,
+            self.attempt.as_ref(),
+            &tr!("Checking certificate"),
+            ctx.link().callback(|_| Msg::Cancel),
+        )
+        .class(FlexFit)
+        .into()
     }
 }
 
