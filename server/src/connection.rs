@@ -13,8 +13,10 @@ use std::sync::{LazyLock, OnceLock};
 use std::time::{Duration, SystemTime};
 
 use anyhow::{Error, bail, format_err};
+use futures::StreamExt;
 use http::Method;
 use http::uri::Authority;
+use http_body_util::BodyExt;
 use openssl::x509::X509StoreContextRef;
 use serde::Serialize;
 
@@ -397,7 +399,7 @@ impl ClientFactory for DefaultClientFactory {
         target_endpoint: Option<&str>,
     ) -> Result<Arc<PveClient>, Error> {
         let client = crate::connection::connect(remote, target_endpoint)?;
-        Ok(Arc::new(PveClientImpl(client)))
+        Ok(make_single_endpoint_pve_client(client))
     }
 
     fn make_pve_client_with_node(
@@ -515,6 +517,116 @@ pub fn init(instance: Box<dyn ClientFactory + Send + Sync>) {
     }
 }
 
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+
+fn request_timeout_error() -> proxmox_client::Error {
+    proxmox_client::Error::Other("failed to perform API request: timed out")
+}
+
+/// Limit each wait for body data, not counting time the consumer spends on the previous chunk.
+fn with_body_idle_timeout(
+    mut response: HttpApiResponseStream<proxmox_http::Body>,
+    timeout: Duration,
+) -> HttpApiResponseStream<proxmox_http::Body> {
+    response.body = response.body.map(|body| {
+        proxmox_http::Body::wrap_stream(futures::stream::try_unfold(
+            body.into_data_stream(),
+            move |mut body| async move {
+                match tokio::time::timeout(timeout, body.next()).await {
+                    Ok(Some(Ok(data))) => Ok(Some((data, body))),
+                    Ok(Some(Err(err))) => Err(err),
+                    Ok(None) => Ok(None),
+                    Err(_) => Err(std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        "timed out waiting for remote response body data",
+                    )
+                    .into()),
+                }
+            },
+        ))
+    });
+    response
+}
+
+/// Adds request and streamed-body idle timeouts to one client without failover or retries.
+struct RequestTimeoutClient<C> {
+    client: C,
+}
+
+impl<C> HttpApiClient for RequestTimeoutClient<C>
+where
+    C: HttpApiClient<Body = proxmox_http::Body> + Sync,
+    for<'a> C::ResponseFuture<'a>: Send,
+    for<'a> C::ResponseStreamFuture<'a>: Send,
+{
+    type ResponseFuture<'a>
+        = Pin<Box<dyn Future<Output = Result<HttpApiResponse, proxmox_client::Error>> + Send + 'a>>
+    where
+        Self: 'a;
+
+    type Body = C::Body;
+
+    type ResponseStreamFuture<'a>
+        = Pin<
+        Box<
+            dyn Future<Output = Result<HttpApiResponseStream<Self::Body>, proxmox_client::Error>>
+                + Send
+                + 'a,
+        >,
+    >
+    where
+        Self: 'a;
+
+    fn request<'a, T>(
+        &'a self,
+        method: Method,
+        path_and_query: &'a str,
+        params: Option<T>,
+    ) -> Self::ResponseFuture<'a>
+    where
+        T: Serialize + 'a,
+    {
+        let request = self.client.request(method, path_and_query, params);
+        let timeout = REQUEST_TIMEOUT;
+        Box::pin(async move {
+            match tokio::time::timeout(timeout, request).await {
+                Ok(result) => result,
+                Err(_) => Err(request_timeout_error()),
+            }
+        })
+    }
+
+    fn streaming_request<'a, T>(
+        &'a self,
+        method: Method,
+        path_and_query: &'a str,
+        params: Option<T>,
+    ) -> Self::ResponseStreamFuture<'a>
+    where
+        T: Serialize + 'a,
+    {
+        let request = self
+            .client
+            .streaming_request(method, path_and_query, params);
+        let timeout = REQUEST_TIMEOUT;
+        Box::pin(async move {
+            match tokio::time::timeout(timeout, request).await {
+                Ok(result) => result.map(|response| with_body_idle_timeout(response, timeout)),
+                Err(_) => Err(request_timeout_error()),
+            }
+        })
+    }
+}
+
+fn make_single_endpoint_pve_client<C>(client: C) -> Arc<PveClient>
+where
+    C: HttpApiClient<Body = proxmox_http::Body> + Send + Sync + 'static,
+    for<'a> C::ResponseFuture<'a>: Send,
+    for<'a> C::ResponseStreamFuture<'a>: Send,
+{
+    Arc::new(PveClientImpl(RequestTimeoutClient { client }))
+}
+
 /// In order to allow the [`MultiClient`] to check the cached reachability state of a client, we
 /// need to know which remote it belongs to, so store the metadata alongside the actual `Client`
 /// struct.
@@ -527,13 +639,18 @@ struct MultiClientEntry {
 /// problems: if we cannot reach a node of a cluster, this will attempt to retry a request on
 /// another node.
 ///
+/// The 60-second request timeout applies to each endpoint attempt separately. Until failed
+/// endpoints enter their back-off, one request can take up to one timeout per endpoint, plus one
+/// more when the first endpoint is retried after a connection error. For streamed responses, the
+/// timeout limits each wait for body data rather than the whole transfer. Body errors are returned
+/// to the consumer without failover or retries.
+///
 /// # Possible improvements
 ///
 /// - For `GET` requests we could also start a 2nd request after a shorter time out (eg. 10s).
 pub struct MultiClient {
     state: StdMutex<MultiClientState>,
     remote: String,
-    timeout: Duration,
 }
 
 impl MultiClient {
@@ -541,7 +658,6 @@ impl MultiClient {
         Self {
             state: StdMutex::new(MultiClientState::new(remote.clone(), entries)),
             remote,
-            timeout: Duration::from_secs(60),
         }
     }
 
@@ -760,7 +876,7 @@ impl MultiClient {
 // declare the flow of the lifetime in the `self.request` vs `self.streaming_request` function from
 // its input to its generic output future... and then you run into borrow-checker limitations...
 macro_rules! try_request {
-    ($self:expr, $method:expr, $path_and_query:expr, $params:expr, $how:ident) => {
+    ($self:expr, $method:expr, $path_and_query:expr, $params:expr, $how:ident) => {{
         let params = $params.map(serde_json::to_value);
         Box::pin(async move {
             // check if we're still in the back-off time frame of the remote
@@ -825,7 +941,7 @@ macro_rules! try_request {
                 }
 
                 let request = client.$how($method.clone(), $path_and_query, params.as_ref());
-                match tokio::time::timeout($self.timeout, request).await {
+                match tokio::time::timeout(REQUEST_TIMEOUT, request).await {
                     // Connection error: the request never reached the server, so failing over to
                     // another node is safe for any method. Remember the first endpoint for retry.
                     Ok(Err(err @ proxmox_client::Error::Connect(_))) => {
@@ -894,7 +1010,7 @@ macro_rules! try_request {
                 let path = $path_and_query;
                 log::warn!("all endpoints failed, retrying {hostname:?} once - {path}");
                 let request = client.$how($method.clone(), $path_and_query, params.as_ref());
-                if let Ok(result) = tokio::time::timeout($self.timeout, request).await {
+                if let Ok(result) = tokio::time::timeout(REQUEST_TIMEOUT, request).await {
                     if result.is_ok() {
                         if let Ok(mut cache) = crate::remote_cache::RemoteMappingCache::write() {
                             cache.mark_host_reachable(
@@ -916,9 +1032,7 @@ macro_rules! try_request {
             } else if timed_out {
                 let path = $path_and_query;
                 log::error!("client timed out on request {path}, no remotes reachable, giving up");
-                Err(proxmox_client::Error::Other(
-                    "failed to perform API request: timed out",
-                ))
+                Err(request_timeout_error())
             } else {
                 let path = $path_and_query;
                 log::error!("Unknown client error out on request {path}");
@@ -927,7 +1041,7 @@ macro_rules! try_request {
                 ))
             }
         })
-    };
+    }};
 }
 
 impl HttpApiClient for MultiClient {
@@ -964,7 +1078,12 @@ impl HttpApiClient for MultiClient {
     where
         T: Serialize + 'a,
     {
-        try_request! { self, method, path_and_query, params, streaming_request }
+        let request = try_request! { self, method, path_and_query, params, streaming_request };
+        Box::pin(async move {
+            request
+                .await
+                .map(|response| with_body_idle_timeout(response, REQUEST_TIMEOUT))
+        })
     }
 }
 
@@ -1050,12 +1169,24 @@ pub async fn probe_tls_connection(
 #[cfg(test)]
 mod tests {
     use std::fmt;
+    use std::future::{Pending, Ready};
+    use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
     use anyhow::Error;
+    use futures::channel::mpsc;
+    use http::Method;
+    use http_body_util::BodyExt;
+    use proxmox_client::{
+        Error as ClientError, HttpApiClient, HttpApiResponse, HttpApiResponseStream,
+    };
     use proxmox_router::HttpError;
+    use tokio::io::AsyncWriteExt;
 
-    use super::{ONBOARDING_TIMEOUT, run_remote_operation};
+    use super::{
+        MultiClient, MultiClientEntry, ONBOARDING_TIMEOUT, RequestTimeoutClient,
+        make_single_endpoint_pve_client, run_remote_operation,
+    };
 
     #[derive(Debug)]
     struct CompletedError;
@@ -1067,6 +1198,313 @@ mod tests {
     }
 
     impl std::error::Error for CompletedError {}
+
+    struct PendingClient;
+
+    impl HttpApiClient for PendingClient {
+        type ResponseFuture<'a> = Pending<Result<HttpApiResponse, ClientError>>;
+        type Body = proxmox_http::Body;
+        type ResponseStreamFuture<'a> =
+            Pending<Result<HttpApiResponseStream<Self::Body>, ClientError>>;
+
+        fn request<'a, T>(
+            &'a self,
+            _method: Method,
+            _path_and_query: &'a str,
+            _params: Option<T>,
+        ) -> Self::ResponseFuture<'a>
+        where
+            T: serde::Serialize + 'a,
+        {
+            std::future::pending()
+        }
+
+        fn streaming_request<'a, T>(
+            &'a self,
+            _method: Method,
+            _path_and_query: &'a str,
+            _params: Option<T>,
+        ) -> Self::ResponseStreamFuture<'a>
+        where
+            T: serde::Serialize + 'a,
+        {
+            std::future::pending()
+        }
+    }
+
+    struct CompletedErrorClient;
+
+    impl HttpApiClient for CompletedErrorClient {
+        type ResponseFuture<'a> = Ready<Result<HttpApiResponse, ClientError>>;
+        type Body = proxmox_http::Body;
+        type ResponseStreamFuture<'a> =
+            Ready<Result<HttpApiResponseStream<Self::Body>, ClientError>>;
+
+        fn request<'a, T>(
+            &'a self,
+            _method: Method,
+            _path_and_query: &'a str,
+            _params: Option<T>,
+        ) -> Self::ResponseFuture<'a>
+        where
+            T: serde::Serialize + 'a,
+        {
+            std::future::ready(Err(ClientError::Client(Box::new(CompletedError))))
+        }
+
+        fn streaming_request<'a, T>(
+            &'a self,
+            _method: Method,
+            _path_and_query: &'a str,
+            _params: Option<T>,
+        ) -> Self::ResponseStreamFuture<'a>
+        where
+            T: serde::Serialize + 'a,
+        {
+            std::future::ready(Err(ClientError::Client(Box::new(CompletedError))))
+        }
+    }
+
+    struct BodyClient(Mutex<Option<proxmox_http::Body>>);
+
+    impl HttpApiClient for BodyClient {
+        type ResponseFuture<'a> = Pending<Result<HttpApiResponse, ClientError>>;
+        type Body = proxmox_http::Body;
+        type ResponseStreamFuture<'a> =
+            Ready<Result<HttpApiResponseStream<Self::Body>, ClientError>>;
+
+        fn request<'a, T>(
+            &'a self,
+            _method: Method,
+            _path: &'a str,
+            _params: Option<T>,
+        ) -> Self::ResponseFuture<'a>
+        where
+            T: serde::Serialize + 'a,
+        {
+            std::future::pending()
+        }
+
+        fn streaming_request<'a, T>(
+            &'a self,
+            _method: Method,
+            _path: &'a str,
+            _params: Option<T>,
+        ) -> Self::ResponseStreamFuture<'a>
+        where
+            T: serde::Serialize + 'a,
+        {
+            std::future::ready(Ok(HttpApiResponseStream {
+                status: 200,
+                content_type: Some("application/json-seq".into()),
+                body: self.0.lock().unwrap().take(),
+            }))
+        }
+    }
+
+    #[tokio::test]
+    async fn multi_client_times_out_stalled_body_without_retrying() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            socket
+                .write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2\r\n{}\r\n")
+                .await
+                .unwrap();
+            // Keep both the body and listener open: a retry would wait for headers again.
+            std::future::pending::<()>().await;
+        });
+        let client = proxmox_client::Client::new(format!("http://{address}").parse().unwrap());
+        client.set_authentication(proxmox_client::Token {
+            userid: "root@pam!test".into(),
+            value: "test".into(),
+            prefix: "PBSAPIToken".into(),
+            perl_compat: false,
+        });
+        let client = MultiClient::new(
+            format!("body-timeout-{address}"),
+            vec![MultiClientEntry {
+                client: Arc::new(client),
+                hostname: address.to_string(),
+            }],
+        );
+        let mut body = client
+            .streaming_request(Method::GET, "/", None::<()>)
+            .await
+            .unwrap()
+            .body
+            .unwrap();
+        assert_eq!(
+            body.frame().await.unwrap().unwrap().into_data().unwrap(),
+            "{}"
+        );
+
+        tokio::time::pause();
+        let next = body.frame();
+        tokio::pin!(next);
+        assert!(futures::poll!(&mut next).is_pending());
+        tokio::time::advance(Duration::from_secs(59)).await;
+        assert!(futures::poll!(&mut next).is_pending());
+        // Pausing after real I/O can leave a fractional millisecond before Tokio's next tick.
+        tokio::time::advance(Duration::from_millis(1001)).await;
+        let error = match futures::poll!(&mut next) {
+            std::task::Poll::Ready(Some(Err(error))) => error,
+            other => panic!("expected a body timeout without retrying, got {other:?}"),
+        };
+        assert_eq!(
+            error.downcast_ref::<std::io::Error>().unwrap().kind(),
+            std::io::ErrorKind::TimedOut,
+        );
+        assert!(body.frame().await.is_none());
+        tokio::time::resume();
+        server.abort();
+        let _ = server.await;
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn streamed_body_allows_slow_progress_and_consumer_pauses() {
+        let (sender, receiver) = mpsc::unbounded::<Result<Vec<u8>, Error>>();
+        let client = RequestTimeoutClient {
+            client: BodyClient(Mutex::new(Some(proxmox_http::Body::wrap_stream(receiver)))),
+        };
+        let mut body = client
+            .streaming_request(Method::GET, "/", None::<()>)
+            .await
+            .unwrap()
+            .body
+            .unwrap();
+        for byte in 0..3 {
+            tokio::time::advance(Duration::from_secs(120)).await;
+            let next = body.frame();
+            tokio::pin!(next);
+            assert!(futures::poll!(&mut next).is_pending());
+            tokio::time::advance(Duration::from_secs(59)).await;
+            sender.unbounded_send(Ok(vec![byte])).unwrap();
+            assert_eq!(
+                next.await.unwrap().unwrap().into_data().unwrap(),
+                vec![byte]
+            );
+        }
+        let next = body.frame();
+        tokio::pin!(next);
+        assert!(futures::poll!(&mut next).is_pending());
+        tokio::time::advance(Duration::from_secs(60)).await;
+        assert!(matches!(
+            futures::poll!(&mut next),
+            std::task::Poll::Ready(Some(Err(_)))
+        ));
+        assert!(sender.unbounded_send(Ok(vec![4])).is_err());
+        assert!(body.frame().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn streamed_body_preserves_eof_errors_and_response_metadata() {
+        for error in [None, Some(Error::new(CompletedError))] {
+            let failed = error.is_some();
+            let body = proxmox_http::Body::wrap_stream(futures::stream::iter(
+                error.map(Err::<Vec<u8>, _>),
+            ));
+            let client = RequestTimeoutClient {
+                client: BodyClient(Mutex::new(Some(body))),
+            };
+            let response = client
+                .streaming_request(Method::GET, "/", None::<()>)
+                .await
+                .unwrap();
+            assert_eq!(response.status, 200);
+            assert_eq!(
+                response.content_type.as_deref(),
+                Some("application/json-seq")
+            );
+            let mut body = response.body.unwrap();
+            if failed {
+                assert!(
+                    body.frame()
+                        .await
+                        .unwrap()
+                        .unwrap_err()
+                        .is::<CompletedError>()
+                );
+            }
+            assert!(body.frame().await.is_none());
+        }
+    }
+
+    fn assert_request_timeout(error: ClientError) {
+        match error {
+            ClientError::Other(message) => {
+                assert_eq!(message, "failed to perform API request: timed out")
+            }
+            error => panic!("unexpected timeout error: {error}"),
+        }
+    }
+
+    fn assert_completed_error(error: ClientError) {
+        match error {
+            ClientError::Client(error) => assert!(error.downcast_ref::<CompletedError>().is_some()),
+            error => panic!("completed error changed: {error}"),
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn single_endpoint_pve_client_times_out_after_sixty_seconds() {
+        let timeout = Duration::from_secs(60);
+        let client = make_single_endpoint_pve_client(PendingClient);
+        let request = client.cluster_status();
+        tokio::pin!(request);
+
+        assert!(futures::poll!(&mut request).is_pending());
+        tokio::time::advance(timeout - Duration::from_secs(1)).await;
+        assert!(futures::poll!(&mut request).is_pending());
+        tokio::time::advance(Duration::from_secs(1)).await;
+
+        let error = match request.await {
+            Ok(_) => panic!("pending request unexpectedly succeeded"),
+            Err(error) => error,
+        };
+        assert_request_timeout(error);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn single_client_times_out_streaming_headers_after_sixty_seconds() {
+        let timeout = Duration::from_secs(60);
+        let client = RequestTimeoutClient {
+            client: PendingClient,
+        };
+        let request = client.streaming_request(Method::GET, "/", None::<()>);
+        tokio::pin!(request);
+
+        assert!(futures::poll!(&mut request).is_pending());
+        tokio::time::advance(timeout - Duration::from_secs(1)).await;
+        assert!(futures::poll!(&mut request).is_pending());
+        tokio::time::advance(Duration::from_secs(1)).await;
+
+        let error = match request.await {
+            Ok(_) => panic!("pending streaming request unexpectedly succeeded"),
+            Err(error) => error,
+        };
+        assert_request_timeout(error);
+    }
+
+    #[tokio::test]
+    async fn single_client_preserves_completed_errors() {
+        let client = RequestTimeoutClient {
+            client: CompletedErrorClient,
+        };
+
+        let error = match client.request(Method::GET, "/", None::<()>).await {
+            Ok(_) => panic!("completed request error unexpectedly succeeded"),
+            Err(error) => error,
+        };
+        assert_completed_error(error);
+
+        let error = match client.streaming_request(Method::GET, "/", None::<()>).await {
+            Ok(_) => panic!("completed streaming error unexpectedly succeeded"),
+            Err(error) => error,
+        };
+        assert_completed_error(error);
+    }
 
     #[tokio::test(start_paused = true)]
     async fn remote_operation_times_out_at_the_onboarding_limit() {
