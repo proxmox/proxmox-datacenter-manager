@@ -436,7 +436,11 @@ async fn probe_tls(
     hostname: String,
     fingerprint: Option<String>,
 ) -> Result<TlsProbeOutcome, Error> {
-    probe_tls_connection(RemoteType::Pve, hostname, fingerprint).await
+    let endpoint = hostname.clone();
+    connection::run_remote_operation(&endpoint, async move {
+        probe_tls_connection(RemoteType::Pve, hostname, fingerprint).await
+    })
+    .await
 }
 
 #[api(
@@ -474,51 +478,55 @@ pub async fn scan_remote_pve(
     authid: Authid,
     token: String,
 ) -> Result<Remote, Error> {
-    let mut remote = Remote {
-        ty: RemoteType::Pve,
-        id: String::new(),
-        nodes: vec![PropertyString::new(NodeUrl {
-            hostname,
-            fingerprint,
-        })],
-        authid: authid.clone(),
-        token,
-        web_url: None,
-    };
+    let endpoint = hostname.clone();
+    connection::run_remote_operation(&endpoint, async move {
+        let mut remote = Remote {
+            ty: RemoteType::Pve,
+            id: String::new(),
+            nodes: vec![PropertyString::new(NodeUrl {
+                hostname,
+                fingerprint,
+            })],
+            authid: authid.clone(),
+            token,
+            web_url: None,
+        };
 
-    let client = connect_or_login(&remote)
-        .await
-        .map_err(|err| format_err!("could not login: {err}"))?;
+        let client = connect_or_login(&remote)
+            .await
+            .map_err(|err| format_err!("could not login: {err}"))?;
 
-    let nodes: Vec<_> = client
-        .list_nodes()
-        .await?
-        .into_iter()
-        .map(scanned_node_url)
-        .collect();
+        let nodes: Vec<_> = client
+            .list_nodes()
+            .await?
+            .into_iter()
+            .map(scanned_node_url)
+            .collect();
 
-    if nodes.is_empty() {
-        bail!("no node list returned");
-    }
-
-    remote.nodes = nodes;
-
-    if let Ok(info) = client.cluster_config_join(None).await {
-        if let Some(Some(name)) = info.totem.get("cluster_name").map(|name| name.as_str()) {
-            remote.id = name.to_string();
+        if nodes.is_empty() {
+            bail!("no node list returned");
         }
-    }
 
-    if remote.id.is_empty() {
-        // we did not get a cluster name, so fall back to the first nodename
-        remote.id = remote
-            .nodes
-            .first()
-            .map(|node| node.hostname.clone())
-            .unwrap_or_default();
-    }
+        remote.nodes = nodes;
 
-    Ok(remote)
+        if let Ok(info) = client.cluster_config_join(None).await {
+            if let Some(Some(name)) = info.totem.get("cluster_name").map(|name| name.as_str()) {
+                remote.id = name.to_string();
+            }
+        }
+
+        if remote.id.is_empty() {
+            // we did not get a cluster name, so fall back to the first nodename
+            remote.id = remote
+                .nodes
+                .first()
+                .map(|node| node.hostname.clone())
+                .unwrap_or_default();
+        }
+
+        Ok(remote)
+    })
+    .await
 }
 
 fn scanned_node_url(node: pve_api_types::ClusterNodeIndexResponse) -> PropertyString<NodeUrl> {
@@ -560,23 +568,27 @@ pub async fn list_realm_remote_pve(
     hostname: String,
     fingerprint: Option<String>,
 ) -> Result<Vec<ListRealm>, Error> {
-    // dummy remote to connect
-    let remote = Remote {
-        ty: RemoteType::Pve,
-        id: String::new(),
-        nodes: vec![PropertyString::new(NodeUrl {
-            hostname,
-            fingerprint,
-        })],
-        authid: "root@pam".parse()?,
-        token: String::new(),
-        web_url: None,
-    };
+    let endpoint = hostname.clone();
+    connection::run_remote_operation(&endpoint, async move {
+        // dummy remote to connect
+        let remote = Remote {
+            ty: RemoteType::Pve,
+            id: String::new(),
+            nodes: vec![PropertyString::new(NodeUrl {
+                hostname,
+                fingerprint,
+            })],
+            authid: "root@pam".parse()?,
+            token: String::new(),
+            web_url: None,
+        };
 
-    let client = connection::make_pve_client(&remote)?;
-    let list = client.list_domains().await?;
+        let client = connection::make_onboarding_pve_client(&remote)?;
+        let list = client.list_domains().await?;
 
-    Ok(list)
+        Ok(list)
+    })
+    .await
 }
 
 #[api(

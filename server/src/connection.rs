@@ -20,15 +20,39 @@ use serde::Serialize;
 
 use proxmox_acme_api::CertificateInfo;
 use proxmox_client::{Client, HttpApiClient, HttpApiResponse, HttpApiResponseStream, TlsOptions};
+use proxmox_router::http_err;
 use proxmox_time::epoch_i64;
 
-use pdm_api_types::remotes::{NodeUrl, Remote, RemoteType, TlsProbeOutcome};
+use pdm_api_types::remotes::{
+    NodeUrl, REMOTE_ONBOARDING_TIMEOUT_SECS, Remote, RemoteType, TlsProbeOutcome,
+};
 use pve_api_types::client::PveClientImpl;
 
 use crate::pbs_client::PbsClient;
 use crate::remote_cache::ConnectionState;
 
 static INSTANCE: OnceLock<Box<dyn ClientFactory + Send + Sync>> = OnceLock::new();
+
+/// Deadline for one complete remote onboarding operation.
+pub const ONBOARDING_TIMEOUT: Duration = Duration::from_secs(REMOTE_ONBOARDING_TIMEOUT_SECS);
+
+/// Run one complete operation against a remote that is being onboarded or probed, within the
+/// onboarding deadline.
+pub async fn run_remote_operation<T>(
+    endpoint: &str,
+    future: impl Future<Output = Result<T, Error>>,
+) -> Result<T, Error> {
+    match tokio::time::timeout(ONBOARDING_TIMEOUT, future).await {
+        Ok(result) => result,
+        Err(_) => {
+            let limit = ONBOARDING_TIMEOUT.as_secs();
+            Err(http_err!(
+                GATEWAY_TIMEOUT,
+                "remote operation for '{endpoint}' timed out after {limit} seconds"
+            ))
+        }
+    }
+}
 
 /// Connection Info returned from [`prepare_connect_client`]
 struct ConnectInfo {
@@ -439,6 +463,21 @@ pub fn make_pbs_client(remote: &Remote) -> Result<Box<PbsClient>, Error> {
 
 pub fn make_raw_client(remote: &Remote) -> Result<Box<Client>, Error> {
     instance().make_raw_client(remote)
+}
+
+/// Create a client for a PVE remote that is being onboarded.
+///
+/// Onboarding is bounded as a whole by [`ONBOARDING_TIMEOUT`], so these requests skip the regular
+/// 60-second request timeout, which would cut them off before that deadline.
+pub fn make_onboarding_pve_client(remote: &Remote) -> Result<Arc<PveClient>, Error> {
+    Ok(Arc::new(PveClientImpl(*make_raw_client(remote)?)))
+}
+
+/// Create a client for a PBS remote that is being onboarded.
+///
+/// See [`make_onboarding_pve_client`] for why onboarding avoids the regular client.
+pub fn make_onboarding_pbs_client(remote: &Remote) -> Result<Box<PbsClient<Client>>, Error> {
+    Ok(Box::new(PbsClient(*make_raw_client(remote)?)))
 }
 
 /// Create a new API client for PVE remotes.
@@ -1006,4 +1045,56 @@ pub async fn probe_tls_connection(
         TlsProbeOutcome::TrustedCertificate
     };
     Ok(outcome)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fmt;
+    use std::time::Duration;
+
+    use anyhow::Error;
+    use proxmox_router::HttpError;
+
+    use super::{ONBOARDING_TIMEOUT, run_remote_operation};
+
+    #[derive(Debug)]
+    struct CompletedError;
+
+    impl fmt::Display for CompletedError {
+        fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("completed error")
+        }
+    }
+
+    impl std::error::Error for CompletedError {}
+
+    #[tokio::test(start_paused = true)]
+    async fn remote_operation_times_out_at_the_onboarding_limit() {
+        let limit = ONBOARDING_TIMEOUT.as_secs();
+        let request = run_remote_operation(
+            "slow.example.test:8006",
+            std::future::pending::<Result<(), Error>>(),
+        );
+        tokio::pin!(request);
+        assert!(futures::poll!(&mut request).is_pending());
+        tokio::time::advance(Duration::from_secs(limit - 1)).await;
+        assert!(futures::poll!(&mut request).is_pending());
+        tokio::time::advance(Duration::from_secs(1)).await;
+
+        let error = request.await.unwrap_err().downcast::<HttpError>().unwrap();
+        assert_eq!(error.code, http::StatusCode::GATEWAY_TIMEOUT);
+        assert!(error.message.contains("slow.example.test:8006"));
+        assert!(error.message.contains(&format!("{limit} seconds")));
+    }
+
+    #[tokio::test]
+    async fn remote_operation_preserves_completed_errors() {
+        let error = run_remote_operation("refused.example.test:8006", async {
+            Err::<(), _>(Error::new(CompletedError))
+        })
+        .await
+        .expect_err("completed error unexpectedly succeeded");
+
+        assert!(error.is::<CompletedError>());
+    }
 }

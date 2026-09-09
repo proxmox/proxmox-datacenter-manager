@@ -66,6 +66,13 @@ impl RemoteType {
 serde_plain::derive_display_from_serialize!(RemoteType);
 serde_plain::derive_fromstr_from_deserialize!(RemoteType);
 
+/// Deadline for one remote onboarding operation, in seconds.
+///
+/// Onboarding talks to a remote that PDM has no working connection to yet, so a dropped packet or a
+/// stalled remote holds the request until the deadline expires. The value is generous because the
+/// wizard shows the remaining time and lets the user cancel earlier.
+pub const REMOTE_ONBOARDING_TIMEOUT_SECS: u64 = 180;
+
 #[api(
     properties: {
         "id": { schema: REMOTE_ID_SCHEMA },

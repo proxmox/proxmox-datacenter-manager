@@ -522,16 +522,22 @@ pub fn update_remote(
 /// never changes the stored pin; updating it goes through `update_remote` after explicit
 /// user confirmation.
 pub async fn probe_remote_certificate(id: String, node: String) -> Result<TlsProbeOutcome, Error> {
-    let (remotes, _) = pdm_config::remotes::config()?;
-    let remote = get_remote(&remotes, &id)?;
+    let endpoint = node.clone();
+    connection::run_remote_operation(&endpoint, async move {
+        let (remotes, _) = pdm_config::remotes::config()?;
+        let remote = get_remote(&remotes, &id)?;
 
-    let node_url = remote
-        .nodes
-        .iter()
-        .find(|n| n.hostname == node)
-        .ok_or_else(|| http_err!(NOT_FOUND, "node {node:?} not configured for remote {id:?}"))?;
+        let node_url = remote
+            .nodes
+            .iter()
+            .find(|n| n.hostname == node)
+            .ok_or_else(|| {
+                http_err!(NOT_FOUND, "node {node:?} not configured for remote {id:?}")
+            })?;
 
-    connection::probe_tls_connection(remote.ty, node_url.hostname.clone(), None).await
+        connection::probe_tls_connection(remote.ty, node_url.hostname.clone(), None).await
+    })
+    .await
 }
 
 #[api(

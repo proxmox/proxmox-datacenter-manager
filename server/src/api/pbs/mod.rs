@@ -221,7 +221,11 @@ async fn probe_tls(
     hostname: String,
     fingerprint: Option<String>,
 ) -> Result<TlsProbeOutcome, Error> {
-    probe_tls_connection(RemoteType::Pbs, hostname, fingerprint).await
+    let endpoint = hostname.clone();
+    connection::run_remote_operation(&endpoint, async move {
+        probe_tls_connection(RemoteType::Pbs, hostname, fingerprint).await
+    })
+    .await
 }
 
 pub async fn connect_or_login(
@@ -275,28 +279,32 @@ pub async fn scan_remote_pbs(
     authid: Authid,
     token: String,
 ) -> Result<Remote, Error> {
-    let remote = Remote {
-        ty: RemoteType::Pbs,
-        id: hostname.clone(),
-        nodes: vec![PropertyString::new(NodeUrl {
-            hostname,
-            fingerprint,
-        })],
-        authid: authid.clone(),
-        token,
-        web_url: None,
-    };
+    let endpoint = hostname.clone();
+    connection::run_remote_operation(&endpoint, async move {
+        let remote = Remote {
+            ty: RemoteType::Pbs,
+            id: hostname.clone(),
+            nodes: vec![PropertyString::new(NodeUrl {
+                hostname,
+                fingerprint,
+            })],
+            authid: authid.clone(),
+            token,
+            web_url: None,
+        };
 
-    let client = connect_or_login(&remote)
-        .await
-        .map_err(|err| format_err!("could not login: {err}"))?;
-    if remote.authid.is_token() {
-        validate_credentials(&client)
+        let client = connect_or_login(&remote)
             .await
             .map_err(|err| format_err!("could not login: {err}"))?;
-    }
+        if remote.authid.is_token() {
+            validate_credentials(&client)
+                .await
+                .map_err(|err| format_err!("could not login: {err}"))?;
+        }
 
-    Ok(remote)
+        Ok(remote)
+    })
+    .await
 }
 
 #[api(
@@ -331,23 +339,27 @@ pub async fn list_realm_remote_pbs(
     hostname: String,
     fingerprint: Option<String>,
 ) -> Result<Vec<pbs_api_types::BasicRealmInfo>, Error> {
-    // dummy remote to connect
-    let remote = Remote {
-        ty: RemoteType::Pbs,
-        id: String::new(),
-        nodes: vec![PropertyString::new(NodeUrl {
-            hostname,
-            fingerprint,
-        })],
-        authid: "root@pam".parse()?,
-        token: String::new(),
-        web_url: None,
-    };
+    let endpoint = hostname.clone();
+    connection::run_remote_operation(&endpoint, async move {
+        // dummy remote to connect
+        let remote = Remote {
+            ty: RemoteType::Pbs,
+            id: String::new(),
+            nodes: vec![PropertyString::new(NodeUrl {
+                hostname,
+                fingerprint,
+            })],
+            authid: "root@pam".parse()?,
+            token: String::new(),
+            web_url: None,
+        };
 
-    let client = connection::make_pbs_client(&remote)?;
-    let list = client.list_domains().await?;
+        let client = connection::make_onboarding_pbs_client(&remote)?;
+        let list = client.list_domains().await?;
 
-    Ok(list)
+        Ok(list)
+    })
+    .await
 }
 
 #[api(
