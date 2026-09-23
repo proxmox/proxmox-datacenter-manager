@@ -974,6 +974,8 @@ macro_rules! try_request {
                         }
                         return result;
                     }
+                    // A timeout cannot tell whether the request reached the server, so like a
+                    // post-connect error it only fails over for idempotent methods, see below.
                     Err(_) => {
                         timed_out = true;
                     }
@@ -1001,6 +1003,13 @@ macro_rules! try_request {
                         );
                         let _ = cache.save();
                     }
+                }
+
+                // The host stays marked as unreachable, so a repeated request goes elsewhere.
+                if timed_out && !$method.is_idempotent() {
+                    let path = $path_and_query;
+                    log::error!("client timed out on request {path}, not retrying it elsewhere");
+                    return Err(request_timeout_error());
                 }
             }
 
@@ -1170,6 +1179,7 @@ pub async fn probe_tls_connection(
 mod tests {
     use std::fmt;
     use std::future::{Pending, Ready};
+    use std::net::SocketAddr;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
@@ -1181,7 +1191,8 @@ mod tests {
         Error as ClientError, HttpApiClient, HttpApiResponse, HttpApiResponseStream,
     };
     use proxmox_router::HttpError;
-    use tokio::io::AsyncWriteExt;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::sync::Notify;
 
     use super::{
         MultiClient, MultiClientEntry, ONBOARDING_TIMEOUT, RequestTimeoutClient,
@@ -1299,6 +1310,98 @@ mod tests {
                 content_type: Some("application/json-seq".into()),
                 body: self.0.lock().unwrap().take(),
             }))
+        }
+    }
+
+    /// A local endpoint that records the request line of each request it reads. A silent one never
+    /// answers and stands in for a node that stopped responding after it received a request.
+    async fn endpoint(answer: bool) -> (SocketAddr, Arc<Mutex<Vec<String>>>, Arc<Notify>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let received = Arc::new(Notify::new());
+        let (task_requests, task_received) = (Arc::clone(&requests), Arc::clone(&received));
+        tokio::spawn(async move {
+            loop {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let (requests, received) = (Arc::clone(&task_requests), Arc::clone(&task_received));
+                tokio::spawn(async move {
+                    let mut head = Vec::new();
+                    let mut buffer = [0; 1024];
+                    while !head.windows(4).any(|window| window == b"\r\n\r\n") {
+                        match socket.read(&mut buffer).await {
+                            Ok(0) | Err(_) => return,
+                            Ok(read) => head.extend_from_slice(&buffer[..read]),
+                        }
+                    }
+                    let line = String::from_utf8_lossy(&head)
+                        .lines()
+                        .next()
+                        .unwrap_or_default()
+                        .to_string();
+                    requests.lock().unwrap().push(line);
+                    received.notify_one();
+                    if answer {
+                        let _ = socket
+                            .write_all(
+                                b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+                                  Content-Length: 11\r\n\r\n{\"data\":{}}",
+                            )
+                            .await;
+                    }
+                    std::future::pending::<()>().await;
+                });
+            }
+        });
+        (address, requests, received)
+    }
+
+    fn endpoint_entry(address: SocketAddr) -> MultiClientEntry {
+        let client = proxmox_client::Client::new(format!("http://{address}").parse().unwrap());
+        client.set_authentication(proxmox_client::Token {
+            userid: "root@pam!test".into(),
+            value: "test".into(),
+            prefix: "PVEAPIToken".into(),
+            perl_compat: false,
+        });
+        MultiClientEntry {
+            client: Arc::new(client),
+            hostname: address.to_string(),
+        }
+    }
+
+    #[tokio::test]
+    async fn timed_out_requests_fail_over_only_if_idempotent() {
+        // Marking the silent endpoint unreachable takes the cache lock, which needs the product
+        // config. The endpoints belong to no configured remote, so no cached state changes.
+        crate::test_support::init_product_config();
+
+        for (method, fails_over) in [(Method::GET, true), (Method::POST, false)] {
+            let (silent, _, silent_received) = endpoint(false).await;
+            let (answering, answered, _) = endpoint(true).await;
+            let client = MultiClient::new(
+                format!("timeout-failover-{silent}"),
+                vec![endpoint_entry(silent), endpoint_entry(answering)],
+            );
+
+            let request = client.request(method.clone(), "/", None::<()>);
+            tokio::pin!(request);
+            tokio::select! {
+                _ = &mut request => panic!("{method} finished before the first endpoint timed out"),
+                _ = silent_received.notified() => {}
+            }
+            // The silent endpoint holds the request now, so let its time run out.
+            tokio::time::pause();
+            tokio::time::advance(Duration::from_secs(61)).await;
+            tokio::time::resume();
+
+            let result = request.await;
+            assert_eq!(result.is_ok(), fails_over, "{method}: {:?}", result.err());
+            assert_eq!(
+                answered.lock().unwrap().len(),
+                usize::from(fails_over),
+                "{method}"
+            );
         }
     }
 
