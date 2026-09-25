@@ -110,7 +110,6 @@ pub fn read_interface(iface: String, rpcenv: &mut dyn RpcEnvironment) -> Result<
     },
 )]
 /// Create network interface configuration.
-#[allow(clippy::too_many_arguments)]
 pub fn create_interface(iface: String, config: InterfaceUpdater) -> Result<(), Error> {
     proxmox_network_api::create_interface(iface, config)
 }
