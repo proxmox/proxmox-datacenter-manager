@@ -3,14 +3,16 @@ use core::matches;
 use anyhow::{Context, Error};
 use serde_json::{Value, json};
 
-use proxmox_router::RpcEnvironment;
 use proxmox_router::cli::{
     CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
     default_table_format_options, format_and_print_result_full, get_output_format,
     run_async_cli_command,
 };
+use proxmox_router::{RpcEnvironment, SharedStateRegistry};
 use proxmox_schema::api;
 use proxmox_sys::fs::CreateOptions;
+
+use server::context::PdmApplication;
 
 mod acme;
 mod cert;
@@ -36,7 +38,7 @@ async fn run() -> Result<(), Error> {
         .init()
         .context("failed to set up logger")?;
 
-    server::context::init().context("could not set up server context")?;
+    let app = server::context::init().context("could not set up server context")?;
 
     let cmd_def = CliCommandMap::new()
         .insert("acme", acme::acme_mgmt_cli())
@@ -68,7 +70,11 @@ async fn run() -> Result<(), Error> {
             .context("failed to activate the socket")?;
     }
 
+    let mut shared_state = SharedStateRegistry::default();
+    shared_state.register::<PdmApplication>(app)?;
+
     let mut rpcenv = CliEnvironment::new();
+    rpcenv.set_shared_state_registry(shared_state);
     rpcenv.set_auth_id(Some("root@pam".into()));
 
     run_async_cli_command(cmd_def, rpcenv).await;

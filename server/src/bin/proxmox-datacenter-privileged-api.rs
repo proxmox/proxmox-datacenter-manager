@@ -11,9 +11,10 @@ use tracing::level_filters::LevelFilter;
 
 use proxmox_lang::try_block;
 use proxmox_rest_server::{ApiConfig, RestServer};
-use proxmox_router::RpcEnvironmentType;
+use proxmox_router::{RpcEnvironmentType, SharedStateRegistry};
 use proxmox_sys::fs::CreateOptions;
 
+use server::context::PdmApplication;
 use server::{api_cache, auth};
 
 use pdm_buildcfg::configdir;
@@ -54,9 +55,9 @@ fn main() -> Result<(), Error> {
         }
     }
 
-    server::context::init()?;
+    let app = server::context::init()?;
 
-    proxmox_async::runtime::main(run())
+    proxmox_async::runtime::main(run(app))
 }
 
 fn create_directories() -> Result<(), Error> {
@@ -114,7 +115,7 @@ fn create_directories() -> Result<(), Error> {
     Ok(())
 }
 
-async fn run() -> Result<(), Error> {
+async fn run(app: PdmApplication) -> Result<(), Error> {
     auth::init(true);
 
     proxmox_acme_api::init(configdir!("/acme"), true)?;
@@ -139,6 +140,9 @@ async fn run() -> Result<(), Error> {
     let dir_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
 
+    let mut shared_state = SharedStateRegistry::default();
+    shared_state.register::<PdmApplication>(app)?;
+
     let config = ApiConfig::new(pdm_buildcfg::JS_DIR, RpcEnvironmentType::PRIVILEGED)
         .auth_handler_func(|h, m| Box::pin(auth::check_auth(h, m)))
         .formatted_router(&["api2"], &server::api::ROUTER)
@@ -153,7 +157,8 @@ async fn run() -> Result<(), Error> {
             Some(dir_opts),
             Some(file_opts),
             &mut command_sock,
-        )?;
+        )?
+        .with_shared_state(shared_state);
 
     let rest_server = RestServer::new(config);
     proxmox_rest_server::init_worker_tasks(pdm_buildcfg::PDM_LOG_DIR_M!().into(), file_opts)?;

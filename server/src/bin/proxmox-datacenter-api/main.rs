@@ -18,7 +18,7 @@ use url::form_urlencoded;
 
 use proxmox_lang::try_block;
 use proxmox_rest_server::{ApiConfig, RestEnvironment, RestServer};
-use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
+use proxmox_router::{RpcEnvironment, RpcEnvironmentType, SharedStateRegistry};
 use proxmox_sys::fs::CreateOptions;
 
 use pdm_buildcfg::configdir;
@@ -28,6 +28,7 @@ use proxmox_auth_api::api::assemble_csrf_prevention_token;
 
 use server::auth;
 use server::auth::csrf::csrf_secret;
+use server::context::PdmApplication;
 use server::metric_collection;
 use server::resource_cache;
 use server::task_utils;
@@ -67,9 +68,9 @@ fn main() -> Result<(), Error> {
     }
 
     proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
-    server::context::init()?;
+    let app = server::context::init()?;
 
-    proxmox_async::runtime::main(run(debug))
+    proxmox_async::runtime::main(run(app, debug))
 }
 
 async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<proxmox_http::Body> {
@@ -144,7 +145,7 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<proxmo
     resp
 }
 
-async fn run(debug: bool) -> Result<(), Error> {
+async fn run(app: PdmApplication, debug: bool) -> Result<(), Error> {
     auth::init(false);
 
     proxmox_acme_api::init(configdir!("/acme"), false)?;
@@ -158,6 +159,9 @@ async fn run(debug: bool) -> Result<(), Error> {
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
 
     let indexpath = Path::new(pdm_buildcfg::JS_DIR).join("index.hbs");
+
+    let mut shared_state = SharedStateRegistry::default();
+    shared_state.register::<PdmApplication>(app.clone())?;
 
     let config = ApiConfig::new(pdm_buildcfg::JS_DIR, RpcEnvironmentType::PUBLIC)
         .privileged_addr(
@@ -194,7 +198,8 @@ async fn run(debug: bool) -> Result<(), Error> {
             Some(dir_opts),
             Some(file_opts),
             &mut command_sock,
-        )?;
+        )?
+        .with_shared_state(shared_state);
 
     let rest_server = RestServer::new(config);
     let redirector = proxmox_rest_server::Redirector::new();
