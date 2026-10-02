@@ -35,7 +35,7 @@ pub struct FakeRemoteConfig {
 }
 
 impl RemoteConfig for FakeRemoteConfig {
-    fn config(&self) -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
+    fn read(&self) -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
         let mut section_config = SectionConfigData::default();
 
         for i in 0..self.nr_of_pve_remotes {
@@ -59,7 +59,7 @@ impl RemoteConfig for FakeRemoteConfig {
         Ok((section_config, digest))
     }
 
-    fn lock_config(&self) -> Result<ApiLockGuard, Error> {
+    fn lock(&self) -> Result<ApiLockGuard, Error> {
         unsafe { Ok(proxmox_product_config::create_mocked_lock()) }
     }
 
@@ -67,11 +67,11 @@ impl RemoteConfig for FakeRemoteConfig {
         unsafe { Ok(proxmox_product_config::create_mocked_lock()) }
     }
 
-    fn save_config(&self, _remotes: SectionConfigData<Remote>) -> Result<(), Error> {
+    fn write(&self, _remotes: SectionConfigData<Remote>) -> Result<(), Error> {
         Ok(())
     }
 
-    fn get_secret_token(&self, _remote: &Remote) -> Result<String, Error> {
+    fn read_secret_token(&self, _remote: &Remote) -> Result<String, Error> {
         Ok(String::new())
     }
 }

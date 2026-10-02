@@ -48,7 +48,7 @@ fn instance() -> &'static (dyn RemoteConfig + Send + Sync) {
 ///
 /// Will panic if the the remote config instance has not been set before.
 pub fn lock_config() -> Result<ApiLockGuard, Error> {
-    instance().lock_config()
+    instance().lock()
 }
 
 /// Lock mutations for one remote.
@@ -64,33 +64,33 @@ pub fn lock_remote(id: &str) -> Result<ApiLockGuard, Error> {
 ///
 /// Will panic if the the remote config instance has not been set before.
 pub fn config() -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
-    instance().config()
+    instance().read()
 }
 
 pub fn get_secret_token(remote: &Remote) -> Result<String, Error> {
-    instance().get_secret_token(remote)
+    instance().read_secret_token(remote)
 }
 
 /// Replace the currently persisted remotes config
 ///
 /// Will panic if the the remote config instance has not been set before.
 pub fn save_config(config: SectionConfigData<Remote>) -> Result<(), Error> {
-    instance().save_config(config)
+    instance().write(config)
 }
 
 pub trait RemoteConfig {
     /// Return contents of the remotes config
-    fn config(&self) -> Result<(SectionConfigData<Remote>, ConfigDigest), Error>;
+    fn read(&self) -> Result<(SectionConfigData<Remote>, ConfigDigest), Error>;
     /// Return contents of the remotes shadow config
-    fn get_secret_token(&self, remote: &Remote) -> Result<String, Error>;
+    fn read_secret_token(&self, remote: &Remote) -> Result<String, Error>;
     /// Lock the remotes config
-    fn lock_config(&self) -> Result<ApiLockGuard, Error>;
+    fn lock(&self) -> Result<ApiLockGuard, Error>;
     /// Lock mutations for one remote.
     fn lock_remote(&self, id: &str) -> Result<ApiLockGuard, Error> {
         open_api_lockfile(remote_lockfile_path(id)?, None, true)
     }
     /// Replace the currently persisted remotes config
-    fn save_config(&self, remotes: SectionConfigData<Remote>) -> Result<(), Error>;
+    fn write(&self, remotes: SectionConfigData<Remote>) -> Result<(), Error>;
 }
 
 /// Default, production implementation for reading/writing the `remotes.cfg`
@@ -98,11 +98,11 @@ pub trait RemoteConfig {
 pub struct DefaultRemoteConfig;
 
 impl RemoteConfig for DefaultRemoteConfig {
-    fn lock_config(&self) -> Result<ApiLockGuard, Error> {
+    fn lock(&self) -> Result<ApiLockGuard, Error> {
         open_api_lockfile(REMOTES_CFG_LOCKFILE, None, true)
     }
 
-    fn config(&self) -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
+    fn read(&self) -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
         let content =
             proxmox_sys::fs::file_read_optional_string(REMOTES_CFG_FILENAME)?.unwrap_or_default();
 
@@ -112,7 +112,7 @@ impl RemoteConfig for DefaultRemoteConfig {
         Ok((data, digest.into()))
     }
 
-    fn save_config(&self, mut config: SectionConfigData<Remote>) -> Result<(), Error> {
+    fn write(&self, mut config: SectionConfigData<Remote>) -> Result<(), Error> {
         let shadow_content = proxmox_sys::fs::file_read_optional_string(REMOTES_SHADOW_FILENAME)?
             .unwrap_or_default();
 
@@ -161,7 +161,7 @@ impl RemoteConfig for DefaultRemoteConfig {
         replace_config(REMOTES_CFG_FILENAME, raw.as_bytes())
     }
 
-    fn get_secret_token(&self, remote: &Remote) -> Result<String, Error> {
+    fn read_secret_token(&self, remote: &Remote) -> Result<String, Error> {
         // not yet rewritten into shadow config
         if remote.token != "-" {
             return Ok(remote.token.clone());

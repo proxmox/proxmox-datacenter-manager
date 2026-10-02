@@ -860,15 +860,15 @@ pbs: pbs-offsite
     }
 
     impl RemoteConfig for TestRemoteConfig {
-        fn config(&self) -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
+        fn read(&self) -> Result<(SectionConfigData<Remote>, ConfigDigest), Error> {
             Ok((self.config.lock().unwrap().clone(), [0u8; 32].into()))
         }
 
-        fn get_secret_token(&self, remote: &Remote) -> Result<String, Error> {
+        fn read_secret_token(&self, remote: &Remote) -> Result<String, Error> {
             Ok(remote.token.clone())
         }
 
-        fn lock_config(&self) -> Result<ApiLockGuard, Error> {
+        fn lock(&self) -> Result<ApiLockGuard, Error> {
             let path = self.lock_dir.join(".remotes.lock");
             open_api_lockfile(path, Some(Self::LOCK_TIMEOUT), true)
         }
@@ -878,7 +878,7 @@ pbs: pbs-offsite
             open_api_lockfile(path, Some(Self::LOCK_TIMEOUT), true)
         }
 
-        fn save_config(&self, remotes: SectionConfigData<Remote>) -> Result<(), Error> {
+        fn write(&self, remotes: SectionConfigData<Remote>) -> Result<(), Error> {
             *self.config.lock().unwrap() = remotes;
             Ok(())
         }
