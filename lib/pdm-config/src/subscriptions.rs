@@ -35,46 +35,46 @@ fn instance() -> &'static (dyn SubscriptionKeyConfig + Send + Sync) {
 }
 
 pub fn lock_config() -> Result<ApiLockGuard, Error> {
-    instance().lock_config()
+    instance().lock()
 }
 
 pub fn config() -> Result<(SectionConfigData<SubscriptionKeyEntry>, ConfigDigest), Error> {
-    instance().config()
+    instance().read()
 }
 
 pub fn shadow_config() -> Result<SectionConfigData<SubscriptionKeyShadow>, Error> {
-    instance().shadow_config()
+    instance().read_shadow()
 }
 
 pub fn save_config(
     config: &SectionConfigData<SubscriptionKeyEntry>,
 ) -> Result<ConfigDigest, Error> {
-    instance().save_config(config)
+    instance().write(config)
 }
 
 pub fn save_shadow(shadow: &SectionConfigData<SubscriptionKeyShadow>) -> Result<(), Error> {
-    instance().save_shadow(shadow)
+    instance().write_shadow(shadow)
 }
 
 pub trait SubscriptionKeyConfig {
-    fn config(&self) -> Result<(SectionConfigData<SubscriptionKeyEntry>, ConfigDigest), Error>;
-    fn shadow_config(&self) -> Result<SectionConfigData<SubscriptionKeyShadow>, Error>;
-    fn lock_config(&self) -> Result<ApiLockGuard, Error>;
-    fn save_config(
+    fn read(&self) -> Result<(SectionConfigData<SubscriptionKeyEntry>, ConfigDigest), Error>;
+    fn read_shadow(&self) -> Result<SectionConfigData<SubscriptionKeyShadow>, Error>;
+    fn lock(&self) -> Result<ApiLockGuard, Error>;
+    fn write(
         &self,
         config: &SectionConfigData<SubscriptionKeyEntry>,
     ) -> Result<ConfigDigest, Error>;
-    fn save_shadow(&self, shadow: &SectionConfigData<SubscriptionKeyShadow>) -> Result<(), Error>;
+    fn write_shadow(&self, shadow: &SectionConfigData<SubscriptionKeyShadow>) -> Result<(), Error>;
 }
 
 pub struct DefaultSubscriptionKeyConfig;
 
 impl SubscriptionKeyConfig for DefaultSubscriptionKeyConfig {
-    fn lock_config(&self) -> Result<ApiLockGuard, Error> {
+    fn lock(&self) -> Result<ApiLockGuard, Error> {
         open_api_lockfile(SUBSCRIPTIONS_CFG_LOCKFILE, None, true)
     }
 
-    fn config(&self) -> Result<(SectionConfigData<SubscriptionKeyEntry>, ConfigDigest), Error> {
+    fn read(&self) -> Result<(SectionConfigData<SubscriptionKeyEntry>, ConfigDigest), Error> {
         let content = proxmox_sys::fs::file_read_optional_string(SUBSCRIPTIONS_CFG_FILENAME)?
             .unwrap_or_default();
 
@@ -85,13 +85,13 @@ impl SubscriptionKeyConfig for DefaultSubscriptionKeyConfig {
         Ok((data, digest.into()))
     }
 
-    fn shadow_config(&self) -> Result<SectionConfigData<SubscriptionKeyShadow>, Error> {
+    fn read_shadow(&self) -> Result<SectionConfigData<SubscriptionKeyShadow>, Error> {
         let content = proxmox_sys::fs::file_read_optional_string(SUBSCRIPTIONS_SHADOW_FILENAME)?
             .unwrap_or_default();
         SubscriptionKeyShadow::parse_section_config(SUBSCRIPTIONS_SHADOW_FILENAME, &content)
     }
 
-    fn save_config(
+    fn write(
         &self,
         config: &SectionConfigData<SubscriptionKeyEntry>,
     ) -> Result<ConfigDigest, Error> {
@@ -101,7 +101,7 @@ impl SubscriptionKeyConfig for DefaultSubscriptionKeyConfig {
         Ok(digest)
     }
 
-    fn save_shadow(&self, shadow: &SectionConfigData<SubscriptionKeyShadow>) -> Result<(), Error> {
+    fn write_shadow(&self, shadow: &SectionConfigData<SubscriptionKeyShadow>) -> Result<(), Error> {
         let raw =
             SubscriptionKeyShadow::write_section_config(SUBSCRIPTIONS_SHADOW_FILENAME, shadow)?;
         // Signed `SubscriptionInfo` blobs are secrets - mode 0600, priv:priv, so the
