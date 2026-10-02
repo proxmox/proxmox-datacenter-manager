@@ -19,8 +19,9 @@ use proxmox_sys::fs::CreateOptions;
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 
+use crate::context::PdmApplication;
 use crate::metric_collection::rrd_task::CollectionStats;
-use crate::{connection, task_utils};
+use crate::task_utils;
 
 use super::{
     rrd_task::{RrdStoreRequest, RrdStoreResult},
@@ -48,6 +49,7 @@ pub(super) enum ControlMsg {
 /// Task which periodically collects metrics from all remotes and stores
 /// them in the local metrics database.
 pub(super) struct RemoteMetricCollectionTask {
+    app: PdmApplication,
     state: MetricCollectionState,
     metric_data_tx: Sender<RrdStoreRequest>,
     control_message_rx: Receiver<ControlMsg>,
@@ -56,12 +58,14 @@ pub(super) struct RemoteMetricCollectionTask {
 impl RemoteMetricCollectionTask {
     /// Create a new metric collection task.
     pub(super) fn new(
+        app: PdmApplication,
         metric_data_tx: Sender<RrdStoreRequest>,
         control_message_rx: Receiver<ControlMsg>,
     ) -> Result<Self, Error> {
         let state = load_state()?;
 
         Ok(Self {
+            app,
             state,
             metric_data_tx,
             control_message_rx,
@@ -234,9 +238,12 @@ impl RemoteMetricCollectionTask {
             // called on the semaphore.
             let permit = Arc::clone(&semaphore).acquire_owned().await.unwrap();
 
+            let app_clone = self.app.clone();
+
             if let Some(remote) = remote_config.get(remote_name).cloned() {
                 log::debug!("fetching remote '{}'", remote.id);
                 handles.spawn(Self::fetch_single_remote(
+                    app_clone,
                     remote,
                     status,
                     self.metric_data_tx.clone(),
@@ -294,6 +301,7 @@ impl RemoteMetricCollectionTask {
     /// Fetch a single remote.
     #[tracing::instrument(skip_all, fields(remote = remote.id), name = "metric_collection_task")]
     async fn fetch_single_remote(
+        app: PdmApplication,
         remote: Remote,
         mut status: RemoteStatus,
         sender: Sender<RrdStoreRequest>,
@@ -307,7 +315,7 @@ impl RemoteMetricCollectionTask {
         let res: Result<RrdStoreResult, Error> = async {
             match remote.ty {
                 RemoteType::Pve => {
-                    let client = connection::make_pve_client(&remote)?;
+                    let client = app.client_factory().make_pve_client(&remote)?;
                     let metrics = client
                         .cluster_metrics_export(
                             Some(true),
@@ -331,7 +339,7 @@ impl RemoteMetricCollectionTask {
                         .await?;
                 }
                 RemoteType::Pbs => {
-                    let client = connection::make_pbs_client(&remote)?;
+                    let client = app.client_factory().make_pbs_client(&remote)?;
                     let metrics = client
                         .metrics(Some(true), Some(status.most_recent_datapoint))
                         .await?;
@@ -386,8 +394,6 @@ pub(super) fn load_state() -> Result<MetricCollectionState, Error> {
 
 #[cfg(test)]
 pub(super) mod tests {
-    use std::sync::Once;
-
     use anyhow::bail;
     use http::StatusCode;
 
@@ -397,6 +403,7 @@ pub(super) mod tests {
 
     use crate::{
         connection::{ClientFactory, PveClient},
+        context::ContextFactory,
         metric_collection::rrd_task::RrdStoreResult,
         pbs_client::PbsClient,
     };
@@ -549,25 +556,18 @@ pub(super) mod tests {
         number_of_requests
     }
 
-    static START: Once = Once::new();
+    const NOW: i64 = 1000;
 
-    fn test_init() -> i64 {
-        let now = 10000;
-        START.call_once(|| {
-            // TODO: the client factory is currently stored in a OnceLock -
-            // we can only set it from one test... Ideally we'd like to have the
-            // option to set it in every single test if needed - task/thread local?
-            connection::init(Arc::new(TestClientFactory { now }));
-        });
+    struct TestContextFactory();
 
-        now
+    impl ContextFactory for TestContextFactory {
+        fn make_client_factory(&self) -> Result<Arc<dyn ClientFactory + Send + Sync>, Error> {
+            Ok(Arc::new(TestClientFactory { now: NOW }))
+        }
     }
 
     #[tokio::test]
     async fn test_fetch_remotes_updates_state() {
-        // Arrange
-        let now = test_init();
-
         let (tx, rx) = tokio::sync::mpsc::channel(10);
         let handle = tokio::task::spawn(fake_rrd_task(rx));
 
@@ -578,7 +578,10 @@ pub(super) mod tests {
 
         let (_control_tx, control_rx) = tokio::sync::mpsc::channel(10);
 
+        let app = TestContextFactory().make_pdm_application().unwrap();
+
         let mut task = RemoteMetricCollectionTask {
+            app,
             state,
             metric_data_tx: tx,
             control_message_rx: control_rx,
@@ -607,7 +610,7 @@ pub(super) mod tests {
                 );
                 assert_eq!(status.last_collection, None);
             } else {
-                assert!(now - status.most_recent_datapoint <= 10);
+                assert!(NOW - status.most_recent_datapoint <= 10);
                 assert!(status.error.is_none());
             }
         }
@@ -618,9 +621,6 @@ pub(super) mod tests {
 
     #[tokio::test]
     async fn test_fetch_overdue() {
-        // Arrange
-        test_init();
-
         let (tx, rx) = tokio::sync::mpsc::channel(10);
         let handle = tokio::task::spawn(fake_rrd_task(rx));
 
@@ -629,6 +629,8 @@ pub(super) mod tests {
         let state_file = tempfile::NamedTempFile::new().unwrap();
 
         let mut state = MetricCollectionState::new(state_file.path().into(), get_create_options());
+
+        let app = TestContextFactory().make_pdm_application().unwrap();
 
         let now = proxmox_time::epoch_i64();
 
@@ -652,6 +654,7 @@ pub(super) mod tests {
         let (_control_tx, control_rx) = tokio::sync::mpsc::channel(10);
 
         let mut task = RemoteMetricCollectionTask {
+            app,
             state,
             metric_data_tx: tx,
             control_message_rx: control_rx,

@@ -21,6 +21,7 @@ pub mod top_entities;
 use remote_collection_task::{ControlMsg, RemoteMetricCollectionTask};
 use rrd_cache::RrdCache;
 
+use crate::context::PdmApplication;
 use crate::metric_collection::local_collection_task::LocalMetricCollectionTask;
 
 const RRD_CACHE_BASEDIR: &str = concat!(PDM_STATE_DIR_M!(), "/rrdb");
@@ -40,7 +41,7 @@ pub fn init() -> Result<(), Error> {
 }
 
 /// Start the metric collection task.
-pub fn start_task() -> Result<(), Error> {
+pub fn start_task(app: PdmApplication) -> Result<(), Error> {
     let (metric_data_tx, metric_data_rx) = mpsc::channel(128);
 
     let cache = rrd_cache::get_cache();
@@ -58,7 +59,8 @@ pub fn start_task() -> Result<(), Error> {
     let metric_data_tx_clone = metric_data_tx.clone();
     tokio::spawn(async move {
         let metric_collection_task_future = pin!(async move {
-            match RemoteMetricCollectionTask::new(metric_data_tx_clone, trigger_collection_rx) {
+            match RemoteMetricCollectionTask::new(app, metric_data_tx_clone, trigger_collection_rx)
+            {
                 Ok(mut task) => task.run().await,
                 Err(err) => log::error!("could not start metric collection task: {err}"),
             }

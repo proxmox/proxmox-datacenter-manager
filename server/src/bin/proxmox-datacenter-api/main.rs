@@ -344,7 +344,7 @@ async fn run(app: PdmApplication, debug: bool) -> Result<(), Error> {
     });
 
     start_task_scheduler();
-    metric_collection::start_task()?;
+    metric_collection::start_task(app)?;
     tasks::remote_node_mapping::start_task();
     resource_cache::start_task();
     tasks::remote_tasks::start_task()?;

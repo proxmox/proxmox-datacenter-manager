@@ -1,15 +1,14 @@
 //! Create API clients for remotes
 //!
-//! Make sure to call [`init`] to inject a concrete [`ClientFactory`]
-//! instance before calling any of the provided functions.
+//! Make sure to call [`context::init`] before using the `make_*` helpers.
 
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::{Pin, pin};
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::sync::Mutex as StdMutex;
 use std::sync::Once;
-use std::sync::{LazyLock, OnceLock};
 use std::time::{Duration, SystemTime};
 
 use anyhow::{Error, bail, format_err};
@@ -30,10 +29,9 @@ use pdm_api_types::remotes::{
 };
 use pve_api_types::client::PveClientImpl;
 
+use crate::context;
 use crate::pbs_client::PbsClient;
 use crate::remote_cache::ConnectionState;
-
-static INSTANCE: OnceLock<Arc<dyn ClientFactory + Send + Sync>> = OnceLock::new();
 
 /// Deadline for one complete remote onboarding operation.
 pub const ONBOARDING_TIMEOUT: Duration = Duration::from_secs(REMOTE_ONBOARDING_TIMEOUT_SECS);
@@ -430,19 +428,11 @@ impl ClientFactory for DefaultClientFactory {
     }
 }
 
-fn instance() -> &'static (dyn ClientFactory + Send + Sync) {
-    // Not initializing the connection factory instance is
-    // entirely in our responsibility and not something we can recover from,
-    // so it should be okay to panic in this case.
-    INSTANCE
-        .get()
-        .expect("client factory instance not set")
-        .as_ref()
-}
-
 /// Create a new API client for PVE remotes
 pub fn make_pve_client(remote: &Remote) -> Result<Arc<PveClient>, Error> {
-    instance().make_pve_client(remote)
+    context::pdm_application()
+        .client_factory()
+        .make_pve_client(remote)
 }
 
 /// Create a new API client for PVE remotes, but for a specific endpoint
@@ -450,21 +440,29 @@ pub fn make_pve_client_with_endpoint(
     remote: &Remote,
     target_endpoint: Option<&str>,
 ) -> Result<Arc<PveClient>, Error> {
-    instance().make_pve_client_with_endpoint(remote, target_endpoint)
+    context::pdm_application()
+        .client_factory()
+        .make_pve_client_with_endpoint(remote, target_endpoint)
 }
 
 /// Create a new API client for PVE remotes and try to make it connect to a specific *node*.
 pub fn make_pve_client_with_node(remote: &Remote, node: &str) -> Result<Arc<PveClient>, Error> {
-    instance().make_pve_client_with_node(remote, node)
+    context::pdm_application()
+        .client_factory()
+        .make_pve_client_with_node(remote, node)
 }
 
 /// Create a new API client for PBS remotes
 pub fn make_pbs_client(remote: &Remote) -> Result<Box<PbsClient>, Error> {
-    instance().make_pbs_client(remote)
+    context::pdm_application()
+        .client_factory()
+        .make_pbs_client(remote)
 }
 
 pub fn make_raw_client(remote: &Remote) -> Result<Box<Client>, Error> {
-    instance().make_raw_client(remote)
+    context::pdm_application()
+        .client_factory()
+        .make_raw_client(remote)
 }
 
 /// Create a client for a PVE remote that is being onboarded.
@@ -492,7 +490,10 @@ pub fn make_onboarding_pbs_client(remote: &Remote) -> Result<Box<PbsClient<Clien
 ///
 /// Note: currently does not support two factor authentication.
 pub async fn make_pve_client_and_login(remote: &Remote) -> Result<Arc<PveClient>, Error> {
-    instance().make_pve_client_and_login(remote).await
+    context::pdm_application()
+        .client_factory()
+        .make_pve_client_and_login(remote)
+        .await
 }
 
 /// Create a new API client for PBS remotes.
@@ -505,16 +506,10 @@ pub async fn make_pve_client_and_login(remote: &Remote) -> Result<Arc<PveClient>
 ///
 /// Note: currently does not support two factor authentication.
 pub async fn make_pbs_client_and_login(remote: &Remote) -> Result<Box<PbsClient<Client>>, Error> {
-    instance().make_pbs_client_and_login(remote).await
-}
-
-/// Initialize the [`ClientFactory`] instance.
-///
-/// Will panic if the instance has already been set.
-pub fn init(instance: Arc<dyn ClientFactory + Send + Sync>) {
-    if INSTANCE.set(instance).is_err() {
-        panic!("connection factory instance already set");
-    }
+    context::pdm_application()
+        .client_factory()
+        .make_pbs_client_and_login(remote)
+        .await
 }
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);

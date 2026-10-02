@@ -34,9 +34,6 @@ pub fn init() -> Result<PdmApplication, Error> {
     pdm_config::remotes::init(factory.make_remote_config()?);
     pdm_config::subscriptions::init(factory.make_subscription_key_config()?);
 
-    // FIXME: Rather let connection use an Application context object from here
-    connection::init(factory.make_client_factory()?);
-
     Ok(app)
 }
 
