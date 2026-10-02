@@ -9,7 +9,6 @@ use pdm_api_types::RemoteUpid;
 use pdm_api_types::remotes::{Remote, RemoteType};
 use proxmox_section_config::typed::SectionConfigData;
 
-use crate::api;
 use crate::connection;
 use crate::parallel_fetcher::{ParallelFetcher, ParallelFetcherArgs};
 use crate::pbs_client;
@@ -17,6 +16,7 @@ use crate::remote_tasks::{
     KEEP_OLD_FILES, ROTATE_AFTER,
     task_cache::{GetTasks, NodeFetchSuccessMap, State, TaskCache, TaskCacheItem},
 };
+use crate::{api, context};
 
 /// Interval in seconds at which to fetch the newest tasks from remotes (if there is no tracked
 /// task for this remote).
@@ -234,7 +234,7 @@ async fn fetch_remotes(
     remotes: Vec<Remote>,
     cache_state: Arc<State>,
 ) -> (Vec<TaskCacheItem>, NodeFetchSuccessMap) {
-    let fetcher = ParallelFetcher::builder(cache_state)
+    let fetcher = ParallelFetcher::builder(context::pdm_application(), cache_state)
         .max_connections(MAX_CONNECTIONS)
         .max_connections_per_remote(CONNECTIONS_PER_PVE_REMOTE)
         .build();

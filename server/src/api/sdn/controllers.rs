@@ -9,8 +9,8 @@ use proxmox_router::{Permission, Router, RpcEnvironment, http_bail};
 use proxmox_schema::api;
 use pve_api_types::ListControllersType;
 
-use crate::api::pve;
 use crate::api::remotes::RemoteIterator;
+use crate::context::PdmApplication;
 use crate::parallel_fetcher::ParallelFetcher;
 
 pub const ROUTER: Router = Router::new().get(&API_METHOD_LIST_CONTROLLERS);
@@ -63,6 +63,7 @@ pub async fn list_controllers(
     ty: Option<ListControllersType>,
     remotes: Option<HashSet<String>>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<Vec<ListController>, Error> {
     let user_info = CachedUserInfo::new()?;
 
@@ -75,7 +76,7 @@ pub async fn list_controllers(
         http_bail!(FORBIDDEN, "user has no access to resources");
     }
 
-    let mut iter = RemoteIterator::new(pdm_config::remotes::instance())?
+    let mut iter = RemoteIterator::new(app.remote_config())?
         .remote_type(RemoteType::Pve)
         .any_privs(&user_info, &auth_id, PRIV_RESOURCE_AUDIT);
     if let Some(ref filter) = remotes {
@@ -83,11 +84,15 @@ pub async fn list_controllers(
     }
 
     let mut vnets = Vec::new();
-    let fetcher = ParallelFetcher::new((pending, running, ty));
+
+    let fetcher = ParallelFetcher::new(app, (pending, running, ty));
 
     let results = fetcher
         .do_for_all_remotes(iter.into_remotes(), async |args| {
-            Ok(pve::connect(args.remote())?
+            Ok(args
+                .pdm_application()
+                .client_factory()
+                .make_pve_client(args.remote())?
                 .list_controllers(args.context().0, args.context().1, args.context().2)
                 .await?)
         })

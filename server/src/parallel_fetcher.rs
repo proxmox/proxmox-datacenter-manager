@@ -8,6 +8,7 @@
 //! #
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Error> {
+//! #   let app = server::context::pdm_application();
 //! #   let remotes: Vec<Remote> = Vec::new();
 //! #
 //!     async fn fetch_meaning(
@@ -25,7 +26,7 @@
 //!     // This context can be passed to the function what is executed for every remote node.
 //!     let context = ();
 //!
-//!     let fetcher = ParallelFetcher::builder(context)
+//!     let fetcher = ParallelFetcher::builder(app, context)
 //!         .max_connections(10)
 //!         .max_connections_per_remote(2)
 //!         .build();
@@ -73,7 +74,7 @@ use pve_api_types::ClusterNodeIndexResponse;
 
 use pdm_api_types::remotes::{Remote, RemoteType};
 
-use crate::connection;
+use crate::context::PdmApplication;
 
 /// Maximum number of parallel outgoing API requests.
 pub const DEFAULT_MAX_CONNECTIONS: usize = 20;
@@ -229,15 +230,17 @@ impl<T> NodeResponse<T> {
 pub struct ParallelFetcherBuilder<C> {
     max_connections: Option<usize>,
     max_connections_per_remote: Option<usize>,
+    pdm_application: PdmApplication,
     context: C,
 }
 
 impl<C> ParallelFetcherBuilder<C> {
-    fn new(context: C) -> Self {
+    fn new(pdm_application: PdmApplication, context: C) -> Self {
         Self {
             context,
             max_connections: None,
             max_connections_per_remote: None,
+            pdm_application,
         }
     }
 
@@ -263,6 +266,7 @@ impl<C> ParallelFetcherBuilder<C> {
                 .max_connections_per_remote
                 .unwrap_or(DEFAULT_MAX_CONNECTIONS_PER_REMOTE),
             context: self.context,
+            pdm_application: self.pdm_application,
         }
     }
 }
@@ -280,6 +284,8 @@ pub struct ParallelFetcherArgs<C> {
     /// The node. This may be 'localhost' for PBS remotes or if using
     /// [`ParallelFetcher::do_for_all_remotes`].
     node: String,
+    /// A handle to the [`PdmApplication`] context object.
+    pdm_application: PdmApplication,
 }
 
 impl<C> ParallelFetcherArgs<C> {
@@ -305,24 +311,32 @@ impl<C> ParallelFetcherArgs<C> {
     pub fn context_mut(&mut self) -> &mut C {
         &mut self.context
     }
+
+    /// Get a reference to [`PdmApplication`].
+    ///
+    /// Use this for accessing configuration or constructing API clients.
+    pub fn pdm_application(&self) -> &PdmApplication {
+        &self.pdm_application
+    }
 }
 
 /// Helper for parallelizing API requests to multiple remotes/nodes.
 pub struct ParallelFetcher<C> {
     max_connections: usize,
     max_connections_per_remote: usize,
+    pdm_application: PdmApplication,
     context: C,
 }
 
 impl<C: Clone + Send + 'static> ParallelFetcher<C> {
     /// Create a [`ParallelFetcher`] with default settings.
-    pub fn new(context: C) -> Self {
-        Self::builder(context).build()
+    pub fn new(app: PdmApplication, context: C) -> Self {
+        Self::builder(app, context).build()
     }
 
     /// Create the builder for constructing a [`ParallelFetcher`] with custom settings.
-    pub fn builder(context: C) -> ParallelFetcherBuilder<C> {
-        ParallelFetcherBuilder::new(context)
+    pub fn builder(app: PdmApplication, context: C) -> ParallelFetcherBuilder<C> {
+        ParallelFetcherBuilder::new(app, context)
     }
 
     /// Invoke a function `func` for all nodes of a given list of remotes in parallel.
@@ -344,13 +358,16 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
         for remote in remotes {
             let semaphore = Arc::clone(&total_connections_semaphore);
 
+            let app = self.pdm_application.clone();
             let f = func.clone();
+
             let future = Self::fetch_remote(
                 remote,
                 self.context.clone(),
                 semaphore,
                 f,
                 self.max_connections_per_remote,
+                app,
             );
 
             if let Some(log_context) = LogContext::current() {
@@ -382,6 +399,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
         semaphore: Arc<Semaphore>,
         func: F,
         max_connections_per_remote: usize,
+        pdm_application: PdmApplication,
     ) -> RemoteResponse<MultipleNodesResponse<T>>
     where
         F: Fn(ParallelFetcherArgs<C>) -> Ft + Clone + Send + 'static,
@@ -397,8 +415,10 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
             RemoteType::Pve => {
                 let remote_clone = remote.clone();
 
+                let app = &pdm_application;
+
                 let nodes = match async move {
-                    let client = connection::make_pve_client(&remote_clone)?;
+                    let client = app.client_factory().make_pve_client(&remote_clone)?;
                     let nodes = client.list_nodes().await?;
 
                     Ok::<Vec<ClusterNodeIndexResponse>, Error>(nodes)
@@ -433,12 +453,14 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
                     let remote_clone = remote.clone();
                     let node_name = node.node.clone();
                     let context_clone = context.clone();
+                    let app = pdm_application.clone();
 
                     let future = Self::fetch_node(
                         func_clone,
                         context_clone,
                         remote_clone,
                         node_name,
+                        app,
                         permit,
                         Some(per_remote_connections_permit),
                     );
@@ -467,6 +489,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
                     context,
                     remote.clone(),
                     "localhost".into(),
+                    pdm_application,
                     permit.unwrap(), // Always set to `Some` at this point
                     None,
                 )
@@ -490,6 +513,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
         context: C,
         remote: Remote,
         node: String,
+        pdm_application: PdmApplication,
         _permit: OwnedSemaphorePermit,
         _per_remote_connections_permit: Option<OwnedSemaphorePermit>,
     ) -> NodeResponse<T>
@@ -504,6 +528,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
             context,
             remote,
             node: node.clone(),
+            pdm_application,
         };
 
         let result = func(parallel_fetcher_context).await;
@@ -539,7 +564,9 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
             let remote_type = remote.ty;
 
             let context = self.context.clone();
+            let app = self.pdm_application.clone();
             let func = func.clone();
+
             let future = async move {
                 let permit = total_connections_semaphore.acquire_owned().await.unwrap();
 
@@ -551,6 +578,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
                         context,
                         remote,
                         "localhost".into(),
+                        app,
                         permit,
                         None,
                     )

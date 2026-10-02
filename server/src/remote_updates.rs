@@ -12,7 +12,7 @@ use pdm_api_types::remotes::{Remote, RemoteType};
 
 use crate::namespaced_cache::CacheError;
 use crate::parallel_fetcher::ParallelFetcher;
-use crate::{api_cache, connection};
+use crate::{api_cache, connection, context};
 
 const OLD_CACHEFILE: &str = concat!(pdm_buildcfg::PDM_CACHE_DIR_M!(), "/remote-updates.json");
 
@@ -229,7 +229,7 @@ async fn update_cached_summary_for_node(
 /// delays its own entry. The final pass records whole-remote failures and prunes vanished
 /// remotes and nodes.
 pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Error> {
-    let fetcher = ParallelFetcher::new(());
+    let fetcher = ParallelFetcher::new(context::pdm_application(), ());
 
     let fetch_response = fetcher
         .do_for_all_remote_nodes(remotes.into_iter(), |args| async move {

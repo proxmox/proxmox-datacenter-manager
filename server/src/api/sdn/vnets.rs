@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::{Context, Error};
+
 use pbs_api_types::REMOTE_ID_SCHEMA;
 use pdm_api_types::{
     Authid, PRIV_RESOURCE_AUDIT,
@@ -13,8 +14,7 @@ use proxmox_router::{Permission, Router, RpcEnvironment, http_bail};
 use proxmox_schema::api;
 use pve_api_types::{CreateVnet, SdnVnetType};
 
-use crate::api::pve;
-use crate::api::remotes::RemoteIterator;
+use crate::{api::remotes::RemoteIterator, context::PdmApplication};
 use crate::{parallel_fetcher::ParallelFetcher, sdn_client::LockedSdnClients};
 
 pub const ROUTER: Router = Router::new()
@@ -64,6 +64,7 @@ async fn list_vnets(
     running: Option<bool>,
     remotes: Option<HashSet<String>>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<Vec<ListVnet>, Error> {
     let user_info = CachedUserInfo::new()?;
 
@@ -76,7 +77,7 @@ async fn list_vnets(
         http_bail!(FORBIDDEN, "user has no access to resources");
     }
 
-    let mut iter = RemoteIterator::new(pdm_config::remotes::instance())?
+    let mut iter = RemoteIterator::new(app.remote_config())?
         .remote_type(RemoteType::Pve)
         .any_privs(&user_info, &auth_id, PRIV_RESOURCE_AUDIT);
     if let Some(ref filter) = remotes {
@@ -84,11 +85,14 @@ async fn list_vnets(
     }
 
     let mut vnets = Vec::new();
-    let fetcher = ParallelFetcher::new((pending, running));
+    let fetcher = ParallelFetcher::new(app, (pending, running));
 
     let results = fetcher
         .do_for_all_remotes(iter.into_remotes(), async |args| {
-            Ok(pve::connect(args.remote())?
+            Ok(args
+                .pdm_application()
+                .client_factory()
+                .make_pve_client(args.remote())?
                 .list_vnets(args.context().0, args.context().1)
                 .await?)
         })

@@ -21,6 +21,7 @@ use pdm_api_types::{PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY, PRIV_SYS_MODIFY};
 use super::{connect_to_remote_by_id, find_node_for_vm};
 use crate::api::remotes::RemoteIterator;
 use crate::connection::PveClient;
+use crate::context::PdmApplication;
 use crate::parallel_fetcher::{ParallelFetcher, ParallelFetcherArgs};
 
 // top-level firewall routers
@@ -116,7 +117,10 @@ struct ClusterFirewallData {
 async fn fetch_cluster_firewall_data(
     args: ParallelFetcherArgs<()>,
 ) -> Result<ClusterFirewallData, Error> {
-    let pve = crate::connection::make_pve_client(args.remote())?;
+    let pve = args
+        .pdm_application()
+        .client_factory()
+        .make_pve_client(args.remote())?;
 
     let guests = match pve.cluster_resources(Some(ClusterResourceKind::Vm)).await {
         Ok(guests) => guests,
@@ -206,7 +210,10 @@ async fn load_guests_firewall_status(
 async fn fetch_node_firewall_status(
     args: ParallelFetcherArgs<FirewallFetchContext>,
 ) -> Result<NodeFirewallStatus, Error> {
-    let pve = crate::connection::make_pve_client(args.remote())?;
+    let pve = args
+        .pdm_application()
+        .client_factory()
+        .make_pve_client(args.remote())?;
 
     let options_response = pve.node_firewall_options(args.node());
     let rules_response = pve.list_node_firewall_rules(args.node());
@@ -249,6 +256,7 @@ async fn fetch_node_firewall_status(
 /// Get firewall status of all PVE remotes.
 pub async fn pve_firewall_status(
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<Vec<RemoteFirewallStatus>, Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -256,7 +264,7 @@ pub async fn pve_firewall_status(
         .parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let pve_remotes: Vec<Remote> = RemoteIterator::new(pdm_config::remotes::instance())?
+    let pve_remotes: Vec<Remote> = RemoteIterator::new(app.remote_config())?
         .remote_type(pdm_api_types::remotes::RemoteType::Pve)
         .into_remotes()
         .filter(|remote| {
@@ -269,7 +277,7 @@ pub async fn pve_firewall_status(
     }
 
     // 1: fetch cluster-level data (status + guests)
-    let cluster_fetcher = ParallelFetcher::new(());
+    let cluster_fetcher = ParallelFetcher::new(app.clone(), ());
     let cluster_results = cluster_fetcher
         .do_for_all_remotes(pve_remotes.iter().cloned(), fetch_cluster_firewall_data)
         .await;
@@ -287,7 +295,7 @@ pub async fn pve_firewall_status(
         guests: Arc::new(vec![]),
     };
 
-    let node_fetcher = ParallelFetcher::new(context);
+    let node_fetcher = ParallelFetcher::new(app, context);
     let node_results = node_fetcher
         .do_for_all_remote_nodes(pve_remotes.iter().cloned(), move |mut args| {
             if let Some(guests) = guests_per_remote.get(&args.remote().id) {
@@ -364,8 +372,9 @@ pub async fn cluster_firewall_options(
 pub async fn cluster_firewall_status(
     remote: String,
     _rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<RemoteFirewallStatus, Error> {
-    let (remote_config, _) = pdm_config::remotes::config()?;
+    let (remote_config, _) = app.remote_config().read()?;
 
     let remote_obj = remote_config
         .into_iter()
@@ -374,7 +383,7 @@ pub async fn cluster_firewall_status(
         .ok_or_else(|| anyhow::format_err!("Remote '{}' not found", remote))?;
 
     // 1: fetch cluster-level data (status + guests)
-    let cluster_fetcher = ParallelFetcher::new(());
+    let cluster_fetcher = ParallelFetcher::new(app.clone(), ());
     let cluster_results = cluster_fetcher
         .do_for_all_remotes(
             std::iter::once(remote_obj.clone()),
@@ -402,7 +411,7 @@ pub async fn cluster_firewall_status(
         guests: Arc::new(guests),
     };
 
-    let node_fetcher = ParallelFetcher::new(context);
+    let node_fetcher = ParallelFetcher::new(app, context);
     let node_results = node_fetcher
         .do_for_all_remote_nodes(std::iter::once(remote_obj), fetch_node_firewall_status)
         .await;
