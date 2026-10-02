@@ -59,7 +59,7 @@ pub const ROUTER: Router = Router::new()
     }
 )]
 /// Query VNets of PVE remotes with optional filtering options
-async fn list_vnets(
+pub async fn list_vnets(
     pending: Option<bool>,
     running: Option<bool>,
     remotes: Option<HashSet<String>>,

@@ -1,0 +1,8 @@
+[
+   {
+      "digest" : "bd994284b5d766ab58b5cb69f7363153d42816f7",
+      "ipam" : "pve",
+      "type" : "simple",
+      "zone" : "bbbb"
+   }
+]
