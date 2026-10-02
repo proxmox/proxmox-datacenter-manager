@@ -1,13 +1,8 @@
-//! Read/write subscription key pool configuration.
-//!
-//! Call [`init`] to inject a concrete `SubscriptionKeyConfig` instance before using the
-//! module-level functions.
+//! Read/write/lock implementation for subscription key pool configuration.
 //!
 //! The shadow-config functions stash signed `SubscriptionInfo` blobs alongside the plain key
 //! entries, which is intended as future proofing for a more automated (shop) import without having
 //! to adapt the data layer.
-
-use std::sync::OnceLock;
 
 use anyhow::Error;
 
@@ -24,37 +19,6 @@ pub const CONFIG_PATH: &str = configdir!("/subscriptions");
 pub const SUBSCRIPTIONS_CFG_FILENAME: &str = configdir!("/subscriptions/keys.cfg");
 const SUBSCRIPTIONS_SHADOW_FILENAME: &str = configdir!("/subscriptions/keys.shadow");
 pub const SUBSCRIPTIONS_CFG_LOCKFILE: &str = configdir!("/subscriptions/.keys.lock");
-
-static INSTANCE: OnceLock<Box<dyn SubscriptionKeyConfig + Send + Sync>> = OnceLock::new();
-
-fn instance() -> &'static (dyn SubscriptionKeyConfig + Send + Sync) {
-    INSTANCE
-        .get()
-        .expect("subscription key config not initialized")
-        .as_ref()
-}
-
-pub fn lock_config() -> Result<ApiLockGuard, Error> {
-    instance().lock()
-}
-
-pub fn config() -> Result<(SectionConfigData<SubscriptionKeyEntry>, ConfigDigest), Error> {
-    instance().read()
-}
-
-pub fn shadow_config() -> Result<SectionConfigData<SubscriptionKeyShadow>, Error> {
-    instance().read_shadow()
-}
-
-pub fn save_config(
-    config: &SectionConfigData<SubscriptionKeyEntry>,
-) -> Result<ConfigDigest, Error> {
-    instance().write(config)
-}
-
-pub fn save_shadow(shadow: &SectionConfigData<SubscriptionKeyShadow>) -> Result<(), Error> {
-    instance().write_shadow(shadow)
-}
 
 pub trait SubscriptionKeyConfig {
     fn read(&self) -> Result<(SectionConfigData<SubscriptionKeyEntry>, ConfigDigest), Error>;
@@ -108,11 +72,5 @@ impl SubscriptionKeyConfig for DefaultSubscriptionKeyConfig {
         // unprivileged API user cannot read them. The main keys.cfg keeps 0640 since the API
         // process still needs to read the key strings.
         replace_secret_config(SUBSCRIPTIONS_SHADOW_FILENAME, raw.as_bytes())
-    }
-}
-
-pub fn init(instance: Box<dyn SubscriptionKeyConfig + Send + Sync>) {
-    if INSTANCE.set(instance).is_err() {
-        panic!("subscription key config instance already set");
     }
 }
