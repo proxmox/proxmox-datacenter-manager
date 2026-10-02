@@ -13,11 +13,9 @@ use pdm_api_types::{
     Authid, HOST_OPTIONAL_PORT_FORMAT, PRIV_RESOURCE_AUDIT, PRIV_SYS_MODIFY, RemoteUpid,
 };
 
-use crate::{
-    connection::{self, probe_tls_connection},
-    pbs_client::{self, PbsClient, get_remote},
-};
-
+use crate::api::remotes::RemoteIterator;
+use crate::connection::{self, probe_tls_connection};
+use crate::pbs_client::{self, PbsClient, get_remote};
 use crate::remote_tasks;
 
 mod node;
@@ -96,7 +94,7 @@ pub async fn new_remote_upid(
 )]
 /// Return the list of PBS remotes
 fn list_remotes() -> Result<Vec<RemoteListEntry>, Error> {
-    Ok(super::remotes::RemoteIterator::new()?
+    Ok(RemoteIterator::new(pdm_config::remotes::instance())?
         .remote_type(RemoteType::Pbs)
         .into_names()
         .map(|name| RemoteListEntry { remote: name })

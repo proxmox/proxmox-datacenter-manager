@@ -30,6 +30,7 @@ use pve_api_types::{ClusterResourceKind, ClusterResourceType};
 
 use super::resources::{map_pve_lxc, map_pve_node, map_pve_qemu, map_pve_storage};
 
+use crate::api::remotes::RemoteIterator;
 use crate::connection::PveClient;
 use crate::connection::{self, probe_tls_connection};
 use crate::remote_tasks;
@@ -142,7 +143,7 @@ pub fn connect_to_remote_by_id(id: &str) -> Result<Arc<PveClient>, Error> {
 )]
 /// Return the list of PVE remotes
 fn list_remotes() -> Result<Vec<RemoteListEntry>, Error> {
-    Ok(super::remotes::RemoteIterator::new()?
+    Ok(RemoteIterator::new(pdm_config::remotes::instance())?
         .remote_type(RemoteType::Pve)
         .into_names()
         .map(|name| RemoteListEntry { remote: name })

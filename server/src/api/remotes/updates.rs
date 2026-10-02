@@ -17,6 +17,7 @@ use proxmox_router::{
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
+use crate::api::remotes::RemoteIterator;
 use crate::{connection, remote_updates};
 
 use super::get_remote;
@@ -88,7 +89,7 @@ pub fn refresh_remote_update_summaries(rpcenv: &mut dyn RpcEnvironment) -> Resul
         http_bail!(FORBIDDEN, "user has no access to resources");
     }
 
-    let remotes: Vec<Remote> = super::RemoteIterator::new()?
+    let remotes: Vec<Remote> = RemoteIterator::new(pdm_config::remotes::instance())?
         .all_privs(&user_info, &auth_id, PRIV_RESOURCE_MODIFY)
         .into_remotes()
         .collect();

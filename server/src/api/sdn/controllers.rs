@@ -75,7 +75,7 @@ pub async fn list_controllers(
         http_bail!(FORBIDDEN, "user has no access to resources");
     }
 
-    let mut iter = RemoteIterator::new()?
+    let mut iter = RemoteIterator::new(pdm_config::remotes::instance())?
         .remote_type(RemoteType::Pve)
         .any_privs(&user_info, &auth_id, PRIV_RESOURCE_AUDIT);
     if let Some(ref filter) = remotes {

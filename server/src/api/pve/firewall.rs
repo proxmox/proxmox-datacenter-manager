@@ -19,6 +19,7 @@ use pdm_api_types::{NODE_SCHEMA, VMID_SCHEMA};
 use pdm_api_types::{PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY, PRIV_SYS_MODIFY};
 
 use super::{connect_to_remote_by_id, find_node_for_vm};
+use crate::api::remotes::RemoteIterator;
 use crate::connection::PveClient;
 use crate::parallel_fetcher::ParallelFetcher;
 
@@ -258,7 +259,7 @@ pub async fn pve_firewall_status(
         .parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let pve_remotes: Vec<Remote> = crate::api::remotes::RemoteIterator::new()?
+    let pve_remotes: Vec<Remote> = RemoteIterator::new(pdm_config::remotes::instance())?
         .remote_type(pdm_api_types::remotes::RemoteType::Pve)
         .into_remotes()
         .filter(|remote| {

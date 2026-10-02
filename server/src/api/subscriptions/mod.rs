@@ -29,6 +29,7 @@ use pdm_api_types::{
     Authid, NODE_SCHEMA, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
 
+use crate::api::remotes::RemoteIterator;
 use crate::api::resources::{
     get_subscription_info_for_remote, invalidate_subscription_info_for_remote,
 };
@@ -1431,10 +1432,11 @@ async fn collect_node_status(
         .parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let visible_remotes: Vec<(String, Remote)> = crate::api::remotes::RemoteIterator::new()?
-        .any_privs(&user_info, &auth_id, PRIV_RESOURCE_AUDIT)
-        .into_iter()
-        .collect();
+    let visible_remotes: Vec<(String, Remote)> =
+        RemoteIterator::new(pdm_config::remotes::instance())?
+            .any_privs(&user_info, &auth_id, PRIV_RESOURCE_AUDIT)
+            .into_iter()
+            .collect();
 
     let (keys_config, _) = pdm_config::subscriptions::config()?;
 

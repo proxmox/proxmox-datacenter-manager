@@ -5,6 +5,7 @@ use std::error::Error as _;
 use std::future::Future;
 
 use anyhow::{Context, Error, bail, format_err};
+use pdm_config::remotes::RemoteConfig;
 use serde::{Deserialize, Serialize};
 
 use proxmox_access_control::CachedUserInfo;
@@ -119,7 +120,7 @@ pub fn get_remote<'a>(
 ///
 /// With privilege filtering (requires initialized auth subsystem):
 /// ```ignore
-/// let remotes = RemoteIterator::new()?
+/// let remotes = RemoteIterator::new(app.remote_config())?
 ///     .remote_type(RemoteType::Pve)
 ///     .any_privs(&user_info, &auth_id, PRIV_RESOURCE_AUDIT)
 ///     .into_remotes();
@@ -131,8 +132,8 @@ pub struct RemoteIterator {
 
 impl RemoteIterator {
     /// Load the remote config and create an unfiltered iterator.
-    pub fn new() -> Result<Self, Error> {
-        let (config, _) = pdm_config::remotes::config()?;
+    pub fn new(config_impl: &dyn RemoteConfig) -> Result<Self, Error> {
+        let (config, _) = config_impl.read()?;
         Ok(Self {
             remotes: config.into_iter().collect(),
         })
