@@ -155,6 +155,8 @@ impl ContextFactory for TestApplication {
         std::fs::create_dir(&run_dir)?;
         std::fs::create_dir(&cache_dir)?;
 
+        std::fs::create_dir(run_dir.join("api-cache"))?;
+
         Ok(ProductConfig::new(ProductConfigParams {
             api_user: user.clone(),
             priv_user: user,

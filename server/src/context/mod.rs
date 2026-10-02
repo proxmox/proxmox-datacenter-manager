@@ -10,6 +10,7 @@ use proxmox_product_config::{ProductConfig, ProductConfigParams};
 
 use pdm_config::{remotes::RemoteConfig, subscriptions::SubscriptionKeyConfig};
 
+use crate::api_cache::ApiCache;
 use crate::connection::{self, ClientFactory};
 
 #[cfg(remote_config = "faked")]
@@ -78,12 +79,22 @@ pub trait ContextFactory {
     }
 
     fn make_pdm_application(&self) -> Result<PdmApplication, Error> {
+        let product_config = self.make_product_config()?;
+
+        let api_cache = ApiCache::new(
+            product_config.run_dir().join("api-cache"),
+            product_config.default_dir_create_options(),
+            product_config.default_file_create_options(),
+        );
+
         Ok(PdmApplication {
             inner: Arc::new(PdmApplicationInner {
                 client_factory: self.make_client_factory()?,
                 remote_config: self.make_remote_config()?,
                 subscription_key_config: self.make_subscription_key_config()?,
-                product_config: self.make_product_config()?,
+                product_config,
+
+                api_cache,
             }),
         })
     }
@@ -138,6 +149,11 @@ impl PdmApplication {
     pub fn product_config(&self) -> &ProductConfig {
         &self.inner.product_config
     }
+
+    /// Get a reference to the [`ApiCache`].
+    pub fn api_cache(&self) -> &ApiCache {
+        &self.inner.api_cache
+    }
 }
 
 struct PdmApplicationInner {
@@ -145,4 +161,6 @@ struct PdmApplicationInner {
     remote_config: Box<dyn RemoteConfig + Send + Sync>,
     subscription_key_config: Box<dyn SubscriptionKeyConfig + Send + Sync>,
     product_config: ProductConfig,
+
+    api_cache: ApiCache,
 }

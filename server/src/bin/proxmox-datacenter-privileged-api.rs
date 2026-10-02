@@ -2,6 +2,7 @@ use std::path::Path;
 use std::pin::pin;
 
 use anyhow::{Context as _, Error, bail, format_err};
+use const_format::concatcp;
 use futures::*;
 use hyper_util::server::graceful::GracefulShutdown;
 use nix::fcntl::AtFlags;
@@ -104,7 +105,11 @@ fn create_directories() -> Result<(), Error> {
     )?;
 
     pdm_config::setup::mkdir_perms(
-        api_cache::PDM_API_CACHE_PATH,
+        concatcp!(
+            pdm_buildcfg::PDM_RUN_DIR_M!(),
+            "/",
+            api_cache::PDM_API_CACHE_SUBDIR,
+        ),
         api_user.uid,
         api_user.gid,
         0o750,
