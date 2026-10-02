@@ -2,48 +2,56 @@
 //!
 //! Make sure to call `init` *once* when starting up the API server.
 
+use std::sync::Arc;
+
 use anyhow::Error;
+use pdm_config::{remotes::RemoteConfig, subscriptions::SubscriptionKeyConfig};
 
-use crate::connection;
+use crate::connection::{self, ClientFactory};
 
-/// Dependency-inject production remote-config implementation and remote client factory
-#[allow(dead_code)]
-fn default_remote_setup() {
-    pdm_config::remotes::init(Box::new(pdm_config::remotes::DefaultRemoteConfig));
-    connection::init(Box::new(connection::DefaultClientFactory));
-}
+#[cfg(remote_config = "faked")]
+mod faked_remotes;
+
+#[cfg(not(remote_config = "faked"))]
+mod default;
 
 /// Dependency-inject concrete implementations needed at runtime.
 pub fn init() -> Result<(), Error> {
-    // The subscription key pool is product-only (PDM stores its own pool of
-    // keys regardless of how remotes are mocked or not), so initialise it on
-    // both paths.
-    pdm_config::subscriptions::init(Box::new(
-        pdm_config::subscriptions::DefaultSubscriptionKeyConfig,
-    ));
+    let factory = context_factory()?;
 
+    pdm_config::subscriptions::init(factory.make_subscription_key_config()?);
+    pdm_config::remotes::init(factory.make_remote_config()?);
+    // FIXME: Rather let connection use an Application context object from here
+    connection::init(factory.make_client_factory()?);
+
+    Ok(())
+}
+
+pub trait ContextFactory {
+    fn make_client_factory(&self) -> Result<Arc<dyn ClientFactory + Send + Sync>, Error> {
+        Ok(Arc::new(connection::DefaultClientFactory))
+    }
+
+    fn make_remote_config(&self) -> Result<Box<dyn RemoteConfig + Send + Sync>, Error> {
+        Ok(Box::new(pdm_config::remotes::DefaultRemoteConfig))
+    }
+
+    fn make_subscription_key_config(
+        &self,
+    ) -> Result<Box<dyn SubscriptionKeyConfig + Send + Sync>, Error> {
+        Ok(Box::new(
+            pdm_config::subscriptions::DefaultSubscriptionKeyConfig,
+        ))
+    }
+}
+
+fn context_factory() -> Result<impl ContextFactory, Error> {
     #[cfg(remote_config = "faked")]
     {
-        use anyhow::bail;
-
-        use crate::test_support::fake_remote;
-
-        match std::env::var("PDM_FAKED_REMOTE_CONFIG") {
-            Ok(path) => {
-                log::info!("using fake remotes from {path:?}");
-                let config = fake_remote::FakeRemoteConfig::from_json_config(&path)?;
-                pdm_config::remotes::init(Box::new(config.clone()));
-                connection::init(Box::new(fake_remote::FakeClientFactory { config }));
-            }
-            Err(_) => {
-                bail!("compiled with remote_config = 'faked', but PDM_FAKED_REMOTE_CONFIG not set")
-            }
-        }
+        faked_remotes::FakedRemoteContextFactory::new()
     }
     #[cfg(not(remote_config = "faked"))]
     {
-        default_remote_setup();
+        Ok(default::DefaultContextFactory)
     }
-
-    Ok(())
 }

@@ -557,7 +557,7 @@ pub(super) mod tests {
             // TODO: the client factory is currently stored in a OnceLock -
             // we can only set it from one test... Ideally we'd like to have the
             // option to set it in every single test if needed - task/thread local?
-            connection::init(Box::new(TestClientFactory { now }));
+            connection::init(Arc::new(TestClientFactory { now }));
         });
 
         now

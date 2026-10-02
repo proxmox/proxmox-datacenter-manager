@@ -33,7 +33,7 @@ use pve_api_types::client::PveClientImpl;
 use crate::pbs_client::PbsClient;
 use crate::remote_cache::ConnectionState;
 
-static INSTANCE: OnceLock<Box<dyn ClientFactory + Send + Sync>> = OnceLock::new();
+static INSTANCE: OnceLock<Arc<dyn ClientFactory + Send + Sync>> = OnceLock::new();
 
 /// Deadline for one complete remote onboarding operation.
 pub const ONBOARDING_TIMEOUT: Duration = Duration::from_secs(REMOTE_ONBOARDING_TIMEOUT_SECS);
@@ -511,7 +511,7 @@ pub async fn make_pbs_client_and_login(remote: &Remote) -> Result<Box<PbsClient<
 /// Initialize the [`ClientFactory`] instance.
 ///
 /// Will panic if the instance has already been set.
-pub fn init(instance: Box<dyn ClientFactory + Send + Sync>) {
+pub fn init(instance: Arc<dyn ClientFactory + Send + Sync>) {
     if INSTANCE.set(instance).is_err() {
         panic!("connection factory instance already set");
     }
