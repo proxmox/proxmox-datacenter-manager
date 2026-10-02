@@ -2,9 +2,12 @@
 //!
 //! Make sure to call `init` *once* when starting up the API server.
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use anyhow::Error;
+
+use proxmox_product_config::{ProductConfig, ProductConfigParams};
+
 use pdm_config::{remotes::RemoteConfig, subscriptions::SubscriptionKeyConfig};
 
 use crate::connection::{self, ClientFactory};
@@ -15,16 +18,36 @@ mod faked_remotes;
 #[cfg(not(remote_config = "faked"))]
 mod default;
 
+static APP: OnceLock<PdmApplication> = OnceLock::new();
+
 /// Dependency-inject concrete implementations needed at runtime.
-pub fn init() -> Result<(), Error> {
+pub fn init() -> Result<PdmApplication, Error> {
     let factory = context_factory()?;
 
-    pdm_config::subscriptions::init(factory.make_subscription_key_config()?);
+    let app = factory.make_pdm_application()?;
+    APP.set(app.clone())
+        .map_err(|_| anyhow::format_err!("context::init was already called"))?;
+
+    // The application handle and legacy accessors use separate remote-config instances. Factories
+    // must provide equivalent views: the default implementation is stateless, and the fake
+    // implementation clones the same data.
     pdm_config::remotes::init(factory.make_remote_config()?);
+    pdm_config::subscriptions::init(factory.make_subscription_key_config()?);
+
     // FIXME: Rather let connection use an Application context object from here
     connection::init(factory.make_client_factory()?);
 
-    Ok(())
+    Ok(app)
+}
+
+/// Retrieve a handle to [`PdmApplication`] for this server.
+///
+/// Prefer to retrieve this via the API handler using `#[state] app: PdmApplication` in the
+/// API handler signature.
+pub fn pdm_application() -> PdmApplication {
+    APP.get()
+        .expect("context::init was not called to set up the application context object")
+        .clone()
 }
 
 pub trait ContextFactory {
@@ -43,6 +66,30 @@ pub trait ContextFactory {
             pdm_config::subscriptions::DefaultSubscriptionKeyConfig,
         ))
     }
+
+    fn make_product_config(&self) -> Result<ProductConfig, Error> {
+        let product_config = ProductConfig::new(ProductConfigParams {
+            api_user: pdm_config::api_user()?,
+            priv_user: pdm_config::priv_user()?,
+            config_dir: pdm_buildcfg::configdir!("/").into(),
+            state_dir: pdm_buildcfg::statedir!("/").into(),
+            run_dir: pdm_buildcfg::rundir!("/").into(),
+            cache_dir: pdm_buildcfg::PDM_CACHE_DIR.into(),
+        });
+
+        Ok(product_config)
+    }
+
+    fn make_pdm_application(&self) -> Result<PdmApplication, Error> {
+        Ok(PdmApplication {
+            inner: Arc::new(PdmApplicationInner {
+                client_factory: self.make_client_factory()?,
+                remote_config: self.make_remote_config()?,
+                subscription_key_config: self.make_subscription_key_config()?,
+                product_config: self.make_product_config()?,
+            }),
+        })
+    }
 }
 
 fn context_factory() -> Result<impl ContextFactory, Error> {
@@ -54,4 +101,51 @@ fn context_factory() -> Result<impl ContextFactory, Error> {
     {
         Ok(default::DefaultContextFactory)
     }
+}
+
+/// Application context handle.
+///
+/// This type gives access to dependency-injected implementations and general product
+/// configuration.
+///
+/// This implements [`Clone`] and can be cheaply copied (it contains a single `Arc`).
+#[derive(Clone)]
+pub struct PdmApplication {
+    inner: Arc<PdmApplicationInner>,
+}
+
+impl PdmApplication {
+    /// Get a handle to the [`ClientFactory`] as an [`Arc`].
+    ///
+    /// Prefer to use [`Self::client_factory`] if possible.
+    pub fn client_factory_shared(&self) -> Arc<dyn ClientFactory + Send + Sync> {
+        Arc::clone(&self.inner.client_factory)
+    }
+
+    /// Get a reference to the [`ClientFactory`].
+    pub fn client_factory(&self) -> &(dyn ClientFactory + Send + Sync) {
+        self.inner.client_factory.as_ref()
+    }
+
+    /// Get a reference to the [`RemoteConfig`].
+    pub fn remote_config(&self) -> &(dyn RemoteConfig + Send + Sync) {
+        self.inner.remote_config.as_ref()
+    }
+
+    /// Get a reference to the [`SubscriptionKeyConfig`].
+    pub fn subscription_key_config(&self) -> &(dyn SubscriptionKeyConfig + Send + Sync) {
+        self.inner.subscription_key_config.as_ref()
+    }
+
+    /// Get a reference to the [`ProductConfig`].
+    pub fn product_config(&self) -> &ProductConfig {
+        &self.inner.product_config
+    }
+}
+
+struct PdmApplicationInner {
+    client_factory: Arc<dyn ClientFactory + Send + Sync>,
+    remote_config: Box<dyn RemoteConfig + Send + Sync>,
+    subscription_key_config: Box<dyn SubscriptionKeyConfig + Send + Sync>,
+    product_config: ProductConfig,
 }
