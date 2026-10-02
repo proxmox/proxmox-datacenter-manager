@@ -278,7 +278,7 @@ fn stop_task(upid: UPID, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     },
 )]
 /// Get task status.
-async fn get_task_status(upid: UPID, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+pub async fn get_task_status(upid: UPID, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
         .context("no authid available")?

@@ -1,9 +1,8 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::{Once, OnceLock},
-};
+use std::path::{Path, PathBuf};
+use std::sync::{Once, OnceLock};
+use std::time::Duration;
 
-use anyhow::Context;
+use anyhow::{Context, Error, bail};
 use serde::de::DeserializeOwned;
 
 use proxmox_sys::fs::CreateOptions;
@@ -60,5 +59,53 @@ pub fn test_setup() {
 
 /// Create a [`TestRpcEnvironment`] for the use in a test.
 pub fn rpcenv() -> TestRpcEnvironment {
-    TestRpcEnvironment
+    TestRpcEnvironment {
+        attribs: serde_json::json!({}),
+    }
+}
+
+#[allow(unused)]
+macro_rules! assert_http_error {
+    ($result:expr, $status:expr $(, $expected:expr)? $(,)?) => {{
+        let err = $result.unwrap_err();
+        let http_err = err.downcast_ref::<proxmox_router::HttpError>().unwrap();
+
+        assert_eq!(http_err.code, $status);
+
+        $(
+            let err_text = err.to_string();
+            assert!(
+                err_text.contains($expected),
+                "'{}' not contained in '{}'",
+                $expected,
+                err_text,
+            );
+        )?
+    }};
+}
+
+#[allow(unused)]
+pub(crate) use assert_http_error;
+
+/// Wait for a task to finish.
+///
+/// At the moment, this uses a hard-coded timeout of 5 seconds.
+pub async fn wait_for_task(upid: &str) -> Result<String, Error> {
+    let upid = upid.parse::<pdm_api_types::UPID>()?;
+
+    for _ in 0..50 {
+        let response =
+            server::api::nodes::tasks::get_task_status(upid.clone(), &mut rpcenv()).await?;
+
+        if response["status"].as_str().unwrap() != "running" {
+            return Ok(response["exitstatus"]
+                .as_str()
+                .context("expected exitstatus to be a string")?
+                .into());
+        }
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    bail!("worker did not finish after timeout");
 }

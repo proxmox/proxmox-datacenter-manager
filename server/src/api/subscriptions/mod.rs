@@ -132,7 +132,7 @@ fn key_not_found(key: &str) -> Error {
 /// additionally gated on per-remote `PRIV_RESOURCE_AUDIT` so that an operator who can audit the
 /// pool but not a specific remote does not learn which keys are pinned to it (and through that,
 /// the existence and rough size of that remote's deployment).
-fn list_keys(
+pub fn list_keys(
     rpcenv: &mut dyn RpcEnvironment,
     #[state] app: PdmApplication,
 ) -> Result<Vec<SubscriptionKeyEntry>, Error> {
@@ -194,7 +194,7 @@ fn list_keys(
 ///
 /// The post-save digest is set on the response so clients can chain a follow-up mutation without
 /// a refetch round-trip.
-async fn add_keys(
+pub async fn add_keys(
     keys: Vec<String>,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
@@ -276,7 +276,7 @@ async fn add_keys(
 /// Bound entries are hidden from operators who cannot audit the bound remote (mirrors the
 /// `list_keys` filter); the response is the same 404 either way so a probe cannot distinguish
 /// "key exists but you cannot see it" from "key not in pool".
-fn get_key(
+pub fn get_key(
     key: String,
     rpcenv: &mut dyn RpcEnvironment,
     #[state] app: PdmApplication,
@@ -328,7 +328,7 @@ fn get_key(
 /// another admin had pinned. Refuses if the key is currently the live active key on its bound
 /// node, since dropping the pool entry would orphan that subscription on the remote: the
 /// operator must run Clear Key on the Node Subscription Status panel first.
-async fn delete_key(
+pub async fn delete_key(
     key: String,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
@@ -462,7 +462,7 @@ async fn delete_key(
 /// `PRIV_SYS_MODIFY` lets the caller touch the pool config; per-remote `PRIV_RESOURCE_MODIFY`
 /// is enforced inside this handler so an operator cannot push a key to a remote they have no
 /// other authority on.
-async fn set_assignment(
+pub async fn set_assignment(
     key: String,
     remote: String,
     node: String,
@@ -1817,7 +1817,7 @@ fn compute_proposals(
 /// no longer sees. The worker itself deliberately re-reads the pool when it fires (a worker can
 /// be scheduled with delay), so a parallel admin edit between API return and worker firing is
 /// still honoured - the digest only pins the at-API-call-time plan, not the executed plan.
-async fn apply_pending(
+pub async fn apply_pending(
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
     #[state] app: PdmApplication,

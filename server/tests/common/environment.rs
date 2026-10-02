@@ -1,14 +1,17 @@
 use proxmox_router::RpcEnvironment;
 
-pub struct TestRpcEnvironment;
+/// An [`RpcEnvironment`] that can be used in integration tests.
+pub struct TestRpcEnvironment {
+    pub attribs: serde_json::Value,
+}
 
 impl RpcEnvironment for TestRpcEnvironment {
     fn result_attrib_mut(&mut self) -> &mut serde_json::Value {
-        unimplemented!()
+        &mut self.attribs
     }
 
     fn result_attrib(&self) -> &serde_json::Value {
-        unimplemented!()
+        &self.attribs
     }
 
     fn env_type(&self) -> proxmox_router::RpcEnvironmentType {

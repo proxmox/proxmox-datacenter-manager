@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Error, bail};
 use nix::unistd::User;
@@ -8,12 +7,15 @@ use serde::{Serialize, de::DeserializeOwned};
 
 use pbs_api_types::Authid;
 use proxmox_client::Client;
+use proxmox_product_config::create_mocked_lock;
 use proxmox_product_config::{ProductConfig, ProductConfigParams};
 use proxmox_section_config::typed::SectionConfigData;
 
 use pdm_api_types::ConfigDigest;
 use pdm_api_types::remotes::{Remote, RemoteType};
+use pdm_api_types::subscription::{SubscriptionKeyEntry, SubscriptionKeyShadow};
 use pdm_config::remotes::RemoteConfig;
+use pdm_config::subscriptions::SubscriptionKeyConfig;
 
 use server::connection::{ClientFactory, PveClient};
 use server::context::ContextFactory;
@@ -137,6 +139,12 @@ impl ContextFactory for TestApplication {
         Ok(Box::new(self.clone()))
     }
 
+    fn make_subscription_key_config(
+        &self,
+    ) -> Result<Box<dyn SubscriptionKeyConfig + Send + Sync>, Error> {
+        Ok(Box::new(TestSubscriptionKeyConfig::default()))
+    }
+
     fn make_product_config(&self) -> Result<ProductConfig, Error> {
         let user = User::from_uid(nix::unistd::getuid())
             .ok()
@@ -238,6 +246,46 @@ impl ClientFactory for TestApplication {
         _remote: &Remote,
     ) -> Result<Box<PbsClient<Client>>, Error> {
         bail!("not implemented")
+    }
+}
+
+#[derive(Default)]
+struct TestSubscriptionKeyConfig {
+    shadow: Mutex<SectionConfigData<SubscriptionKeyShadow>>,
+    config: Mutex<SectionConfigData<SubscriptionKeyEntry>>,
+}
+
+impl SubscriptionKeyConfig for TestSubscriptionKeyConfig {
+    fn read(&self) -> Result<(SectionConfigData<SubscriptionKeyEntry>, ConfigDigest), Error> {
+        Ok((
+            self.config.lock().unwrap().clone(),
+            ConfigDigest::from_slice([]),
+        ))
+    }
+
+    fn read_shadow(&self) -> Result<SectionConfigData<SubscriptionKeyShadow>, Error> {
+        Ok(self.shadow.lock().unwrap().clone())
+    }
+
+    fn lock(&self) -> Result<proxmox_product_config::ApiLockGuard, Error> {
+        Ok(unsafe { create_mocked_lock() })
+    }
+
+    fn write(
+        &self,
+        config: &SectionConfigData<SubscriptionKeyEntry>,
+    ) -> Result<ConfigDigest, Error> {
+        let mut guard = self.config.lock().unwrap();
+        *guard = config.clone();
+
+        Ok(ConfigDigest::from_slice([]))
+    }
+
+    fn write_shadow(&self, shadow: &SectionConfigData<SubscriptionKeyShadow>) -> Result<(), Error> {
+        let mut guard = self.shadow.lock().unwrap();
+        *guard = shadow.clone();
+
+        Ok(())
     }
 }
 
