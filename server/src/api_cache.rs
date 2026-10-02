@@ -59,6 +59,8 @@ use std::time::Duration;
 
 use nix::sys::stat::Mode;
 
+use proxmox_sys::fs::CreateOptions;
+
 use crate::namespaced_cache::{
     BlockingReadableCacheNamespace, BlockingWritableCacheNamespace, CacheError, NamespacedCache,
     ReadableCacheNamespace, WritableCacheNamespace,
@@ -70,57 +72,125 @@ pub const PDM_API_CACHE_PATH: &str = concat!(pdm_buildcfg::PDM_RUN_DIR_M!(), "/a
 const GLOBAL_NAMESPACE: &str = "global";
 const LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
-static CACHE: LazyLock<NamespacedCache> = LazyLock::new(|| {
+static CACHE: LazyLock<ApiCache> = LazyLock::new(|| {
     let file_options = proxmox_product_config::default_create_options();
     let dir_options = file_options.perm(Mode::from_bits_truncate(0o750));
 
-    NamespacedCache::new(PathBuf::from(PDM_API_CACHE_PATH), dir_options, file_options)
+    ApiCache::new(PathBuf::from(PDM_API_CACHE_PATH), dir_options, file_options)
 });
 
 fn format_remote_namespace(remote: &str) -> String {
     format!("remote-{remote}")
 }
 
+/// Cache for API responses from remotes.
+///
+/// Thin wrapper around a [`NamespacedCache`], providing remote-specific and
+/// global namespaces as described in the module documentation.
+pub struct ApiCache {
+    cache: NamespacedCache,
+}
+
+impl ApiCache {
+    pub fn new<P: Into<PathBuf>>(
+        base_directory: P,
+        dir_options: CreateOptions,
+        file_options: CreateOptions,
+    ) -> Self {
+        Self {
+            cache: NamespacedCache::new(base_directory, dir_options, file_options),
+        }
+    }
+
+    /// Lock the cache for reading remote-specific data (blocking interface).
+    pub fn read_remote_blocking(
+        &self,
+        remote: &str,
+    ) -> Result<BlockingReadableCacheNamespace, CacheError> {
+        self.cache
+            .read_blocking(&format_remote_namespace(remote), LOCK_TIMEOUT)
+    }
+
+    /// Lock the cache for writing remote-specific data (blocking interface).
+    pub fn write_remote_blocking(
+        &self,
+        remote: &str,
+    ) -> Result<BlockingWritableCacheNamespace, CacheError> {
+        self.cache
+            .write_blocking(&format_remote_namespace(remote), LOCK_TIMEOUT)
+    }
+
+    /// Lock the cache for reading global data (blocking interface).
+    pub fn read_global_blocking(&self) -> Result<BlockingReadableCacheNamespace, CacheError> {
+        self.cache.read_blocking(GLOBAL_NAMESPACE, LOCK_TIMEOUT)
+    }
+
+    /// Lock the cache for writing global data (blocking interface).
+    pub fn write_global_blocking(&self) -> Result<BlockingWritableCacheNamespace, CacheError> {
+        self.cache.write_blocking(GLOBAL_NAMESPACE, LOCK_TIMEOUT)
+    }
+
+    /// Lock the cache for reading remote-specific data (async interface).
+    pub async fn read_remote(&self, remote: &str) -> Result<ReadableCacheNamespace, CacheError> {
+        self.cache
+            .read(&format_remote_namespace(remote), LOCK_TIMEOUT)
+            .await
+    }
+
+    /// Lock the cache for writing remote-specific data (async interface).
+    pub async fn write_remote(&self, remote: &str) -> Result<WritableCacheNamespace, CacheError> {
+        self.cache
+            .write(&format_remote_namespace(remote), LOCK_TIMEOUT)
+            .await
+    }
+
+    /// Lock the cache for reading global data (async interface).
+    pub async fn read_global(&self) -> Result<ReadableCacheNamespace, CacheError> {
+        self.cache.read(GLOBAL_NAMESPACE, LOCK_TIMEOUT).await
+    }
+
+    /// Lock the cache for writing global data (async interface).
+    pub async fn write_global(&self) -> Result<WritableCacheNamespace, CacheError> {
+        self.cache.write(GLOBAL_NAMESPACE, LOCK_TIMEOUT).await
+    }
+}
+
 /// Lock the cache for reading remote-specific data (blocking interface).
 pub fn read_remote_blocking(remote: &str) -> Result<BlockingReadableCacheNamespace, CacheError> {
-    CACHE.read_blocking(&format_remote_namespace(remote), LOCK_TIMEOUT)
+    CACHE.read_remote_blocking(remote)
 }
 
 /// Lock the cache for writing remote-specific data (blocking interface).
 pub fn write_remote_blocking(remote: &str) -> Result<BlockingWritableCacheNamespace, CacheError> {
-    CACHE.write_blocking(&format_remote_namespace(remote), LOCK_TIMEOUT)
+    CACHE.write_remote_blocking(remote)
 }
 
 /// Lock the cache for reading global data (blocking interface).
 pub fn read_global_blocking() -> Result<BlockingReadableCacheNamespace, CacheError> {
-    CACHE.read_blocking(GLOBAL_NAMESPACE, LOCK_TIMEOUT)
+    CACHE.read_global_blocking()
 }
 
 /// Lock the cache for writing global data (blocking interface).
 pub fn write_global_blocking() -> Result<BlockingWritableCacheNamespace, CacheError> {
-    CACHE.write_blocking(GLOBAL_NAMESPACE, LOCK_TIMEOUT)
+    CACHE.write_global_blocking()
 }
 
 /// Lock the cache for reading remote-specific data (async interface).
 pub async fn read_remote(remote: &str) -> Result<ReadableCacheNamespace, CacheError> {
-    CACHE
-        .read(&format_remote_namespace(remote), LOCK_TIMEOUT)
-        .await
+    CACHE.read_remote(remote).await
 }
 
 /// Lock the cache for writing remote-specific data (async interface).
 pub async fn write_remote(remote: &str) -> Result<WritableCacheNamespace, CacheError> {
-    CACHE
-        .write(&format_remote_namespace(remote), LOCK_TIMEOUT)
-        .await
+    CACHE.write_remote(remote).await
 }
 
 /// Lock the cache for reading global data (async interface).
 pub async fn read_global() -> Result<ReadableCacheNamespace, CacheError> {
-    CACHE.read(GLOBAL_NAMESPACE, LOCK_TIMEOUT).await
+    CACHE.read_global().await
 }
 
 /// Lock the cache for writing global data (async interface).
 pub async fn write_global() -> Result<WritableCacheNamespace, CacheError> {
-    CACHE.write(GLOBAL_NAMESPACE, LOCK_TIMEOUT).await
+    CACHE.write_global().await
 }
