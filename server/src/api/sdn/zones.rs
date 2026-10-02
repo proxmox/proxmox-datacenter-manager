@@ -93,8 +93,10 @@ pub async fn list_zones(
     let fetcher = ParallelFetcher::new((pending, running, ty));
 
     let results = fetcher
-        .do_for_all_remotes(iter.into_remotes(), async |ctx, r, _| {
-            Ok(pve::connect(&r)?.list_zones(ctx.0, ctx.1, ctx.2).await?)
+        .do_for_all_remotes(iter.into_remotes(), async |args| {
+            Ok(pve::connect(args.remote())?
+                .list_zones(args.context().0, args.context().1, args.context().2)
+                .await?)
         })
         .await;
 

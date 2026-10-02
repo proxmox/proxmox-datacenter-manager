@@ -232,14 +232,21 @@ pub async fn refresh_update_summary_cache(remotes: Vec<Remote>) -> Result<(), Er
     let fetcher = ParallelFetcher::new(());
 
     let fetch_response = fetcher
-        .do_for_all_remote_nodes(remotes.into_iter(), |context, remote, node| async move {
-            let result = fetch_available_updates(context, remote.clone(), node.clone()).await;
+        .do_for_all_remote_nodes(remotes.into_iter(), |args| async move {
+            let result =
+                fetch_available_updates((), args.remote().clone(), args.node().to_string()).await;
 
             let summary = match &result {
                 Ok(update_info) => update_info.into(),
                 Err(err) => node_error_summary(err),
             };
-            if let Err(err) = update_cached_summary_for_node(remote, node, summary).await {
+            if let Err(err) = update_cached_summary_for_node(
+                args.remote().clone(),
+                args.node().to_string(),
+                summary,
+            )
+            .await
+            {
                 log::error!("could not update 'remote-updates' API cache entry: {err}");
             }
 

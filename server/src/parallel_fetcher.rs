@@ -4,18 +4,16 @@
 //! # use anyhow::Error;
 //! #
 //! # use pdm_api_types::remotes::{RemoteType, Remote};
-//! # use server::parallel_fetcher::ParallelFetcher;
+//! # use server::parallel_fetcher::{ParallelFetcher, ParallelFetcherArgs};
 //! #
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Error> {
 //! #   let remotes: Vec<Remote> = Vec::new();
 //! #
 //!     async fn fetch_meaning(
-//!         _context: (),
-//!         remote: Remote,
-//!         node: String,
+//!         args: ParallelFetcherArgs<()>,
 //!     ) -> Result<i32, Error> {
-//!         match remote.ty {
+//!         match args.remote().ty {
 //!             RemoteType::Pve => {
 //!                 // Perform the API request here and return some result.
 //!                 Ok(42)
@@ -269,6 +267,46 @@ impl<C> ParallelFetcherBuilder<C> {
     }
 }
 
+#[non_exhaustive]
+#[derive(Clone)]
+/// The argument type that is passed when calling the closure passed to
+/// [`ParallelFetcher::do_for_all_remote_nodes`] or [`ParallelFetcher::do_for_all_remotes`].
+pub struct ParallelFetcherArgs<C> {
+    /// The context provided in [`ParallelFetcherBuilder::new`] or
+    /// [`ParallelFetcher::new`].
+    context: C,
+    /// The remote.
+    remote: Remote,
+    /// The node. This may be 'localhost' for PBS remotes or if using
+    /// [`ParallelFetcher::do_for_all_remotes`].
+    node: String,
+}
+
+impl<C> ParallelFetcherArgs<C> {
+    /// Get a reference to the remote.
+    pub fn remote(&self) -> &Remote {
+        &self.remote
+    }
+
+    /// Get the current node.
+    ///
+    /// Note: This may be 'localhost' for PBS remotes or if using
+    /// [`ParallelFetcher::do_for_all_remotes`].
+    pub fn node(&self) -> &str {
+        &self.node
+    }
+
+    /// Borrow the previously provided context.
+    pub fn context(&self) -> &C {
+        &self.context
+    }
+
+    /// Mutably borrow the previously provided context.
+    pub fn context_mut(&mut self) -> &mut C {
+        &mut self.context
+    }
+}
+
 /// Helper for parallelizing API requests to multiple remotes/nodes.
 pub struct ParallelFetcher<C> {
     max_connections: usize,
@@ -295,7 +333,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
     ) -> FetcherResponse<MultipleNodesResponse<T>>
     where
         A: Iterator<Item = Remote>,
-        F: Fn(C, Remote, String) -> Ft + Clone + Send + 'static,
+        F: Fn(ParallelFetcherArgs<C>) -> Ft + Clone + Send + 'static,
         Ft: Future<Output = Result<T, Error>> + Send + 'static,
         T: Send + Debug + 'static,
     {
@@ -346,7 +384,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
         max_connections_per_remote: usize,
     ) -> RemoteResponse<MultipleNodesResponse<T>>
     where
-        F: Fn(C, Remote, String) -> Ft + Clone + Send + 'static,
+        F: Fn(ParallelFetcherArgs<C>) -> Ft + Clone + Send + 'static,
         Ft: Future<Output = Result<T, Error>> + Send + 'static,
         T: Send + Debug + 'static,
     {
@@ -456,12 +494,19 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
         _per_remote_connections_permit: Option<OwnedSemaphorePermit>,
     ) -> NodeResponse<T>
     where
-        F: Fn(C, Remote, String) -> Ft + Clone + Send + 'static,
+        F: Fn(ParallelFetcherArgs<C>) -> Ft + Clone + Send + 'static,
         Ft: Future<Output = Result<T, Error>> + Send + 'static,
         T: Send + Debug + 'static,
     {
         let now = Instant::now();
-        let result = func(context, remote.clone(), node.clone()).await;
+
+        let parallel_fetcher_context = ParallelFetcherArgs {
+            context,
+            remote,
+            node: node.clone(),
+        };
+
+        let result = func(parallel_fetcher_context).await;
         let api_response_time = now.elapsed();
 
         NodeResponse {
@@ -479,7 +524,7 @@ impl<C: Clone + Send + 'static> ParallelFetcher<C> {
     ) -> FetcherResponse<NodeResponse<T>>
     where
         A: Iterator<Item = Remote>,
-        F: Fn(C, Remote, String) -> Ft + Clone + Send + 'static,
+        F: Fn(ParallelFetcherArgs<C>) -> Ft + Clone + Send + 'static,
         Ft: Future<Output = Result<T, Error>> + Send + 'static,
         T: Send + Debug + 'static,
     {

@@ -87,8 +87,10 @@ async fn list_vnets(
     let fetcher = ParallelFetcher::new((pending, running));
 
     let results = fetcher
-        .do_for_all_remotes(iter.into_remotes(), async |ctx, r, _| {
-            Ok(pve::connect(&r)?.list_vnets(ctx.0, ctx.1).await?)
+        .do_for_all_remotes(iter.into_remotes(), async |args| {
+            Ok(pve::connect(args.remote())?
+                .list_vnets(args.context().0, args.context().1)
+                .await?)
         })
         .await;
 

@@ -21,7 +21,7 @@ use pdm_api_types::{PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY, PRIV_SYS_MODIFY};
 use super::{connect_to_remote_by_id, find_node_for_vm};
 use crate::api::remotes::RemoteIterator;
 use crate::connection::PveClient;
-use crate::parallel_fetcher::ParallelFetcher;
+use crate::parallel_fetcher::{ParallelFetcher, ParallelFetcherArgs};
 
 // top-level firewall routers
 pub const PVE_FW_ROUTER: Router = Router::new()
@@ -114,11 +114,9 @@ struct ClusterFirewallData {
 }
 
 async fn fetch_cluster_firewall_data(
-    _context: (),
-    remote: Remote,
-    _node: String, // unused for cluster-level data
+    args: ParallelFetcherArgs<()>,
 ) -> Result<ClusterFirewallData, Error> {
-    let pve = crate::connection::make_pve_client(&remote)?;
+    let pve = crate::connection::make_pve_client(args.remote())?;
 
     let guests = match pve.cluster_resources(Some(ClusterResourceKind::Vm)).await {
         Ok(guests) => guests,
@@ -206,14 +204,12 @@ async fn load_guests_firewall_status(
 }
 
 async fn fetch_node_firewall_status(
-    context: FirewallFetchContext,
-    remote: Remote,
-    node: String,
+    args: ParallelFetcherArgs<FirewallFetchContext>,
 ) -> Result<NodeFirewallStatus, Error> {
-    let pve = crate::connection::make_pve_client(&remote)?;
+    let pve = crate::connection::make_pve_client(args.remote())?;
 
-    let options_response = pve.node_firewall_options(&node);
-    let rules_response = pve.list_node_firewall_rules(&node);
+    let options_response = pve.node_firewall_options(args.node());
+    let rules_response = pve.list_node_firewall_rules(args.node());
 
     let enabled = options_response
         .await
@@ -229,10 +225,11 @@ async fn fetch_node_firewall_status(
         _ => None,
     };
 
-    let guests_status = load_guests_firewall_status(pve, node.clone(), &context.guests).await;
+    let guests_status =
+        load_guests_firewall_status(pve, args.node().to_string(), &args.context().guests).await;
 
     Ok(NodeFirewallStatus {
-        node,
+        node: args.node().to_string(),
         status,
         guests: guests_status,
     })
@@ -292,11 +289,11 @@ pub async fn pve_firewall_status(
 
     let node_fetcher = ParallelFetcher::new(context);
     let node_results = node_fetcher
-        .do_for_all_remote_nodes(pve_remotes.iter().cloned(), move |mut ctx, remote, node| {
-            if let Some(guests) = guests_per_remote.get(&remote.id) {
-                ctx.guests = guests.clone();
+        .do_for_all_remote_nodes(pve_remotes.iter().cloned(), move |mut args| {
+            if let Some(guests) = guests_per_remote.get(&args.remote().id) {
+                args.context_mut().guests = guests.clone();
             }
-            fetch_node_firewall_status(ctx, remote, node)
+            fetch_node_firewall_status(args)
         })
         .await;
 

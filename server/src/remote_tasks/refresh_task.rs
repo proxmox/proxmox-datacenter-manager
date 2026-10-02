@@ -11,7 +11,7 @@ use proxmox_section_config::typed::SectionConfigData;
 
 use crate::api;
 use crate::connection;
-use crate::parallel_fetcher::ParallelFetcher;
+use crate::parallel_fetcher::{ParallelFetcher, ParallelFetcherArgs};
 use crate::pbs_client;
 use crate::remote_tasks::{
     KEEP_OLD_FILES, ROTATE_AFTER,
@@ -277,17 +277,16 @@ async fn fetch_remotes(
 }
 
 async fn fetch_tasks_from_single_node(
-    context: Arc<State>,
-    remote: Remote,
-    node: String,
+    args: ParallelFetcherArgs<Arc<State>>,
 ) -> Result<Vec<TaskCacheItem>, Error> {
-    let since = context
-        .cutoff_timestamp(&remote.id, &node)
+    let since = args
+        .context()
+        .cutoff_timestamp(args.remote().id.as_str(), args.node())
         .unwrap_or_else(|| {
             proxmox_time::epoch_i64() - (KEEP_OLD_FILES as u64 * ROTATE_AFTER) as i64
         });
 
-    match remote.ty {
+    match args.remote().ty {
         RemoteType::Pve => {
             let params = pve_api_types::ListTasks {
                 source: Some(pve_api_types::ListTasksSource::All),
@@ -297,13 +296,13 @@ async fn fetch_tasks_from_single_node(
                 ..Default::default()
             };
 
-            let client = connection::make_pve_client(&remote)?;
+            let client = connection::make_pve_client(args.remote())?;
 
             let task_list = client
-                .get_task_list(&node, params)
+                .get_task_list(args.node(), params)
                 .await?
                 .into_iter()
-                .map(|task| map_pve_task(task, remote.id.clone()))
+                .map(|task| map_pve_task(task, args.remote().id.clone()))
                 .collect();
 
             Ok(task_list)
@@ -315,13 +314,13 @@ async fn fetch_tasks_from_single_node(
                 limit: Some(MAX_TASKS_TO_FETCH),
             };
 
-            let client = connection::make_pbs_client(&remote)?;
+            let client = connection::make_pbs_client(args.remote())?;
 
             let task_list = client
                 .get_task_list(params)
                 .await?
                 .into_iter()
-                .map(|task| map_pbs_task(task, remote.id.clone()))
+                .map(|task| map_pbs_task(task, args.remote().id.clone()))
                 .collect();
 
             Ok(task_list)
