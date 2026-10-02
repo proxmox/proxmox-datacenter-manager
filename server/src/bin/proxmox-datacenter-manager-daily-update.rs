@@ -6,7 +6,7 @@ use proxmox_router::{ApiHandler, RpcEnvironment, cli::*};
 use proxmox_subscription::SubscriptionStatus;
 use proxmox_sys::fs::CreateOptions;
 
-use server::api;
+use server::{api, context::PdmApplication};
 
 async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
     let upid: pbs_api_types::UPID = upid_str.parse()?;
@@ -22,11 +22,11 @@ async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
 }
 
 /// Daily update
-async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
-    if let Err(err) = &api::nodes::subscription::check_subscription().await {
+async fn do_update(rpcenv: &mut dyn RpcEnvironment, app: PdmApplication) -> Result<(), Error> {
+    if let Err(err) = &api::nodes::subscription::check_subscription(app.clone()).await {
         log::error!("Error checking subscription - {err}");
     }
-    match api::nodes::subscription::get_subscription().await {
+    match api::nodes::subscription::get_subscription(app).await {
         Ok(info) if info.info.status == SubscriptionStatus::Active => {}
         Ok(info) => {
             log::warn!(
@@ -101,9 +101,9 @@ async fn run(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     proxmox_product_config::init(pdm_config::api_user()?, pdm_config::priv_user()?);
     proxmox_acme_api::init(pdm_buildcfg::configdir!("/acme"), false)?;
 
-    server::context::init()?;
+    let app = server::context::init()?;
 
-    do_update(rpcenv).await
+    do_update(rpcenv, app).await
 }
 
 fn main() {

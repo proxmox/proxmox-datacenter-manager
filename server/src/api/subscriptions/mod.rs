@@ -33,6 +33,7 @@ use crate::api::remotes::RemoteIterator;
 use crate::api::resources::{
     get_subscription_info_for_remote, invalidate_subscription_info_for_remote,
 };
+use crate::context::PdmApplication;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
@@ -131,14 +132,18 @@ fn key_not_found(key: &str) -> Error {
 /// additionally gated on per-remote `PRIV_RESOURCE_AUDIT` so that an operator who can audit the
 /// pool but not a specific remote does not learn which keys are pinned to it (and through that,
 /// the existence and rough size of that remote's deployment).
-fn list_keys(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<SubscriptionKeyEntry>, Error> {
+fn list_keys(
+    rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
+) -> Result<Vec<SubscriptionKeyEntry>, Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
         .context("no authid available")?
         .parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, digest) = pdm_config::subscriptions::config()?;
+    let (config, digest) = app.subscription_key_config().read()?;
+
     rpcenv["digest"] = digest.to_hex().into();
     Ok(config
         .into_iter()
@@ -193,6 +198,7 @@ async fn add_keys(
     keys: Vec<String>,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<AddKeysResult, Error> {
     if keys.is_empty() {
         http_bail!(BAD_REQUEST, "no keys provided");
@@ -229,8 +235,8 @@ async fn add_keys(
 
     let added = entries.len() as u32;
     let new_digest = tokio::task::spawn_blocking(move || -> Result<ConfigDigest, Error> {
-        let _lock = pdm_config::subscriptions::lock_config()?;
-        let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+        let _lock = app.subscription_key_config().lock()?;
+        let (mut config, config_digest) = app.subscription_key_config().read()?;
         config_digest.detect_modification(digest.as_ref())?;
 
         // `insert` returns the previous entry when one existed; treat that as the duplicate
@@ -244,7 +250,7 @@ async fn add_keys(
             }
         }
 
-        pdm_config::subscriptions::save_config(&config)
+        app.subscription_key_config().write(&config)
     })
     .await??;
     rpcenv["digest"] = new_digest.to_hex().into();
@@ -270,14 +276,18 @@ async fn add_keys(
 /// Bound entries are hidden from operators who cannot audit the bound remote (mirrors the
 /// `list_keys` filter); the response is the same 404 either way so a probe cannot distinguish
 /// "key exists but you cannot see it" from "key not in pool".
-fn get_key(key: String, rpcenv: &mut dyn RpcEnvironment) -> Result<SubscriptionKeyEntry, Error> {
+fn get_key(
+    key: String,
+    rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
+) -> Result<SubscriptionKeyEntry, Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
         .context("no authid available")?
         .parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, digest) = pdm_config::subscriptions::config()?;
+    let (config, digest) = app.subscription_key_config().read()?;
     rpcenv["digest"] = digest.to_hex().into();
     let mut entry = config
         .get(&key)
@@ -322,6 +332,7 @@ async fn delete_key(
     key: String,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -333,7 +344,7 @@ async fn delete_key(
     // operator with only PRIV_SYS_MODIFY should not be able to probe live subscription state on
     // a remote they cannot audit. Read the entry once without the lock for this gate; the
     // authoritative read happens under the spawn_blocking section below.
-    let (pre_config, pre_digest) = pdm_config::subscriptions::config()?;
+    let (pre_config, pre_digest) = app.subscription_key_config().read()?;
     let Some(pre_entry) = pre_config.get(&key) else {
         return Err(key_not_found(&key));
     };
@@ -352,7 +363,7 @@ async fn delete_key(
     let pre_binding = pre_entry.remote.as_deref().zip(pre_entry.node.as_deref());
     // Owned bool so the orphan guard inside spawn_blocking does not borrow `pre_config`.
     let pre_had_binding = pre_binding.is_some();
-    let synced_block = check_synced_assignment_for_unassign(&key, pre_binding).await?;
+    let synced_block = check_synced_assignment_for_unassign(&app, &key, pre_binding).await?;
     drop(pre_config);
 
     // The lock + sync IO runs on a blocking thread so the async runtime is free for other work
@@ -361,8 +372,8 @@ async fn delete_key(
     // cross the boundary; reconstructing it is cheap (it just reads the shared ACL cache).
     let new_digest = tokio::task::spawn_blocking(move || -> Result<ConfigDigest, Error> {
         let user_info = CachedUserInfo::new()?;
-        let _lock = pdm_config::subscriptions::lock_config()?;
-        let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+        let _lock = app.subscription_key_config().lock()?;
+        let (mut config, config_digest) = app.subscription_key_config().read()?;
         config_digest.detect_modification(digest.as_ref())?;
 
         let Some(entry) = config.get(&key) else {
@@ -404,14 +415,14 @@ async fn delete_key(
         // Save the authoritative pool config first: an interrupted remove must not leave a `key`
         // entry whose signed blob is gone. A stale shadow blob with no main entry is benign, as
         // readers do not consult it.
-        let new_digest = pdm_config::subscriptions::save_config(&config)?;
+        let new_digest = app.subscription_key_config().write(&config)?;
         // Best-effort shadow cleanup. The shadow only caches signed info, so a corrupt or
         // otherwise unparseable shadow must not block removing the key from the pool: drop the
         // cached blob when the shadow loads, and leave the orphan entry behind otherwise.
-        match pdm_config::subscriptions::shadow_config() {
+        match app.subscription_key_config().read_shadow() {
             Ok(mut shadow) => {
                 shadow.remove(&key);
-                if let Err(err) = pdm_config::subscriptions::save_shadow(&shadow) {
+                if let Err(err) = app.subscription_key_config().write_shadow(&shadow) {
                     warn!("key '{key}' removed from pool, but updating its shadow failed: {err}");
                 }
             }
@@ -457,6 +468,7 @@ async fn set_assignment(
     node: String,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -475,7 +487,7 @@ async fn set_assignment(
     // orphans whatever live subscription the old remote still ran. Same shape and same guard
     // as delete_key / clear_assignment; only fires when the binding actually moves (re-set to
     // the same target leaves the OLD binding intact and carries no orphan risk).
-    let (pre_config, pre_digest) = pdm_config::subscriptions::config()?;
+    let (pre_config, pre_digest) = app.subscription_key_config().read()?;
     let pre_entry = pre_config.get(&key);
     let pre_binding = pre_entry.and_then(|e| e.remote.as_deref().zip(e.node.as_deref()));
     let rebind_moves_binding = match pre_binding {
@@ -498,7 +510,7 @@ async fn set_assignment(
     }
     let pre_had_binding = pre_binding.is_some();
     let synced_block = if rebind_moves_binding {
-        check_synced_assignment_for_unassign(&key, pre_binding).await?
+        check_synced_assignment_for_unassign(&app, &key, pre_binding).await?
     } else {
         None
     };
@@ -509,8 +521,8 @@ async fn set_assignment(
     // under the lock.
     let new_digest = tokio::task::spawn_blocking(move || -> Result<ConfigDigest, Error> {
         let user_info = CachedUserInfo::new()?;
-        let _lock = pdm_config::subscriptions::lock_config()?;
-        let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+        let _lock = app.subscription_key_config().lock()?;
+        let (mut config, config_digest) = app.subscription_key_config().read()?;
         config_digest.detect_modification(digest.as_ref())?;
 
         let Some(stored_entry) = config.get(&key).cloned() else {
@@ -559,7 +571,7 @@ async fn set_assignment(
             );
         }
 
-        let (remotes_config, _) = pdm_config::remotes::config()?;
+        let (remotes_config, _) = app.remote_config().read()?;
         let remote_entry = remotes_config
             .get(&remote)
             .ok_or_else(|| http_err!(NOT_FOUND, "remote '{remote}' not found"))?;
@@ -600,7 +612,7 @@ async fn set_assignment(
             entry.pending_clear = false;
         }
 
-        pdm_config::subscriptions::save_config(&config)
+        app.subscription_key_config().write(&config)
     })
     .await??;
     rpcenv["digest"] = new_digest.to_hex().into();
@@ -631,6 +643,7 @@ async fn clear_assignment(
     key: String,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -641,7 +654,7 @@ async fn clear_assignment(
     // Authorise against the entry's bound remote BEFORE hitting the network. An operator with
     // only PRIV_SYS_MODIFY should not be able to probe live subscription state on a remote
     // they cannot audit. The authoritative re-check happens after the lock below.
-    let (pre_config, pre_digest) = pdm_config::subscriptions::config()?;
+    let (pre_config, pre_digest) = app.subscription_key_config().read()?;
     let pre_entry = pre_config.get(&key);
     if let Some(pre_entry) = pre_entry {
         if let Some(assigned_remote) = pre_entry.remote.as_deref() {
@@ -662,7 +675,7 @@ async fn clear_assignment(
     let pre_binding = pre_entry.and_then(|e| e.remote.as_deref().zip(e.node.as_deref()));
     // Owned bool so the orphan guard inside spawn_blocking does not borrow `pre_config`.
     let pre_had_binding = pre_binding.is_some();
-    let synced_block = check_synced_assignment_for_unassign(&key, pre_binding).await?;
+    let synced_block = check_synced_assignment_for_unassign(&app, &key, pre_binding).await?;
     drop(pre_config);
 
     // The lock + sync IO runs on a blocking thread so the async runtime is free for other work
@@ -671,8 +684,8 @@ async fn clear_assignment(
     // boundary; reconstructing it is cheap (it just reads the shared ACL cache).
     let new_digest = tokio::task::spawn_blocking(move || -> Result<ConfigDigest, Error> {
         let user_info = CachedUserInfo::new()?;
-        let _lock = pdm_config::subscriptions::lock_config()?;
-        let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+        let _lock = app.subscription_key_config().lock()?;
+        let (mut config, config_digest) = app.subscription_key_config().read()?;
         config_digest.detect_modification(digest.as_ref())?;
 
         let Some(stored_entry) = config.get(&key).cloned() else {
@@ -720,7 +733,7 @@ async fn clear_assignment(
         // not re-trigger a stale teardown.
         entry.pending_clear = false;
 
-        pdm_config::subscriptions::save_config(&config)
+        app.subscription_key_config().write(&config)
     })
     .await??;
     rpcenv["digest"] = new_digest.to_hex().into();
@@ -739,17 +752,19 @@ async fn clear_assignment(
 /// parallel rebind between pre-read and here cannot redirect us at a remote the caller has no
 /// AUDIT on.
 async fn check_synced_assignment_for_unassign(
+    app: &PdmApplication,
     key: &str,
     binding: Option<(&str, &str)>,
 ) -> Result<Option<(String, String)>, Error> {
     let Some((prev_remote, prev_node)) = binding else {
         return Ok(None);
     };
-    let (remotes_config, _) = pdm_config::remotes::config()?;
+    let (remotes_config, _) = app.remote_config().read()?;
     let Some(remote_entry) = remotes_config.get(prev_remote) else {
         return Ok(None);
     };
-    let live = match get_subscription_info_for_remote(remote_entry, FRESH_NODE_STATUS_MAX_AGE).await
+    let live = match get_subscription_info_for_remote(app, remote_entry, FRESH_NODE_STATUS_MAX_AGE)
+        .await
     {
         Ok(v) => v,
         Err(_) => return Ok(None),
@@ -767,13 +782,18 @@ async fn check_synced_assignment_for_unassign(
 
 /// Push a single key to its assigned remote node. Operates on a borrowed `Remote` so the
 /// caller can fetch the remotes-config once and reuse it.
-async fn push_key_to_remote(remote: &Remote, key: &str, node_name: &str) -> Result<(), Error> {
+async fn push_key_to_remote(
+    app: &PdmApplication,
+    remote: &Remote,
+    key: &str,
+    node_name: &str,
+) -> Result<(), Error> {
     let product_type =
         ProductType::from_key(key).ok_or_else(|| format_err!("unrecognised key format: {key}"))?;
 
     match product_type {
         ProductType::Pve => {
-            let client = crate::connection::make_pve_client(remote)?;
+            let client = app.client_factory().make_pve_client(remote)?;
             client
                 .set_subscription(
                     node_name,
@@ -784,7 +804,7 @@ async fn push_key_to_remote(remote: &Remote, key: &str, node_name: &str) -> Resu
                 .await?;
         }
         ProductType::Pbs => {
-            let client = crate::connection::make_pbs_client(remote)?;
+            let client = app.client_factory().make_pbs_client(remote)?;
             client
                 .set_subscription(proxmox_subscription::SetSubscription {
                     key: key.to_string(),
@@ -806,17 +826,18 @@ async fn push_key_to_remote(remote: &Remote, key: &str, node_name: &str) -> Resu
 
 /// Tear down a node's subscription via the remote's `/nodes/{node}/subscription` endpoint.
 async fn delete_subscription_on_remote(
+    app: &PdmApplication,
     remote: &Remote,
     product_type: ProductType,
     node_name: &str,
 ) -> Result<(), Error> {
     match product_type {
         ProductType::Pve => {
-            let client = crate::connection::make_pve_client(remote)?;
+            let client = app.client_factory().make_pve_client(remote)?;
             client.delete_subscription(node_name).await?;
         }
         ProductType::Pbs => {
-            let client = crate::connection::make_pbs_client(remote)?;
+            let client = app.client_factory().make_pbs_client(remote)?;
             client.delete_subscription().await?;
         }
         ProductType::Pmg | ProductType::Pom => {
@@ -831,13 +852,14 @@ async fn delete_subscription_on_remote(
 /// Trigger a fresh shop-side subscription check on `remote`/`node` and return once the remote
 /// has stored the result. Equivalent to the per-product "Check" button, just driven through PDM.
 async fn check_subscription_on_remote(
+    app: &PdmApplication,
     remote: &Remote,
     product_type: ProductType,
     node_name: &str,
 ) -> Result<(), Error> {
     match product_type {
         ProductType::Pve => {
-            let client = crate::connection::make_pve_client(remote)?;
+            let client = app.client_factory().make_pve_client(remote)?;
             client
                 .update_subscription(
                     node_name,
@@ -846,7 +868,7 @@ async fn check_subscription_on_remote(
                 .await?;
         }
         ProductType::Pbs => {
-            let client = crate::connection::make_pbs_client(remote)?;
+            let client = app.client_factory().make_pbs_client(remote)?;
             client
                 .check_subscription(proxmox_subscription::UpdateSubscription { force: Some(true) })
                 .await?;
@@ -896,6 +918,7 @@ async fn queue_clear(
     node: String,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -916,8 +939,8 @@ async fn queue_clear(
     // The lock + sync IO runs on a blocking thread so the async runtime stays free for other
     // work even when /etc/proxmox-datacenter-manager/subscriptions is on slow storage.
     let new_digest = tokio::task::spawn_blocking(move || -> Result<ConfigDigest, Error> {
-        let _lock = pdm_config::subscriptions::lock_config()?;
-        let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+        let _lock = app.subscription_key_config().lock()?;
+        let (mut config, config_digest) = app.subscription_key_config().read()?;
         config_digest.detect_modification(digest.as_ref())?;
 
         let bound_id = config
@@ -943,7 +966,7 @@ async fn queue_clear(
         }
         entry.pending_clear = true;
 
-        pdm_config::subscriptions::save_config(&config)
+        app.subscription_key_config().write(&config)
     })
     .await??;
     rpcenv["digest"] = new_digest.to_hex().into();
@@ -975,6 +998,7 @@ async fn revert_pending_clear(
     node: String,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -989,8 +1013,8 @@ async fn revert_pending_clear(
     )?;
 
     let new_digest = tokio::task::spawn_blocking(move || -> Result<ConfigDigest, Error> {
-        let _lock = pdm_config::subscriptions::lock_config()?;
-        let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+        let _lock = app.subscription_key_config().lock()?;
+        let (mut config, config_digest) = app.subscription_key_config().read()?;
         config_digest.detect_modification(digest.as_ref())?;
 
         let bound_id = config
@@ -1012,7 +1036,7 @@ async fn revert_pending_clear(
         }
         entry.pending_clear = false;
 
-        pdm_config::subscriptions::save_config(&config)
+        app.subscription_key_config().write(&config)
     })
     .await??;
     rpcenv["digest"] = new_digest.to_hex().into();
@@ -1046,6 +1070,7 @@ async fn check_subscription(
     remote: String,
     node: String,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -1059,7 +1084,7 @@ async fn check_subscription(
         false,
     )?;
 
-    let (remotes_config, _) = pdm_config::remotes::config()?;
+    let (remotes_config, _) = app.remote_config().read()?;
     let remote_entry = remotes_config
         .get(&remote)
         .ok_or_else(|| http_err!(NOT_FOUND, "remote '{remote}' not found"))?;
@@ -1069,10 +1094,10 @@ async fn check_subscription(
         pdm_api_types::remotes::RemoteType::Pbs => ProductType::Pbs,
     };
 
-    check_subscription_on_remote(remote_entry, product_type, &node)
+    check_subscription_on_remote(&app, remote_entry, product_type, &node)
         .await
         .map_err(|err| http_err!(BAD_REQUEST, "check failed on {remote}/{node}: {err}"))?;
-    invalidate_subscription_info_for_remote(&remote).await;
+    invalidate_subscription_info_for_remote(app.api_cache(), &remote).await;
     Ok(())
 }
 
@@ -1115,6 +1140,7 @@ async fn adopt_key(
     node: String,
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -1129,15 +1155,15 @@ async fn adopt_key(
     )?;
 
     // Pre-fetch digest to catch a parallel set_assignment during the live read below.
-    let (_pre_config, pre_digest) = pdm_config::subscriptions::config()?;
+    let (_pre_config, pre_digest) = app.subscription_key_config().read()?;
 
     // Fetch live state before grabbing the config lock so the network call does not pin the
     // lock for the duration of a remote query.
-    let (remotes_config, _) = pdm_config::remotes::config()?;
+    let (remotes_config, _) = app.remote_config().read()?;
     let remote_entry = remotes_config
         .get(&remote)
         .ok_or_else(|| http_err!(NOT_FOUND, "remote '{remote}' not found"))?;
-    let live = get_subscription_info_for_remote(remote_entry, FRESH_NODE_STATUS_MAX_AGE)
+    let live = get_subscription_info_for_remote(&app, remote_entry, FRESH_NODE_STATUS_MAX_AGE)
         .await
         .map_err(|err| {
             http_err!(
@@ -1159,8 +1185,8 @@ async fn adopt_key(
     // The lock + sync IO runs on a blocking thread so the async runtime stays free for other
     // work even when /etc/proxmox-datacenter-manager/subscriptions is on slow storage.
     let new_digest = tokio::task::spawn_blocking(move || -> Result<ConfigDigest, Error> {
-        let _lock = pdm_config::subscriptions::lock_config()?;
-        let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+        let _lock = app.subscription_key_config().lock()?;
+        let (mut config, config_digest) = app.subscription_key_config().read()?;
         config_digest.detect_modification(digest.as_ref())?;
         if config_digest != pre_digest {
             http_bail!(
@@ -1225,7 +1251,7 @@ async fn adopt_key(
             config.insert(live_current_key, entry);
         }
 
-        pdm_config::subscriptions::save_config(&config)
+        app.subscription_key_config().write(&config)
     })
     .await??;
     rpcenv["digest"] = new_digest.to_hex().into();
@@ -1269,6 +1295,7 @@ async fn adopt_key(
 async fn adopt_all(
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<Vec<AdoptedEntry>, Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -1278,7 +1305,7 @@ async fn adopt_all(
     // Use a fresh node-status snapshot: a cached entry from minutes ago could miss a live
     // subscription that was just installed on a remote, or vice-versa, claim a subscription
     // that has since been removed. Adopting bogus or already-cleared keys would be a footgun.
-    let node_statuses = collect_node_status(FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
+    let node_statuses = collect_node_status(&app, FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
 
     // Lock + sync IO under spawn_blocking. The closure re-resolves the candidate set under the
     // lock: a parallel admin's Assign / Adopt between the network read above and the lock
@@ -1287,8 +1314,8 @@ async fn adopt_all(
     let (adopted, new_digest_opt) = tokio::task::spawn_blocking(
         move || -> Result<(Vec<AdoptedEntry>, Option<ConfigDigest>), Error> {
             let user_info = CachedUserInfo::new()?;
-            let _lock = pdm_config::subscriptions::lock_config()?;
-            let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+            let _lock = app.subscription_key_config().lock()?;
+            let (mut config, config_digest) = app.subscription_key_config().read()?;
             config_digest.detect_modification(digest.as_ref())?;
 
             let mut adopted: Vec<AdoptedEntry> = Vec::new();
@@ -1374,7 +1401,7 @@ async fn adopt_all(
             let new_digest = if adopted.is_empty() {
                 None
             } else {
-                Some(pdm_config::subscriptions::save_config(&config)?)
+                Some(app.subscription_key_config().write(&config)?)
             };
             Ok((adopted, new_digest))
         },
@@ -1415,14 +1442,16 @@ async fn adopt_all(
 async fn node_status(
     max_age: Option<u64>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<Vec<RemoteNodeStatus>, Error> {
-    collect_node_status(max_age.unwrap_or(PANEL_NODE_STATUS_MAX_AGE), rpcenv).await
+    collect_node_status(&app, max_age.unwrap_or(PANEL_NODE_STATUS_MAX_AGE), rpcenv).await
 }
 
 /// Shared helper: fan out subscription queries to all remotes the caller has audit privilege on,
 /// in parallel, reusing the per-remote API cache via `get_subscription_info_for_remote`.
 /// Joins the results with the key-pool assignment table.
 async fn collect_node_status(
+    app: &PdmApplication,
     max_age: u64,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<RemoteNodeStatus>, Error> {
@@ -1432,18 +1461,17 @@ async fn collect_node_status(
         .parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let visible_remotes: Vec<(String, Remote)> =
-        RemoteIterator::new(pdm_config::remotes::instance())?
-            .any_privs(&user_info, &auth_id, PRIV_RESOURCE_AUDIT)
-            .into_iter()
-            .collect();
+    let visible_remotes: Vec<(String, Remote)> = RemoteIterator::new(app.remote_config())?
+        .any_privs(&user_info, &auth_id, PRIV_RESOURCE_AUDIT)
+        .into_iter()
+        .collect();
 
-    let (keys_config, _) = pdm_config::subscriptions::config()?;
+    let (keys_config, _) = app.subscription_key_config().read()?;
 
     // `get_subscription_info_for_remote` re-uses the per-remote API cache so this
     // fan-out is safe to run concurrently.
     let fetch = visible_remotes.iter().map(|(name, remote)| async move {
-        let res = get_subscription_info_for_remote(remote, max_age).await;
+        let res = get_subscription_info_for_remote(app, remote, max_age).await;
         (name.clone(), remote.ty, res)
     });
     let results = join_all(fetch).await;
@@ -1528,9 +1556,12 @@ async fn collect_node_status(
 /// The response carries nested `AutoAssignProposal` data; clients must submit follow-up
 /// `bulk_assign` calls with an `application/json` body, the form-urlencoded path cannot encode
 /// the nested structure.
-async fn auto_assign(rpcenv: &mut dyn RpcEnvironment) -> Result<AutoAssignProposal, Error> {
-    let node_statuses = collect_node_status(FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
-    let (config, keys_digest) = pdm_config::subscriptions::config()?;
+async fn auto_assign(
+    rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
+) -> Result<AutoAssignProposal, Error> {
+    let node_statuses = collect_node_status(&app, FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
+    let (config, keys_digest) = app.subscription_key_config().read()?;
     let assignments = compute_proposals(&config, &node_statuses);
     Ok(AutoAssignProposal {
         assignments,
@@ -1566,13 +1597,14 @@ async fn auto_assign(rpcenv: &mut dyn RpcEnvironment) -> Result<AutoAssignPropos
 async fn bulk_assign(
     proposal: AutoAssignProposal,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<Vec<ProposedAssignment>, Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
         .context("no authid available")?
         .parse()?;
 
-    let node_statuses = collect_node_status(FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
+    let node_statuses = collect_node_status(&app, FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
     let live_digest = hash_node_status(&node_statuses);
     if live_digest != proposal.node_status_digest {
         http_bail!(
@@ -1587,10 +1619,10 @@ async fn bulk_assign(
     let (applied, new_digest_opt) = tokio::task::spawn_blocking(
         move || -> Result<(Vec<ProposedAssignment>, Option<ConfigDigest>), Error> {
             let user_info = CachedUserInfo::new()?;
-            let _lock = pdm_config::subscriptions::lock_config()?;
-            let (mut config, config_digest) = pdm_config::subscriptions::config()?;
+            let _lock = app.subscription_key_config().lock()?;
+            let (mut config, config_digest) = app.subscription_key_config().read()?;
             config_digest.detect_modification(Some(&proposal.keys_digest))?;
-            let (remotes_config, _) = pdm_config::remotes::config()?;
+            let (remotes_config, _) = app.remote_config().read()?;
 
             let mut applied = Vec::with_capacity(proposal.assignments.len());
             for p in &proposal.assignments {
@@ -1652,7 +1684,7 @@ async fn bulk_assign(
             let new_digest = if applied.is_empty() {
                 None
             } else {
-                Some(pdm_config::subscriptions::save_config(&config)?)
+                Some(app.subscription_key_config().write(&config)?)
             };
             Ok((applied, new_digest))
         },
@@ -1788,6 +1820,7 @@ fn compute_proposals(
 async fn apply_pending(
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<Option<String>, Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -1795,11 +1828,11 @@ async fn apply_pending(
         .parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (_, config_digest) = pdm_config::subscriptions::config()?;
+    let (_, config_digest) = app.subscription_key_config().read()?;
     config_digest.detect_modification(digest.as_ref())?;
 
-    let node_statuses = collect_node_status(FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
-    let pending = compute_pending(&user_info, &auth_id, &node_statuses)?;
+    let node_statuses = collect_node_status(&app, FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
+    let pending = compute_pending(&app, &user_info, &auth_id, &node_statuses)?;
 
     if pending.is_empty() {
         return Ok(None);
@@ -1811,7 +1844,7 @@ async fn apply_pending(
         None,
         auth_id.to_string(),
         true,
-        move |_worker| async move { run_apply_pending(worker_auth).await },
+        move |_worker| async move { run_apply_pending(&app, worker_auth).await },
     )?;
 
     Ok(Some(upid))
@@ -1822,12 +1855,12 @@ async fn apply_pending(
 /// The worker re-reads remotes and the pool config so a reassign or removal between the API call
 /// returning a UPID and the worker firing is honoured (pushing the old key to a node after the
 /// operator retracted the assignment was a real footgun).
-async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
+async fn run_apply_pending(app: &PdmApplication, auth_id: Authid) -> Result<(), Error> {
     let user_info = CachedUserInfo::new()?;
-    let (remotes_config, _) = pdm_config::remotes::config()?;
+    let (remotes_config, _) = app.remote_config().read()?;
 
-    let node_statuses = collect_status_uncached(&remotes_config).await;
-    let pending = compute_pending(&user_info, &auth_id, &node_statuses)?;
+    let node_statuses = collect_status_uncached(app, &remotes_config).await;
+    let pending = compute_pending(app, &user_info, &auth_id, &node_statuses)?;
 
     if pending.is_empty() {
         info!("apply-pending: nothing to do (state changed since the API call)");
@@ -1845,7 +1878,7 @@ async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
         // branch) makes the at-start snapshot stale, and a parallel admin's Discard Pending
         // between worker start and this iteration must cancel a planned op rather than have us
         // execute it against a flag the operator just retracted.
-        let (config, _) = pdm_config::subscriptions::config()?;
+        let (config, _) = app.subscription_key_config().read()?;
         if !pool_assignment_still_valid(&config, &entry) {
             info!(
                 "skipping {}/{}: pool entry changed before worker ran",
@@ -1885,7 +1918,7 @@ async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
                     continue;
                 };
                 info!("pushing {redacted} to {}/{}...", entry.remote, entry.node);
-                if let Err(err) = push_key_to_remote(remote, &entry.key, &entry.node).await {
+                if let Err(err) = push_key_to_remote(app, remote, &entry.key, &entry.node).await {
                     warn!(
                         "push of {redacted} to {}/{} failed: {err}",
                         entry.remote, entry.node
@@ -1914,7 +1947,7 @@ async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
                         entry.remote, entry.node
                     );
                     if let Err(err) =
-                        delete_subscription_on_remote(remote, product_type, &entry.node).await
+                        delete_subscription_on_remote(app, remote, product_type, &entry.node).await
                     {
                         warn!(
                             "clear of {redacted} on {}/{} failed: {err}",
@@ -1937,9 +1970,10 @@ async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
                 let entry_key = entry.key.clone();
                 let entry_remote = entry.remote.clone();
                 let entry_node = entry.node.clone();
+                let app = app.clone();
                 let pool_update = tokio::task::spawn_blocking(move || -> Result<(), Error> {
-                    let _lock = pdm_config::subscriptions::lock_config()?;
-                    let (mut updated, _) = pdm_config::subscriptions::config()?;
+                    let _lock = app.subscription_key_config().lock()?;
+                    let (mut updated, _) = app.subscription_key_config().read()?;
                     if let Some(stored) = updated.get_mut(&entry_key) {
                         if stored.remote.as_deref() == Some(entry_remote.as_str())
                             && stored.node.as_deref() == Some(entry_node.as_str())
@@ -1950,7 +1984,7 @@ async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
                         }
                     }
                     // Worker context: no `rpcenv` to set, post-save digest is unused here.
-                    let _ = pdm_config::subscriptions::save_config(&updated)?;
+                    let _ = app.subscription_key_config().write(&updated)?;
                     Ok(())
                 })
                 .await
@@ -1970,7 +2004,7 @@ async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
             }
         }
         info!("  success");
-        invalidate_subscription_info_for_remote(&entry.remote).await;
+        invalidate_subscription_info_for_remote(app.api_cache(), &entry.remote).await;
         ok += 1;
     }
 
@@ -2031,6 +2065,7 @@ async fn run_apply_pending(auth_id: Authid) -> Result<(), Error> {
 async fn clear_pending(
     digest: Option<ConfigDigest>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<ClearPendingResult, Error> {
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -2038,11 +2073,11 @@ async fn clear_pending(
         .parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (_, pre_digest) = pdm_config::subscriptions::config()?;
+    let (_, pre_digest) = app.subscription_key_config().read()?;
     pre_digest.detect_modification(digest.as_ref())?;
 
-    let node_statuses = collect_node_status(FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
-    let pending = compute_pending(&user_info, &auth_id, &node_statuses)?;
+    let node_statuses = collect_node_status(&app, FRESH_NODE_STATUS_MAX_AGE, rpcenv).await?;
+    let pending = compute_pending(&app, &user_info, &auth_id, &node_statuses)?;
 
     if pending.is_empty() {
         return Ok(ClearPendingResult { cleared: 0 });
@@ -2052,8 +2087,8 @@ async fn clear_pending(
     // operations.
     let (cleared, new_digest_opt) =
         tokio::task::spawn_blocking(move || -> Result<(u32, Option<ConfigDigest>), Error> {
-            let _lock = pdm_config::subscriptions::lock_config()?;
-            let (mut config, locked_digest) = pdm_config::subscriptions::config()?;
+            let _lock = app.subscription_key_config().lock()?;
+            let (mut config, locked_digest) = app.subscription_key_config().read()?;
             locked_digest.detect_modification(digest.as_ref())?;
 
             let mut cleared: u32 = 0;
@@ -2087,7 +2122,7 @@ async fn clear_pending(
             }
 
             let new_digest = if cleared > 0 {
-                Some(pdm_config::subscriptions::save_config(&config)?)
+                Some(app.subscription_key_config().write(&config)?)
             } else {
                 None
             };
@@ -2120,11 +2155,12 @@ enum PendingOp {
 }
 
 fn compute_pending(
+    app: &PdmApplication,
     user_info: &CachedUserInfo,
     auth_id: &Authid,
     node_statuses: &[RemoteNodeStatus],
 ) -> Result<Vec<PendingEntry>, Error> {
-    let (config, _) = pdm_config::subscriptions::config()?;
+    let (config, _) = app.subscription_key_config().read()?;
 
     Ok(config
         .iter()
@@ -2182,10 +2218,11 @@ fn pool_assignment_still_valid(
 /// Like [`collect_node_status`] but bypasses the auth filter, for the apply-pending worker
 /// which gates each entry through its own per-remote priv check based on the persisted pool plan.
 async fn collect_status_uncached(
+    app: &PdmApplication,
     remotes_config: &SectionConfigData<Remote>,
 ) -> Vec<RemoteNodeStatus> {
     let fetch = remotes_config.iter().map(|(name, remote)| async move {
-        let res = get_subscription_info_for_remote(remote, FRESH_NODE_STATUS_MAX_AGE).await;
+        let res = get_subscription_info_for_remote(app, remote, FRESH_NODE_STATUS_MAX_AGE).await;
         (name.to_string(), remote.ty, res)
     });
     let results = join_all(fetch).await;

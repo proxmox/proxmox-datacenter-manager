@@ -31,6 +31,8 @@ use proxmox_subscription::SubscriptionStatus;
 use pve_api_types::{ClusterResource, ClusterResourceNetworkType, ClusterResourceType};
 use serde::{Deserialize, Serialize};
 
+use crate::api_cache::ApiCache;
+use crate::context::PdmApplication;
 use crate::metric_collection::top_entities;
 use crate::{api_cache, connection, views};
 
@@ -686,8 +688,9 @@ pub async fn get_subscription_status(
     verbose: bool,
     view: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
+    #[state] app: PdmApplication,
 ) -> Result<Vec<RemoteSubscriptions>, Error> {
-    let (remotes_config, _) = pdm_config::remotes::config()?;
+    let (remotes_config, _) = app.remote_config().read()?;
 
     let mut futures = Vec::new();
 
@@ -711,10 +714,11 @@ pub async fn get_subscription_status(
         }
 
         let view = view.clone();
+        let app_clone = app.clone();
 
         let future = async move {
             let (node_status, error) =
-                match get_subscription_info_for_remote(&remote, max_age).await {
+                match get_subscription_info_for_remote(&app_clone, &remote, max_age).await {
                     Ok(mut node_status) => {
                         node_status.retain(|node, _| {
                             if let Some(view) = &view {
@@ -846,17 +850,21 @@ struct CachedSubscriptionState {
 /// If recent enough cached data is available, it is returned
 /// instead of calling out to the remote.
 pub async fn get_subscription_info_for_remote(
+    app: &PdmApplication,
     remote: &Remote,
     max_age: u64,
 ) -> Result<HashMap<String, Option<NodeSubscriptionInfo>>, Error> {
-    if let Some(cached_subscription) = get_cached_subscription_info(&remote.id, max_age).await? {
+    if let Some(cached_subscription) =
+        get_cached_subscription_info(app.api_cache(), &remote.id, max_age).await?
+    {
         Ok(cached_subscription.node_info)
     } else {
-        let node_info = fetch_remote_subscription_info(remote).await?;
+        let node_info = fetch_remote_subscription_info(app, remote).await?;
         let now = proxmox_time::epoch_i64();
 
         if let Some(existing_state) =
-            update_cached_subscription_info(&remote.id, node_info.clone(), now).await?
+            update_cached_subscription_info(app.api_cache(), &remote.id, node_info.clone(), now)
+                .await?
         {
             // Somebody else updated the cache while we performed the API request,
             // return the more recent data instead of the data we just fetched.
@@ -871,21 +879,24 @@ pub async fn get_subscription_info_for_remote(
 /// The cache will be updated, but never read from. This guarantees that the `serverid` is set, as
 /// it cannot be stored in the cache.
 pub async fn fetch_complete_subscription_info_for_remote(
+    app: &PdmApplication,
     remote: &Remote,
 ) -> Result<HashMap<String, Option<NodeSubscriptionInfo>>, Error> {
-    let node_info = fetch_remote_subscription_info(remote).await?;
+    let node_info = fetch_remote_subscription_info(app, remote).await?;
     let now = proxmox_time::epoch_i64();
-    let _ = update_cached_subscription_info(&remote.id, node_info.clone(), now).await?;
+    let _ = update_cached_subscription_info(app.api_cache(), &remote.id, node_info.clone(), now)
+        .await?;
     Ok(node_info)
 }
 
 const SUBSCRIPTION_STATE_CACHE_KEY: &str = "subscription-state";
 
 async fn get_cached_subscription_info(
+    api_cache: &ApiCache,
     remote: &str,
     max_age: u64,
 ) -> Result<Option<CachedSubscriptionState>, Error> {
-    let cache = api_cache::read_remote(remote).await?;
+    let cache = api_cache.read_remote(remote).await?;
     let subscription_state = cache
         .get_with_max_age(SUBSCRIPTION_STATE_CACHE_KEY, max_age as i64)
         .await
@@ -897,8 +908,8 @@ async fn get_cached_subscription_info(
 }
 
 /// Drop the cached subscription state for a remote, forcing the next read to refetch.
-pub async fn invalidate_subscription_info_for_remote(remote_id: &str) {
-    let cache = match api_cache::write_remote(remote_id).await {
+pub async fn invalidate_subscription_info_for_remote(api_cache: &ApiCache, remote_id: &str) {
+    let cache = match api_cache.write_remote(remote_id).await {
         Ok(cache) => cache,
         Err(err) => {
             log::error!("could not open API cache for {remote_id}: {err}");
@@ -916,11 +927,12 @@ pub async fn invalidate_subscription_info_for_remote(remote_id: &str) {
 /// stored state as `Ok(Some(state))`. If the data that was passed in replaced the cache
 /// entry, `Ok(None)` is returned.
 async fn update_cached_subscription_info(
+    api_cache: &ApiCache,
     remote: &str,
     node_info: HashMap<String, Option<NodeSubscriptionInfo>>,
     now: i64,
 ) -> Result<Option<CachedSubscriptionState>, Error> {
-    let cache = api_cache::write_remote(remote).await?;
+    let cache = api_cache.write_remote(remote).await?;
 
     Ok(cache
         .set_if_newer_with_timestamp(
@@ -967,12 +979,13 @@ fn map_node_subscription_list_to_state(
 
 /// Fetch remote resources and map to pdm-native data types.
 async fn fetch_remote_subscription_info(
+    app: &PdmApplication,
     remote: &Remote,
 ) -> Result<HashMap<String, Option<NodeSubscriptionInfo>>, Error> {
     let mut list = HashMap::new();
     match remote.ty {
         RemoteType::Pve => {
-            let client = connection::make_pve_client(remote)?;
+            let client = app.client_factory().make_pve_client(remote)?;
 
             let nodes = client.list_nodes().await?;
             let mut futures = Vec::with_capacity(nodes.len());
@@ -1013,7 +1026,7 @@ async fn fetch_remote_subscription_info(
             }
         }
         RemoteType::Pbs => {
-            let client = connection::make_pbs_client(remote)?;
+            let client = app.client_factory().make_pbs_client(remote)?;
 
             let info = client.get_subscription().await.ok().map(|info| {
                 let level = SubscriptionLevel::from_key(info.key.as_deref());

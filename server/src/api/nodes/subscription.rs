@@ -18,6 +18,7 @@ use pdm_api_types::subscription::{
 use crate::api::resources::{
     fetch_complete_subscription_info_for_remote, get_subscription_info_for_remote,
 };
+use crate::context::PdmApplication;
 
 const PRODUCT_URL: &str = "https://pdm.proxmox.com/faq.html";
 const APT_AUTH_FN: &str = "/etc/apt/auth.conf.d/pdm.conf";
@@ -31,13 +32,14 @@ fn apt_auth_file_opts() -> CreateOptions {
     CreateOptions::new().perm(mode).owner(nix::unistd::ROOT)
 }
 
-async fn get_all_subscription_infos()
--> Result<HashMap<String, (RemoteType, HashMap<String, Option<NodeSubscriptionInfo>>)>, Error> {
-    let (remotes_config, _digest) = pdm_config::remotes::config()?;
+async fn get_all_subscription_infos(
+    app: &PdmApplication,
+) -> Result<HashMap<String, (RemoteType, HashMap<String, Option<NodeSubscriptionInfo>>)>, Error> {
+    let (remotes_config, _digest) = app.remote_config().read()?;
 
     let mut subscription_info = HashMap::new();
     for (remote_name, remote) in remotes_config.iter() {
-        match get_subscription_info_for_remote(remote, 24 * 60 * 60).await {
+        match get_subscription_info_for_remote(app, remote, 24 * 60 * 60).await {
             Ok(info) => {
                 subscription_info.insert(remote_name.to_string(), (remote.ty, info));
             }
@@ -118,8 +120,8 @@ fn check_counts(stats: &SubscriptionStatistics) -> Result<(), Error> {
     }
 )]
 /// Return subscription status
-pub async fn get_subscription() -> Result<PdmSubscriptionInfo, Error> {
-    let infos = get_all_subscription_infos().await?;
+pub async fn get_subscription(#[state] app: PdmApplication) -> Result<PdmSubscriptionInfo, Error> {
+    let infos = get_all_subscription_infos(&app).await?;
 
     let statistics = count_subscriptions(&infos);
 
@@ -156,8 +158,8 @@ pub async fn get_subscription() -> Result<PdmSubscriptionInfo, Error> {
     },
 )]
 /// Update subscription information
-pub async fn check_subscription() -> Result<(), Error> {
-    let infos = get_all_subscription_infos().await?;
+pub async fn check_subscription(#[state] app: PdmApplication) -> Result<(), Error> {
+    let infos = get_all_subscription_infos(&app).await?;
     let stats = count_subscriptions(&infos);
 
     if let Err(err) = check_counts(&stats) {
@@ -181,7 +183,7 @@ pub async fn check_subscription() -> Result<(), Error> {
                     // Get fresh subscription info. The cache does not store the serverid, so we
                     // need to fetch it from the remote. This has the upside of always yielding
                     // fresh results.
-                    let (remote_config, _digest) = pdm_config::remotes::config()?;
+                    let (remote_config, _digest) = app.remote_config().read()?;
                     let Some(remote) = remote_config.get(remote_name) else {
                         log::debug!(
                             "Remote vanished while updating subscription information \
@@ -189,7 +191,8 @@ pub async fn check_subscription() -> Result<(), Error> {
                         );
                         continue 'outer;
                     };
-                    let node_info = fetch_complete_subscription_info_for_remote(remote).await?;
+                    let node_info =
+                        fetch_complete_subscription_info_for_remote(&app, remote).await?;
                     let Some(info) = node_info.iter().find_map(|(node, val)| {
                         if let Some(info) = val.as_ref() {
                             if info.status == SubscriptionStatus::Active
