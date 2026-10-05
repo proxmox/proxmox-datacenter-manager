@@ -216,7 +216,16 @@ impl LoadableComponent for PveRemoteComp {
             PveTreeNode::Root => remote::PveRemotePanel::new(remote.clone()).into(),
             PveTreeNode::Resource(r) => match r {
                 PveResource::Node(node) => {
-                    node::PveNodePanel::new(remote.clone(), node.node.clone())
+                    let info = self
+                        .resources
+                        .iter()
+                        .find_map(|r: &PveResource| match r {
+                            PveResource::Node(info) if node.id == info.id => Some(info),
+                            _ => None,
+                        })
+                        .unwrap_or(node)
+                        .clone();
+                    node::PveNodePanel::new(remote.clone(), node.node.clone(), info)
                         .pve_manager_version(self.get_pve_manager_version(&node.node))
                         .into()
                 }

@@ -13,13 +13,15 @@ use pwt::{
 };
 use pwt_macros::builder;
 
+use pdm_api_types::resource::{PveNodeResource, ResourceView};
+
 mod overview;
 
 use overview::PveNodeOverviewPanel;
 
-use crate::get_deep_url;
+use crate::{get_deep_url, renderer::render_resource_extra_info};
 
-#[derive(Clone, Debug, Eq, PartialEq, Properties)]
+#[derive(Clone, Debug, PartialEq, Properties)]
 #[builder]
 pub struct PveNodePanel {
     /// The remote to show
@@ -28,6 +30,8 @@ pub struct PveNodePanel {
     /// The node to show
     pub node: String,
 
+    info: PveNodeResource,
+
     #[prop_or_default]
     #[builder]
     /// The nodes pve-manager version, used to feature gate some entries.
@@ -35,8 +39,8 @@ pub struct PveNodePanel {
 }
 
 impl PveNodePanel {
-    pub fn new(remote: String, node: String) -> Self {
-        yew::props!(Self { remote, node })
+    pub fn new(remote: String, node: String, info: PveNodeResource) -> Self {
+        yew::props!(Self { remote, node, info })
     }
 }
 
@@ -64,6 +68,9 @@ impl yew::Component for PveNodePanelComp {
             .class(AlignItems::Baseline)
             .with_child(Fa::new("building"))
             .with_child(tr! {"Node '{0}'", props.node})
+            .with_optional_child(render_resource_extra_info(ResourceView::PveNode(
+                &props.info,
+            )))
             .into();
 
         TabPanel::new()
