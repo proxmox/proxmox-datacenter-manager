@@ -16,13 +16,17 @@ use pwt::{
     tr,
     widget::{
         Fa, GridPicker, Row,
+        container::div,
         data_table::{DataTable, DataTableColumn, DataTableHeader},
         form::{Selector, SelectorRenderArgs},
     },
 };
 use pwt_macros::{builder, widget};
 
-use pdm_client::types::ClusterNodeIndexResponse;
+use pdm_api_types::resource::{PveNodeResource, ResourceView};
+use pdm_client::types::ClusterResourceKind;
+
+use crate::renderer::render_resource_extra_info;
 
 #[widget(comp=PveNodeSelectorComp, @input)]
 #[derive(Clone, Properties, PartialEq)]
@@ -76,27 +80,35 @@ impl PveNodeSelector {
 }
 
 pub enum Msg {
-    UpdateNodeList(Result<Vec<ClusterNodeIndexResponse>, Error>),
+    UpdateNodeList(Result<Vec<PveNodeResource>, Error>),
 }
 
 pub struct PveNodeSelectorComp {
     _async_pool: AsyncPool,
-    store: Store<ClusterNodeIndexResponse>,
+    store: Store<PveNodeResource>,
     /// Unfiltered node list as fetched from the remote, kept so a prop change to `excluded_nodes`
     /// can re-filter without round-tripping the remote again.
-    raw_nodes: Vec<ClusterNodeIndexResponse>,
+    raw_nodes: Vec<PveNodeResource>,
     last_err: Option<AttrValue>,
 }
 
 impl PveNodeSelectorComp {
-    async fn get_node_list(remote: AttrValue) -> Result<Vec<ClusterNodeIndexResponse>, Error> {
-        let mut nodes = crate::pdm_client().pve_list_nodes(&remote).await?;
+    async fn get_node_list(remote: AttrValue) -> Result<Vec<PveNodeResource>, Error> {
+        let mut nodes: Vec<PveNodeResource> = crate::pdm_client()
+            .pve_cluster_resources(&remote, Some(ClusterResourceKind::Node))
+            .await?
+            .into_iter()
+            .filter_map(|r| match r {
+                pdm_api_types::resource::PveResource::Node(node) => Some(node),
+                _ => None,
+            })
+            .collect();
         nodes.sort_by(|a, b| a.node.cmp(&b.node));
         Ok(nodes)
     }
 
     fn apply_filter(&mut self, excluded: &[String], source_node: Option<&str>) {
-        let filtered: Vec<ClusterNodeIndexResponse> = self
+        let filtered: Vec<PveNodeResource> = self
             .raw_nodes
             .iter()
             .filter(|n| {
@@ -122,9 +134,7 @@ impl Component for PveNodeSelectorComp {
             _async_pool,
             last_err: None,
             raw_nodes: Vec::new(),
-            store: Store::with_extract_key(|node: &ClusterNodeIndexResponse| {
-                Key::from(node.node.as_str())
-            }),
+            store: Store::with_extract_key(|node: &PveNodeResource| Key::from(node.node.as_str())),
         }
     }
 
@@ -175,7 +185,7 @@ impl Component for PveNodeSelectorComp {
             }
         };
         Selector::new(self.store.clone(), {
-            move |args: &SelectorRenderArgs<Store<ClusterNodeIndexResponse>>| {
+            move |args: &SelectorRenderArgs<Store<PveNodeResource>>| {
                 if let Some(err) = &err {
                     return Row::new()
                         .with_child(Fa::from(Status::Error))
@@ -203,44 +213,55 @@ impl Component for PveNodeSelectorComp {
     }
 }
 
-fn columns(show_memory: bool) -> Rc<Vec<DataTableHeader<ClusterNodeIndexResponse>>> {
+fn columns(show_memory: bool) -> Rc<Vec<DataTableHeader<PveNodeResource>>> {
     let mut columns = vec![
         DataTableColumn::new(tr!("Node"))
-            .get_property(|entry: &ClusterNodeIndexResponse| &entry.node)
+            .width("250px")
+            .render(|entry: &PveNodeResource| {
+                Row::new()
+                    .gap(1)
+                    .with_child(div(&entry.node))
+                    .with_optional_child(render_resource_extra_info(ResourceView::PveNode(entry)))
+                    .into()
+            })
+            .sorter(|a: &PveNodeResource, b: &PveNodeResource| a.node.cmp(&b.node))
             .sort_order(true)
             .into(),
     ];
     if show_memory {
         columns.push(
             DataTableColumn::new(tr!("CPU Usage"))
-                .render(|entry: &ClusterNodeIndexResponse| match entry.cpu {
-                    Some(cpu) => html! { rrd_value_renderer::render_cpu_usage(&cpu) },
-                    None => html! {},
+                .render(|entry: &PveNodeResource| {
+                    if entry.status != "online" {
+                        return html! {};
+                    }
+                    rrd_value_renderer::render_cpu_usage(&entry.cpu).into()
                 })
-                .sorter(
-                    |a: &ClusterNodeIndexResponse, b: &ClusterNodeIndexResponse| {
-                        // total_cmp tolerates NaN; preserve the "no data sorts low" intuition by
-                        // mapping None to negative infinity so unprobed nodes stay at the bottom.
+                .sorter(|a: &PveNodeResource, b: &PveNodeResource| {
+                    let a = if a.status == "online" {
                         a.cpu
-                            .unwrap_or(f64::NEG_INFINITY)
-                            .total_cmp(&b.cpu.unwrap_or(f64::NEG_INFINITY))
-                    },
-                )
+                    } else {
+                        f64::NEG_INFINITY
+                    };
+                    let b = if b.status == "online" {
+                        b.cpu
+                    } else {
+                        f64::NEG_INFINITY
+                    };
+                    a.total_cmp(&b)
+                })
                 .into(),
         );
         columns.push(
             DataTableColumn::new(tr!("Memory Usage"))
-                .render(
-                    |entry: &ClusterNodeIndexResponse| match (entry.mem, entry.maxmem) {
-                        (Some(mem), Some(maxmem)) => {
-                            html! {format!("{:.2}%", 100.0 * mem as f64 / maxmem as f64)}
-                        }
-                        _ => html! {},
-                    },
-                )
-                .sorter(
-                    |a: &ClusterNodeIndexResponse, b: &ClusterNodeIndexResponse| a.mem.cmp(&b.mem),
-                )
+                .render(|entry: &PveNodeResource| {
+                    // don't show values when the node isn't online or when it's non sensible
+                    if entry.maxmem == 0 || entry.status != "online" {
+                        return html! {};
+                    }
+                    html! {format!("{:.2}%", 100.0 * entry.mem as f64 / entry.maxmem as f64)}
+                })
+                .sorter(|a: &PveNodeResource, b: &PveNodeResource| a.mem.cmp(&b.mem))
                 .into(),
         );
     }

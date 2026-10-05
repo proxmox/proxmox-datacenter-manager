@@ -355,6 +355,12 @@ pub trait AsResourceView {
     fn as_resource_view(&self) -> ResourceView<'_>;
 }
 
+impl<'a> AsResourceView for ResourceView<'a> {
+    fn as_resource_view<'b>(&'b self) -> ResourceView<'a> {
+        self.clone()
+    }
+}
+
 impl AsResourceView for Resource {
     fn as_resource_view<'a>(&'a self) -> ResourceView<'a> {
         ResourceView::from(self)
