@@ -247,6 +247,24 @@ impl<'a> ResourceView<'a> {
         Some(node)
     }
 
+    /// Returns the VMID if the resource has one. Returns `None` for non-guest resources.
+    pub fn vmid(&self) -> Option<u32> {
+        match self {
+            ResourceView::PveQemu(qemu) => Some(qemu.vmid),
+            ResourceView::PveLxc(lxc) => Some(lxc.vmid),
+            _ => None,
+        }
+    }
+
+    /// Returns the guest type if the resource has one. Returns `None` for non-guest resources.
+    pub fn guest_type(&self) -> Option<GuestType> {
+        match self {
+            ResourceView::PveQemu(_) => Some(GuestType::Qemu),
+            ResourceView::PveLxc(_) => Some(GuestType::Lxc),
+            _ => None,
+        }
+    }
+
     /// Returns the resource type, e.g. Node, Qemu, etc.
     pub fn resource_type(&self) -> ResourceType {
         match self {

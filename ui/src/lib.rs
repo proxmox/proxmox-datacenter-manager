@@ -3,7 +3,7 @@ use gloo_utils::window;
 use js_sys::{Array, JsString, Object};
 use pdm_api_types::remote_updates::RemoteUpdateSummary;
 use pdm_api_types::remotes::RemoteType;
-use pdm_api_types::resource::{PveLxcResource, PveQemuResource};
+use pdm_api_types::resource::AsResourceView;
 use pdm_api_types::subscription::PdmSubscriptionInfo;
 use proxmox_deb_version::Version;
 use pwt::props::ContainerBuilder;
@@ -190,11 +190,11 @@ pub(crate) fn navigate_to<C: yew::Component>(
     if let Some(nav) = link.navigator() {
         let (prefix, id) = resource
             .and_then(|resource| {
+                if let Some(vmid) = resource.as_resource_view().vmid() {
+                    return Some((true, format!("guest+{vmid}")));
+                }
+
                 Some(match resource {
-                    pdm_client::types::Resource::PveQemu(PveQemuResource { vmid, .. })
-                    | pdm_client::types::Resource::PveLxc(PveLxcResource { vmid, .. }) => {
-                        (true, format!("guest+{vmid}"))
-                    }
                     pdm_client::types::Resource::PveNode(node) => {
                         (true, format!("node+{}", node.node))
                     }
