@@ -261,7 +261,11 @@ fn columns(show_memory: bool) -> Rc<Vec<DataTableHeader<PveNodeResource>>> {
                     }
                     html! {format!("{:.2}%", 100.0 * entry.mem as f64 / entry.maxmem as f64)}
                 })
-                .sorter(|a: &PveNodeResource, b: &PveNodeResource| a.mem.cmp(&b.mem))
+                .sorter(|a: &PveNodeResource, b: &PveNodeResource| {
+                    let a = (a.mem as f64) / (a.maxmem as f64);
+                    let b = (b.mem as f64) / (b.maxmem as f64);
+                    a.total_cmp(&b)
+                })
                 .into(),
         );
     }
