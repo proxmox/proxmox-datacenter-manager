@@ -25,6 +25,7 @@ use pdm_api_types::{
     remote_updates::RemoteUpdateSummary,
     resource::{PveResource, ResourceType},
 };
+use proxmox_deb_version::Version;
 
 use crate::remotes::RemoteCertCheck;
 use crate::{LoadResult, extract_package_version, get_deep_url, get_remote};
@@ -158,6 +159,13 @@ pub struct PveRemoteComp {
     updates: LoadResult<RemoteUpdateSummary, Error>,
 }
 
+impl PveRemoteComp {
+    fn get_pve_manager_version(&self, node: &str) -> Option<Version> {
+        let updates = self.updates.data.as_ref()?;
+        extract_package_version(updates, node, "pve-manager")
+    }
+}
+
 pwt::impl_deref_mut_property!(PveRemoteComp, state, LoadableComponentState<ViewState>);
 
 impl LoadableComponent for PveRemoteComp {
@@ -206,31 +214,17 @@ impl LoadableComponent for PveRemoteComp {
 
         let content: Html = match &self.view {
             PveTreeNode::Root => remote::PveRemotePanel::new(remote.clone()).into(),
-            PveTreeNode::Node(node) => {
-                let pve_manager = match &self.updates.data {
-                    Some(updates) => extract_package_version(updates, &node.node, "pve-manager"),
-                    None => None,
-                };
-                node::PveNodePanel::new(remote.clone(), node.node.clone())
-                    .pve_manager_version(pve_manager)
-                    .into()
-            }
+            PveTreeNode::Node(node) => node::PveNodePanel::new(remote.clone(), node.node.clone())
+                .pve_manager_version(self.get_pve_manager_version(&node.node))
+                .into(),
             PveTreeNode::Qemu(qemu) => {
-                let pve_manager = match &self.updates.data {
-                    Some(updates) => extract_package_version(updates, &qemu.node, "pve-manager"),
-                    None => None,
-                };
                 qemu::QemuPanel::new(remote.clone(), qemu.node.clone(), qemu.clone())
-                    .pve_manager_version(pve_manager)
+                    .pve_manager_version(self.get_pve_manager_version(&qemu.node))
                     .into()
             }
             PveTreeNode::Lxc(lxc) => {
-                let pve_manager = match &self.updates.data {
-                    Some(updates) => extract_package_version(updates, &lxc.node, "pve-manager"),
-                    None => None,
-                };
                 lxc::LxcPanel::new(remote.clone(), lxc.node.clone(), lxc.clone())
-                    .pve_manager_version(pve_manager)
+                    .pve_manager_version(self.get_pve_manager_version(&lxc.node))
                     .into()
             }
             PveTreeNode::Storage(storage) => {
