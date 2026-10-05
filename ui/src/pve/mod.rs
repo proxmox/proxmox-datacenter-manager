@@ -214,23 +214,31 @@ impl LoadableComponent for PveRemoteComp {
 
         let content: Html = match &self.view {
             PveTreeNode::Root => remote::PveRemotePanel::new(remote.clone()).into(),
-            PveTreeNode::Node(node) => node::PveNodePanel::new(remote.clone(), node.node.clone())
-                .pve_manager_version(self.get_pve_manager_version(&node.node))
+            PveTreeNode::Resource(r) => match r {
+                PveResource::Node(node) => {
+                    node::PveNodePanel::new(remote.clone(), node.node.clone())
+                        .pve_manager_version(self.get_pve_manager_version(&node.node))
+                        .into()
+                }
+                PveResource::Qemu(qemu) => {
+                    qemu::QemuPanel::new(remote.clone(), qemu.node.clone(), qemu.clone())
+                        .pve_manager_version(self.get_pve_manager_version(&qemu.node))
+                        .into()
+                }
+                PveResource::Lxc(lxc) => {
+                    lxc::LxcPanel::new(remote.clone(), lxc.node.clone(), lxc.clone())
+                        .pve_manager_version(self.get_pve_manager_version(&lxc.node))
+                        .into()
+                }
+                PveResource::Storage(storage) => storage::StoragePanel::new(
+                    remote.clone(),
+                    storage.node.clone(),
+                    storage.clone(),
+                )
                 .into(),
-            PveTreeNode::Qemu(qemu) => {
-                qemu::QemuPanel::new(remote.clone(), qemu.node.clone(), qemu.clone())
-                    .pve_manager_version(self.get_pve_manager_version(&qemu.node))
-                    .into()
-            }
-            PveTreeNode::Lxc(lxc) => {
-                lxc::LxcPanel::new(remote.clone(), lxc.node.clone(), lxc.clone())
-                    .pve_manager_version(self.get_pve_manager_version(&lxc.node))
-                    .into()
-            }
-            PveTreeNode::Storage(storage) => {
-                storage::StoragePanel::new(remote.clone(), storage.node.clone(), storage.clone())
-                    .into()
-            }
+                // the tree does not show the networks currently
+                PveResource::Network(_) => Container::new().into(),
+            },
         };
         let content = NavigationContainer::new().with_child(content);
 

@@ -24,33 +24,31 @@ use pwt::{prelude::*, widget::Button};
 
 use pdm_api_types::{
     RemoteUpid,
-    resource::{PveLxcResource, PveNodeResource, PveQemuResource, PveResource, PveStorageResource},
+    resource::{AsResourceView, PveNodeResource, PveResource},
 };
 
-use crate::{get_deep_url, renderer::render_tree_column, widget::MigrateWindow};
+use crate::{
+    get_deep_url,
+    renderer::{render_resource_name, render_status_icon, render_tree_column},
+    widget::MigrateWindow,
+};
 
 use super::{
     GuestInfo, GuestType,
-    utils::{self, render_guest_tags, render_lxc_name, render_qemu_name},
+    utils::{self, render_guest_tags},
 };
 
 #[derive(Clone, PartialEq)]
 pub enum PveTreeNode {
     Root,
-    Node(PveNodeResource),
-    Lxc(PveLxcResource),
-    Qemu(PveQemuResource),
-    Storage(PveStorageResource),
+    Resource(PveResource),
 }
 
 impl ExtractPrimaryKey for PveTreeNode {
     fn extract_key(&self) -> Key {
         Key::from(match self {
             PveTreeNode::Root => "__root__",
-            PveTreeNode::Node(node) => node.id.as_str(),
-            PveTreeNode::Lxc(lxc) => lxc.id.as_str(),
-            PveTreeNode::Qemu(qemu) => qemu.id.as_str(),
-            PveTreeNode::Storage(storage) => storage.id.as_str(),
+            PveTreeNode::Resource(resource) => resource.as_resource_view().global_id(),
         })
     }
 }
@@ -59,12 +57,15 @@ impl PveTreeNode {
     fn get_path(&self) -> String {
         match self {
             PveTreeNode::Root => "datacenter".to_string(),
-            PveTreeNode::Node(node) => format!("node+{}", node.node),
-            PveTreeNode::Lxc(lxc) => format!("guest+{}", lxc.vmid),
-            PveTreeNode::Qemu(qemu) => format!("guest+{}", qemu.vmid),
-            PveTreeNode::Storage(storage) => {
-                format!("storage+{}+{}", storage.node, storage.storage)
-            }
+            PveTreeNode::Resource(resource) => match resource {
+                PveResource::Node(node) => format!("node+{}", node.node),
+                PveResource::Lxc(lxc) => format!("guest+{}", lxc.vmid),
+                PveResource::Qemu(qemu) => format!("guest+{}", qemu.vmid),
+                PveResource::Storage(storage) => {
+                    format!("storage+{}+{}", storage.node, storage.storage)
+                }
+                PveResource::Network(network) => format!("network+{}", network.name()),
+            },
         }
     }
 }
@@ -163,13 +164,16 @@ impl PveTreeComp {
                     let key = Key::from(node_info.id.as_str());
 
                     if let Some(mut node) = root.find_node_by_key_mut(&key) {
-                        *node.record_mut() = PveTreeNode::Node(node_info.clone());
+                        *node.record_mut() = PveTreeNode::Resource(entry.clone());
                     } else {
-                        root.append(PveTreeNode::Node(node_info.clone()));
+                        root.append(PveTreeNode::Resource(entry.clone()));
                     }
                 }
-                PveResource::Qemu(qemu_info) => {
-                    let node_id = format!("remote/{}/node/{}", remote, qemu_info.node);
+                PveResource::Qemu(_) | PveResource::Lxc(_) | PveResource::Storage(_) => {
+                    // PVE resources always have a node
+                    let node = entry.as_resource_view().node().unwrap();
+                    let node_id = format!("remote/{remote}/node/{node}");
+
                     let key = Key::from(node_id.as_str());
                     let mut node = match root.find_node_by_key_mut(&key) {
                         Some(node) => node,
@@ -179,33 +183,7 @@ impl PveTreeComp {
                     if !self.loaded {
                         node.set_expanded(true);
                     }
-                    node.append(PveTreeNode::Qemu(qemu_info.clone()));
-                }
-                PveResource::Lxc(lxc_info) => {
-                    let node_id = format!("remote/{}/node/{}", remote, lxc_info.node);
-                    let key = Key::from(node_id.as_str());
-                    let mut node = match root.find_node_by_key_mut(&key) {
-                        Some(node) => node,
-                        None => root.append(create_empty_node(node_id)),
-                    };
-
-                    if !self.loaded {
-                        node.set_expanded(true);
-                    }
-                    node.append(PveTreeNode::Lxc(lxc_info.clone()));
-                }
-                PveResource::Storage(storage) => {
-                    let node_id = format!("remote/{}/node/{}", remote, storage.node);
-                    let key = Key::from(node_id.as_str());
-                    let mut node = match root.find_node_by_key_mut(&key) {
-                        Some(node) => node,
-                        None => root.append(create_empty_node(node_id)),
-                    };
-
-                    if !self.loaded {
-                        node.set_expanded(true);
-                    }
-                    node.append(PveTreeNode::Storage(storage.clone()));
+                    node.append(PveTreeNode::Resource(entry.clone()));
                 }
                 PveResource::Network(_) => {}
             }
@@ -227,24 +205,29 @@ impl PveTreeComp {
             (PveTreeNode::Root, PveTreeNode::Root) => std::cmp::Ordering::Equal,
             (PveTreeNode::Root, _) => std::cmp::Ordering::Less,
             (_, PveTreeNode::Root) => std::cmp::Ordering::Greater,
-            (PveTreeNode::Node(a), PveTreeNode::Node(b)) => a.node.cmp(&b.node),
-            (PveTreeNode::Node(_), _) => std::cmp::Ordering::Less,
-            (_, PveTreeNode::Node(_)) => std::cmp::Ordering::Greater,
-            (PveTreeNode::Lxc(a), PveTreeNode::Lxc(b)) => {
-                cmp_guests(a.template, b.template, a.vmid, b.vmid)
-            }
-            (PveTreeNode::Lxc(_), PveTreeNode::Qemu(_)) => std::cmp::Ordering::Less,
-            (PveTreeNode::Qemu(_), PveTreeNode::Lxc(_)) => std::cmp::Ordering::Greater,
-            (PveTreeNode::Qemu(a), PveTreeNode::Qemu(b)) => {
-                cmp_guests(a.template, b.template, a.vmid, b.vmid)
-            }
-            (PveTreeNode::Lxc(_) | PveTreeNode::Qemu(_), PveTreeNode::Storage(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (PveTreeNode::Storage(_), PveTreeNode::Lxc(_) | PveTreeNode::Qemu(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (PveTreeNode::Storage(a), PveTreeNode::Storage(b)) => a.id.cmp(&b.id),
+            (PveTreeNode::Resource(a), PveTreeNode::Resource(b)) => match (a, b) {
+                (PveResource::Node(a), PveResource::Node(b)) => a.node.cmp(&b.node),
+                (PveResource::Node(_), _) => std::cmp::Ordering::Less,
+                (_, PveResource::Node(_)) => std::cmp::Ordering::Greater,
+                (PveResource::Lxc(a), PveResource::Lxc(b)) => {
+                    cmp_guests(a.template, b.template, a.vmid, b.vmid)
+                }
+                (PveResource::Lxc(_), PveResource::Qemu(_)) => std::cmp::Ordering::Less,
+                (PveResource::Qemu(_), PveResource::Lxc(_)) => std::cmp::Ordering::Greater,
+                (PveResource::Qemu(a), PveResource::Qemu(b)) => {
+                    cmp_guests(a.template, b.template, a.vmid, b.vmid)
+                }
+                (PveResource::Lxc(_) | PveResource::Qemu(_), PveResource::Storage(_)) => {
+                    std::cmp::Ordering::Less
+                }
+                (PveResource::Storage(_), PveResource::Lxc(_) | PveResource::Qemu(_)) => {
+                    std::cmp::Ordering::Greater
+                }
+                (PveResource::Storage(a), PveResource::Storage(b)) => a.id.cmp(&b.id),
+                (PveResource::Network(a), PveResource::Network(b)) => a.id().cmp(b.id()),
+                (PveResource::Network(_), _) => std::cmp::Ordering::Greater,
+                (_, PveResource::Network(_)) => std::cmp::Ordering::Less,
+            },
         });
         let first_id = root
             .children()
@@ -344,54 +327,49 @@ impl LoadableComponent for PveTreeComp {
                 let record = node.record().clone();
                 let link = ctx.link().clone();
 
-                match record {
-                    PveTreeNode::Lxc(r) => ctx.link().spawn(async move {
-                        let res = match action {
-                            Action::Start => {
-                                crate::pdm_client()
-                                    .pve_lxc_start(&remote, Some(&r.node), r.vmid)
-                                    .await
-                            }
-                            Action::Shutdown => {
-                                crate::pdm_client()
-                                    .pve_lxc_shutdown(&remote, Some(&r.node), r.vmid)
-                                    .await
-                            }
-                            // LXC resume is not exposed yet; the UI never offers it.
-                            Action::Resume => return,
-                        };
+                let PveTreeNode::Resource(resource) = record else {
+                    return false;
+                };
+                let resource = resource.as_resource_view();
 
-                        match res {
-                            Ok(upid) => link.show_task_progress(upid.to_string()),
-                            Err(err) => link.show_error(tr!("Error"), err.to_string(), true),
-                        }
-                    }),
-                    PveTreeNode::Qemu(r) => ctx.link().spawn(async move {
-                        let res = match action {
-                            Action::Start => {
-                                crate::pdm_client()
-                                    .pve_qemu_start(&remote, Some(&r.node), r.vmid)
-                                    .await
-                            }
-                            Action::Shutdown => {
-                                crate::pdm_client()
-                                    .pve_qemu_shutdown(&remote, Some(&r.node), r.vmid)
-                                    .await
-                            }
-                            Action::Resume => {
-                                crate::pdm_client()
-                                    .pve_qemu_resume(&remote, Some(&r.node), r.vmid)
-                                    .await
-                            }
-                        };
+                let Some(guest_node) = resource.node().map(|n| n.to_string()) else {
+                    return false;
+                };
+                let Some(vmid) = resource.vmid() else {
+                    return false;
+                };
+                let Some(guest_type) = resource.guest_type() else {
+                    return false;
+                };
 
-                        match res {
-                            Ok(upid) => link.show_task_progress(upid.to_string()),
-                            Err(err) => link.show_error(tr!("Error"), err.to_string(), true),
+                ctx.link().spawn(async move {
+                    let client = crate::pdm_client();
+                    let node = Some(guest_node.as_str());
+                    let res = match (guest_type.into(), action) {
+                        (GuestType::Qemu, Action::Start) => {
+                            client.pve_qemu_start(&remote, node, vmid).await
                         }
-                    }),
-                    _ => {}
-                }
+                        (GuestType::Qemu, Action::Shutdown) => {
+                            client.pve_qemu_shutdown(&remote, node, vmid).await
+                        }
+                        (GuestType::Qemu, Action::Resume) => {
+                            client.pve_qemu_resume(&remote, node, vmid).await
+                        }
+                        (GuestType::Lxc, Action::Start) => {
+                            client.pve_lxc_start(&remote, node, vmid).await
+                        }
+                        (GuestType::Lxc, Action::Shutdown) => {
+                            client.pve_lxc_shutdown(&remote, node, vmid).await
+                        }
+                        // LXC resume is not exposed yet, the UI never offers it.
+                        (GuestType::Lxc, Action::Resume) => return,
+                    };
+
+                    match res {
+                        Ok(upid) => link.show_task_progress(upid.to_string()),
+                        Err(err) => link.show_error(tr!("Error"), err.to_string(), true),
+                    }
+                });
             }
             Msg::KeySelected(key) => {
                 let key = key.unwrap_or_else(|| Key::from("__root__"));
@@ -430,26 +408,28 @@ impl LoadableComponent for PveTreeComp {
                 } else {
                     let text = self.filter.to_lowercase();
                     self.store.set_filter(move |node: &PveTreeNode| match node {
-                        PveTreeNode::Lxc(r) => {
+                        PveTreeNode::Resource(PveResource::Lxc(r)) => {
                             r.vmid.to_string().to_lowercase().contains(&text)
                                 || r.name.to_lowercase().contains(&text)
                                 || "lxc".contains(&text)
                                 || r.tags.iter().any(|tag| tag.contains(&text))
                         }
-                        PveTreeNode::Qemu(r) => {
+                        PveTreeNode::Resource(PveResource::Qemu(r)) => {
                             r.vmid.to_string().to_lowercase().contains(&text)
                                 || r.name.to_lowercase().contains(&text)
                                 || "qemu".contains(&text)
                                 || r.tags.iter().any(|tag| tag.contains(&text))
                         }
-                        PveTreeNode::Storage(r) => {
+                        PveTreeNode::Resource(PveResource::Storage(r)) => {
                             r.storage.to_string().to_lowercase().contains(&text)
                                 || "storage".contains(&text)
                         }
                         // always show tree root node to ensure tree does not look odd.
                         // For now also always show all nodes (should we filter those without any
                         // matches for the node or for it's sub elements?
-                        PveTreeNode::Root | PveTreeNode::Node(_) => true,
+                        PveTreeNode::Root | PveTreeNode::Resource(PveResource::Node(_)) => true,
+                        // don't show the networks
+                        PveTreeNode::Resource(PveResource::Network(_)) => false,
                     });
                 }
             }
@@ -582,7 +562,7 @@ impl LoadableComponent for PveTreeComp {
 }
 
 fn create_empty_node(node_id: String) -> PveTreeNode {
-    PveTreeNode::Node(PveNodeResource {
+    PveTreeNode::Resource(PveResource::Node(PveNodeResource {
         cgroup_mode: Default::default(),
         cpu: Default::default(),
         maxcpu: Default::default(),
@@ -593,7 +573,7 @@ fn create_empty_node(node_id: String) -> PveTreeNode {
         uptime: Default::default(),
         status: Default::default(),
         level: Default::default(),
-    })
+    }))
 }
 
 fn columns(
@@ -620,15 +600,8 @@ fn columns(
                         Container::new().with_child(Fa::new("server")),
                         tr!("Datacenter"),
                     ),
-                    PveTreeNode::Node(r) => (utils::render_node_status_icon(r), r.node.to_string()),
-                    PveTreeNode::Qemu(r) => {
-                        (utils::render_qemu_status_icon(r), render_qemu_name(r, true))
-                    }
-                    PveTreeNode::Lxc(r) => {
-                        (utils::render_lxc_status_icon(r), render_lxc_name(r, true))
-                    }
-                    PveTreeNode::Storage(r) => {
-                        (utils::render_storage_status_icon(r), r.storage.clone())
+                    PveTreeNode::Resource(r) => {
+                        (render_status_icon(r), render_resource_name(r, true))
                     }
                 };
 
@@ -638,8 +611,12 @@ fn columns(
         DataTableColumn::new(tr!("Tags"))
             .flex(1)
             .render(move |entry: &PveTreeNode| match entry {
-                PveTreeNode::Lxc(lxc) => render_guest_tags(&lxc.tags[..]).into(),
-                PveTreeNode::Qemu(qemu) => render_guest_tags(&qemu.tags[..]).into(),
+                PveTreeNode::Resource(PveResource::Lxc(lxc)) => {
+                    render_guest_tags(&lxc.tags[..]).into()
+                }
+                PveTreeNode::Resource(PveResource::Qemu(qemu)) => {
+                    render_guest_tags(&qemu.tags[..]).into()
+                }
                 _ => html! {},
             })
             .into(),
@@ -647,39 +624,37 @@ fn columns(
             .width("180px")
             .render(move |entry: &PveTreeNode| {
                 let (id, local_id, guest_info, node) = match entry {
-                    PveTreeNode::Lxc(r) => {
-                        let guest_info = GuestInfo::new(GuestType::Lxc, r.vmid);
-                        let local_id = guest_info.local_id();
-                        (
-                            r.id.as_str(),
-                            local_id,
-                            Some((guest_info, r.status.as_str(), r.template)),
-                            Some(r.node.clone()),
-                        )
-                    }
-                    PveTreeNode::Qemu(r) => {
-                        let guest_info = GuestInfo::new(GuestType::Qemu, r.vmid);
-                        let local_id = guest_info.local_id();
-                        (
-                            r.id.as_str(),
-                            local_id,
-                            Some((guest_info, r.status.as_str(), r.template)),
-                            Some(r.node.clone()),
-                        )
-                    }
                     PveTreeNode::Root => ("root", "root".to_string(), None, None),
-                    PveTreeNode::Node(r) => (
-                        r.id.as_str(),
-                        format!("node/{}", r.node),
-                        None,
-                        Some(r.node.clone()),
-                    ),
-                    PveTreeNode::Storage(r) => (
-                        r.id.as_str(),
-                        format!("storage/{}/{}", r.node, r.storage),
-                        None,
-                        Some(r.node.clone()),
-                    ),
+                    PveTreeNode::Resource(r) => match r {
+                        PveResource::Lxc(r) => {
+                            let guest_info = GuestInfo::new(GuestType::Lxc, r.vmid);
+                            let local_id = guest_info.local_id();
+                            (
+                                r.id.as_str(),
+                                local_id,
+                                Some((guest_info, r.status.as_str(), r.template)),
+                                Some(r.node.clone()),
+                            )
+                        }
+                        PveResource::Qemu(r) => {
+                            let guest_info = GuestInfo::new(GuestType::Qemu, r.vmid);
+                            let local_id = guest_info.local_id();
+                            (
+                                r.id.as_str(),
+                                local_id,
+                                Some((guest_info, r.status.as_str(), r.template)),
+                                Some(r.node.clone()),
+                            )
+                        }
+                        PveResource::Node(_)
+                        | PveResource::Storage(_)
+                        | PveResource::Network(_) => (
+                            r.as_resource_view().global_id(),
+                            r.as_resource_view().id(),
+                            None,
+                            r.as_resource_view().node().map(|n| n.to_string()),
+                        ),
+                    },
                 };
 
                 Row::new()
