@@ -591,6 +591,7 @@ fn columns(
             .flex(1)
             .tree_column(store)
             .render(move |entry: &PveTreeNode| {
+                let mut extra = None;
                 let (icon, text) = match entry {
                     PveTreeNode::Root if loading => (
                         Container::from_tag("i").class("pwt-loading-icon"),
@@ -601,23 +602,19 @@ fn columns(
                         tr!("Datacenter"),
                     ),
                     PveTreeNode::Resource(r) => {
+                        let tags = match r {
+                            PveResource::Qemu(q) if !q.tags.is_empty() => Some(&q.tags),
+                            PveResource::Lxc(l) if !l.tags.is_empty() => Some(&l.tags),
+                            _ => None,
+                        };
+                        extra = tags.map(|tags| render_guest_tags(tags));
                         (render_status_icon(r), render_resource_name(r, true))
                     }
                 };
 
-                render_tree_column(icon.into(), text).into()
-            })
-            .into(),
-        DataTableColumn::new(tr!("Tags"))
-            .flex(1)
-            .render(move |entry: &PveTreeNode| match entry {
-                PveTreeNode::Resource(PveResource::Lxc(lxc)) => {
-                    render_guest_tags(&lxc.tags[..]).into()
-                }
-                PveTreeNode::Resource(PveResource::Qemu(qemu)) => {
-                    render_guest_tags(&qemu.tags[..]).into()
-                }
-                _ => html! {},
+                render_tree_column(icon.into(), text)
+                    .with_optional_child(extra)
+                    .into()
             })
             .into(),
         DataTableColumn::new(tr!("Actions"))
