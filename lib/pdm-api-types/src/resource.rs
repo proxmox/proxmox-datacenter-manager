@@ -234,6 +234,19 @@ impl<'a> ResourceView<'a> {
         }
     }
 
+    /// Returns the cluster node the resource is located on. Returns `None` if it's a PBS resource
+    pub fn node(&self) -> Option<&'a str> {
+        let node = match self {
+            ResourceView::PveStorage(r) => &r.node,
+            ResourceView::PveQemu(r) => &r.node,
+            ResourceView::PveLxc(r) => &r.node,
+            ResourceView::PveNode(r) => &r.node,
+            ResourceView::PveNetwork(r) => r.node(),
+            ResourceView::PbsNode(_) | ResourceView::PbsDatastore(_) => return None,
+        };
+        Some(node)
+    }
+
     /// Returns the resource type, e.g. Node, Qemu, etc.
     pub fn resource_type(&self) -> ResourceType {
         match self {

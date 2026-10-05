@@ -18,13 +18,14 @@ use pwt::{
     widget::{ActionIcon, Column, Container, Panel, Row, error_message},
 };
 
+use pdm_api_types::resource::AsResourceView;
 use pdm_api_types::views::LeaderboardType;
 use pdm_client::types::{Resource, TopEntity};
 
 use crate::LoadResult;
 use crate::{
     dashboard::{create_title_with_icon, loading_column},
-    get_deep_url, get_resource_node, navigate_to,
+    get_deep_url, navigate_to,
     renderer::{render_resource_icon, render_resource_name},
 };
 
@@ -138,7 +139,7 @@ impl Component for TopEntitiesComp {
             let rrd = &entity.rrd_data;
             let remote = &entity.remote;
 
-            let node = get_resource_node(resource).map(|n| n.to_string());
+            let node = resource.as_resource_view().node().map(|n| n.to_string());
 
             let tooltip_anchor = if let Some(info) = self.tooltip_info.as_ref() {
                 if info.id == resource.global_id() {

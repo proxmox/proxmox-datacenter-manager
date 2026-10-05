@@ -28,12 +28,12 @@ use pwt_macros::{builder, widget};
 
 use proxmox_yew_comp::{Status, http_get};
 
-use pdm_api_types::resource::{RemoteResources, Resource};
+use pdm_api_types::resource::{AsResourceView, RemoteResources, Resource};
 
 use crate::{
     RemoteList,
     dashboard::view::ViewContext,
-    get_deep_url, get_resource_node,
+    get_deep_url,
     pve::utils::render_guest_tags,
     renderer::{render_resource_name, render_status_icon},
 };
@@ -420,7 +420,7 @@ fn columns(
                 match item {
                     PdmTreeEntry::Root => "",
                     PdmTreeEntry::Resource(_, resource) => {
-                        get_resource_node(resource).unwrap_or("")
+                        resource.as_resource_view().node().unwrap_or("")
                     }
                     PdmTreeEntry::Remote(_, _) => "",
                 }
@@ -436,7 +436,7 @@ fn columns(
                     let (remote, id, node) = match item {
                         PdmTreeEntry::Root => return html! {},
                         PdmTreeEntry::Resource(remote_id, resource) => {
-                            (remote_id, resource.id(), get_resource_node(resource))
+                            (remote_id, resource.id(), resource.as_resource_view().node())
                         }
                         PdmTreeEntry::Remote(remote_id, _) => (remote_id, String::new(), None),
                     };

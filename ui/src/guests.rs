@@ -39,14 +39,14 @@ use pwt::widget::{
 };
 
 use pdm_api_types::RemoteUpid;
-use pdm_api_types::resource::{RemoteResources, Resource};
+use pdm_api_types::resource::{AsResourceView, RemoteResources, Resource};
 use pdm_search::SearchTerm;
 
 use crate::pve::utils::{guest_is_live, guest_status_label, render_guest_tags};
 use crate::pve::{GuestInfo, GuestType};
 use crate::renderer::{empty_state, render_resource_name, render_status_icon, render_tree_column};
 use crate::{
-    get_deep_url, get_resource_node,
+    get_deep_url,
     widget::{MigrateWindow, SnapshotWindow},
 };
 
@@ -161,7 +161,7 @@ impl GuestEntry {
     }
 
     fn node(&self) -> &str {
-        get_resource_node(&self.resource).unwrap_or("")
+        self.resource.as_resource_view().node().unwrap_or("")
     }
 
     fn guest_info(&self) -> GuestInfo {
