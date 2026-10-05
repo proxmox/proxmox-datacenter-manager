@@ -6,43 +6,43 @@ use pwt::widget::{Column, Container, Fa, Row};
 
 use proxmox_human_byte::HumanByte;
 
-use pdm_client::types::Resource;
+use pdm_api_types::resource::{AsResourceView, ResourceView};
 
 use crate::pve;
 
-pub fn render_resource_name(resource: &Resource, vmid_first: bool) -> String {
-    match resource {
-        Resource::PveStorage(storage) => storage.storage.clone(),
-        Resource::PveQemu(qemu) => pve::utils::render_qemu_name(qemu, vmid_first),
-        Resource::PveLxc(lxc) => pve::utils::render_lxc_name(lxc, vmid_first),
-        Resource::PveNode(node) => node.node.clone(),
-        Resource::PveNetwork(network) => network.name().to_string(),
-        Resource::PbsNode(node) => node.name.clone(),
-        Resource::PbsDatastore(store) => store.name.clone(),
+pub fn render_resource_name(resource: impl AsResourceView, vmid_first: bool) -> String {
+    match resource.as_resource_view() {
+        ResourceView::PveStorage(storage) => storage.storage.clone(),
+        ResourceView::PveQemu(qemu) => pve::utils::render_qemu_name(qemu, vmid_first),
+        ResourceView::PveLxc(lxc) => pve::utils::render_lxc_name(lxc, vmid_first),
+        ResourceView::PveNode(node) => node.node.clone(),
+        ResourceView::PveNetwork(network) => network.name().to_string(),
+        ResourceView::PbsNode(node) => node.name.clone(),
+        ResourceView::PbsDatastore(store) => store.name.clone(),
     }
 }
 
-pub fn render_resource_icon(resource: &Resource) -> Fa {
-    let class = match resource {
-        Resource::PveStorage(_) => "database",
-        Resource::PveQemu(_) => "desktop",
-        Resource::PveLxc(_) => "cube",
-        Resource::PveNode(_) => "building",
-        Resource::PveNetwork(_) => "fa-sdn",
-        Resource::PbsNode(_) => "building-o",
-        Resource::PbsDatastore(_) => "floppy-o",
+pub fn render_resource_icon(resource: impl AsResourceView) -> Fa {
+    let class = match resource.as_resource_view() {
+        ResourceView::PveStorage(_) => "database",
+        ResourceView::PveQemu(_) => "desktop",
+        ResourceView::PveLxc(_) => "cube",
+        ResourceView::PveNode(_) => "building",
+        ResourceView::PveNetwork(_) => "fa-sdn",
+        ResourceView::PbsNode(_) => "building-o",
+        ResourceView::PbsDatastore(_) => "floppy-o",
     };
 
     Fa::new(class)
 }
 
-pub fn render_status_icon(resource: &Resource) -> Container {
-    match resource {
-        Resource::PveStorage(store) => pve::utils::render_storage_status_icon(store),
-        Resource::PveQemu(qemu) => pve::utils::render_qemu_status_icon(qemu),
-        Resource::PveLxc(lxc) => pve::utils::render_lxc_status_icon(lxc),
-        Resource::PveNode(node) => pve::utils::render_node_status_icon(node),
-        Resource::PveNetwork(network) => pve::utils::render_sdn_status_icon(network),
+pub fn render_status_icon(resource: impl AsResourceView) -> Container {
+    match resource.as_resource_view() {
+        ResourceView::PveStorage(store) => pve::utils::render_storage_status_icon(store),
+        ResourceView::PveQemu(qemu) => pve::utils::render_qemu_status_icon(qemu),
+        ResourceView::PveLxc(lxc) => pve::utils::render_lxc_status_icon(lxc),
+        ResourceView::PveNode(node) => pve::utils::render_node_status_icon(node),
+        ResourceView::PveNetwork(network) => pve::utils::render_sdn_status_icon(network),
         // FIXME: implement remaining types
         _ => Container::new().with_child(render_resource_icon(resource)),
     }
