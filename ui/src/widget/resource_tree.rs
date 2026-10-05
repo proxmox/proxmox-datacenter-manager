@@ -34,8 +34,7 @@ use crate::{
     RemoteList,
     dashboard::view::ViewContext,
     get_deep_url,
-    pve::utils::render_guest_tags,
-    renderer::{render_resource_name, render_status_icon},
+    renderer::{render_resource_extra_info, render_resource_name, render_status_icon},
 };
 
 const REFRESH_TIME_S: u32 = 60;
@@ -381,11 +380,7 @@ fn columns(
                         Row::new()
                             .gap(1)
                             .with_child(render_resource_name(resource, true))
-                            .with_child(render_guest_tags(match resource {
-                                Resource::PveQemu(pve_qemu_resource) => &pve_qemu_resource.tags[..],
-                                Resource::PveLxc(pve_lxc_resource) => &pve_lxc_resource.tags[..],
-                                _ => &[],
-                            }))
+                            .with_optional_child(render_resource_extra_info(resource))
                             .into(),
                         None,
                     ),

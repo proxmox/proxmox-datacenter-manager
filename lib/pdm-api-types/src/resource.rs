@@ -480,6 +480,29 @@ pub struct PveLxcResource {
 #[api]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
+/// HA State of a PVE node.
+pub enum PveNodeHaState {
+    /// The node is online and member of quorate partition
+    Online,
+    /// Node is a member of a quorate partition but in maintenance mode
+    Maintenance,
+    /// Not member of quorate partition, but possibly still running
+    Unknown,
+    /// Node needs to be fenced
+    Fence,
+    /// Node vanished from cluster member list
+    Gone,
+    /// Other (unknown) HA state
+    #[serde(untagged)]
+    Other(String),
+}
+
+serde_plain::derive_display_from_serialize!(PveNodeHaState);
+serde_plain::derive_fromstr_from_deserialize!(PveNodeHaState);
+
+#[api]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
 /// Node resource in a PVE cluster
 pub struct PveNodeResource {
     /// CGroup Mode
@@ -502,6 +525,9 @@ pub struct PveNodeResource {
     pub status: String,
     /// Subscription level
     pub level: String,
+    /// HA State
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ha_state: Option<PveNodeHaState>,
 }
 
 #[api]

@@ -29,14 +29,13 @@ use pdm_api_types::{
 
 use crate::{
     get_deep_url,
-    renderer::{render_resource_name, render_status_icon, render_tree_column},
+    renderer::{
+        render_resource_extra_info, render_resource_name, render_status_icon, render_tree_column,
+    },
     widget::MigrateWindow,
 };
 
-use super::{
-    GuestInfo, GuestType,
-    utils::{self, render_guest_tags},
-};
+use super::{GuestInfo, GuestType, utils};
 
 #[derive(Clone, PartialEq)]
 pub enum PveTreeNode {
@@ -573,6 +572,7 @@ fn create_empty_node(node_id: String) -> PveTreeNode {
         uptime: Default::default(),
         status: Default::default(),
         level: Default::default(),
+        ha_state: Default::default(),
     }))
 }
 
@@ -602,12 +602,7 @@ fn columns(
                         tr!("Datacenter"),
                     ),
                     PveTreeNode::Resource(r) => {
-                        let tags = match r {
-                            PveResource::Qemu(q) if !q.tags.is_empty() => Some(&q.tags),
-                            PveResource::Lxc(l) if !l.tags.is_empty() => Some(&l.tags),
-                            _ => None,
-                        };
-                        extra = tags.map(|tags| render_guest_tags(tags));
+                        extra = render_resource_extra_info(r);
                         (render_status_icon(r), render_resource_name(r, true))
                     }
                 };

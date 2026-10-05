@@ -2,13 +2,14 @@ use proxmox_yew_comp::MeterLabel;
 use pwt::css::{AlignItems, FlexFit, FontStyle, JustifyContent};
 use pwt::prelude::*;
 use pwt::props::ContainerBuilder;
-use pwt::widget::{Column, Container, Fa, Row};
+use pwt::widget::{Badge, Column, Container, Fa, Row};
 
 use proxmox_human_byte::HumanByte;
 
-use pdm_api_types::resource::{AsResourceView, ResourceView};
+use pdm_api_types::resource::{AsResourceView, PveNodeHaState, ResourceView};
 
 use crate::pve;
+use crate::pve::utils::render_guest_tags;
 
 pub fn render_resource_name(resource: impl AsResourceView, vmid_first: bool) -> String {
     match resource.as_resource_view() {
@@ -19,6 +20,23 @@ pub fn render_resource_name(resource: impl AsResourceView, vmid_first: bool) -> 
         ResourceView::PveNetwork(network) => network.name().to_string(),
         ResourceView::PbsNode(node) => node.name.clone(),
         ResourceView::PbsDatastore(store) => store.name.clone(),
+    }
+}
+
+pub fn render_resource_extra_info(resource: impl AsResourceView) -> Option<Html> {
+    match resource.as_resource_view() {
+        ResourceView::PveNode(node) => match node.ha_state.as_ref()? {
+            PveNodeHaState::Maintenance => Some(
+                Badge::new(tr!("HA Maintenance"))
+                    .color_scheme(pwt::css::ColorScheme::PrimaryContainer)
+                    .icon("wrench")
+                    .into(),
+            ),
+            _ => None,
+        },
+        ResourceView::PveQemu(q) if !q.tags.is_empty() => Some(render_guest_tags(&q.tags).into()),
+        ResourceView::PveLxc(l) if !l.tags.is_empty() => Some(render_guest_tags(&l.tags).into()),
+        _ => None,
     }
 }
 
