@@ -1,3 +1,41 @@
+proxmox-datacenter-manager-ui (1.1.4) trixie; urgency=medium
+
+  * remote wizard: show the current step, the remaining time and a Cancel
+    button while contacting the remote, suggest checking the network and
+    firewall when a step takes longer than 15 seconds, and allow retrying a
+    step that timed out. All endpoint checks share one time limit, a retry
+    only re-checks the endpoints that failed, and the entered address is
+    matched to the right node when nodes share a certificate.
+
+  * remote updates: show an unknown status instead of "OK" for nodes and
+    remotes that could not be polled, and show the error when selecting an
+    unreachable remote.
+
+  * fix #7682: auto-installer: store the maximum ZFS ARC size of prepared
+    answers under the 'arc-max' name the server expects.
+
+  * pull in fixes and improvements from newer versions of statically linked UI
+    dependencies:
+    - users: changing a password no longer clears the user's name, email
+      address and comment.
+    - realms: allow editing the built-in PAM and PDM realms, for example to
+      set the default realm for logging in. This was already possible through
+      the API since proxmox-datacenter-manager 1.1.6.
+    - fix the login page crashing when Chrome autofills the user name.
+    - reload other open tabs after logging out or logging in as another user,
+      instead of letting them restore the previous login.
+    - fix #7959: ACME: limit the validation delay to 48 hours, the maximum
+      the backend accepts.
+    - fix #7963: ACME: filter DNS plugins by their displayed name instead of
+      their internal ID.
+    - fix #7426: network: show the interface name example for the type being
+      created, instead of always the VLAN one.
+    - many smaller fixes for dialogs, tables, tab bars and selectors, for
+      example keeping dialog buttons in view when the content grows, and
+      better keyboard and screen reader support.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 07 Oct 2026 20:08:51 +0200
+
 proxmox-datacenter-manager-ui (1.1.3) trixie; urgency=medium
 
   * guests: add console access for Proxmox VE guests, opened against the
