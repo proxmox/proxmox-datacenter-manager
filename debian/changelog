@@ -1,3 +1,70 @@
+proxmox-datacenter-manager (1.1.8) trixie; urgency=medium
+
+  * remotes:
+    - time out contacting a remote that is being added, for example the
+      certificate probe and the scan, after three minutes instead of waiting
+      indefinitely on an unresponsive remote. Creating the API token is
+      limited the same way, and an error now says if a token may have been
+      left behind.
+    - Proxmox VE: take the node fingerprints from the cluster's node list
+      when scanning, instead of probing each node one after another, which
+      could take minutes when nodes were unreachable under their name.
+    - Proxmox Backup Server: check an existing API token while scanning, so
+      wrong credentials are reported before the remote is added, and detect a
+      failed ACL update for a new token, which left a token without
+      privileges behind.
+    - lock each remote separately, so adding or removing one no longer blocks
+      other configuration changes, and concurrent changes can no longer
+      overwrite each other.
+    - a full queue of metric collection requests no longer delays adding a
+      remote.
+
+  * remote connections:
+    - time out requests addressed to a single node, for example for the
+      cluster status, after sixty seconds like all other requests.
+    - time out streamed responses, such as snapshot listings, after sixty
+      seconds without new data.
+    - do not resend a timed-out request that is not safe to repeat, like
+      starting a migration, to another node, as the first node may already
+      have carried it out.
+
+  * permissions: fix 403 errors for administrators viewing node metrics, and
+    for users other than root@pam opening the Proxmox VE firewall overview.
+
+  * task lists: do not show running tasks when filtering for failed ones.
+
+  * fix #7746: admin CLI: show the installed package versions instead of the
+    ones apt would upgrade to, also in the system report.
+
+  * admin CLI: add 'cert info' and 'cert update' commands to inspect and
+    regenerate the node certificate.
+
+  * fix #7187: system report: include ethtool output for physical network
+    interfaces, and add the tools the report runs, like ethtool and iproute2,
+    as package dependencies.
+
+  * fix #7135: OpenID Connect: log the full error when the authorization URL
+    cannot be requested.
+
+  * pull in fixes from newer versions of statically linked dependencies:
+    - fix #6267: clean up old task logs again on busy systems.
+    - fix #7329: network: support the IPv6 'auto' method, and keep the dhcp,
+      auto and loopback methods when editing other interface settings.
+    - rrd metrics: keep recorded metric data intact across crashes and
+      restarts, which could lose updates or store wrong timestamps.
+    - API server: handle proxy headers, authentication cookies and requests
+      to stop a task more robustly, and stop logging redirects and expired
+      tickets as failures. The authentication and permission checks of all
+      endpoints now share one code path.
+    - pdmAtoB: fix false warnings about the upgraded package, the 7.0 kernel
+      and DKMS modules.
+    - command-line tools: report an invalid global option instead of exiting
+      silently, and fix a crash in the shell completion.
+
+  * documentation: describe the debug-symbol apt package repository.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 07 Oct 2026 20:08:51 +0200
+
 proxmox-datacenter-manager (1.1.7) trixie; urgency=medium
 
   * fix #7795: remote guest consoles: use the correct privilege path when
