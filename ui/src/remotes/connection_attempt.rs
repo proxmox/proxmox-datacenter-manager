@@ -83,10 +83,9 @@ pub fn attempt_mask(
                         Column::new()
                             .gap(1)
                             .with_child(
-                                Row::new()
-                                    .gap(1)
-                                    .class(AlignItems::Center)
+                                Container::from_tag("span")
                                     .with_child(operation.to_string())
+                                    .with_child(" ")
                                     // The countdown shows the time left until the deadline, not an
                                     // estimate of when the operation finishes. It changes every
                                     // second, so it stays out of the live region below to avoid
