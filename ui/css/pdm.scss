@@ -51,7 +51,10 @@
 
 .pve-tags {
     text-overflow: ellipsis;
+    overflow: hidden;
     .pve-tag {
+        text-overflow: ellipsis;
+        overflow: hidden;
         border-radius: var(--pwt-button-corner-shape);
         padding-inline: var(--pwt-spacer-2)
     }

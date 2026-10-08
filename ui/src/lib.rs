@@ -3,9 +3,8 @@ use gloo_utils::window;
 use js_sys::{Array, JsString, Object};
 use pdm_api_types::remote_updates::RemoteUpdateSummary;
 use pdm_api_types::remotes::RemoteType;
-use pdm_api_types::resource::{PveLxcResource, PveQemuResource};
+use pdm_api_types::resource::AsResourceView;
 use pdm_api_types::subscription::PdmSubscriptionInfo;
-use pdm_client::types::Resource;
 use proxmox_deb_version::Version;
 use pwt::props::ContainerBuilder;
 use pwt::tr;
@@ -191,11 +190,11 @@ pub(crate) fn navigate_to<C: yew::Component>(
     if let Some(nav) = link.navigator() {
         let (prefix, id) = resource
             .and_then(|resource| {
+                if let Some(vmid) = resource.as_resource_view().vmid() {
+                    return Some((true, format!("guest+{vmid}")));
+                }
+
                 Some(match resource {
-                    pdm_client::types::Resource::PveQemu(PveQemuResource { vmid, .. })
-                    | pdm_client::types::Resource::PveLxc(PveLxcResource { vmid, .. }) => {
-                        (true, format!("guest+{vmid}"))
-                    }
                     pdm_client::types::Resource::PveNode(node) => {
                         (true, format!("node+{}", node.node))
                     }
@@ -218,18 +217,6 @@ pub(crate) fn navigate_to<C: yew::Component>(
         };
 
         nav.push(&yew_router::AnyRoute::new(format!("/{prefix}{id}")));
-    }
-}
-
-pub(crate) fn get_resource_node(resource: &Resource) -> Option<&str> {
-    match resource {
-        Resource::PveStorage(storage) => Some(&storage.node),
-        Resource::PveQemu(qemu) => Some(&qemu.node),
-        Resource::PveLxc(lxc) => Some(&lxc.node),
-        Resource::PveNode(node) => Some(&node.node),
-        Resource::PveNetwork(network) => Some(network.node()),
-        Resource::PbsNode(_) => None,
-        Resource::PbsDatastore(_) => None,
     }
 }
 

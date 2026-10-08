@@ -1189,6 +1189,7 @@ pub(super) fn map_pve_node(remote: &str, resource: ClusterResource) -> Option<Pv
             uptime: resource.uptime.unwrap_or_default() as u64,
             status: resource.status.unwrap_or_default(),
             level: resource.level.unwrap_or_default(),
+            ha_state: resource.hastate.and_then(|state| state.parse().ok()),
         }),
         _ => None,
     }

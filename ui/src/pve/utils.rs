@@ -122,7 +122,11 @@ pub fn render_storage_status_icon(node: &PveStorageResource) -> Container {
 
 /// Returns a [`pwt::widget::Row`] with an element for each tag
 pub fn render_guest_tags(tags: &[String]) -> Row {
-    let mut row = Row::new().class("pve-tags").gap(2);
+    let mut row = Row::new()
+        .class("pve-tags")
+        .gap(2)
+        // use an absurdly high value to shrink the tags first
+        .style("flex-shrink", "100000");
 
     for tag in tags {
         if tag.is_empty() {

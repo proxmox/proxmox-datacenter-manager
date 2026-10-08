@@ -45,102 +45,36 @@ impl Resource {
     /// Returns the local ID, not a globally unique one, e.g.
     /// `qemu/<vmid>`
     pub fn id(&self) -> String {
-        match self {
-            Resource::PveStorage(r) => format!("storage/{}/{}", r.node, r.storage),
-            Resource::PveQemu(r) => format!("qemu/{}", r.vmid),
-            Resource::PveLxc(r) => format!("lxc/{}", r.vmid),
-            Resource::PveNode(r) => format!("node/{}", r.node),
-            Resource::PveNetwork(r) => {
-                if let PveNetworkResource::Zone(z) = r {
-                    if z.legacy {
-                        return format!("sdn/{}/{}", r.node(), r.name());
-                    }
-                }
-
-                format!("network/{}/{}/{}", r.node(), r.network_type(), r.name())
-            }
-            Resource::PbsNode(r) => format!("node/{}", r.name),
-            Resource::PbsDatastore(r) => r.name.clone(),
-        }
+        self.as_resource_view().id()
     }
 
     /// Returns the PDM global ID for the resource, e.g.
     /// `remote/<remote-id>/guest/<vmid>`
     pub fn global_id(&self) -> &str {
-        match self {
-            Resource::PveStorage(r) => r.id.as_str(),
-            Resource::PveQemu(r) => r.id.as_str(),
-            Resource::PveLxc(r) => r.id.as_str(),
-            Resource::PveNode(r) => r.id.as_str(),
-            Resource::PveNetwork(r) => r.id(),
-            Resource::PbsNode(r) => r.id.as_str(),
-            Resource::PbsDatastore(r) => r.id.as_str(),
-        }
+        self.as_resource_view().global_id()
     }
 
     /// Returns the "name" of the resource, e.g. the guest name for VMs/Containers or
     /// the hostname for nodes
     pub fn name(&self) -> &str {
-        match self {
-            Resource::PveStorage(r) => r.storage.as_str(),
-            Resource::PveQemu(r) => r.name.as_str(),
-            Resource::PveLxc(r) => r.name.as_str(),
-            Resource::PveNode(r) => r.node.as_str(),
-            Resource::PveNetwork(r) => r.name(),
-            Resource::PbsNode(r) => r.name.as_str(),
-            Resource::PbsDatastore(r) => r.name.as_str(),
-        }
+        self.as_resource_view().name()
     }
 
+    /// Returns the resource type, e.g. Node, Qemu, etc.
     pub fn resource_type(&self) -> ResourceType {
-        match self {
-            Resource::PveStorage(_) => ResourceType::PveStorage,
-            Resource::PveQemu(_) => ResourceType::PveQemu,
-            Resource::PveLxc(_) => ResourceType::PveLxc,
-            Resource::PveNetwork(_) => ResourceType::PveNetwork,
-            Resource::PveNode(_) | Resource::PbsNode(_) => ResourceType::Node,
-            Resource::PbsDatastore(_) => ResourceType::PbsDatastore,
-        }
+        self.as_resource_view().resource_type()
     }
 
+    /// Returns the status of the resource, e.g. 'online' or 'offline'. The exact
+    /// status values depends on the resource type.
     pub fn status(&self) -> &str {
-        match self {
-            Resource::PveStorage(r) => r.status.as_str(),
-            Resource::PveQemu(r) => r.status.as_str(),
-            Resource::PveLxc(r) => r.status.as_str(),
-            Resource::PveNode(r) => r.status.as_str(),
-            Resource::PveNetwork(r) => r.status(),
-            Resource::PbsNode(r) => {
-                if r.uptime > 0 {
-                    "online"
-                } else {
-                    "offline"
-                }
-            }
-            Resource::PbsDatastore(r) => {
-                if r.maintenance.is_none() {
-                    "online"
-                } else {
-                    "under-maintenance"
-                }
-            }
-        }
+        self.as_resource_view().status()
     }
 
+    /// Returns additional properties of the resource. Only a PBS datastore
+    /// returns values.
     pub fn properties(&self) -> String {
-        let mut properties = Vec::new();
-        if let Resource::PbsDatastore(r) = self {
-            if let Some(backend_type) = &r.backend_type {
-                properties.push(backend_type.to_string());
-            }
-            if r.backing_device.is_some() {
-                properties.push("removable".to_string());
-            }
-            if r.usage > PBS_DATASTORE_HIGH_USAGE_THRESHOLD {
-                properties.push("high-usage".to_string());
-            }
-        }
-        properties.join(",")
+        self.as_resource_view().properties()
     }
 }
 
@@ -227,6 +161,228 @@ pub enum PveResource {
     Node(PveNodeResource),
     /// Network in PVE.
     Network(PveNetworkResource),
+}
+
+/// A borrowed view of a resource that can come from a [Resource] or a [PveResource] This is useful
+/// for having a single implementation of field access regardless of which of the types is used.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ResourceView<'a> {
+    /// Storage resource in PVE.
+    PveStorage(&'a PveStorageResource),
+    /// QEMU guest resource in PVE.
+    PveQemu(&'a PveQemuResource),
+    /// LXC guest resource in PVE.
+    PveLxc(&'a PveLxcResource),
+    /// A PVE node.
+    PveNode(&'a PveNodeResource),
+    /// Network in PVE.
+    PveNetwork(&'a PveNetworkResource),
+    /// A PBS node.
+    PbsNode(&'a PbsNodeResource),
+    /// Datastore on a PBS node.
+    PbsDatastore(&'a PbsDatastoreResource),
+}
+
+impl<'a> ResourceView<'a> {
+    /// Returns the local ID, not a globally unique one, e.g.
+    /// `qemu/<vmid>`
+    pub fn id(&self) -> String {
+        match self {
+            ResourceView::PveStorage(r) => format!("storage/{}/{}", r.node, r.storage),
+            ResourceView::PveQemu(r) => format!("qemu/{}", r.vmid),
+            ResourceView::PveLxc(r) => format!("lxc/{}", r.vmid),
+            ResourceView::PveNode(r) => format!("node/{}", r.node),
+            ResourceView::PveNetwork(r) => {
+                if let PveNetworkResource::Zone(z) = r {
+                    if z.legacy {
+                        return format!("sdn/{}/{}", r.node(), r.name());
+                    }
+                }
+
+                format!("network/{}/{}/{}", r.node(), r.network_type(), r.name())
+            }
+            ResourceView::PbsNode(r) => format!("node/{}", r.name),
+            ResourceView::PbsDatastore(r) => r.name.clone(),
+        }
+    }
+
+    /// Returns the PDM global ID for the resource, e.g.
+    /// `remote/<remote-id>/guest/<vmid>`
+    pub fn global_id(&self) -> &'a str {
+        match self {
+            ResourceView::PveStorage(r) => r.id.as_str(),
+            ResourceView::PveQemu(r) => r.id.as_str(),
+            ResourceView::PveLxc(r) => r.id.as_str(),
+            ResourceView::PveNode(r) => r.id.as_str(),
+            ResourceView::PveNetwork(r) => r.id(),
+            ResourceView::PbsNode(r) => r.id.as_str(),
+            ResourceView::PbsDatastore(r) => r.id.as_str(),
+        }
+    }
+
+    /// Returns the "name" of the resource, e.g. the guest name for VMs/Containers or
+    /// the hostname for nodes
+    pub fn name(&self) -> &'a str {
+        match self {
+            ResourceView::PveStorage(r) => r.storage.as_str(),
+            ResourceView::PveQemu(r) => r.name.as_str(),
+            ResourceView::PveLxc(r) => r.name.as_str(),
+            ResourceView::PveNode(r) => r.node.as_str(),
+            ResourceView::PveNetwork(r) => r.name(),
+            ResourceView::PbsNode(r) => r.name.as_str(),
+            ResourceView::PbsDatastore(r) => r.name.as_str(),
+        }
+    }
+
+    /// Returns the cluster node the resource is located on. Returns `None` if it's a PBS resource
+    pub fn node(&self) -> Option<&'a str> {
+        let node = match self {
+            ResourceView::PveStorage(r) => &r.node,
+            ResourceView::PveQemu(r) => &r.node,
+            ResourceView::PveLxc(r) => &r.node,
+            ResourceView::PveNode(r) => &r.node,
+            ResourceView::PveNetwork(r) => r.node(),
+            ResourceView::PbsNode(_) | ResourceView::PbsDatastore(_) => return None,
+        };
+        Some(node)
+    }
+
+    /// Returns the VMID if the resource has one. Returns `None` for non-guest resources.
+    pub fn vmid(&self) -> Option<u32> {
+        match self {
+            ResourceView::PveQemu(qemu) => Some(qemu.vmid),
+            ResourceView::PveLxc(lxc) => Some(lxc.vmid),
+            _ => None,
+        }
+    }
+
+    /// Returns the guest type if the resource has one. Returns `None` for non-guest resources.
+    pub fn guest_type(&self) -> Option<GuestType> {
+        match self {
+            ResourceView::PveQemu(_) => Some(GuestType::Qemu),
+            ResourceView::PveLxc(_) => Some(GuestType::Lxc),
+            _ => None,
+        }
+    }
+
+    /// Returns the resource type, e.g. Node, Qemu, etc.
+    pub fn resource_type(&self) -> ResourceType {
+        match self {
+            ResourceView::PveStorage(_) => ResourceType::PveStorage,
+            ResourceView::PveQemu(_) => ResourceType::PveQemu,
+            ResourceView::PveLxc(_) => ResourceType::PveLxc,
+            ResourceView::PveNetwork(_) => ResourceType::PveNetwork,
+            ResourceView::PveNode(_) | ResourceView::PbsNode(_) => ResourceType::Node,
+            ResourceView::PbsDatastore(_) => ResourceType::PbsDatastore,
+        }
+    }
+
+    /// Returns the status of the resource, e.g. 'online' or 'offline'. The exact
+    /// status values depends on the resource type.
+    pub fn status(&self) -> &'a str {
+        match self {
+            ResourceView::PveStorage(r) => r.status.as_str(),
+            ResourceView::PveQemu(r) => r.status.as_str(),
+            ResourceView::PveLxc(r) => r.status.as_str(),
+            ResourceView::PveNode(r) => r.status.as_str(),
+            ResourceView::PveNetwork(r) => r.status(),
+            ResourceView::PbsNode(r) => {
+                if r.uptime > 0 {
+                    "online"
+                } else {
+                    "offline"
+                }
+            }
+            ResourceView::PbsDatastore(r) => {
+                if r.maintenance.is_none() {
+                    "online"
+                } else {
+                    "under-maintenance"
+                }
+            }
+        }
+    }
+
+    /// Returns additional properties of the resource. Only a PBS datastore
+    /// returns values.
+    pub fn properties(&self) -> String {
+        let mut properties = Vec::new();
+        if let ResourceView::PbsDatastore(r) = self {
+            if let Some(backend_type) = &r.backend_type {
+                properties.push(backend_type.to_string());
+            }
+            if r.backing_device.is_some() {
+                properties.push("removable".to_string());
+            }
+            if r.usage > PBS_DATASTORE_HIGH_USAGE_THRESHOLD {
+                properties.push("high-usage".to_string());
+            }
+        }
+        properties.join(",")
+    }
+}
+
+impl<'a> From<&'a Resource> for ResourceView<'a> {
+    fn from(value: &'a Resource) -> Self {
+        match value {
+            Resource::PveStorage(r) => ResourceView::PveStorage(r),
+            Resource::PveQemu(r) => ResourceView::PveQemu(r),
+            Resource::PveLxc(r) => ResourceView::PveLxc(r),
+            Resource::PveNode(r) => ResourceView::PveNode(r),
+            Resource::PveNetwork(r) => ResourceView::PveNetwork(r),
+            Resource::PbsNode(r) => ResourceView::PbsNode(r),
+            Resource::PbsDatastore(r) => ResourceView::PbsDatastore(r),
+        }
+    }
+}
+
+impl<'a> From<&'a PveResource> for ResourceView<'a> {
+    fn from(value: &'a PveResource) -> Self {
+        match value {
+            PveResource::Storage(r) => ResourceView::PveStorage(r),
+            PveResource::Qemu(r) => ResourceView::PveQemu(r),
+            PveResource::Lxc(r) => ResourceView::PveLxc(r),
+            PveResource::Node(r) => ResourceView::PveNode(r),
+            PveResource::Network(r) => ResourceView::PveNetwork(r),
+        }
+    }
+}
+
+/// A trait to that allows any struct which contains resources (e.g. PveStorageResource,
+/// PveQemuResource, etc.) to be represented with a lifetime, so a reference. This makes it
+/// possible to use a reference to such a resource in a generic manner.
+pub trait AsResourceView {
+    fn as_resource_view(&self) -> ResourceView<'_>;
+}
+
+impl<'a> AsResourceView for ResourceView<'a> {
+    fn as_resource_view<'b>(&'b self) -> ResourceView<'a> {
+        self.clone()
+    }
+}
+
+impl AsResourceView for Resource {
+    fn as_resource_view<'a>(&'a self) -> ResourceView<'a> {
+        ResourceView::from(self)
+    }
+}
+
+impl AsResourceView for &Resource {
+    fn as_resource_view<'a>(&'a self) -> ResourceView<'a> {
+        ResourceView::from(*self)
+    }
+}
+
+impl AsResourceView for PveResource {
+    fn as_resource_view<'a>(&'a self) -> ResourceView<'a> {
+        ResourceView::from(self)
+    }
+}
+
+impl AsResourceView for &PveResource {
+    fn as_resource_view<'a>(&'a self) -> ResourceView<'a> {
+        ResourceView::from(*self)
+    }
 }
 
 #[api(
@@ -330,6 +486,29 @@ pub struct PveLxcResource {
 #[api]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
+/// HA State of a PVE node.
+pub enum PveNodeHaState {
+    /// The node is online and member of quorate partition
+    Online,
+    /// Node is a member of a quorate partition but in maintenance mode
+    Maintenance,
+    /// Not member of quorate partition, but possibly still running
+    Unknown,
+    /// Node needs to be fenced
+    Fence,
+    /// Node vanished from cluster member list
+    Gone,
+    /// Other (unknown) HA state
+    #[serde(untagged)]
+    Other(String),
+}
+
+serde_plain::derive_display_from_serialize!(PveNodeHaState);
+serde_plain::derive_fromstr_from_deserialize!(PveNodeHaState);
+
+#[api]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
 /// Node resource in a PVE cluster
 pub struct PveNodeResource {
     /// CGroup Mode
@@ -352,6 +531,9 @@ pub struct PveNodeResource {
     pub status: String,
     /// Subscription level
     pub level: String,
+    /// HA State
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ha_state: Option<PveNodeHaState>,
 }
 
 #[api]
