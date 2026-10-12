@@ -1,11 +1,18 @@
+use std::sync::Arc;
+
 use http::StatusCode;
 use pdm_api_types::subscription::{ProductType, SubscriptionLevel};
-use proxmox_router::RpcEnvironment;
+use proxmox_rest_server::{ApiConfig, RestEnvironment};
+use proxmox_router::cli::CliEnvironment;
+use proxmox_router::{ApiHandler, RpcEnvironment, RpcEnvironmentType, SharedStateRegistry};
 use pve_api_types::SetSubscription;
 
 use crate::common::{TestApplication, TestRemoteState, rpcenv};
 
-use server::{api, context::ContextFactory};
+use server::{
+    api,
+    context::{ContextFactory, PdmApplication},
+};
 
 pub mod common;
 
@@ -129,6 +136,62 @@ async fn test_concurrent_additions_preserve_all_keys() {
             .unwrap()
             .len(),
         16,
+    );
+}
+
+fn rest_environment(app: PdmApplication, kind: RpcEnvironmentType) -> RestEnvironment {
+    let mut registry = SharedStateRegistry::default();
+    registry.register(app).unwrap();
+    let config = ApiConfig::new("/unused", kind).with_shared_state(registry);
+    let mut env = RestEnvironment::new(kind, Arc::new(config));
+    env.set_auth_id(Some("root@pam".into()));
+    env
+}
+
+#[tokio::test]
+async fn test_handlers_extract_the_registered_application() {
+    common::test_setup();
+    let app = TestApplication::new().make_pdm_application().unwrap();
+    let isolated_app = TestApplication::new().make_pdm_application().unwrap();
+    let add = &api::subscriptions::API_METHOD_ADD_KEYS;
+    let list = &api::subscriptions::API_METHOD_LIST_KEYS;
+    let ApiHandler::Async(add_handler) = add.handler else {
+        panic!("expected an asynchronous add handler");
+    };
+    let ApiHandler::Sync(list_handler) = list.handler else {
+        panic!("expected a synchronous list handler");
+    };
+
+    let mut public = rest_environment(app.clone(), RpcEnvironmentType::PUBLIC);
+    let mut privileged = rest_environment(app.clone(), RpcEnvironmentType::PRIVILEGED);
+    let mut isolated = rest_environment(isolated_app, RpcEnvironmentType::PUBLIC);
+    add_handler(
+        serde_json::json!({"keys": ["pve4c-aaaaaaaaaa"]}),
+        add,
+        &mut public,
+    )
+    .await
+    .unwrap();
+
+    let entries = list_handler(serde_json::json!({}), list, &mut privileged).unwrap();
+    assert_eq!(entries.as_array().unwrap().len(), 1);
+    assert!(
+        list_handler(serde_json::json!({}), list, &mut isolated)
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+
+    let mut cli = CliEnvironment::new();
+    cli.set_auth_id(Some("root@pam".into()));
+    assert!(list_handler(serde_json::json!({}), list, &mut cli).is_err());
+    let mut registry = SharedStateRegistry::default();
+    registry.register(app).unwrap();
+    cli.set_shared_state_registry(registry);
+    assert_eq!(
+        list_handler(serde_json::json!({}), list, &mut cli).unwrap(),
+        entries,
     );
 }
 
