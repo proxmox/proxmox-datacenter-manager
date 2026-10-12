@@ -40,6 +40,11 @@ pub fn test_setup() {
     static INIT: Once = Once::new();
 
     INIT.call_once(|| {
+        let user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
+            .expect("test user lookup succeeded")
+            .expect("test user exists in the user database");
+        proxmox_product_config::init(user.clone(), user);
+
         let base = env!("CARGO_TARGET_TMPDIR");
 
         let file_opts = CreateOptions::new();

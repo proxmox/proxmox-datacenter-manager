@@ -1,5 +1,6 @@
 use http::StatusCode;
 use pdm_api_types::subscription::{ProductType, SubscriptionLevel};
+use proxmox_router::RpcEnvironment;
 use pve_api_types::SetSubscription;
 
 use crate::common::{TestApplication, TestRemoteState, rpcenv};
@@ -49,6 +50,86 @@ async fn test_manage_inventory() {
     let result = api::subscriptions::get_key("pve4c-aaaaaaaaaa".into(), &mut rpcenv(), app.clone());
 
     common::assert_http_error!(result, StatusCode::NOT_FOUND, "not found in pool");
+}
+
+#[tokio::test]
+async fn test_reject_stale_digest() {
+    common::test_setup();
+    let app = TestApplication::new().make_pdm_application().unwrap();
+    let (_, old_digest) = app.subscription_key_config().read().unwrap();
+    let mut env = rpcenv();
+
+    api::subscriptions::add_keys(
+        vec!["pve4c-aaaaaaaaaa".into()],
+        Some(old_digest.clone()),
+        &mut env,
+        app.clone(),
+    )
+    .await
+    .unwrap();
+
+    let (_, current_digest) = app.subscription_key_config().read().unwrap();
+    assert_ne!(current_digest, old_digest);
+    assert_eq!(env.result_attrib()["digest"], current_digest.to_hex());
+
+    let error = api::subscriptions::add_keys(
+        vec!["pve4c-bbbbbbbbbb".into()],
+        Some(old_digest),
+        &mut rpcenv(),
+        app.clone(),
+    )
+    .await
+    .expect_err("stale digest must be rejected");
+    assert!(
+        error
+            .to_string()
+            .contains("detected modified configuration")
+    );
+    assert_eq!(
+        app.subscription_key_config().read().unwrap().1,
+        current_digest,
+    );
+    assert_eq!(
+        api::subscriptions::list_keys(&mut rpcenv(), app)
+            .unwrap()
+            .len(),
+        1,
+    );
+}
+
+#[tokio::test]
+async fn test_config_lock_excludes_overlapping_transactions() {
+    common::test_setup();
+    let app = TestApplication::new().make_pdm_application().unwrap();
+    let lock = app.subscription_key_config().lock().unwrap();
+    assert!(app.subscription_key_config().lock().is_err());
+    drop(lock);
+    assert!(app.subscription_key_config().lock().is_ok());
+}
+
+#[tokio::test]
+async fn test_concurrent_additions_preserve_all_keys() {
+    common::test_setup();
+    let app = TestApplication::new().make_pdm_application().unwrap();
+
+    let results = futures::future::join_all((0..16).map(|i| {
+        let app = app.clone();
+        async move {
+            api::subscriptions::add_keys(vec![format!("pve4c-{i:010}")], None, &mut rpcenv(), app)
+                .await
+        }
+    }))
+    .await;
+
+    for result in results {
+        assert_eq!(result.unwrap().added, 1);
+    }
+    assert_eq!(
+        api::subscriptions::list_keys(&mut rpcenv(), app)
+            .unwrap()
+            .len(),
+        16,
+    );
 }
 
 #[tokio::test]

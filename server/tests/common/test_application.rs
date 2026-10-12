@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use anyhow::{Context, Error, bail};
 use nix::unistd::User;
@@ -7,9 +8,8 @@ use serde::{Serialize, de::DeserializeOwned};
 
 use pbs_api_types::Authid;
 use proxmox_client::Client;
-use proxmox_product_config::create_mocked_lock;
-use proxmox_product_config::{ProductConfig, ProductConfigParams};
-use proxmox_section_config::typed::SectionConfigData;
+use proxmox_product_config::{ProductConfig, ProductConfigParams, open_api_lockfile};
+use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
 
 use pdm_api_types::ConfigDigest;
 use pdm_api_types::remotes::{Remote, RemoteType};
@@ -142,7 +142,11 @@ impl ContextFactory for TestApplication {
     fn make_subscription_key_config(
         &self,
     ) -> Result<Box<dyn SubscriptionKeyConfig + Send + Sync>, Error> {
-        Ok(Box::new(TestSubscriptionKeyConfig::default()))
+        Ok(Box::new(TestSubscriptionKeyConfig {
+            base_dir: Arc::clone(&self.base_dir),
+            shadow: Mutex::default(),
+            config: Mutex::default(),
+        }))
     }
 
     fn make_product_config(&self) -> Result<ProductConfig, Error> {
@@ -249,18 +253,23 @@ impl ClientFactory for TestApplication {
     }
 }
 
-#[derive(Default)]
 struct TestSubscriptionKeyConfig {
+    base_dir: Arc<tempfile::TempDir>,
     shadow: Mutex<SectionConfigData<SubscriptionKeyShadow>>,
     config: Mutex<SectionConfigData<SubscriptionKeyEntry>>,
 }
 
+impl TestSubscriptionKeyConfig {
+    fn digest(config: &SectionConfigData<SubscriptionKeyEntry>) -> Result<ConfigDigest, Error> {
+        let raw = SubscriptionKeyEntry::write_section_config("keys.cfg", config)?;
+        Ok(ConfigDigest::from_slice(raw))
+    }
+}
+
 impl SubscriptionKeyConfig for TestSubscriptionKeyConfig {
     fn read(&self) -> Result<(SectionConfigData<SubscriptionKeyEntry>, ConfigDigest), Error> {
-        Ok((
-            self.config.lock().unwrap().clone(),
-            ConfigDigest::from_slice([]),
-        ))
+        let config = self.config.lock().unwrap();
+        Ok((config.clone(), Self::digest(&config)?))
     }
 
     fn read_shadow(&self) -> Result<SectionConfigData<SubscriptionKeyShadow>, Error> {
@@ -268,17 +277,20 @@ impl SubscriptionKeyConfig for TestSubscriptionKeyConfig {
     }
 
     fn lock(&self) -> Result<proxmox_product_config::ApiLockGuard, Error> {
-        Ok(unsafe { create_mocked_lock() })
+        open_api_lockfile(
+            self.base_dir.path().join("config/.subscriptions.lock"),
+            Some(Duration::from_secs(1)),
+            true,
+        )
     }
 
     fn write(
         &self,
         config: &SectionConfigData<SubscriptionKeyEntry>,
     ) -> Result<ConfigDigest, Error> {
-        let mut guard = self.config.lock().unwrap();
-        *guard = config.clone();
-
-        Ok(ConfigDigest::from_slice([]))
+        let digest = Self::digest(config)?;
+        *self.config.lock().unwrap() = config.clone();
+        Ok(digest)
     }
 
     fn write_shadow(&self, shadow: &SectionConfigData<SubscriptionKeyShadow>) -> Result<(), Error> {
