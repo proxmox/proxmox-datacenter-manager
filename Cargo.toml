@@ -31,7 +31,7 @@ members = [
 [workspace.dependencies]
 # proxmox workspace
 proxmox-access-control = "1"
-proxmox-api-macro = "1.3"
+proxmox-api-macro = "1.7.0"
 proxmox-apt = "1.0"
 proxmox-apt-api-types = "3.0"
 proxmox-async = "0.5"
@@ -49,13 +49,13 @@ proxmox-lang = "1.1"
 proxmox-log = "1"
 proxmox-login = "1.0.2"
 proxmox-procfs = "0.1"
-proxmox-rest-server = "1"
+proxmox-rest-server = "1.2.0"
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
-proxmox-router = { version = "3.0.0", default-features = false }
+proxmox-router = { version = "3.3.0", default-features = false }
 proxmox-rrd = { version = "1", default-features = false}
 proxmox-rrd-api-types = "1.0.2"
 # everything but pbs-config and pbs-client use "api-macro"
-proxmox-schema = "5"
+proxmox-schema = "5.4.1"
 proxmox-section-config = "3"
 proxmox-serde = "1"
 proxmox-shared-memory = "1"
@@ -77,7 +77,7 @@ proxmox-openid = "1.0.2"
 
 # api implementation creates
 proxmox-config-digest = "1"
-proxmox-product-config = "1"
+proxmox-product-config = "1.1.0"
 proxmox-dns-api = "1"
 proxmox-time-api = "1"
 proxmox-network-api = "1"
