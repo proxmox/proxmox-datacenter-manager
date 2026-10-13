@@ -28,6 +28,16 @@ case "$1" in
         fi
     fi
 
+    if test -n "$2" && dpkg --compare-versions "$2" 'lt' '1.1.9~'; then
+        # older versions wrote the token secrets file owned by the unprivileged API user
+        if test -f "$cfgdir/access/token.shadow"; then
+            chown root:www-data "$cfgdir/access/token.shadow" || \
+                echo "fixing ownership of '$cfgdir/access/token.shadow' failed with code $?"
+            chmod 0640 "$cfgdir/access/token.shadow" || \
+                echo "fixing mode of '$cfgdir/access/token.shadow' failed with code $?"
+        fi
+    fi
+
     BETA_SOURCES="/etc/apt/sources.list.d/pdm-test.sources"
     if test -f "$BETA_SOURCES" && dpkg --compare-versions "$2" 'lt' '1.0.1' && dpkg --compare-versions "$2" 'gt' '0.0~~'; then
         printf "\nNOTE: Remove the pdm-test repository, which was added during the beta phase.\nYou can (re-)add repositories on the web UI (Administration -> Repositories)\n\n"
