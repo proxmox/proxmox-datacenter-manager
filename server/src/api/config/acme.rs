@@ -423,7 +423,7 @@ fn get_directories() -> Result<&'static [KnownAcmeDirectory], Error> {
         },
     },
     access: {
-        permission: &proxmox_router::Permission::Anybody,
+        permission: &Permission::Privilege(&["system", "certificates"], PRIV_SYS_MODIFY, false),
     },
     returns: {
         type: String,
