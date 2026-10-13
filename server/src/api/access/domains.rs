@@ -8,8 +8,7 @@ use proxmox_ldap::types::REMOVE_VANISHED_SCHEMA;
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap};
 use proxmox_schema::api;
 
-use pbs_api_types::PRIV_PERMISSIONS_MODIFY;
-use pdm_api_types::{Authid, BasicRealmInfo, RealmRef, RealmType, UPID_SCHEMA};
+use pdm_api_types::{Authid, BasicRealmInfo, PRIV_ACCESS_MODIFY, RealmRef, RealmType, UPID_SCHEMA};
 
 #[api(
     returns: {
@@ -68,7 +67,7 @@ fn list_domains(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<BasicRealmInfo>, 
         schema: UPID_SCHEMA,
     },
     access: {
-        permission: &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
     },
 )]
 /// Synchronize users of a given realm
