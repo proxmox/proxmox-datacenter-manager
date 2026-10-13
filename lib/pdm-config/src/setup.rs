@@ -15,7 +15,10 @@ pub fn create_configdir() -> Result<(), Error> {
     let api_user = crate::api_user()?;
 
     let cfgdir = pdm_buildcfg::CONFIGDIR;
-    mkdir_perms(cfgdir, api_user.uid, api_user.gid, 0o1770)?;
+    // Owned by root so that the API user cannot rename the root-owned sub-directories and replace
+    // them with its own, while the group write permission and the sticky bit still allow it to
+    // create and replace the files it owns.
+    mkdir_perms(cfgdir, nix::unistd::ROOT, api_user.gid, 0o1770)?;
     mkdir_perms(configdir!("/auth"), nix::unistd::ROOT, api_user.gid, 0o750)?;
     mkdir_perms(
         configdir!("/access"),

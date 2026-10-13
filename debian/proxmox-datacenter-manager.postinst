@@ -6,6 +6,14 @@ set -e
 
 case "$1" in
   configure)
+    cfgdir="/etc/proxmox-datacenter-manager"
+
+    # must happen before (re)starting the services, the privileged API daemon refuses to start if
+    # the configuration directory has an unexpected owner, so fail if that is not possible
+    if test -n "$2" && dpkg --compare-versions "$2" 'lt' '1.1.9~' && test -d "$cfgdir"; then
+        chown root:www-data "$cfgdir"
+    fi
+
     # modeled after dh_systemd_start output
     systemctl --system daemon-reload >/dev/null || true
     if [ -n "$2" ]; then
@@ -17,8 +25,6 @@ case "$1" in
 
     # For migrations or upgrade steps that can safely be automated.
     # NOTE: check if '/proxmox_install_mode' exist to avoid doing something if in the ISO installer environment.
-
-    cfgdir="/etc/proxmox-datacenter-manager"
 
     if test -n "$2" && dpkg --compare-versions "$2" 'lt' '1.0~'; then
         if test -f "$cfgdir/ldap_passwords.json"; then
