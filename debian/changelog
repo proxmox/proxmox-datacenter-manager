@@ -1,3 +1,30 @@
+proxmox-datacenter-manager (1.1.9) trixie; urgency=medium
+
+  * resources: include the HA state of Proxmox VE nodes, which the web
+    interface uses to show nodes that are in HA maintenance mode.
+
+  * make privilege checks and file ownership more consistent:
+    - syncing the users of an LDAP or Active Directory realm now requires
+      Access.Modify on /access/users, like adding or removing users.
+    - looking up the terms of service of an ACME directory now requires
+      System.Modify on /system/certificates, like the other ACME account
+      operations.
+    - the configuration directory and the API token secrets file are now
+      owned by root, like the user and ACL configuration. Existing
+      installations are adapted on upgrade.
+    - the directories for TFA challenge data are now created when the
+      privileged API daemon starts and only used if they are owned by root.
+
+  * auto-installer: validate the disk names in prepared answers more strictly.
+
+  * rework the internal handling of shared state, like the remote
+    configuration, connection clients and the API cache, which API handlers
+    now get passed explicitly instead of using global variables. This touches
+    remote connections, iterating over remotes and subscription handling, but
+    is not meant to change their behavior.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 14 Oct 2026 19:08:44 +0200
+
 proxmox-datacenter-manager (1.1.8) trixie; urgency=medium
 
   * remotes:
