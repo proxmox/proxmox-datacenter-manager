@@ -30,7 +30,7 @@ members = [
 
 [workspace.dependencies]
 # proxmox workspace
-proxmox-access-control = "1"
+proxmox-access-control = "1.3.2"
 proxmox-api-macro = "1.7.0"
 proxmox-apt = "1.0"
 proxmox-apt-api-types = "3.0"
@@ -55,7 +55,7 @@ proxmox-router = { version = "3.3.0", default-features = false }
 proxmox-rrd = { version = "1", default-features = false}
 proxmox-rrd-api-types = "1.0.2"
 # everything but pbs-config and pbs-client use "api-macro"
-proxmox-schema = "5.4.1"
+proxmox-schema = "5.4.2"
 proxmox-section-config = "3"
 proxmox-serde = "1"
 proxmox-shared-memory = "1"
