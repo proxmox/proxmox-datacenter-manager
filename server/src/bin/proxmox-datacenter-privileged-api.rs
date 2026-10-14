@@ -117,6 +117,8 @@ fn create_directories() -> Result<(), Error> {
 
     server::jobstate::create_jobstate_dir()?;
 
+    auth::tfa::create_challenge_dir()?;
+
     Ok(())
 }
 

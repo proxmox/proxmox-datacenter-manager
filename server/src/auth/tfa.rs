@@ -25,6 +25,7 @@ use pdm_buildcfg::configdir;
 const CONF_FILE: &str = configdir!("/auth/tfa.json");
 const LOCK_FILE: &str = configdir!("/auth/.tfa.json.lock");
 
+const CHALLENGE_BASE_PATH: &str = pdm_buildcfg::rundir!("/tfa");
 const CHALLENGE_DATA_PATH: &str = pdm_buildcfg::rundir!("/tfa/challenges");
 
 pub fn read_lock() -> Result<ApiLockGuard, Error> {
@@ -91,6 +92,34 @@ pub struct TfaUserChallengeData {
 
 fn challenge_data_path_str(userid: &str) -> PathBuf {
     PathBuf::from(format!("{}/{}", CHALLENGE_DATA_PATH, userid))
+}
+
+/// Create the directories for the TFA challenge data, or check the existing ones.
+///
+/// The API user can create entries in the run directory, so it could create these directories
+/// before the privileged daemon does and place symlinks in them. As the challenge data is written
+/// by the privileged user, only accept directories owned by that user that nobody else can write.
+pub fn create_challenge_dir() -> Result<(), Error> {
+    let priv_uid = pdm_config::priv_user()?.uid.as_raw();
+
+    for dir in [CHALLENGE_BASE_PATH, CHALLENGE_DATA_PATH] {
+        match nix::unistd::mkdir(dir, Mode::S_IRWXU) {
+            Ok(()) | Err(nix::errno::Errno::EEXIST) => (),
+            Err(err) => bail!("failed to create TFA challenge directory {dir:?} - {err}"),
+        }
+
+        let stat = nix::sys::stat::lstat(dir)
+            .map_err(|err| format_err!("failed to stat TFA challenge directory {dir:?} - {err}"))?;
+
+        if stat.st_mode & libc::S_IFMT != libc::S_IFDIR {
+            bail!("TFA challenge directory {dir:?} is not a directory");
+        }
+        if stat.st_uid != priv_uid || stat.st_mode & 0o022 != 0 {
+            bail!("TFA challenge directory {dir:?} has an unexpected owner or mode");
+        }
+    }
+
+    Ok(())
 }
 
 impl TfaUserChallengeData {
@@ -207,16 +236,7 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
     /// Load the user's current challenges with the intent to create a challenge (create the file
     /// if it does not exist), and keep a lock on the file.
     fn open(&self, userid: &str) -> Result<Box<dyn UserChallengeAccess>, Error> {
-        let options = CreateOptions::new().perm(Mode::from_bits_truncate(0o0600));
-        proxmox_sys::fs::create_path(CHALLENGE_DATA_PATH, Some(options), Some(options)).map_err(
-            |err| {
-                format_err!(
-                    "failed to crate challenge data dir {:?}: {}",
-                    CHALLENGE_DATA_PATH,
-                    err
-                )
-            },
-        )?;
+        create_challenge_dir()?;
 
         let path = challenge_data_path_str(userid);
 
@@ -226,6 +246,7 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
             .write(true)
             .truncate(false)
             .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW)
             .open(&path)
             .map_err(|err| format_err!("failed to create challenge file {:?}: {}", path, err))?;
 
@@ -262,12 +283,15 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
 
     /// `open` without creating the file if it doesn't exist, to finish WA authentications.
     fn open_no_create(&self, userid: &str) -> Result<Option<Box<dyn UserChallengeAccess>>, Error> {
+        create_challenge_dir()?;
+
         let path = challenge_data_path_str(userid);
         let mut file = match std::fs::OpenOptions::new()
             .read(true)
             .write(true)
             .truncate(false)
             .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW)
             .open(&path)
         {
             Ok(file) => file,
@@ -290,6 +314,8 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
 
     /// `remove` user data if it exists.
     fn remove(&self, userid: &str) -> Result<bool, Error> {
+        create_challenge_dir()?;
+
         let path = challenge_data_path_str(userid);
         match std::fs::remove_file(path) {
             Ok(()) => Ok(true),
