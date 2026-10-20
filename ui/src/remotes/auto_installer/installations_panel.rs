@@ -284,6 +284,7 @@ fn columns() -> Vec<DataTableHeader<Installation>> {
                 match item.status {
                     InstallationStatus::AnswerSent => tr!("Answer sent"),
                     InstallationStatus::NoAnswerFound => tr!("No matching answer found"),
+                    InstallationStatus::InstallerOutdated => tr!("Installer too old for answer"),
                     InstallationStatus::InProgress => tr!("In Progress"),
                     InstallationStatus::Finished => tr!("Finished"),
                 }

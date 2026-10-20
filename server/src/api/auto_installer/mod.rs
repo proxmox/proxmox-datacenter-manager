@@ -217,6 +217,34 @@ fn new_installation(token_id: &String, payload: AnswerFetchData) -> Result<AutoI
 
         let mut answer = render_prepared_config(&config, &payload.sysinfo)?;
 
+        // installers reject answers with options they do not know, refuse early with a clear error
+        let required = answer.required_fetch_schema_version();
+        let reported = payload.schema.version();
+        if !installer_accepts_answer(reported, required) {
+            let installation = Installation {
+                uuid,
+                received_at: timestamp_now,
+                status: InstallationStatus::InstallerOutdated,
+                info: payload.sysinfo,
+                answer_id: Some(config.id.clone()),
+                post_hook_data: None,
+                post_hook_token: None,
+            };
+            pdm_config::auto_install::save_installation(&installation)?;
+
+            let reported = reported
+                .map(|(major, minor)| format!("{major}.{minor}"))
+                .unwrap_or_else(|| "no valid version".to_owned());
+            http_bail!(
+                BAD_REQUEST,
+                "the matching answer uses options this installer does not support - it requires \
+                 answer fetch schema version {}.{}, but the installer reports {reported}; use a \
+                 newer installer",
+                required.0,
+                required.1,
+            );
+        }
+
         // Generate a per-installation secret for authenticating the post-hook
         // callback. The UUID alone is not a credential as it travels through
         // the answer payload back to the installer; the secret is short-lived
@@ -1334,6 +1362,13 @@ fn render_prepared_config(
     })
 }
 
+/// Returns whether an installer reporting the answer fetch schema version `reported` accepts all
+/// options of an answer requiring version `required`.
+fn installer_accepts_answer(reported: Option<(u32, u32)>, required: (u32, u32)) -> bool {
+    // treat a malformed version like the oldest one PDM can serve
+    reported.unwrap_or((1, 0)) >= required
+}
+
 /// Increments all counters of a given template by one.
 ///
 /// # Parameters
@@ -1373,4 +1408,22 @@ fn generate_token(
         None,
         rpcenv,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::installer_accepts_answer;
+
+    #[test]
+    fn answers_are_sent_to_installers_supporting_their_options() {
+        assert!(installer_accepts_answer(Some((1, 0)), (1, 0)));
+        assert!(installer_accepts_answer(Some((1, 1)), (1, 0)));
+        assert!(installer_accepts_answer(Some((1, 1)), (1, 1)));
+        assert!(installer_accepts_answer(Some((2, 0)), (1, 1)));
+        assert!(installer_accepts_answer(None, (1, 0)));
+
+        assert!(!installer_accepts_answer(Some((1, 0)), (1, 1)));
+        assert!(!installer_accepts_answer(Some((1, 1)), (1, 2)));
+        assert!(!installer_accepts_answer(None, (1, 1)));
+    }
 }

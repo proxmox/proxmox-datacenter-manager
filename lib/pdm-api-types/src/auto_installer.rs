@@ -33,6 +33,8 @@ pub enum InstallationStatus {
     AnswerSent,
     /// Found no matching answer configuration and no default was set.
     NoAnswerFound,
+    /// The matching answer uses options the installer does not support, so it was not sent.
+    InstallerOutdated,
     /// The installation is currently underway.
     InProgress,
     /// The installation was finished successfully.
