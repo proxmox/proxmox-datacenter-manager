@@ -1240,6 +1240,7 @@ fn render_prepared_config(
         if conf.use_dhcp_network {
             answer::NetworkConfig::FromDhcp(answer::NetworkConfigFromDhcp {
                 interface_name_pinning,
+                bond: None,
             })
         } else {
             let cidr = conf
@@ -1284,6 +1285,8 @@ fn render_prepared_config(
                 gateway,
                 filter: conf.netdev_filter.clone(),
                 interface_name_pinning,
+                bond: None,
+                vlan: None,
             })
         }
     };
