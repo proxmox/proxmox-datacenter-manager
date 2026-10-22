@@ -770,7 +770,7 @@ impl TryClient {
 
     fn unreachable(entry: &MultiClientEntry) -> Self {
         log::trace!(
-            "trying previouslsy unreachable client for host {:?}",
+            "trying previously unreachable client for host {:?}",
             entry.hostname
         );
         Self {
