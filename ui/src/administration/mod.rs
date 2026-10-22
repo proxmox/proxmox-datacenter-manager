@@ -19,7 +19,7 @@ use pwt_macros::builder;
 mod node_status;
 
 use proxmox_yew_comp::{
-    AccessLog, AptPackageManager, AptRepositories, ExistingProduct, Syslog, Tasks,
+    AccessLog, AptHistory, AptPackageManager, AptRepositories, ExistingProduct, Syslog, Tasks,
 };
 
 use crate::pdm_subscription_title_and_message;
@@ -30,6 +30,12 @@ pub struct ServerAdministration {
     #[builder(IntoPropValue, into_prop_value)]
     #[prop_or_default]
     pub username: Option<AttrValue>,
+
+    /// Whether the user may audit the system log, which includes the terminal output of past APT
+    /// transactions.
+    #[builder]
+    #[prop_or_default]
+    pub audit_system_log: bool,
 }
 
 impl ServerAdministration {
@@ -50,6 +56,7 @@ impl Component for PdmServerAdministration {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let enable_upgrade = ctx.props().username.as_deref() == Some("root@pam");
+        let enable_term_log = ctx.props().audit_system_log;
 
         let panel = TabPanel::new()
             .state_id(StorageLocation::session("ServerAdministrationState"))
@@ -108,6 +115,19 @@ impl Component for PdmServerAdministration {
                         .class("pwt-content-spacer")
                         .class(pwt::css::FlexFit)
                         .with_child(AptRepositories::new().product(ExistingProduct::PDM))
+                        .into()
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("update-history")
+                    .label(tr!("Update History"))
+                    .icon_class("fa fa-history"),
+                move |_| {
+                    Container::new()
+                        .class("pwt-content-spacer")
+                        .class(pwt::css::FlexFit)
+                        .with_child(AptHistory::new().enable_term_log(enable_term_log))
                         .into()
                 },
             )

@@ -316,6 +316,9 @@ impl Component for PdmMainMenu {
         );
 
         let username = ctx.props().username.clone();
+        let audit_system_log = self
+            .acl_context
+            .check_privs(&["system", "log"], PRIV_SYS_AUDIT);
         register_submenu(
             &mut menu,
             &mut content,
@@ -325,6 +328,7 @@ impl Component for PdmMainMenu {
             move |_| {
                 ServerAdministration::new()
                     .username(username.clone())
+                    .audit_system_log(audit_system_log)
                     .into()
             },
             admin_submenu,
