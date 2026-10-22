@@ -35,6 +35,7 @@ proxmox-access-log = "0.1"
 proxmox-api-macro = "1.7.0"
 proxmox-apt = "1.0"
 proxmox-apt-api-types = "3.0"
+proxmox-apt-history = "0.1"
 proxmox-async = "0.5"
 proxmox-auth-api = "1.0.5"
 proxmox-base64 = "1"
@@ -144,6 +145,7 @@ zstd = { version = "0.13" }
 # proxmox-acme = { path = "../proxmox/proxmox-acme" }
 # proxmox-api-macro = { path = "../proxmox/proxmox-api-macro" }
 # proxmox-apt-api-types = { path = "../proxmox/proxmox-apt-api-types" }
+# proxmox-apt-history = { path = "../proxmox/proxmox-apt-history" }
 # proxmox-apt = { path = "../proxmox/proxmox-apt" }
 # proxmox-async = { path = "../proxmox/proxmox-async" }
 # proxmox-auth-api = { path = "../proxmox/proxmox-auth-api" }
