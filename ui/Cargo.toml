@@ -65,3 +65,11 @@ pdm-search = { version = "0.2", path = "../lib/pdm-search" }
 # proxmox-yew-comp = { path = "../../proxmox-yew-comp" }
 # pwt = { path = "../../proxmox-yew-widget-toolkit" }
 # pwt-macros = { path = "../../proxmox-yew-widget-toolkit/pwt-macros" }
+
+[profile.dev]
+# Full DWARF made up most of each debug test binary and wasm module, and wasm-bindgen strips it
+# again unless told to keep it. Line tables keep file and line numbers in backtraces.
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
