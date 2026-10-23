@@ -207,6 +207,7 @@ async fn run(app: PdmApplication, debug: bool) -> Result<(), Error> {
     proxmox_rest_server::init_worker_tasks(pdm_buildcfg::PDM_LOG_DIR_M!().into(), file_opts)?;
 
     proxmox_node_status::init_node_status_api(configdir!("/auth/api.pem"))?;
+    proxmox_access_log::init_access_log_api(pdm_buildcfg::API_ACCESS_LOG_FN)?;
 
     //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/api.key -out /etc/proxmox-backup/api.pem -nodes
 

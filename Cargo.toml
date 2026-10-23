@@ -31,6 +31,7 @@ members = [
 [workspace.dependencies]
 # proxmox workspace
 proxmox-access-control = "1.3.3"
+proxmox-access-log = "0.1"
 proxmox-api-macro = "1.7.0"
 proxmox-apt = "1.0"
 proxmox-apt-api-types = "3.0"
@@ -138,6 +139,7 @@ zstd = { version = "0.13" }
 # NOTE: You must run `cargo update` after changing this for it to take effect!
 [patch.crates-io]
 # proxmox-access-control = { path = "../proxmox/proxmox-access-control" }
+# proxmox-access-log = { path = "../proxmox/proxmox-access-log" }
 # proxmox-acme-api = { path = "../proxmox/proxmox-acme-api" }
 # proxmox-acme = { path = "../proxmox/proxmox-acme" }
 # proxmox-api-macro = { path = "../proxmox/proxmox-api-macro" }

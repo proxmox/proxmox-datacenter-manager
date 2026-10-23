@@ -3,6 +3,7 @@
 use proxmox_router::{Router, SubdirMap, list_subdirs_api_method};
 use proxmox_sortable_macro::sortable;
 
+pub mod access_log;
 pub mod apt;
 pub mod certificates;
 pub mod config;
@@ -41,6 +42,7 @@ pub const ITEM_ROUTER: Router = Router::new()
 
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
+    ("access-log", &access_log::ROUTER),
     ("apt", &apt::ROUTER),
     ("certificates", &certificates::ROUTER),
     ("config", &config::ROUTER),

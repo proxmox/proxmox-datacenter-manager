@@ -126,6 +126,7 @@ async fn run(app: PdmApplication) -> Result<(), Error> {
     auth::init(true);
 
     proxmox_acme_api::init(configdir!("/acme"), true)?;
+    proxmox_access_log::init_access_log_api(pdm_buildcfg::API_ACCESS_LOG_FN)?;
     pdm_config::domains::add_default_realms()?;
 
     let api_user = pdm_config::api_user()?;
