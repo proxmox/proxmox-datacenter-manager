@@ -15,8 +15,6 @@ use pdm_api_types::remotes::RemoteType;
 use pwt::css::{AlignItems, FlexFit, TextAlign};
 use pwt::widget::data_table::{DataTableCellRenderArgs, DataTableCellRenderer};
 
-use proxmox_deb_version;
-
 use proxmox_yew_comp::{
     AptPackageManager, AptRepositories, ExistingProduct, LoadableComponent,
     LoadableComponentContext, LoadableComponentMaster, LoadableComponentScopeExt,
@@ -37,8 +35,8 @@ use pwt::{
 };
 
 use crate::{
-    check_pdm_subscription, get_deep_url, get_deep_url_low_level, pdm_client,
-    pdm_subscription_alert,
+    check_pdm_subscription, compare_package_versions, get_deep_url, get_deep_url_low_level,
+    pdm_client, pdm_subscription_alert,
 };
 
 #[derive(PartialEq, Properties)]
@@ -290,9 +288,7 @@ fn build_store_from_response(update_summary: UpdateSummary) -> SlabTree<UpdateTr
         if product_versions.len() == 1 {
             product_version = Some(product_versions[0].clone());
         } else if product_versions.len() > 1 {
-            product_versions.sort_by(|a, b| {
-                proxmox_deb_version::cmp_versions(&a, &b).unwrap_or(Ordering::Less)
-            });
+            product_versions.sort_by(|a, b| compare_package_versions(a, b));
             product_version = product_versions.last().cloned();
 
             let lowest_version = product_versions.first().unwrap();

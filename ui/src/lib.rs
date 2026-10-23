@@ -283,6 +283,21 @@ pub fn pdm_subscription_title_and_message() -> (String, Html) {
     (tr!("No valid subscriptions"), msg)
 }
 
+/// Compare two Debian package versions.
+///
+/// Versions which cannot be parsed sort before all others, by their text. This keeps the order
+/// total, which sorting requires.
+pub(crate) fn compare_package_versions(a: &str, b: &str) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+
+    match (a.parse::<Version>(), b.parse::<Version>()) {
+        (Ok(a), Ok(b)) => a.cmp(&b),
+        (Err(_), Ok(_)) => Ordering::Less,
+        (Ok(_), Err(_)) => Ordering::Greater,
+        (Err(_), Err(_)) => a.cmp(b),
+    }
+}
+
 /// Extract the version of a specific package from `RemoteUpdateSummary` for a specific node
 pub fn extract_package_version(
     updates: &RemoteUpdateSummary,
@@ -309,4 +324,19 @@ pub fn get_nodename() -> Option<String> {
     let value = js_sys::Reflect::get(&window(), &JsValue::from_str("Proxmox")).ok()?;
     let config: ProxmoxServerConfig = JsValueSerdeExt::into_serde(&value).ok()?;
     Some(config.node_name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::compare_package_versions;
+
+    #[test]
+    fn package_version_order() {
+        let mut versions = vec!["9.1.4", "bad:1.0", "9.0.11", "9.1.4+mp3", "", "10.0.1"];
+        versions.sort_by(|a, b| compare_package_versions(a, b));
+        assert_eq!(
+            versions,
+            ["", "bad:1.0", "9.0.11", "9.1.4", "9.1.4+mp3", "10.0.1"]
+        );
+    }
 }
