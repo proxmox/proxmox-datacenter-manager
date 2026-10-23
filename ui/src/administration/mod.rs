@@ -18,7 +18,9 @@ use pwt_macros::builder;
 
 mod node_status;
 
-use proxmox_yew_comp::{AptPackageManager, AptRepositories, ExistingProduct, Syslog, Tasks};
+use proxmox_yew_comp::{
+    AccessLog, AptPackageManager, AptRepositories, ExistingProduct, Syslog, Tasks,
+};
 
 use crate::pdm_subscription_title_and_message;
 
@@ -119,6 +121,19 @@ impl Component for PdmServerAdministration {
                         .class("pwt-content-spacer")
                         .class(pwt::css::FlexFit)
                         .with_child(Syslog::new().structured(true))
+                        .into()
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("access-log")
+                    .label(tr!("Access Log"))
+                    .icon_class("fa fa-history"),
+                |_| {
+                    Container::new()
+                        .class("pwt-content-spacer")
+                        .class(pwt::css::FlexFit)
+                        .with_child(AccessLog::new())
                         .into()
                 },
             )

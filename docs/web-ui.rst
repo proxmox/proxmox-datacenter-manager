@@ -124,6 +124,7 @@ manage different aspects of the node, such as:
 * **Updates**: Manage and install updates.
 * **Repositories**: Add, enable and inspect update repositories.
 * **Syslog**: Access the hosts system log.
+* **Access Log**: View the requests to the API and statistics about them.
 * **Tasks**: An overview of all tasks of the host.
 
 SDN
