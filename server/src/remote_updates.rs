@@ -57,7 +57,17 @@ pub async fn list_available_updates(
     remote: Remote,
     node: String,
 ) -> Result<Vec<APTUpdateInfo>, Error> {
+    // Cache entries are keyed by the node names a full refresh uses. PBS has a single node, which
+    // the refresh calls "localhost", whatever name the request used. On PVE, "localhost" is the
+    // node the request happened to reach, so its result cannot be cached under a node name.
+    let node = match remote.ty {
+        RemoteType::Pbs => "localhost".to_string(),
+        RemoteType::Pve => node,
+    };
     let updates = fetch_available_updates((), remote.clone(), node.clone()).await?;
+    if remote.ty == RemoteType::Pve && node == "localhost" {
+        return Ok(updates.updates);
+    }
 
     let summary = NodeUpdateSummary::from(&updates);
 
