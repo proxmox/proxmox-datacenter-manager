@@ -179,18 +179,19 @@ fn upgrade_to_websocket(
 ///
 /// All parameters (except for the name) are functions/closures.
 /// The output of `$get_params` flows into the rest.
-/// The output of `$get_ticket_and_port` should be a tuple `(ticket, port, P)` where `P` is extra
-/// data which flows into `$make_vncwebsocket_path`.
+/// The output of `$get_ticket_and_port` should be a tuple `(ticket, port, P2, use_preamble)` where
+/// `P2` is extra data which flows into `$make_vncwebsocket_path`, and `use_preamble` tells whether
+/// the remote expects termproxy's `user:ticket` line before the session data.
 ///
 /// The signatures are as follows:
 /// ```ignore
 /// $get_params: fn(param: &Value) -> Result<P1, Error>;
-/// $make_ticket_path: fn(remote: &Remote, args1: &P1, ticket_content: &$ticket_type) -> String;
+/// $make_ticket_path: fn(remote: &str, args1: &P1) -> String;
 /// $get_ticket_and_port: async fn (
 ///     remote: &Remote,
 ///     args1: &P1,
 ///     ticket_data: $ticket_type,
-/// ) -> Result<(String, i64, P2), Error>;
+/// ) -> Result<(String, i64, P2, bool), Error>;
 /// $make_vncwebsocket_path: fn (args1: P1, args2: P2, ticket: &str, port: i64) -> String;
 /// ```
 macro_rules! upgrade_to_websocket_impl {
