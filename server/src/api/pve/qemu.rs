@@ -938,7 +938,6 @@ crate::api::remotes::shell::upgrade_to_websocket_impl! {
                 Ok((ticket.ticket, ticket.port, node, true))
             }
             TermTicketType::QemuVnc { ticket, port } => {
-                log::error!("Here on {node} with {port} and {ticket:?}");
                 Ok((ticket, port, node, false))
             }
             _ => bail!("expected qemu term/vnc ticket, got '{kind}'"),
