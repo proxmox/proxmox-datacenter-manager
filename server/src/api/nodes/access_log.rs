@@ -1,4 +1,4 @@
-use proxmox_router::{ApiMethod, Permission, Router};
+use proxmox_router::{ApiMethod, Permission, Router, SubdirMap};
 
 use pdm_api_types::PRIV_SYS_AUDIT;
 
@@ -8,7 +8,20 @@ const API_METHOD_GET_ACCESS_LOG_WITH_ACCESS: ApiMethod =
         &Permission::Privilege(&["system", "log"], PRIV_SYS_AUDIT, false),
     );
 
-pub const ROUTER: Router = Router::new().get(&API_METHOD_GET_ACCESS_LOG_WITH_ACCESS);
+const API_METHOD_GET_ACCESS_LOG_STATS_WITH_ACCESS: ApiMethod =
+    proxmox_access_log::API_METHOD_GET_ACCESS_LOG_STATS.access(
+        None,
+        &Permission::Privilege(&["system", "log"], PRIV_SYS_AUDIT, false),
+    );
+
+const SUBDIRS: SubdirMap = &[(
+    "stats",
+    &Router::new().get(&API_METHOD_GET_ACCESS_LOG_STATS_WITH_ACCESS),
+)];
+
+pub const ROUTER: Router = Router::new()
+    .get(&API_METHOD_GET_ACCESS_LOG_WITH_ACCESS)
+    .subdirs(SUBDIRS);
 
 #[cfg(test)]
 mod tests {
@@ -30,6 +43,10 @@ mod tests {
             (
                 &["nodes", "localhost", "access-log"][..],
                 &proxmox_access_log::API_METHOD_GET_ACCESS_LOG,
+            ),
+            (
+                &["nodes", "localhost", "access-log", "stats"][..],
+                &proxmox_access_log::API_METHOD_GET_ACCESS_LOG_STATS,
             ),
         ] {
             let method = routed(path, Method::GET).expect("routed");
