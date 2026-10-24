@@ -70,6 +70,7 @@ proxmox-uuid.workspace = true
 proxmox-apt = { workspace = true, features = [ "cache" ] }
 proxmox-apt-api-types.workspace = true
 proxmox-apt-history = { workspace = true, features = [ "api" ] }
+proxmox-deb-changelog = { workspace = true, features = [ "api" ] }
 
 proxmox-client = { workspace = true, features = [ "hyper-client"] }
 

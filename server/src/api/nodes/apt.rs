@@ -286,12 +286,20 @@ const API_METHOD_APT_TERMLOG: ApiMethod = proxmox_apt_history::api::API_METHOD_G
     &Permission::Privilege(&["system", "log"], PRIV_SYS_AUDIT, false),
 );
 
+const API_METHOD_APT_INSTALLED_CHANGELOG: ApiMethod =
+    proxmox_deb_changelog::api::API_METHOD_GET_INSTALLED_CHANGELOG
+        .access(None, &Permission::Privilege(&[], PRIV_SYS_AUDIT, false));
+
 const SUBDIRS: SubdirMap = &[
     (
         "changelog",
         &Router::new().get(&API_METHOD_APT_GET_CHANGELOG),
     ),
     ("history", &Router::new().get(&API_METHOD_APT_HISTORY)),
+    (
+        "installed-changelog",
+        &Router::new().get(&API_METHOD_APT_INSTALLED_CHANGELOG),
+    ),
     (
         "repositories",
         &Router::new()

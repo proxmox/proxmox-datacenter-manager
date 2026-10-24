@@ -41,6 +41,7 @@ proxmox-auth-api = "1.0.5"
 proxmox-base64 = "1"
 proxmox-client = "1.0.4"
 proxmox-daemon = "1"
+proxmox-deb-changelog = "0.1"
 proxmox-disks = "0.2"
 proxmox-docgen = "1"
 proxmox-http = { version = "1.0.4", features = [ "client", "http-helpers", "websocket" ] } # see below
@@ -154,6 +155,7 @@ zstd = { version = "0.13" }
 # proxmox-compression = { path = "../proxmox/proxmox-compression" }
 # proxmox-config-digest = { path = "../proxmox/proxmox-config-digest" }
 # proxmox-daemon = { path = "../proxmox/proxmox-daemon" }
+# proxmox-deb-changelog = { path = "../proxmox/proxmox-deb-changelog" }
 # proxmox-dns-api = { path = "../proxmox/proxmox-dns-api" }
 # proxmox-docgen = { path = "../proxmox/proxmox-docgen" }
 # proxmox-http-error = { path = "../proxmox/proxmox-http-error" }
