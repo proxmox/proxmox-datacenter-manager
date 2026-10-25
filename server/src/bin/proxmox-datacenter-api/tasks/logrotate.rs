@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::{Error, format_err};
 
 use proxmox_lang::try_block;
@@ -121,47 +123,42 @@ pub async fn schedule_task_log_rotate() {
 }
 
 async fn command_reopen_access_logfiles() -> Result<(), Error> {
-    // only care about the most recent daemon instance for each, proxy & api, as other older ones
-    // should not respond to new requests anyway, but only finish their current one and then exit.
-    let sock = proxmox_daemon::command_socket::this_path();
-    let f1 =
-        proxmox_daemon::command_socket::send_raw(sock, "{\"command\":\"api-access-log-reopen\"}\n");
-
-    let pid = proxmox_rest_server::read_pid(pdm_buildcfg::PDM_API_PID_FN)?;
-    let sock = proxmox_daemon::command_socket::path_from_pid(pid);
-    let f2 =
-        proxmox_daemon::command_socket::send_raw(sock, "{\"command\":\"api-access-log-reopen\"}\n");
-
-    match futures::join!(f1, f2) {
-        (Err(e1), Err(e2)) => Err(format_err!(
-            "reopen commands failed, proxy: {e1}; api: {e2}"
-        )),
-        (Err(e1), Ok(_)) => Err(format_err!("reopen commands failed, proxy: {e1}")),
-        (Ok(_), Err(e2)) => Err(format_err!("reopen commands failed, api: {e2}")),
-        _ => Ok(()),
-    }
+    command_reopen_logfiles("{\"command\":\"api-access-log-reopen\"}\n", "access").await
 }
 
 async fn command_reopen_auth_logfiles() -> Result<(), Error> {
-    // only care about the most recent daemon instance for each, proxy & api, as other older ones
-    // should not respond to new requests anyway, but only finish their current one and then exit.
+    command_reopen_logfiles("{\"command\":\"api-auth-log-reopen\"}\n", "auth").await
+}
+
+async fn command_reopen_logfiles(command: &str, log_name: &str) -> Result<(), Error> {
+    // Only notify the active instances; retiring daemons finish in-flight requests and exit.
     let sock = proxmox_daemon::command_socket::this_path();
-    let f1 =
-        proxmox_daemon::command_socket::send_raw(sock, "{\"command\":\"api-auth-log-reopen\"}\n");
+    let local = proxmox_daemon::command_socket::send_raw(sock, command);
+    let privileged = send_privileged_command(command);
 
-    let pid = proxmox_rest_server::read_pid(pdm_buildcfg::PDM_API_PID_FN)?;
-    let sock = proxmox_daemon::command_socket::path_from_pid(pid);
-    let f2 =
-        proxmox_daemon::command_socket::send_raw(sock, "{\"command\":\"api-auth-log-reopen\"}\n");
-
-    match futures::join!(f1, f2) {
-        (Err(e1), Err(e2)) => Err(format_err!(
-            "reopen commands failed, proxy: {e1}; api: {e2}"
-        )),
-        (Err(e1), Ok(_)) => Err(format_err!("reopen commands failed, proxy: {e1}")),
-        (Ok(_), Err(e2)) => Err(format_err!("reopen commands failed, api: {e2}")),
-        _ => Ok(()),
+    // The privileged daemon not running, or not reopening its log, must not skip the following
+    // rotation and cleanup tasks.
+    let (api, privileged) = futures::join!(local, privileged);
+    if let Err(err) = privileged {
+        log::warn!("failed to tell the privileged api daemon to reopen its {log_name} log - {err}");
     }
+    api.map(drop).map_err(|err| {
+        format_err!("failed to tell the api daemon to reopen its {log_name} log - {err}")
+    })
+}
+
+/// Sends a command to the privileged API daemon, giving up after a while, as a daemon that got
+/// stopped without exiting accepts the connection but never replies.
+async fn send_privileged_command(command: &str) -> Result<(), Error> {
+    let pid = proxmox_rest_server::read_pid(pdm_buildcfg::PDM_PRIVILEGED_API_PID_FN)?;
+    let sock = proxmox_daemon::command_socket::path_from_pid(pid);
+    tokio::time::timeout(
+        Duration::from_secs(10),
+        proxmox_daemon::command_socket::send_raw(sock, command),
+    )
+    .await
+    .map_err(|_| format_err!("no reply within 10 seconds"))?
+    .map(drop)
 }
 
 fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
