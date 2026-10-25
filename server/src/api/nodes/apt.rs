@@ -290,6 +290,10 @@ const API_METHOD_APT_INSTALLED_CHANGELOG: ApiMethod =
     proxmox_deb_changelog::api::API_METHOD_GET_INSTALLED_CHANGELOG
         .access(None, &Permission::Privilege(&[], PRIV_SYS_AUDIT, false));
 
+const API_METHOD_APT_TRANSACTION_CHANGELOGS: ApiMethod =
+    proxmox_apt_history::api::API_METHOD_GET_TRANSACTION_CHANGELOGS
+        .access(None, &Permission::Privilege(&[], PRIV_SYS_AUDIT, false));
+
 const SUBDIRS: SubdirMap = &[
     (
         "changelog",
@@ -308,6 +312,10 @@ const SUBDIRS: SubdirMap = &[
             .put(&API_METHOD_ADD_REPOSITORY),
     ),
     ("termlog", &Router::new().get(&API_METHOD_APT_TERMLOG)),
+    (
+        "transaction-changelogs",
+        &Router::new().get(&API_METHOD_APT_TRANSACTION_CHANGELOGS),
+    ),
     (
         "update",
         &Router::new()
