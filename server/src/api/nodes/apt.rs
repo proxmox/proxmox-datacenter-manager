@@ -5,6 +5,7 @@ use proxmox_apt_api_types::{
     APTChangeRepositoryOptions, APTGetChangelogOptions, APTRepositoriesResult, APTRepositoryHandle,
     APTUpdateInfo, APTUpdateOptions, HostProduct,
 };
+use proxmox_apt_history::{PackageChange, TransactionChangelog};
 use proxmox_http::ProxyConfig;
 use proxmox_rest_server::WorkerTask;
 use proxmox_router::{
@@ -20,6 +21,10 @@ use proxmox_config_digest::ConfigDigest;
 // use proxmox_http::ProxyConfig;
 
 use pdm_api_types::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+
+/// Where the downloaded changelogs of pending updates are kept.
+const UPDATE_CHANGELOG_CACHE_DIR: &str =
+    concat!(pdm_buildcfg::PDM_CACHE_DIR_M!(), "/apt-changelogs");
 
 #[api(
     input: {
@@ -44,6 +49,45 @@ use pdm_api_types::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 /// List available APT updates
 fn apt_update_available(_param: Value) -> Result<Vec<APTUpdateInfo>, Error> {
     proxmox_apt::list_available_apt_update(pdm_buildcfg::APT_PKG_STATE_FN)
+}
+
+#[api(
+    input: {
+        properties: {
+            node: { schema: NODE_SCHEMA },
+        },
+    },
+    returns: {
+        description: "Changelog entries for pending updates, grouped by source package.",
+        type: Array,
+        items: { type: TransactionChangelog },
+    },
+    protected: true,
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Get the changelog entries for pending updates.
+async fn apt_update_changelogs() -> Result<Vec<TransactionChangelog>, Error> {
+    tokio::task::spawn_blocking(|| {
+        let updates = proxmox_apt::list_available_apt_update(pdm_buildcfg::APT_PKG_STATE_FN)?;
+        let changes = updates
+            .into_iter()
+            .map(|update| {
+                PackageChange::pending_update(
+                    update.package,
+                    Some(update.arch),
+                    update.old_version,
+                    update.version,
+                )
+            })
+            .collect();
+        Ok(proxmox_apt_history::get_update_changelogs(
+            changes,
+            UPDATE_CHANGELOG_CACHE_DIR.as_ref(),
+        ))
+    })
+    .await?
 }
 
 pub fn update_apt_proxy_config(proxy_config: Option<&ProxyConfig>) -> Result<(), Error> {
@@ -321,6 +365,10 @@ const SUBDIRS: SubdirMap = &[
         &Router::new()
             .get(&API_METHOD_APT_UPDATE_AVAILABLE)
             .post(&API_METHOD_APT_UPDATE_DATABASE),
+    ),
+    (
+        "update-changelogs",
+        &Router::new().get(&API_METHOD_APT_UPDATE_CHANGELOGS),
     ),
     ("versions", &Router::new().get(&API_METHOD_GET_VERSIONS)),
 ];
