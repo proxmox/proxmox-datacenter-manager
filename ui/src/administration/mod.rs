@@ -99,6 +99,7 @@ impl Component for PdmServerAdministration {
                         .with_child(
                             AptPackageManager::new()
                                 .enable_upgrade(enable_upgrade)
+                                .show_update_changelogs(true)
                                 .subscription_url("/nodes/localhost/subscription")
                                 .subscription_message(pdm_subscription_title_and_message()),
                         )
