@@ -25,6 +25,7 @@ use proxmox_installer_types::{
     },
     post_hook::PostHookInfo,
 };
+use proxmox_network_types::bond::{BondXmitHashPolicy, LinuxBondMode};
 use proxmox_network_types::fqdn::Fqdn;
 use proxmox_router::{
     ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
@@ -446,7 +447,9 @@ async fn create_prepared_answer(
 
     validate_udev_filter_map(&config.netdev_filter)?;
     validate_udev_filter_map(&config.disk_filter)?;
+    validate_udev_filter_map(&config.bond_members_filter)?;
     validate_template_map(&config.template_counters)?;
+    validate_advanced_network_config(&config)?;
 
     // generated only now, so that a refused request leaves no unused token behind
     let token = if config.authorized_tokens.is_empty() {
@@ -574,6 +577,18 @@ async fn update_prepared_answer(
                 DeletablePreparedInstallationConfigProperty::NetdevFilter => {
                     p.netdev_filter.clear();
                 }
+                DeletablePreparedInstallationConfigProperty::BondMembersFilter => {
+                    p.bond_members_filter.clear();
+                }
+                DeletablePreparedInstallationConfigProperty::BondMode => {
+                    p.bond_mode = None;
+                }
+                DeletablePreparedInstallationConfigProperty::BondHashPolicy => {
+                    p.bond_hash_policy = None;
+                }
+                DeletablePreparedInstallationConfigProperty::VlanId => {
+                    p.vlan_id = None;
+                }
                 DeletablePreparedInstallationConfigProperty::DiskFilter => {
                     p.disk_filter.clear();
                 }
@@ -617,6 +632,12 @@ async fn update_prepared_answer(
         dns,
         netdev_filter,
         netif_name_pinning_enabled,
+        bond_enabled,
+        bond_members_filter,
+        bond_members_filter_match,
+        bond_mode,
+        bond_hash_policy,
+        vlan_id,
         filesystem,
         disk_mode,
         disk_list,
@@ -709,6 +730,31 @@ async fn update_prepared_answer(
         p.netif_name_pinning_enabled = enabled;
     }
 
+    if let Some(enabled) = bond_enabled {
+        p.bond_enabled = enabled;
+    }
+
+    if let Some(filter) = bond_members_filter {
+        validate_udev_filter_map(&filter)?;
+        **p.bond_members_filter = filter;
+    }
+
+    if let Some(filter_match) = bond_members_filter_match {
+        p.bond_members_filter_match = Some(filter_match);
+    }
+
+    if let Some(mode) = bond_mode {
+        p.bond_mode = Some(mode);
+    }
+
+    if let Some(hash_policy) = bond_hash_policy {
+        p.bond_hash_policy = Some(hash_policy);
+    }
+
+    if let Some(vid) = vlan_id {
+        p.vlan_id = Some(vid);
+    }
+
     if let Some(fs) = filesystem {
         *p.filesystem = fs;
     }
@@ -755,6 +801,7 @@ async fn update_prepared_answer(
     }
 
     let mut config: PreparedInstallationConfig = p.clone().try_into()?;
+    validate_advanced_network_config(&config)?;
 
     // generated only now, so that a refused request leaves no unused token behind
     let mut new_token = None;
@@ -805,6 +852,13 @@ fn validate_udev_filter_map(map: &BTreeMap<String, String>) -> Result<()> {
         if !UDEV_FILTER_KEY_REGEX.is_match(k) {
             http_bail!(BAD_REQUEST, "invalid udev filter key: '{k}'");
         }
+    }
+    Ok(())
+}
+
+fn validate_advanced_network_config(config: &PreparedInstallationConfig) -> Result<()> {
+    if let Err(err) = render_prepared_advanced_network_config(config) {
+        http_bail!(BAD_REQUEST, "{err:#}");
     }
     Ok(())
 }
@@ -1200,6 +1254,47 @@ fn find_config(
     default_answer.map(|a| a.try_into()).transpose()
 }
 
+/// Collects the bond and VLAN options of a prepared configuration into the corresponding answer
+/// types and checks them.
+fn render_prepared_advanced_network_config(
+    conf: &PreparedInstallationConfig,
+) -> Result<(
+    Option<answer::NetworkBondOptions>,
+    Option<answer::NetworkVlanOptions>,
+)> {
+    let bond = if conf.bond_enabled {
+        if conf.bond_members_filter.is_empty() {
+            anyhow::bail!("bonding requires a udev filter selecting the bond members");
+        }
+
+        let bond = answer::NetworkBondOptions {
+            members: Vec::new(),
+            filter: conf.bond_members_filter.clone(),
+            filter_match: conf.bond_members_filter_match,
+            mode: conf.bond_mode.unwrap_or(LinuxBondMode::ActiveBackup),
+            hash_policy: conf.bond_hash_policy.unwrap_or(BondXmitHashPolicy::Layer2),
+            primary_interface: None,
+        };
+        bond.verify()?;
+        Some(bond)
+    } else {
+        None
+    };
+
+    // a DHCP lease is only valid on the network it was obtained on, so the installer only takes
+    // over the VLAN of its installation environment then
+    if conf.vlan_id.is_some() && conf.use_dhcp_network {
+        anyhow::bail!("a VLAN tag can only be set with a static network configuration");
+    }
+
+    let vlan = conf.vlan_id.map(|vid| answer::NetworkVlanOptions { vid });
+    if let Some(vlan) = &vlan {
+        vlan.verify()?;
+    }
+
+    Ok((bond, vlan))
+}
+
 /// Renders a given [`PreparedInstallationConfig`] into the target [`AutoInstallerConfig`] struct.
 ///
 /// Converts all types as needed and renders out MiniJinja templates in applicable fields.
@@ -1269,10 +1364,12 @@ fn render_prepared_config(
             },
         );
 
+        let (bond, vlan) = render_prepared_advanced_network_config(conf)?;
+
         if conf.use_dhcp_network {
             answer::NetworkConfig::FromDhcp(answer::NetworkConfigFromDhcp {
                 interface_name_pinning,
-                bond: None,
+                bond,
             })
         } else {
             let cidr = conf
@@ -1317,8 +1414,8 @@ fn render_prepared_config(
                 gateway,
                 filter: conf.netdev_filter.clone(),
                 interface_name_pinning,
-                bond: None,
-                vlan: None,
+                bond,
+                vlan,
             })
         }
     };
@@ -1412,7 +1509,210 @@ fn generate_token(
 
 #[cfg(test)]
 mod tests {
-    use super::installer_accepts_answer;
+    use pdm_api_types::auto_installer::DiskSelectionMode;
+    use proxmox_installer_types::{
+        IsoInfo, NetworkInterface, ProductConfig, ProxmoxProduct, SystemDMI,
+        answer::NetworkVlanOptions,
+    };
+
+    use super::*;
+
+    fn config() -> PreparedInstallationConfig {
+        PreparedInstallationConfig {
+            id: "test".to_owned(),
+            authorized_tokens: Vec::new(),
+            // target filter
+            is_default: false,
+            target_filter: BTreeMap::new(),
+            // global options
+            country: "at".to_owned(),
+            fqdn: "test.example.com".to_owned(),
+            use_dhcp_fqdn: false,
+            keyboard: answer::KeyboardLayout::default(),
+            mailto: String::new(),
+            timezone: "Europe/Vienna".to_owned(),
+            root_password_hashed: None,
+            reboot_on_error: false,
+            reboot_mode: answer::RebootMode::default(),
+            root_ssh_keys: Vec::new(),
+            // network options
+            use_dhcp_network: true,
+            cidr: None,
+            gateway: None,
+            dns: None,
+            netdev_filter: BTreeMap::new(),
+            netif_name_pinning_enabled: true,
+            bond_enabled: false,
+            bond_members_filter: BTreeMap::new(),
+            bond_members_filter_match: None,
+            bond_mode: None,
+            bond_hash_policy: None,
+            vlan_id: None,
+            // disk options
+            filesystem: answer::FilesystemOptions::Ext4(answer::LvmOptions::default()),
+            disk_mode: DiskSelectionMode::default(),
+            disk_list: Vec::new(),
+            disk_filter: BTreeMap::new(),
+            disk_filter_match: None,
+            // post hook
+            post_hook_base_url: None,
+            post_hook_cert_fp: None,
+            // templating
+            template_counters: BTreeMap::new(),
+            // subscription
+            subscription_key: None,
+        }
+    }
+
+    fn static_network_config() -> PreparedInstallationConfig {
+        PreparedInstallationConfig {
+            use_dhcp_network: false,
+            cidr: Some("192.0.2.10/24".to_owned()),
+            gateway: Some("192.0.2.1".to_owned()),
+            dns: Some("192.0.2.1".to_owned()),
+            ..config()
+        }
+    }
+
+    fn sysinfo() -> SystemInfo {
+        SystemInfo {
+            product: ProductConfig {
+                fullname: "Proxmox VE".to_owned(),
+                product: ProxmoxProduct::Pve,
+                enable_btrfs: true,
+            },
+            iso: IsoInfo {
+                release: "9.1".to_owned(),
+                isorelease: "1".to_owned(),
+            },
+            dmi: SystemDMI {
+                baseboard: HashMap::new(),
+                chassis: HashMap::new(),
+                system: HashMap::new(),
+            },
+            network_interfaces: vec![
+                NetworkInterface {
+                    link: "ens18".to_owned(),
+                    mac: "ab:cd:ef:12:34:56".parse().unwrap(),
+                },
+                NetworkInterface {
+                    link: "ens19".to_owned(),
+                    mac: "12:34:56:ab:cd:ef".parse().unwrap(),
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn network_bond_and_vlan_unset_stays_disabled() {
+        let prepared = render_prepared_config(&config(), &sysinfo()).unwrap();
+        assert!(prepared.network.bond().is_none());
+        assert!(prepared.network.vlan().is_none());
+    }
+
+    #[test]
+    fn network_bond_renders_default_options() {
+        let mut config = config();
+        config.bond_enabled = true;
+        config
+            .bond_members_filter
+            .insert("ID_NET_DRIVER".to_owned(), "igc".to_owned());
+
+        let prepared = render_prepared_config(&config, &sysinfo()).unwrap();
+        let bond = prepared.network.bond().unwrap();
+        assert_eq!(bond.mode, LinuxBondMode::ActiveBackup);
+        assert_eq!(bond.hash_policy, BondXmitHashPolicy::Layer2);
+    }
+
+    #[test]
+    fn bond_options_without_members_filter_are_rejected() {
+        let mut config = config();
+        config.bond_enabled = true;
+
+        let prepared = render_prepared_config(&config, &sysinfo());
+        assert!(prepared.is_err());
+        assert_eq!(
+            prepared.unwrap_err().to_string(),
+            "bonding requires a udev filter selecting the bond members"
+        );
+    }
+
+    #[test]
+    fn vlan_id_is_validated() {
+        let mut config = static_network_config();
+        let sysinfo = sysinfo();
+
+        assert_eq!(
+            render_prepared_config(&config, &sysinfo)
+                .unwrap()
+                .network
+                .vlan(),
+            None
+        );
+
+        config.vlan_id = Some(7);
+        assert_eq!(
+            render_prepared_config(&config, &sysinfo)
+                .unwrap()
+                .network
+                .vlan(),
+            Some(&NetworkVlanOptions { vid: 7 }),
+        );
+
+        // 1 is the untagged default PVID, thus not accepted
+        config.vlan_id = Some(1);
+        assert_eq!(
+            render_prepared_config(&config, &sysinfo)
+                .unwrap_err()
+                .to_string(),
+            "VLAN tag must be between 2 and 4094 inclusive, got 1"
+        );
+    }
+
+    #[test]
+    fn vlan_id_requires_static_network_config() {
+        let mut config = config();
+        config.vlan_id = Some(7);
+
+        assert_eq!(
+            render_prepared_config(&config, &sysinfo())
+                .unwrap_err()
+                .to_string(),
+            "a VLAN tag can only be set with a static network configuration"
+        );
+    }
+
+    #[test]
+    fn bond_and_vlan_need_a_newer_fetch_schema() {
+        let mut config = static_network_config();
+        let sysinfo = sysinfo();
+        assert_eq!(
+            render_prepared_config(&config, &sysinfo)
+                .unwrap()
+                .required_fetch_schema_version(),
+            (1, 0)
+        );
+
+        config.vlan_id = Some(7);
+        assert_eq!(
+            render_prepared_config(&config, &sysinfo)
+                .unwrap()
+                .required_fetch_schema_version(),
+            (1, 1)
+        );
+
+        config.vlan_id = None;
+        config.bond_enabled = true;
+        config
+            .bond_members_filter
+            .insert("ID_NET_DRIVER".to_owned(), "igc".to_owned());
+        assert_eq!(
+            render_prepared_config(&config, &sysinfo)
+                .unwrap()
+                .required_fetch_schema_version(),
+            (1, 1)
+        );
+    }
 
     #[test]
     fn answers_are_sent_to_installers_supporting_their_options() {

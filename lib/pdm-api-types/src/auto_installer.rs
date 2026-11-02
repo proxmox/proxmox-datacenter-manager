@@ -7,6 +7,7 @@ use proxmox_auth_api::types::Userid;
 use proxmox_installer_types::{
     SystemInfo, answer::SUBSCRIPTION_KEY_SCHEMA, post_hook::PostHookInfo,
 };
+use proxmox_network_types::bond::{BondXmitHashPolicy, LinuxBondMode};
 use proxmox_schema::{
     ApiStringFormat, Schema, StringSchema, Updater, api,
     api_types::{CERT_FINGERPRINT_SHA256_SCHEMA, COMMENT_SCHEMA, HTTP_URL_SCHEMA, UUID_FORMAT},
@@ -146,6 +147,23 @@ pub const PREPARED_INSTALL_CONFIG_ID_SCHEMA: proxmox_schema::Schema =
             properties: {},
             additional_properties: true,
             optional: true,
+        },
+        "bond-enabled": {
+            optional: true,
+            default: false,
+        },
+        "bond-members-filter": {
+            type: Object,
+            properties: {},
+            additional_properties: true,
+            optional: true,
+        },
+        // 0 and 4095 are reserved, 1 is the untagged default PVID of VLAN-aware bridges on Linux
+        "vlan-id": {
+            type: Integer,
+            optional: true,
+            minimum: 2,
+            maximum: 4094,
         },
         "disk-mode": {
             type: String,
@@ -301,6 +319,34 @@ pub struct PreparedInstallationConfig {
     #[updater(serde(default, skip_serializing_if = "Option::is_none"))]
     pub netif_name_pinning_enabled: bool,
 
+    /// Whether to enable interface bonding for the management network.
+    #[serde(default)]
+    #[updater(serde(default, skip_serializing_if = "Option::is_none"))]
+    pub bond_enabled: bool,
+    /// Filter for network devices, to select the members of the management interface bond.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    #[updater(serde(default, skip_serializing_if = "Option::is_none"))]
+    pub bond_members_filter: BTreeMap<String, String>,
+    /// Whether it is enough that any filter matches on a network interface or all given
+    /// filters must match to select an interface as a bond member.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[updater(serde(default, skip_serializing_if = "Option::is_none"))]
+    pub bond_members_filter_match: Option<answer::FilterMatch>,
+    /// Mode of the management interface bond, defaults to `active-backup`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[updater(serde(default, skip_serializing_if = "Option::is_none"))]
+    pub bond_mode: Option<LinuxBondMode>,
+    /// Hash policy of the management interface bond, only used with the `802.3ad` and
+    /// `balance-xor` modes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[updater(serde(default, skip_serializing_if = "Option::is_none"))]
+    pub bond_hash_policy: Option<BondXmitHashPolicy>,
+    /// Optional VLAN tag to configure on the management interface, only with a static network
+    /// configuration. With DHCP, the installer uses the VLAN of its installation environment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[updater(serde(default, skip_serializing_if = "Option::is_none"))]
+    pub vlan_id: Option<u16>,
+
     /// Root filesystem options.
     #[updater(serde(default, skip_serializing_if = "Option::is_none"))]
     pub filesystem: answer::FilesystemOptions,
@@ -356,6 +402,14 @@ pub enum DeletablePreparedInstallationConfigProperty {
     TargetFilter,
     /// Delete all udev property filters for the management network device
     NetdevFilter,
+    /// Delete all udev property filters for selecting management network bond members
+    BondMembersFilter,
+    /// Delete the management interface bond mode.
+    BondMode,
+    /// Delete the management interface bond hash policy.
+    BondHashPolicy,
+    /// Delete the management interface VLAN tag.
+    VlanId,
     /// Delete all udev property filters for disks
     DiskFilter,
     /// Delete all `root` user public ssh keys.

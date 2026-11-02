@@ -72,6 +72,12 @@ impl AddAnswerWizardProperties {
             dns: None,
             netdev_filter: BTreeMap::new(),
             netif_name_pinning_enabled: true,
+            bond_enabled: false,
+            bond_members_filter: BTreeMap::new(),
+            bond_members_filter_match: None,
+            bond_mode: None,
+            bond_hash_policy: None,
+            vlan_id: None,
             // disk options
             filesystem: answer::FilesystemOptions::Ext4(answer::LvmOptions::default()),
             disk_mode: DiskSelectionMode::default(),

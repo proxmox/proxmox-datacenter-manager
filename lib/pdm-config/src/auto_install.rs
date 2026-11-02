@@ -38,6 +38,7 @@ pub mod types {
         },
     };
     use proxmox_installer_types::answer::SUBSCRIPTION_KEY_SCHEMA;
+    use proxmox_network_types::bond::{BondXmitHashPolicy, LinuxBondMode};
     use proxmox_schema::{ApiStringFormat, ApiType, PropertyString, api};
 
     #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -123,6 +124,19 @@ pub mod types {
             "netdev-filter": {
                 type: String,
                 optional: true,
+            },
+            "bond-enabled": {
+                optional: true,
+            },
+            "bond-members-filter": {
+                type: String,
+                optional: true,
+            },
+            "vlan-id": {
+                type: Integer,
+                optional: true,
+                minimum: 2,
+                maximum: 4094,
             },
             filesystem: {
                 type: String,
@@ -256,6 +270,26 @@ pub mod types {
         /// Whether to enable network interface name pinning.
         pub netif_name_pinning_enabled: bool,
 
+        /// Whether to enable interface bonding for the management network.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        pub bond_enabled: bool,
+        /// Filter for network devices, to select the members of the management interface bond.
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        pub bond_members_filter: PropertyString<BTreeMapWrapper<String>>,
+        /// Whether it is enough that any filter matches on a network interface or all given
+        /// filters must match to select an interface as a bond member.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub bond_members_filter_match: Option<answer::FilterMatch>,
+        /// Mode of the management interface bond.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub bond_mode: Option<LinuxBondMode>,
+        /// Hash policy of the management interface bond.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub bond_hash_policy: Option<BondXmitHashPolicy>,
+        /// VLAN tag to configure on the management interface.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub vlan_id: Option<u16>,
+
         /// Root filesystem options.
         pub filesystem: PropertyString<answer::FilesystemOptions>,
 
@@ -319,6 +353,12 @@ pub mod types {
                 dns: conf.dns,
                 netdev_filter: PropertyString::new(BTreeMapWrapper(conf.netdev_filter)),
                 netif_name_pinning_enabled: conf.netif_name_pinning_enabled,
+                bond_enabled: conf.bond_enabled,
+                bond_members_filter: PropertyString::new(BTreeMapWrapper(conf.bond_members_filter)),
+                bond_members_filter_match: conf.bond_members_filter_match,
+                bond_mode: conf.bond_mode,
+                bond_hash_policy: conf.bond_hash_policy,
+                vlan_id: conf.vlan_id,
                 // disk options
                 filesystem: PropertyString::new(conf.filesystem),
                 disk_mode: conf.disk_mode,
@@ -372,6 +412,12 @@ pub mod types {
                 dns: self.dns,
                 netdev_filter: self.netdev_filter.into_inner().0,
                 netif_name_pinning_enabled: self.netif_name_pinning_enabled,
+                bond_enabled: self.bond_enabled,
+                bond_members_filter: self.bond_members_filter.into_inner().0,
+                bond_members_filter_match: self.bond_members_filter_match,
+                bond_mode: self.bond_mode,
+                bond_hash_policy: self.bond_hash_policy,
+                vlan_id: self.vlan_id,
                 // disk options
                 filesystem: self.filesystem.into_inner(),
                 disk_mode: self.disk_mode,
@@ -659,4 +705,107 @@ fn read_token_shadow() -> Result<HashMap<String, String>> {
 fn write_token_shadow(data: HashMap<String, String>) -> Result<()> {
     let raw = serde_json::to_string(&data)?;
     replace_config(TOKENS_SHADOW_FILE, raw.as_bytes())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::types::*;
+    use super::*;
+    use pdm_api_types::auto_installer::PreparedInstallationConfig;
+
+    fn prepared_config(extra: serde_json::Value) -> PreparedInstallationConfig {
+        let mut value = json!({
+            "id": "test",
+            "is-default": true,
+            "country": "at",
+            "fqdn": "test.example.com",
+            "use-dhcp-fqdn": false,
+            "keyboard": "en-us",
+            "mailto": "root@example.com",
+            "timezone": "UTC",
+            "reboot-on-error": false,
+            "reboot-mode": "reboot",
+            "use-dhcp-network": false,
+            "cidr": "192.168.100.2/24",
+            "gateway": "192.168.100.1",
+            "dns": "192.168.100.254",
+            "netif-name-pinning-enabled": false,
+            "filesystem": { "filesystem": "ext4" },
+            "disk-mode": "fixed",
+        });
+
+        for (key, v) in extra.as_object().unwrap() {
+            value
+                .as_object_mut()
+                .unwrap()
+                .insert(key.clone(), v.clone());
+        }
+
+        serde_json::from_value(value).unwrap()
+    }
+
+    fn write_raw(conf: &PreparedInstallationConfig) -> String {
+        let mut data: SectionConfigData<PreparedInstallationSectionConfigWrapper> =
+            HashMap::new().into();
+        data.insert(conf.id.clone(), conf.clone().try_into().unwrap());
+
+        PreparedInstallationSectionConfigWrapper::write_section_config(PREPARED_CONF_FILE, &data)
+            .unwrap()
+    }
+
+    fn round_trip(conf: PreparedInstallationConfig) -> PreparedInstallationConfig {
+        let raw = write_raw(&conf);
+        let parsed = PreparedInstallationSectionConfigWrapper::parse_section_config(
+            PREPARED_CONF_FILE,
+            &raw,
+        )
+        .unwrap();
+
+        match parsed.get(&conf.id).expect("entry survived the round trip") {
+            PreparedInstallationSectionConfigWrapper::PreparedConfig(section) => {
+                section.clone().try_into().unwrap()
+            }
+        }
+    }
+
+    #[test]
+    fn bond_and_vlan_survive_the_config_file_round_trip() {
+        let conf = prepared_config(json!({
+            "bond-enabled": true,
+            "bond-members-filter": { "ID_NET_DRIVER": "igc", "ID_PATH": "pci-0000:0[34]:00.0" },
+            "bond-members-filter-match": "all",
+            "bond-mode": "802.3ad",
+            "bond-hash-policy": "layer2+3",
+            "vlan-id": 100,
+        }));
+
+        let back = round_trip(conf.clone());
+
+        assert!(back.bond_enabled);
+        assert_eq!(back.bond_members_filter.len(), 2);
+        assert_eq!(conf.bond_members_filter, back.bond_members_filter);
+        assert_eq!(
+            back.bond_members_filter_match,
+            Some(proxmox_installer_types::answer::FilterMatch::All)
+        );
+        assert_eq!(conf.bond_mode, back.bond_mode);
+        assert_eq!(conf.bond_hash_policy, back.bond_hash_policy);
+        assert_eq!(conf.vlan_id, back.vlan_id);
+        assert_eq!(conf, back);
+    }
+
+    #[test]
+    fn absent_bond_and_vlan_stay_absent() {
+        let conf = prepared_config(json!({}));
+        let back = round_trip(conf.clone());
+
+        // keeps answers without them readable for versions not knowing these options
+        assert!(!write_raw(&conf).contains("bond-"));
+        assert!(back.bond_members_filter.is_empty());
+        assert_eq!(back.bond_mode, None);
+        assert_eq!(back.vlan_id, None);
+        assert_eq!(conf, back);
+    }
 }
