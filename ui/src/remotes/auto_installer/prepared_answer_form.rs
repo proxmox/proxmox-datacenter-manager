@@ -18,11 +18,12 @@ use proxmox_installer_types::{
     answer::{
         BTRFS_COMPRESS_OPTIONS, BtrfsCompressOption, BtrfsOptions, DiskSetup,
         FILESYSTEM_TYPE_OPTIONS, Filesystem, FilesystemOptions, FilesystemType, FilterMatch,
-        KeyboardLayout, LvmOptions, ROOT_PASSWORD_SCHEMA, RebootMode, SUBSCRIPTION_KEY_SCHEMA,
-        ZFS_CHECKSUM_OPTIONS, ZFS_COMPRESS_OPTIONS, ZfsChecksumOption, ZfsCompressOption,
-        ZfsOptions, email_validate,
+        KeyboardLayout, LvmOptions, NetworkBondOptions, ROOT_PASSWORD_SCHEMA, RebootMode,
+        SUBSCRIPTION_KEY_SCHEMA, ZFS_CHECKSUM_OPTIONS, ZFS_COMPRESS_OPTIONS, ZfsChecksumOption,
+        ZfsCompressOption, ZfsOptions, email_validate,
     },
 };
+use proxmox_network_types::bond::{BondXmitHashPolicy, LinuxBondMode};
 use proxmox_network_types::fqdn::Fqdn;
 use proxmox_schema::api_types::{CIDR_SCHEMA, IP_SCHEMA};
 use proxmox_yew_comp::{KeyValueList, SchemaValidation, utils::copy_text_to_clipboard};
@@ -355,7 +356,25 @@ pub fn render_network_options_form(
         .and_then(|v| v.as_bool())
         .unwrap_or(true);
 
-    InputPanel::new()
+    let bond_enabled = form_ctx
+        .read()
+        .get_field_value("bond-enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(config.bond_enabled);
+
+    let bond_mode = form_ctx
+        .read()
+        .get_field_value("bond-mode")
+        .and_then(|v| v.as_str().and_then(|s| s.parse().ok()))
+        .or(config.bond_mode)
+        .unwrap_or(LinuxBondMode::ActiveBackup);
+    let uses_hash_policy = bond_enabled
+        && matches!(
+            bond_mode,
+            LinuxBondMode::Ieee802_3ad | LinuxBondMode::BalanceXor
+        );
+
+    let panel = InputPanel::new()
         .class(Flex::Fill)
         .class(Overflow::Auto)
         .padding(4)
@@ -448,10 +467,106 @@ pub fn render_network_options_form(
                 .submit_empty(false)
                 .name("netdev-filter")
                 .class(FlexFit)
-                .disabled(use_dhcp_network)
-                .required(!use_dhcp_network),
+                // with a bond as management interface, the installer ignores this filter
+                .disabled(use_dhcp_network || bond_enabled)
+                .required(!use_dhcp_network && !bond_enabled),
         )
-        .into()
+        .with_advanced_spacer()
+        .with_advanced_field(
+            tr!("VLAN Tag"),
+            Number::<u16>::new()
+                .name("vlan-id")
+                .min(2)
+                .max(4094)
+                .step(1)
+                .submit_empty(false)
+                .placeholder(if use_dhcp_network {
+                    tr!("Not available with DHCP")
+                } else {
+                    tr!("Optional, 2-4094")
+                })
+                .value(config.vlan_id.map(|v| v.to_string()))
+                .disabled(use_dhcp_network),
+        )
+        .with_advanced_field(
+            tr!("Enable Bonding"),
+            Checkbox::new()
+                .name("bond-enabled")
+                .tip(tr!(
+                    "Bond the member interfaces for the management network."
+                ))
+                .default(config.bond_enabled),
+        )
+        .with_advanced_field(
+            tr!("Bond Members udev Filter Mode"),
+            filter_match_combobox()
+                .name("bond-members-filter-match")
+                .value(config.bond_members_filter_match.map(|v| v.to_string()))
+                .disabled(!bond_enabled)
+                .required(bond_enabled),
+        )
+        .with_advanced_field(
+            tr!("Bond Members udev Filters"),
+            KeyValueList::new()
+                .name("bond-members-filter")
+                .class(FlexFit)
+                .value(
+                    config
+                        .bond_members_filter
+                        .iter()
+                        .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+                        .collect(),
+                )
+                .key_label(tr!("Property Name"))
+                .value_label(tr!("Value To Match"))
+                .key_placeholder(tr!("udev property name, e.g. ID_NET_DRIVER"))
+                .value_renderer(render_udev_filter_value.into())
+                .submit_validate(kv_list_to_udev_filter_map_validate)
+                .submit_empty(false)
+                .disabled(!bond_enabled)
+                .required(bond_enabled),
+        )
+        .with_advanced_field(
+            tr!("Bond Mode"),
+            Combobox::new()
+                .name("bond-mode")
+                .items(Rc::new(
+                    NetworkBondOptions::MODES
+                        .iter()
+                        .map(|mode| mode.to_string().into())
+                        .collect(),
+                ))
+                .render_value(|v: &AttrValue| match v.parse::<LinuxBondMode>() {
+                    Ok(LinuxBondMode::Ieee802_3ad) => tr!("LACP (802.3ad)").into(),
+                    _ => v.into(),
+                })
+                .default(LinuxBondMode::ActiveBackup.to_string())
+                .value(config.bond_mode.map(|v| v.to_string()))
+                .disabled(!bond_enabled)
+                .required(bond_enabled)
+                .show_filter(false),
+        )
+        .with_advanced_field(
+            tr!("Bond Hash Policy"),
+            Combobox::new()
+                .name("bond-hash-policy")
+                .items(Rc::new(
+                    NetworkBondOptions::HASH_POLICIES
+                        .iter()
+                        .map(|policy| policy.to_string().into())
+                        .collect(),
+                ))
+                .default(BondXmitHashPolicy::Layer2.to_string())
+                .value(config.bond_hash_policy.map(|v| v.to_string()))
+                .disabled(!uses_hash_policy)
+                .required(uses_hash_policy)
+                .show_filter(false),
+        );
+
+    // the bond and VLAN options live in the advanced section, report that to the dialog so it can
+    // offer the toggle
+    form_ctx.set_has_advanced(panel.has_advanced());
+    panel.into()
 }
 
 pub fn render_disk_setup_form(
@@ -524,20 +639,8 @@ pub fn render_disk_setup_form(
         .with_spacer()
         .with_field(
             tr!("Disk udev Filter Mode"),
-            Combobox::new()
+            filter_match_combobox()
                 .name("disk-filter-match")
-                .items(Rc::new(
-                    [FilterMatch::Any, FilterMatch::All]
-                        .iter()
-                        .map(|opt| opt.to_string().into())
-                        .collect(),
-                ))
-                .render_value(|v: &AttrValue| match v.parse::<FilterMatch>() {
-                    Ok(FilterMatch::Any) => tr!("Match Any Filter").into(),
-                    Ok(FilterMatch::All) => tr!("Match All Filters").into(),
-                    _ => v.into(),
-                })
-                .default(FilterMatch::default().to_string())
                 .value(config.disk_filter_match.map(|v| v.to_string()))
                 .disabled(disk_mode != DiskSelectionMode::Filter),
         )
@@ -1146,6 +1249,22 @@ fn render_template_counter_value(
             }
         })
         .into()
+}
+
+fn filter_match_combobox() -> Combobox {
+    Combobox::new()
+        .items(Rc::new(
+            [FilterMatch::Any, FilterMatch::All]
+                .iter()
+                .map(|opt| opt.to_string().into())
+                .collect(),
+        ))
+        .render_value(|v: &AttrValue| match v.parse::<FilterMatch>() {
+            Ok(FilterMatch::Any) => tr!("Match Any Filter").into(),
+            Ok(FilterMatch::All) => tr!("Match All Filters").into(),
+            _ => v.into(),
+        })
+        .default(FilterMatch::default().to_string())
 }
 
 /// Validate against a schema, but accept any value carrying a MiniJinja placeholder, as the
