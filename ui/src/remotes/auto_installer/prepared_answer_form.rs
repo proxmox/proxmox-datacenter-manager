@@ -248,7 +248,7 @@ pub fn render_global_options_form(
                 .items(Rc::new(
                     KEYBOARD_LAYOUTS
                         .iter()
-                        .map(|l| serde_variant_name(l).expect("valid variant").into())
+                        .map(|l| l.to_string().into())
                         .collect(),
                 ))
                 .render_value(|v: &AttrValue| {
@@ -257,7 +257,7 @@ pub fn render_global_options_form(
                         .unwrap_or_default()
                         .into()
                 })
-                .value(serde_variant_name(config.keyboard))
+                .value(config.keyboard.to_string())
                 .filter(|item: &AttrValue, query: &str| {
                     let query = query.to_string().to_lowercase();
                     let item = item.to_string();
@@ -317,7 +317,7 @@ pub fn render_global_options_form(
                 .items(Rc::new(
                     [RebootMode::Reboot, RebootMode::PowerOff]
                         .iter()
-                        .map(|opt| serde_variant_name(opt).expect("valid variant").into())
+                        .map(|m| m.to_string().into())
                         .collect(),
                 ))
                 .render_value(|v: &AttrValue| match v.parse::<RebootMode>() {
@@ -325,7 +325,7 @@ pub fn render_global_options_form(
                     Ok(RebootMode::PowerOff) => tr!("Power off").into(),
                     _ => v.into(),
                 })
-                .value(serde_variant_name(config.reboot_mode))
+                .value(config.reboot_mode.to_string())
                 .required(true),
         )
         .with_field(
@@ -482,6 +482,7 @@ pub fn render_disk_setup_form(
                 .items(Rc::new(
                     FILESYSTEM_TYPE_OPTIONS
                         .iter()
+                        // unlike the serialized name, Display returns the label of the installer
                         .map(|opt| serde_variant_name(opt).expect("valid variant").into())
                         .collect(),
                 ))
@@ -508,7 +509,7 @@ pub fn render_disk_setup_form(
                     _ => v.into(),
                 })
                 .required(true)
-                .value(serde_variant_name(config.disk_mode)),
+                .value(config.disk_mode.to_string()),
         )
         .with_field(
             tr!("Disk Names"),
@@ -528,7 +529,7 @@ pub fn render_disk_setup_form(
                 .items(Rc::new(
                     [FilterMatch::Any, FilterMatch::All]
                         .iter()
-                        .map(|opt| serde_variant_name(opt).expect("valid variant").into())
+                        .map(|opt| opt.to_string().into())
                         .collect(),
                 ))
                 .render_value(|v: &AttrValue| match v.parse::<FilterMatch>() {
@@ -536,8 +537,8 @@ pub fn render_disk_setup_form(
                     Ok(FilterMatch::All) => tr!("Match All Filters").into(),
                     _ => v.into(),
                 })
-                .default(serde_variant_name(FilterMatch::default()))
-                .value(config.disk_filter_match.and_then(serde_variant_name))
+                .default(FilterMatch::default().to_string())
+                .value(config.disk_filter_match.map(|v| v.to_string()))
                 .disabled(disk_mode != DiskSelectionMode::Filter),
         )
         .with_large_field(
@@ -729,7 +730,7 @@ fn add_zfs_advanced_form_fields(panel: &mut InputPanel, fs_opts: &ZfsOptions) {
             .items(Rc::new(
                 ZFS_CHECKSUM_OPTIONS
                     .iter()
-                    .map(|opt| serde_variant_name(opt).expect("valid variant").into())
+                    .map(|opt| opt.to_string().into())
                     .collect(),
             ))
             .render_value(|v: &AttrValue| {
@@ -751,7 +752,7 @@ fn add_zfs_advanced_form_fields(panel: &mut InputPanel, fs_opts: &ZfsOptions) {
             .items(Rc::new(
                 ZFS_COMPRESS_OPTIONS
                     .iter()
-                    .map(|opt| serde_variant_name(opt).expect("valid variant").into())
+                    .map(|opt| opt.to_string().into())
                     .collect(),
             ))
             .render_value(|v: &AttrValue| {
@@ -789,7 +790,7 @@ fn add_btrfs_advanced_form_fields(panel: &mut InputPanel, fs_opts: &BtrfsOptions
             .items(Rc::new(
                 BTRFS_COMPRESS_OPTIONS
                     .iter()
-                    .map(|opt| serde_variant_name(opt).expect("valid variant").into())
+                    .map(|opt| opt.to_string().into())
                     .collect(),
             ))
             .render_value(|v: &AttrValue| {

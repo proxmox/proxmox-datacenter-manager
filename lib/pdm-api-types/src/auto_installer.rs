@@ -88,6 +88,7 @@ pub enum DiskSelectionMode {
 }
 
 serde_plain::derive_fromstr_from_deserialize!(DiskSelectionMode);
+serde_plain::derive_display_from_serialize!(DiskSelectionMode);
 
 const_regex! {
     /// Regex for matching the key of udev filters.
