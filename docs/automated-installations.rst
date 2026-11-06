@@ -108,6 +108,30 @@ newly installed node registers that subscription automatically as part of the
 installation, so no separate operator step is needed to bring the node under a
 valid subscription.
 
+.. _autoinst_bond_vlan:
+
+Bond and VLAN
+^^^^^^^^^^^^^
+
+With *Advanced* checked, the *Network Options* tab shows options to set up a
+bond as the management interface of the installed system and to put the
+management network on a VLAN. An installer that does not support these options
+gets no answer, and the installation shows up with the status *Installer too old
+for answer*.
+
+To set up a bond, check *Enable Bonding* and select its members with *Bond
+Members udev Filters*, for example the property ``ID_NET_DRIVER`` with the value
+``igb``. With *Match All Filters*, an interface must match each filter. The
+filters must match at least two physical network interfaces of the target
+system, and with *Use DHCP*, the installer must have received its address on one
+of them. Otherwise, the installation aborts before writing to any disk. As the
+bond is the management interface, the *Network Device Filters* do not apply.
+
+A *VLAN Tag* from 2 to 4094 needs a static network configuration. With *Use
+DHCP*, the installed system uses the VLAN on which the installer received its
+address. A static network configuration without a VLAN tag leaves the
+management network untagged, also if the installer ran on a VLAN.
+
 .. _autoinst_token:
 
 Authentication token management
