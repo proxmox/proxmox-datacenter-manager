@@ -416,18 +416,18 @@ async fn create_prepared_answer(
         );
     }
 
+    validate_udev_filter_map(&config.netdev_filter)?;
+    validate_udev_filter_map(&config.disk_filter)?;
+    validate_template_map(&config.template_counters)?;
+
+    // generated only now, so that a refused request leaves no unused token behind
     let token = if config.authorized_tokens.is_empty() {
-        // if no token was specified, generate a new one
         let token = generate_token(&config.id, rpcenv)?;
         config.authorized_tokens.push(token.token.id.clone());
         Some(token)
     } else {
         None
     };
-
-    validate_udev_filter_map(&config.netdev_filter)?;
-    validate_udev_filter_map(&config.disk_filter)?;
-    validate_template_map(&config.template_counters)?;
 
     prepared.insert(config.id.clone(), config.clone().try_into()?);
     pdm_config::auto_install::save_prepared_answers(&prepared)?;
@@ -600,15 +600,9 @@ async fn update_prepared_answer(
         subscription_key,
     } = update;
 
-    let mut new_token = None;
-    if let Some(mut tokens) = authorized_tokens {
-        if tokens.is_empty() {
-            // if no token was specified, generate a new one
-            let token = generate_token(&p.id, rpcenv)?;
-            tokens.push(token.token.id.clone());
-            new_token = Some(token);
-        }
-
+    let mut generate_new_token = false;
+    if let Some(tokens) = authorized_tokens {
+        generate_new_token = tokens.is_empty();
         p.authorized_tokens = tokens;
     }
 
@@ -733,6 +727,16 @@ async fn update_prepared_answer(
     }
 
     let mut config: PreparedInstallationConfig = p.clone().try_into()?;
+
+    // generated only now, so that a refused request leaves no unused token behind
+    let mut new_token = None;
+    if generate_new_token {
+        let token = generate_token(&p.id, rpcenv)?;
+        p.authorized_tokens.push(token.token.id.clone());
+        config.authorized_tokens.push(token.token.id.clone());
+        new_token = Some(token);
+    }
+
     pdm_config::auto_install::save_prepared_answers(&prepared)?;
 
     config.root_password_hashed = None;
