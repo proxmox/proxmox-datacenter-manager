@@ -106,6 +106,7 @@ impl yew::Component for PbsNodePanelComp {
                             .task_base_url(task_base_url)
                             .subscription_url(sub_url)
                             .enable_upgrade(true)
+                            .show_update_changelogs(true)
                             .on_upgrade({
                                 let remote = remote.clone();
                                 let link = link.clone();

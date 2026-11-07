@@ -535,6 +535,7 @@ impl UpdateTreeComponent {
                         .base_url(base_url.clone())
                         .task_base_url(task_base_url)
                         .enable_upgrade(true)
+                        .show_update_changelogs(true)
                         .subscription_url(subscription_url.clone())
                         .on_upgrade({
                             let remote = remote.clone();
