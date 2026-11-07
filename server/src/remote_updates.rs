@@ -1,7 +1,10 @@
 use anyhow::{Error, bail};
+use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use proxmox_apt_api_types::{APTRepositoriesResult, APTStandardRepoSummary, APTUpdateInfo};
+use proxmox_apt_history::TransactionChangelog;
+use proxmox_router::http_err;
 
 use pdm_api_types::RemoteUpid;
 use pdm_api_types::remote_updates::{
@@ -130,6 +133,50 @@ pub async fn get_changelog(remote: &Remote, node: &str, package: String) -> Resu
                 .await
                 .map_err(Into::into)
         }
+    }
+}
+
+/// Get the changelog entries for the pending updates of a remote node, grouped by source package.
+pub async fn get_update_changelogs(
+    remote: &Remote,
+    node: &str,
+) -> Result<Vec<TransactionChangelog>, Error> {
+    let result = match remote.ty {
+        RemoteType::Pve => {
+            let client = connection::make_pve_client(remote)?;
+            client.get_update_changelogs(node).await
+        }
+        RemoteType::Pbs => {
+            let client = connection::make_pbs_client(remote)?;
+            client.get_update_changelogs().await
+        }
+    };
+
+    result.map_err(|err| {
+        remote_apt_error(
+            err,
+            "The node runs a version that cannot list the changelogs of all pending updates. \
+            Select a package and press Changelog to see its changes.",
+        )
+    })
+}
+
+/// Explains with `missing` that the remote runs a version without the requested endpoint, which
+/// PVE answers with 501 and PBS with 404 for the unknown path. Other errors keep a 404 status, as
+/// clients tell missing changelogs or transactions apart by it.
+fn remote_apt_error(err: proxmox_client::Error, missing: &str) -> Error {
+    match err {
+        proxmox_client::Error::Api(StatusCode::NOT_IMPLEMENTED, _) => {
+            http_err!(NOT_IMPLEMENTED, "{missing}")
+        }
+        proxmox_client::Error::Api(StatusCode::NOT_FOUND, message) => {
+            if message.starts_with("Path '") {
+                http_err!(NOT_IMPLEMENTED, "{missing}")
+            } else {
+                http_err!(NOT_FOUND, "{message}")
+            }
+        }
+        err => err.into(),
     }
 }
 

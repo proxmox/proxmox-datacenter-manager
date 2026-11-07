@@ -429,6 +429,14 @@ impl<C: HttpApiClient<Body = proxmox_http::Body>> PbsClient<C> {
         Ok(self.0.get(&path).await?.expect_json()?.data)
     }
 
+    /// Get the changelog entries for pending updates, grouped by source package.
+    pub async fn get_update_changelogs(
+        &self,
+    ) -> Result<Vec<proxmox_apt_history::TransactionChangelog>, Error> {
+        let url = "/api2/extjs/nodes/localhost/apt/update-changelogs";
+        Ok(self.0.get(url).await?.expect_json()?.data)
+    }
+
     /// Return a list of the most important package versions.
     pub async fn get_package_versions(&self) -> Result<Vec<pbs_api_types::APTUpdateInfo>, Error> {
         Ok(self

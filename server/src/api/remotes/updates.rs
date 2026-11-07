@@ -10,6 +10,7 @@ use pdm_api_types::{
 };
 use proxmox_access_control::CachedUserInfo;
 use proxmox_apt_api_types::{APTGetChangelogOptions, APTUpdateInfo};
+use proxmox_apt_history::TransactionChangelog;
 use proxmox_rest_server::WorkerTask;
 use proxmox_router::{
     Permission, Router, RpcEnvironment, SubdirMap, http_bail, list_subdirs_api_method,
@@ -214,6 +215,39 @@ async fn apt_get_changelog(
             },
         },
     },
+    returns: {
+        description: "Changelog entries for pending updates, grouped by source package.",
+        type: Array,
+        items: {
+            type: TransactionChangelog,
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}", "system"], PRIV_RESOURCE_MODIFY, false),
+    },
+)]
+/// Get the changelog entries for the pending updates of a remote node.
+async fn apt_update_changelogs(
+    remote: String,
+    node: String,
+) -> Result<Vec<TransactionChangelog>, Error> {
+    let (config, _digest) = pdm_config::remotes::config()?;
+    let remote = get_remote(&config, &remote)?;
+
+    remote_updates::get_update_changelogs(remote, &node).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: {
+                schema: REMOTE_ID_SCHEMA,
+            },
+            node: {
+                schema: NODE_SCHEMA,
+            },
+        },
+    },
     access: {
         permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}", "system"], PRIV_RESOURCE_AUDIT, false),
     },
@@ -253,6 +287,10 @@ const APT_SUBDIRS: SubdirMap = &sorted!([
         &Router::new()
             .get(&API_METHOD_APT_UPDATE_AVAILABLE)
             .post(&API_METHOD_APT_UPDATE_DATABASE),
+    ),
+    (
+        "update-changelogs",
+        &Router::new().get(&API_METHOD_APT_UPDATE_CHANGELOGS),
     ),
 ]);
 
