@@ -3,7 +3,8 @@ use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use proxmox_apt_api_types::{APTRepositoriesResult, APTStandardRepoSummary, APTUpdateInfo};
-use proxmox_apt_history::TransactionChangelog;
+use proxmox_apt_history::{HistoryEntry, HistoryListOptions, TermLogFormat, TransactionChangelog};
+use proxmox_deb_changelog::ChangelogEntry;
 use proxmox_router::http_err;
 
 use pdm_api_types::RemoteUpid;
@@ -12,6 +13,7 @@ use pdm_api_types::remote_updates::{
     ProductRepositoryStatus, RemoteUpdateStatus, RemoteUpdateSummary, UpdateSummary,
 };
 use pdm_api_types::remotes::{Remote, RemoteType};
+use pve_api_types::GetAptTermLogFormat;
 
 use crate::namespaced_cache::CacheError;
 use crate::parallel_fetcher::ParallelFetcher;
@@ -159,6 +161,118 @@ pub async fn get_update_changelogs(
             Select a package and press Changelog to see its changes.",
         )
     })
+}
+
+const NO_HISTORY: &str = "The node runs a version that does not provide the update history.";
+
+/// List the APT transactions of a remote node, newest first.
+pub async fn list_history(
+    remote: &Remote,
+    node: &str,
+    options: HistoryListOptions,
+) -> Result<Vec<HistoryEntry>, Error> {
+    let result = match remote.ty {
+        RemoteType::Pve => {
+            let client = connection::make_pve_client(remote)?;
+            client
+                .list_apt_history(
+                    node,
+                    options.limit,
+                    options.package,
+                    options.since,
+                    options.until,
+                )
+                .await
+        }
+        RemoteType::Pbs => {
+            let client = connection::make_pbs_client(remote)?;
+            client.list_apt_history(&options).await
+        }
+    };
+    result.map_err(|err| remote_apt_error(err, NO_HISTORY))
+}
+
+/// Get the terminal output of an APT transaction of a remote node.
+pub async fn get_term_log(
+    remote: &Remote,
+    node: &str,
+    start_time: i64,
+    start_index: Option<u32>,
+    format: Option<TermLogFormat>,
+) -> Result<String, Error> {
+    let result = match remote.ty {
+        RemoteType::Pve => {
+            let client = connection::make_pve_client(remote)?;
+            let format = format.map(|format| match format {
+                TermLogFormat::Plain => GetAptTermLogFormat::Plain,
+                TermLogFormat::Styled => GetAptTermLogFormat::Styled,
+            });
+            client
+                .get_apt_term_log(node, format, start_index, start_time)
+                .await
+        }
+        RemoteType::Pbs => {
+            let client = connection::make_pbs_client(remote)?;
+            let format = format.map(|format| match format {
+                TermLogFormat::Plain => "plain",
+                TermLogFormat::Styled => "styled",
+            });
+            client
+                .get_apt_term_log(start_time, start_index, format)
+                .await
+        }
+    };
+    result.map_err(|err| remote_apt_error(err, NO_HISTORY))
+}
+
+/// Get the changelog entries for the package changes of an APT transaction of a remote node.
+pub async fn get_transaction_changelogs(
+    remote: &Remote,
+    node: &str,
+    start_time: i64,
+    start_index: Option<u32>,
+) -> Result<Vec<TransactionChangelog>, Error> {
+    let result = match remote.ty {
+        RemoteType::Pve => {
+            let client = connection::make_pve_client(remote)?;
+            client
+                .get_transaction_changelogs(node, start_index, start_time)
+                .await
+        }
+        RemoteType::Pbs => {
+            let client = connection::make_pbs_client(remote)?;
+            client
+                .get_transaction_changelogs(start_time, start_index)
+                .await
+        }
+    };
+    result.map_err(|err| remote_apt_error(err, NO_HISTORY))
+}
+
+/// Get the changelog of a package installed on a remote node, optionally limited to a version
+/// range.
+pub async fn get_installed_changelog(
+    remote: &Remote,
+    node: &str,
+    name: String,
+    since_version: Option<String>,
+    to_version: Option<String>,
+) -> Result<Vec<ChangelogEntry>, Error> {
+    let result = match remote.ty {
+        RemoteType::Pve => {
+            let client = connection::make_pve_client(remote)?;
+            client
+                .get_installed_changelog(node, name, since_version, to_version)
+                .await
+        }
+        RemoteType::Pbs => {
+            let client = connection::make_pbs_client(remote)?;
+            client
+                .get_installed_changelog(&name, since_version.as_deref(), to_version.as_deref())
+                .await
+        }
+    };
+    result.map_err(|err| remote_apt_error(err, NO_HISTORY))
 }
 
 /// Explains with `missing` that the remote runs a version without the requested endpoint, which

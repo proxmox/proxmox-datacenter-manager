@@ -10,7 +10,8 @@ use pdm_api_types::{
 };
 use proxmox_access_control::CachedUserInfo;
 use proxmox_apt_api_types::{APTGetChangelogOptions, APTUpdateInfo};
-use proxmox_apt_history::TransactionChangelog;
+use proxmox_apt_history::{HistoryEntry, HistoryListOptions, TermLogFormat, TransactionChangelog};
+use proxmox_deb_changelog::ChangelogEntry;
 use proxmox_rest_server::WorkerTask;
 use proxmox_router::{
     Permission, Router, RpcEnvironment, SubdirMap, http_bail, list_subdirs_api_method,
@@ -272,15 +273,204 @@ async fn get_apt_repositories(
     })
 }
 
+#[api(
+    input: {
+        properties: {
+            remote: {
+                schema: REMOTE_ID_SCHEMA,
+            },
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            options: {
+                type: HistoryListOptions,
+                flatten: true,
+            },
+        },
+    },
+    returns: {
+        description: "The APT transactions, newest first.",
+        type: Array,
+        items: {
+            type: HistoryEntry,
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}", "system"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// List the APT transactions of a remote node.
+async fn apt_history(
+    remote: String,
+    node: String,
+    options: HistoryListOptions,
+) -> Result<Vec<HistoryEntry>, Error> {
+    let (config, _digest) = pdm_config::remotes::config()?;
+    let remote = get_remote(&config, &remote)?;
+
+    remote_updates::list_history(remote, &node, options).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: {
+                schema: REMOTE_ID_SCHEMA,
+            },
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            "start-time": {
+                description: "Start time of the transaction, as listed in the APT history.",
+            },
+            "start-index": {
+                description: "Start index of the transaction, as listed in the APT history.",
+                optional: true,
+                default: 0,
+            },
+            format: {
+                type: TermLogFormat,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        description: "The terminal output.",
+        type: String,
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}", "system"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get the terminal output of an APT transaction of a remote node.
+async fn apt_term_log(
+    remote: String,
+    node: String,
+    start_time: i64,
+    start_index: Option<u32>,
+    format: Option<TermLogFormat>,
+) -> Result<String, Error> {
+    let (config, _digest) = pdm_config::remotes::config()?;
+    let remote = get_remote(&config, &remote)?;
+
+    remote_updates::get_term_log(remote, &node, start_time, start_index, format).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: {
+                schema: REMOTE_ID_SCHEMA,
+            },
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            "start-time": {
+                description: "Start time of the transaction, as listed in the APT history.",
+            },
+            "start-index": {
+                description: "Start index of the transaction, as listed in the APT history.",
+                optional: true,
+                default: 0,
+            },
+        },
+    },
+    returns: {
+        description: "The changelog entries, grouped by source package.",
+        type: Array,
+        items: {
+            type: TransactionChangelog,
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}", "system"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get the changelog entries for the package changes of an APT transaction of a remote node.
+async fn apt_transaction_changelogs(
+    remote: String,
+    node: String,
+    start_time: i64,
+    start_index: Option<u32>,
+) -> Result<Vec<TransactionChangelog>, Error> {
+    let (config, _digest) = pdm_config::remotes::config()?;
+    let remote = get_remote(&config, &remote)?;
+
+    remote_updates::get_transaction_changelogs(remote, &node, start_time, start_index).await
+}
+
+#[api(
+    input: {
+        properties: {
+            remote: {
+                schema: REMOTE_ID_SCHEMA,
+            },
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            name: {
+                description: "Name of the installed package.",
+                type: String,
+                max_length: 128,
+            },
+            "since-version": {
+                description: "Only list the entries of versions later than this one.",
+                type: String,
+                max_length: 128,
+                optional: true,
+            },
+            "to-version": {
+                description: "Only list the entries of versions up to including this one.",
+                type: String,
+                max_length: 128,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        description: "The changelog entries, usually newest first.",
+        type: Array,
+        items: {
+            type: ChangelogEntry,
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["resource", "{remote}", "node", "{node}", "system"], PRIV_RESOURCE_AUDIT, false),
+    },
+)]
+/// Get the Debian changelog of a package installed on a remote node.
+async fn apt_installed_changelog(
+    remote: String,
+    node: String,
+    name: String,
+    since_version: Option<String>,
+    to_version: Option<String>,
+) -> Result<Vec<ChangelogEntry>, Error> {
+    let (config, _digest) = pdm_config::remotes::config()?;
+    let remote = get_remote(&config, &remote)?;
+
+    remote_updates::get_installed_changelog(remote, &node, name, since_version, to_version).await
+}
+
 #[sortable]
 const APT_SUBDIRS: SubdirMap = &sorted!([
     (
         "changelog",
         &Router::new().get(&API_METHOD_APT_GET_CHANGELOG),
     ),
+    ("history", &Router::new().get(&API_METHOD_APT_HISTORY)),
+    (
+        "installed-changelog",
+        &Router::new().get(&API_METHOD_APT_INSTALLED_CHANGELOG),
+    ),
     (
         "repositories",
         &Router::new().get(&API_METHOD_GET_APT_REPOSITORIES),
+    ),
+    ("termlog", &Router::new().get(&API_METHOD_APT_TERM_LOG)),
+    (
+        "transaction-changelogs",
+        &Router::new().get(&API_METHOD_APT_TRANSACTION_CHANGELOGS),
     ),
     (
         "update",

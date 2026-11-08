@@ -437,6 +437,63 @@ impl<C: HttpApiClient<Body = proxmox_http::Body>> PbsClient<C> {
         Ok(self.0.get(url).await?.expect_json()?.data)
     }
 
+    /// List the APT transactions, newest first.
+    pub async fn list_apt_history(
+        &self,
+        options: &proxmox_apt_history::HistoryListOptions,
+    ) -> Result<Vec<proxmox_apt_history::HistoryEntry>, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/nodes/localhost/apt/history")
+            .maybe_arg("since", &options.since)
+            .maybe_arg("until", &options.until)
+            .maybe_arg("package", &options.package)
+            .maybe_arg("limit", &options.limit)
+            .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    /// Get the terminal output of an APT transaction, `format` is "plain" or "styled".
+    pub async fn get_apt_term_log(
+        &self,
+        start_time: i64,
+        start_index: Option<u32>,
+        format: Option<&str>,
+    ) -> Result<String, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/nodes/localhost/apt/termlog")
+            .arg("start-time", start_time)
+            .maybe_arg("start-index", &start_index)
+            .maybe_arg("format", &format)
+            .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    /// Get the changelog entries for the package changes of an APT transaction.
+    pub async fn get_transaction_changelogs(
+        &self,
+        start_time: i64,
+        start_index: Option<u32>,
+    ) -> Result<Vec<proxmox_apt_history::TransactionChangelog>, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/nodes/localhost/apt/transaction-changelogs")
+            .arg("start-time", start_time)
+            .maybe_arg("start-index", &start_index)
+            .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
+    /// Get the changelog of an installed package, optionally limited to a version range.
+    pub async fn get_installed_changelog(
+        &self,
+        name: &str,
+        since_version: Option<&str>,
+        to_version: Option<&str>,
+    ) -> Result<Vec<proxmox_deb_changelog::ChangelogEntry>, Error> {
+        let path = ApiPathBuilder::new("/api2/extjs/nodes/localhost/apt/installed-changelog")
+            .arg("name", name)
+            .maybe_arg("since-version", &since_version)
+            .maybe_arg("to-version", &to_version)
+            .build();
+        Ok(self.0.get(&path).await?.expect_json()?.data)
+    }
+
     /// Return a list of the most important package versions.
     pub async fn get_package_versions(&self) -> Result<Vec<pbs_api_types::APTUpdateInfo>, Error> {
         Ok(self
