@@ -5,7 +5,7 @@ use proxmox_apt_api_types::{
     APTChangeRepositoryOptions, APTGetChangelogOptions, APTRepositoriesResult, APTRepositoryHandle,
     APTUpdateInfo, APTUpdateOptions, HostProduct,
 };
-use proxmox_apt_history::{PackageChange, TransactionChangelog};
+use proxmox_apt_history::{PackageChange, PrefetchSummary, TransactionChangelog};
 use proxmox_http::ProxyConfig;
 use proxmox_rest_server::WorkerTask;
 use proxmox_router::{
@@ -70,24 +70,37 @@ fn apt_update_available(_param: Value) -> Result<Vec<APTUpdateInfo>, Error> {
 /// Get the changelog entries for pending updates.
 async fn apt_update_changelogs() -> Result<Vec<TransactionChangelog>, Error> {
     tokio::task::spawn_blocking(|| {
-        let updates = proxmox_apt::list_available_apt_update(pdm_buildcfg::APT_PKG_STATE_FN)?;
-        let changes = updates
-            .into_iter()
-            .map(|update| {
-                PackageChange::pending_update(
-                    update.package,
-                    Some(update.arch),
-                    update.old_version,
-                    update.version,
-                )
-            })
-            .collect();
         Ok(proxmox_apt_history::get_update_changelogs(
-            changes,
+            pending_update_changes()?,
             UPDATE_CHANGELOG_CACHE_DIR.as_ref(),
         ))
     })
     .await?
+}
+
+fn pending_update_changes() -> Result<Vec<PackageChange>, Error> {
+    let updates = proxmox_apt::list_available_apt_update(pdm_buildcfg::APT_PKG_STATE_FN)?;
+    Ok(updates
+        .into_iter()
+        .map(|update| {
+            PackageChange::pending_update(
+                update.package,
+                Some(update.arch),
+                update.old_version,
+                update.version,
+            )
+        })
+        .collect())
+}
+
+/// Downloads the changelogs of the pending updates into the cache of the update-changelogs
+/// endpoint, if it got used in the last 30 days. Returns `None` if it did not run.
+pub fn prefetch_update_changelogs() -> Result<Option<PrefetchSummary>, Error> {
+    proxmox_apt_history::prefetch_update_changelogs(
+        pending_update_changes()?,
+        UPDATE_CHANGELOG_CACHE_DIR.as_ref(),
+    )
+    .map_err(Error::msg)
 }
 
 pub fn update_apt_proxy_config(proxy_config: Option<&ProxyConfig>) -> Result<(), Error> {

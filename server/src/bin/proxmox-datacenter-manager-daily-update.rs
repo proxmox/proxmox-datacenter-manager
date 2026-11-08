@@ -49,7 +49,10 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment, app: PdmApplication) -> Resu
             Err(err) => {
                 log::error!("Error triggering apt database update - {err}");
             }
-            Ok(upid) => wait_for_local_worker(upid.as_str().unwrap()).await?,
+            Ok(upid) => {
+                wait_for_local_worker(upid.as_str().unwrap()).await?;
+                prefetch_update_changelogs().await;
+            }
         },
         _ => unreachable!(),
     };
@@ -62,6 +65,30 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment, app: PdmApplication) -> Resu
     // TODO: cleanup tasks like in PVE?
 
     Ok(())
+}
+
+/// Downloads the changelogs of the pending updates, so that showing them needs no downloads.
+async fn prefetch_update_changelogs() {
+    match tokio::task::spawn_blocking(api::nodes::apt::prefetch_update_changelogs).await {
+        Ok(Ok(Some(summary))) => {
+            if summary.downloaded > 0 {
+                log::info!(
+                    "prefetched {} changelogs of pending updates",
+                    summary.downloaded
+                );
+            }
+            if summary.failed > 0 {
+                log::warn!(
+                    "could not prefetch {} changelogs of pending updates - {}",
+                    summary.failed,
+                    summary.error.unwrap_or_default(),
+                );
+            }
+        }
+        Ok(Ok(None)) => (),
+        Ok(Err(err)) => log::error!("prefetching the changelogs of pending updates failed - {err}"),
+        Err(err) => log::error!("prefetching the changelogs of pending updates failed - {err}"),
+    }
 }
 
 async fn check_acme_certificates(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
