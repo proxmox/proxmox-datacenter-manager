@@ -157,6 +157,7 @@ async fn run(app: PdmApplication, debug: bool) -> Result<(), Error> {
 
     let dir_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
+    let log_file_opts = file_opts.perm(nix::sys::stat::Mode::from_bits_truncate(0o640));
 
     let indexpath = Path::new(pdm_buildcfg::JS_DIR).join("index.hbs");
 
@@ -190,13 +191,13 @@ async fn run(app: PdmApplication, debug: bool) -> Result<(), Error> {
         .enable_access_log(
             pdm_buildcfg::API_ACCESS_LOG_FN,
             Some(dir_opts),
-            Some(file_opts),
+            Some(log_file_opts),
             &mut command_sock,
         )?
         .enable_auth_log(
             pdm_buildcfg::API_AUTH_LOG_FN,
             Some(dir_opts),
-            Some(file_opts),
+            Some(log_file_opts),
             &mut command_sock,
         )?
         .with_shared_state(shared_state);

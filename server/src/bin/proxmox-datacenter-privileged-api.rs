@@ -101,7 +101,7 @@ fn create_directories() -> Result<(), Error> {
         concat!(pdm_buildcfg::PDM_LOG_DIR_M!(), "/api"),
         api_user.uid,
         api_user.gid,
-        0o755,
+        0o700,
     )?;
 
     pdm_config::setup::mkdir_perms(
@@ -146,6 +146,7 @@ async fn run(app: PdmApplication) -> Result<(), Error> {
 
     let dir_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
     let file_opts = CreateOptions::new().owner(api_user.uid).group(api_user.gid);
+    let log_file_opts = file_opts.perm(nix::sys::stat::Mode::from_bits_truncate(0o640));
 
     let mut shared_state = SharedStateRegistry::default();
     shared_state.register::<PdmApplication>(app)?;
@@ -156,13 +157,13 @@ async fn run(app: PdmApplication) -> Result<(), Error> {
         .enable_access_log(
             pdm_buildcfg::API_ACCESS_LOG_FN,
             Some(dir_opts),
-            Some(file_opts),
+            Some(log_file_opts),
             &mut command_sock,
         )?
         .enable_auth_log(
             pdm_buildcfg::API_AUTH_LOG_FN,
             Some(dir_opts),
-            Some(file_opts),
+            Some(log_file_opts),
             &mut command_sock,
         )?
         .with_shared_state(shared_state);
