@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gloo_utils::window;
 use proxmox_deb_version::Version;
-use proxmox_yew_comp::{AptPackageManager, ConsoleType, NotesView, XTermJs};
+use proxmox_yew_comp::{AptHistory, AptPackageManager, ConsoleType, NotesView, XTermJs};
 use yew::virtual_dom::{VComp, VNode};
 
 use pwt::{
@@ -137,6 +137,22 @@ impl yew::Component for PveNodePanelComp {
                                     }
                                 }
                             })
+                            .into()
+                    }
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("update_history_view")
+                    .label(tr!("Update History"))
+                    .icon_class("fa fa-history"),
+                {
+                    let remote = props.remote.clone();
+                    let node = props.node.clone();
+                    move |_| {
+                        AptHistory::new()
+                            .base_url(format!("/pve/remotes/{remote}/nodes/{node}/apt"))
+                            .enable_term_log(true)
                             .into()
                     }
                 },

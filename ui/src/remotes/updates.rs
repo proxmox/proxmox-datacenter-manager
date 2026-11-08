@@ -16,12 +16,12 @@ use pwt::css::{AlignItems, FlexFit, TextAlign};
 use pwt::widget::data_table::{DataTableCellRenderArgs, DataTableCellRenderer};
 
 use proxmox_yew_comp::{
-    AptPackageManager, AptRepositories, ExistingProduct, LoadableComponent,
+    AptHistory, AptPackageManager, AptRepositories, ExistingProduct, LoadableComponent,
     LoadableComponentContext, LoadableComponentMaster, LoadableComponentScopeExt,
     LoadableComponentState,
 };
 use pwt::props::{CssBorderBuilder, CssPaddingBuilder, WidgetStyleBuilder};
-use pwt::widget::{Button, Container, Panel, Progress, Tooltip};
+use pwt::widget::{Button, Container, Panel, Progress, TabBarItem, TabPanel, Tooltip};
 use pwt::{
     css,
     css::FontColor,
@@ -519,14 +519,18 @@ impl UpdateTreeComponent {
                 let title: Html = Row::new()
                     .gap(2)
                     .class(AlignItems::Baseline)
-                    .with_child(Fa::new("list"))
-                    // TRANSLATORS: The first parameter is the name of the remote, the second one
-                    // the name of the node.
-                    .with_child(tr!("Update List - {0} ({1})", remote, node))
+                    .with_child(Fa::new("server"))
+                    .with_child(match ty {
+                        // TRANSLATORS: The first parameter is the name of the remote, the second
+                        // one the name of the node.
+                        RemoteType::Pve => tr!("{1} on {0}", remote, node),
+                        // the only node of a PBS remote is always called localhost
+                        RemoteType::Pbs => remote.clone(),
+                    })
                     .into();
+                let base_url = format!("/{ty}/remotes/{remote}/nodes/{node}/apt");
 
-                if summary.status == NodeUpdateStatus::Success {
-                    let base_url = format!("/{ty}/remotes/{remote}/nodes/{node}/apt",);
+                let updates: Html = if summary.status == NodeUpdateStatus::Success {
                     let subscription_url =
                         format!("/{ty}/remotes/{remote}/nodes/{node}/subscription");
                     let task_base_url = format!("/{ty}/remotes/{remote}/tasks");
@@ -572,24 +576,49 @@ impl UpdateTreeComponent {
                             .product(product)
                             .status_only(true)
                             .subscription_url(subscription_url)
-                            .base_url(base_url),
+                            .base_url(base_url.clone()),
                     );
 
-                    panel = panel
-                        .title(title)
+                    Column::new()
+                        .class(FlexFit)
                         .with_child(repo_status)
                         .with_child(
                             html! {<div role="separator" class="pwt-w-100 pwt-horizontal-rule"/>},
                         )
-                        .with_child(apt);
+                        .with_child(apt)
+                        .into()
                 } else {
-                    let error_widget = pwt::widget::error_message(&tr!(
+                    pwt::widget::error_message(&tr!(
                         "Could not fetch update status: {0}",
                         summary.status_message.as_deref().unwrap_or_default()
-                    ));
+                    ))
+                    .into()
+                };
 
-                    panel = panel.title(title).with_child(error_widget);
-                }
+                let tabs = TabPanel::new()
+                    .class(FlexFit)
+                    .title(title)
+                    .with_item(
+                        TabBarItem::new()
+                            .key("updates")
+                            .label(tr!("Updates"))
+                            .icon_class("fa fa-refresh"),
+                        updates,
+                    )
+                    .with_item_builder(
+                        TabBarItem::new()
+                            .key("history")
+                            .label(tr!("History"))
+                            .icon_class("fa fa-history"),
+                        move |_| {
+                            AptHistory::new()
+                                .base_url(base_url.clone())
+                                .enable_term_log(true)
+                                .into()
+                        },
+                    );
+
+                panel = panel.with_child(tabs);
             }
             Some(UpdateTreeEntry::Remote(remote_entry)) => {
                 let title: Html = Row::new()

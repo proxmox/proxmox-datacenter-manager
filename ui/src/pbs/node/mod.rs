@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use proxmox_yew_comp::AptPackageManager;
+use proxmox_yew_comp::{AptHistory, AptPackageManager};
 use yew::{
     Context,
     virtual_dom::{VComp, VNode},
@@ -120,6 +120,21 @@ impl yew::Component for PbsNodePanelComp {
                                     }
                                 }
                             })
+                            .into()
+                    }
+                },
+            )
+            .with_item_builder(
+                TabBarItem::new()
+                    .key("update_history_view")
+                    .label(tr!("Update History"))
+                    .icon_class("fa fa-history"),
+                {
+                    let remote = props.remote.clone();
+                    move |_| {
+                        AptHistory::new()
+                            .base_url(format!("/pbs/remotes/{remote}/nodes/localhost/apt"))
+                            .enable_term_log(true)
                             .into()
                     }
                 },
