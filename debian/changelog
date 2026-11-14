@@ -1,3 +1,64 @@
+proxmox-datacenter-manager (1.1.10) trixie; urgency=medium
+
+  * auth: LDAP, AD: reject empty passwords. Directory servers allowing
+    unauthenticated binds accept a bind with an empty password, which let
+    anyone knowing a valid user name pass the password check.
+
+  * api: tokens: regenerating the secret of another user's API token now also
+    requires Access.Modify on /access/acl, the privilege needed for modifying
+    any ACL. Before, Access.Modify on /access/users was enough, which could
+    hand out a token with more privileges than the caller had.
+
+  * network: reject interface comments with Mako template tags, which
+    ifupdown2 executes as Python code if python3-mako is installed, and write
+    carriage returns in comments as line breaks, as ifupdown2 would otherwise
+    read them as the start of a new configuration line.
+
+  * keep the API access and auth logs private. They were readable by every
+    local user, and the access log records the full request, which can
+    include credentials passed as query parameters. Upgrades restrict the
+    existing log directory.
+
+  * let the privileged API daemon reopen its logs after log rotation. It kept
+    writing to the rotated copy, so its entries got lost after the next
+    rotation until the daemon was restarted.
+
+  * daemons: on stop, stop accepting connections, let open requests finish
+    and wait for running tasks, up to the systemd stop timeout, instead of
+    exiting at once. Also fix reloads that could hang or get lost, for
+    example when requested right after the start.
+
+  * fix #6738: api: log clients that close the connection before sending
+    anything, like health checks and port scanners, only at debug level.
+    Also do not drop clients that send the start of the TLS handshake in
+    more than one packet.
+
+  * sync the directory when writing a configuration file, so that the change
+    cannot be lost on a power loss right afterwards.
+
+  * auto-installer:
+    - allow setting up a bond and a VLAN tag for the management network in
+      prepared answers. These options need a recent installer.
+    - only send an answer to an installer that can parse it. An installer
+      that is too old gets told which version it needs, and the list of
+      installations shows such requests with a new status.
+    - do not leave an unused authorization token behind if creating or
+      updating a prepared answer fails a check.
+
+  * remote shell: show the reason in the terminal if setting up the session
+    on the remote fails, instead of only a generic connection error.
+
+  * remote updates: do not add a duplicate or nonexistent node to the update
+    summary when listing the updates of a single node.
+
+  * ui: remote updates: fix a crash of the web interface when sorting the
+    versions of nodes if one of them cannot be parsed.
+
+  * drop a leftover debug message that logged every proxied VNC connection
+    at error level.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 14 Nov 2026 21:22:28 +0100
+
 proxmox-datacenter-manager (1.1.9) trixie; urgency=medium
 
   * resources: include the HA state of Proxmox VE nodes, which the web
