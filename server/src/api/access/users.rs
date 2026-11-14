@@ -424,7 +424,10 @@ const API_METHOD_READ_TOKEN_WITH_ACCESS: ApiMethod =
 
 const API_METHOD_UPDATE_TOKEN_WITH_ACCESS: ApiMethod =
     proxmox_access_control::api::API_METHOD_UPDATE_TOKEN.access(
-        None,
+        Some(
+            "Regenerating the secret of another user's token also requires 'Access.Modify' on \
+            '/access/acl'. An API token does not count as its owning user.",
+        ),
         &Permission::Or(&[
             &Permission::Privilege(&["access", "users"], PRIV_ACCESS_MODIFY, false),
             &Permission::UserParam("userid"),
