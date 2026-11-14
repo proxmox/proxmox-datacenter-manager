@@ -30,7 +30,7 @@ members = [
 
 [workspace.dependencies]
 # proxmox workspace
-proxmox-access-control = "1.3.2"
+proxmox-access-control = "1.3.3"
 proxmox-api-macro = "1.7.0"
 proxmox-apt = "1.0"
 proxmox-apt-api-types = "3.0"
