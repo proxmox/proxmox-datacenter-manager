@@ -1,3 +1,55 @@
+proxmox-datacenter-manager-ui (1.1.5) trixie; urgency=medium
+
+  * Proxmox VE: show the HA maintenance mode of nodes with a badge next to
+    the node name, in the resource trees, the title of the node panel and the
+    node selector, for example when choosing a migration target.
+
+  * Proxmox VE: node selector: sort the memory columns by the shown usage
+    instead of the memory size.
+
+  * Proxmox VE: resource tree: show guest tags right after the name instead
+    of in a separate column, leaving more room for long names.
+
+  * auto-installer: allow setting up a bond and a VLAN tag for the management
+    network in the advanced network options of prepared answers. These
+    options need a recent installer, and the list of installations now shows
+    when a matching answer was not sent because the installer was too old.
+
+  * remote updates: fix a crash of the web interface when sorting the
+    versions of nodes if one of them cannot be parsed.
+
+  * dark mode: raise the contrast of error texts, like the validation
+    messages of fields, of the text in warning boxes and of the placeholders
+    of input fields, which were hard to read.
+
+  * keep a busy button, like a refresh in progress, at full opacity instead of
+    looking like a disabled one.
+
+  * pull in fixes and improvements from newer versions of statically linked UI
+    dependencies:
+    - fix #7932: node status: show the uptime of the Datacenter Manager node
+      in the panel title.
+    - login: if the server refuses a login, say to check the user name,
+      password and realm, or that the second factor was not accepted,
+      instead of showing a raw "401 Unauthorized" error. Also ignore spaces
+      around the user name, which made the login fail.
+    - task progress: show tasks that logged warnings as finished with
+      warnings instead of as failed.
+    - add Bengali, Greek, Irish, Lao and Mongolian to the selectable
+      languages.
+    - fix #8057: navigation menu: keep the menu scrollable in Firefox if open
+      submenus make it taller than the window, and open a collapsed submenu
+      on the first click on its arrow.
+    - menus now close after picking an item with the mouse.
+    - tables no longer estimate rows far too tall, which made the scroll area
+      too long and left blank areas while scrolling.
+    - a column hidden through the header menu now stays hidden in lists that
+      redraw their headers, like the running tasks list.
+    - selection lists now open with the selected entry in view, also in long
+      lists.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 14 Nov 2026 22:10:16 +0100
+
 proxmox-datacenter-manager-ui (1.1.4) trixie; urgency=medium
 
   * remote wizard: show the current step, the remaining time and a Cancel
