@@ -27,18 +27,13 @@ impl CommandLineDisplayField {
     }
 }
 
-enum Message {
-    Reveal,
-    Hide,
-}
-
 struct CommandLineDisplayFieldComponent {
     hidden: bool,
 }
 
 impl Component for CommandLineDisplayFieldComponent {
     type Properties = CommandLineDisplayField;
-    type Message = Message;
+    type Message = (); // toggle hidden
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self { hidden: true }
@@ -46,17 +41,10 @@ impl Component for CommandLineDisplayFieldComponent {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let props = ctx.props();
-        let hidden = self.hidden;
 
-        let toggle_hidden_cb = ctx.link().callback(move |_| {
-            if hidden {
-                Self::Message::Reveal
-            } else {
-                Self::Message::Hide
-            }
-        });
+        let toggle_hidden_cb = ctx.link().callback(|_| ());
 
-        let (toggle_hidden_icon, toggle_hidden_tip, value) = if hidden {
+        let (toggle_hidden_icon, toggle_hidden_tip, value) = if self.hidden {
             (
                 "fa fa-eye",
                 tr!("Show Command Line"),
@@ -107,12 +95,8 @@ impl Component for CommandLineDisplayFieldComponent {
             .into()
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            Self::Message::Reveal => self.hidden = false,
-            Self::Message::Hide => self.hidden = true,
-        }
-
+    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
+        self.hidden = !self.hidden;
         true
     }
 }
