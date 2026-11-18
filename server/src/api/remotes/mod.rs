@@ -407,6 +407,24 @@ fn unusable_token_id_err(err: impl std::fmt::Display, cleaned_up: bool) -> Error
     }
 }
 
+/// Granting privileges to a new token failed, so it got deleted again, or may remain without any.
+fn token_acl_err(err: proxmox_client::Error, cleaned_up: bool) -> Error {
+    let detail = err.source().unwrap_or(&err).to_string();
+    if cleaned_up {
+        format_err!(
+            "error creating token: the token policy of the remote requires privilege separation, \
+             but granting privileges to the new token failed ({detail}), the new token was deleted"
+        )
+    } else {
+        format_err!(
+            "error creating token: the token policy of the remote requires privilege separation, \
+             but granting privileges to the new token failed ({detail}), and deleting the new \
+             token could not be confirmed - check whether the token exists on the remote before \
+             retrying"
+        )
+    }
+}
+
 /// Create an API token on the remote and switch the entry's authentication to it.
 async fn create_remote_token(entry: &mut Remote, token_name: String) -> Result<(), Error> {
     let nodename = proxmox_sys::nodename();
@@ -476,7 +494,8 @@ async fn pve_token_expire(
 
 /// Create an API token on a Proxmox VE remote, deleting one again whose returned ID is unusable.
 ///
-/// The token gets the expiration date that the token policy of the remote requires, if any.
+/// The token gets the expiration date that the token policy of the remote requires, if any, and
+/// privilege separation if the policy requires that.
 async fn create_pve_token(
     client: &connection::PveClient,
     user: &Userid,
@@ -485,6 +504,10 @@ async fn create_pve_token(
 ) -> Result<(Authid, String), Error> {
     let policy = pve_token_policy(client).await;
     let expire = pve_token_expire(client, policy.as_ref()).await?;
+    let privsep = policy
+        .as_ref()
+        .and_then(|policy| policy.require_privilege_separation)
+        .unwrap_or_default();
 
     let token = client
         .create_token(
@@ -493,19 +516,40 @@ async fn create_pve_token(
             pve_api_types::CreateToken {
                 comment,
                 expire,
-                privsep: Some(false),
+                privsep: Some(privsep),
             },
         )
         .await
         .map_err(short_create_err)?;
 
-    match token.full_tokenid.parse() {
-        Ok(authid) => Ok((authid, token.value)),
+    let authid: Authid = match token.full_tokenid.parse() {
+        Ok(authid) => authid,
         Err(err) => {
             let cleanup = client.delete_token(user.as_str(), token_name).await;
-            Err(unusable_token_id_err(err, cleanup.is_ok()))
+            return Err(unusable_token_id_err(err, cleanup.is_ok()));
+        }
+    };
+
+    if privsep {
+        // A token with privilege separation only has the privileges of its own ACLs, limited to
+        // those of its user. Grant it all of them, so it ends up with the privileges of its user,
+        // like a token without privilege separation.
+        let acl = pve_api_types::UpdateAcl {
+            path: "/".to_string(),
+            roles: vec!["Administrator".to_string()],
+            tokens: Some(vec![authid.to_string()]),
+            propagate: Some(true),
+            delete: None,
+            groups: None,
+            users: None,
+        };
+        if let Err(err) = client.update_acl(acl).await {
+            let cleanup = client.delete_token(user.as_str(), token_name).await;
+            return Err(token_acl_err(err, cleanup.is_ok()));
         }
     }
+
+    Ok((authid, token.value))
 }
 
 /// Create an admin API token on a Proxmox Backup Server remote, deleting one again whose returned
@@ -1268,6 +1312,84 @@ pbs: pbs-offsite
             }
             requests.push((Method::POST, PVE_USER_TOKEN_PATH.to_string()));
             assert_eq!(client.0.requests(), requests);
+        }
+    }
+
+    const PVE_ACL_PATH: &str = "/api2/extjs/access/acl";
+
+    #[tokio::test]
+    async fn pve_token_privilege_separation_follows_the_token_policy() {
+        let client = PveClientImpl(ScriptedClient::new(vec![
+            Ok(extjs_response(&token_policy(
+                r#""require-privilege-separation":"1""#,
+            ))),
+            Ok(extjs_response(PVE_CREATED_TOKEN)),
+            Ok(extjs_response(r#"{"data":null,"success":true}"#)),
+        ]));
+
+        let (authid, secret) = create_pve_token(&client, &"root@pam".parse().unwrap(), "pdm", None)
+            .await
+            .expect("token creation failed");
+        assert_eq!(authid.to_string(), "root@pam!pdm");
+        assert_eq!(secret, "secret");
+
+        assert_eq!(pve_create_params(&client.0)["privsep"], true);
+        assert_eq!(
+            client.0.params(Method::PUT, PVE_ACL_PATH),
+            [Some(serde_json::json!({
+                "path": "/",
+                "roles": ["Administrator"],
+                "tokens": ["root@pam!pdm"],
+                "propagate": true,
+            }))]
+        );
+        assert_eq!(
+            client.0.requests(),
+            [
+                (Method::GET, PVE_CLUSTER_OPTIONS_PATH.to_string()),
+                (Method::POST, PVE_USER_TOKEN_PATH.to_string()),
+                (Method::PUT, PVE_ACL_PATH.to_string()),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn pve_token_acl_rejection_deletes_the_token_again() {
+        for (deletion, wording) in [
+            (
+                Ok(extjs_response(r#"{"data":null,"success":true}"#)),
+                "token was deleted",
+            ),
+            (Err(deletion_failure()), "could not be confirmed"),
+        ] {
+            let client = PveClientImpl(ScriptedClient::new(vec![
+                Ok(extjs_response(&token_policy(
+                    r#""require-privilege-separation":"1""#,
+                ))),
+                Ok(extjs_response(PVE_CREATED_TOKEN)),
+                Ok(extjs_response(
+                    r#"{"success":false,"status":403,"message":"no permission","data":null}"#,
+                )),
+                deletion,
+            ]));
+
+            let error = create_pve_token(&client, &"root@pam".parse().unwrap(), "pdm", None)
+                .await
+                .expect_err("token without privileges was accepted");
+
+            let message = error.to_string();
+            assert!(message.contains("requires privilege separation"));
+            assert!(message.contains("no permission"));
+            assert!(message.contains(wording));
+            assert_eq!(
+                client.0.requests(),
+                [
+                    (Method::GET, PVE_CLUSTER_OPTIONS_PATH.to_string()),
+                    (Method::POST, PVE_USER_TOKEN_PATH.to_string()),
+                    (Method::PUT, PVE_ACL_PATH.to_string()),
+                    (Method::DELETE, PVE_USER_TOKEN_PATH.to_string()),
+                ]
+            );
         }
     }
 
