@@ -26,6 +26,7 @@ use pdm_api_types::remotes::{
 };
 use pdm_api_types::rrddata::RemoteDatapoint;
 use pdm_api_types::{Authid, ConfigDigest, PRIV_RESOURCE_AUDIT, PRIV_RESOURCE_MODIFY};
+use pve_api_types::ClusterOptionsTokenPolicy;
 
 use crate::metric_collection::trigger_remote_metric_collection;
 use crate::{connection, pbs_client};
@@ -428,20 +429,70 @@ async fn create_remote_token(entry: &mut Remote, token_name: String) -> Result<(
     Ok(())
 }
 
+/// Read the token policy of a Proxmox VE remote.
+///
+/// Remotes without token policy support give none, like older ones that only return it with
+/// `Sys.Audit` on `/`. The token is then created as before, and a policy that the remote enforces
+/// after all rejects it with its own error.
+async fn pve_token_policy(client: &connection::PveClient) -> Option<ClusterOptionsTokenPolicy> {
+    match client.cluster_options().await {
+        Ok(options) => options.token_policy,
+        Err(err) => {
+            log::warn!("could not read the token policy of the remote, assuming none: {err}");
+            None
+        }
+    }
+}
+
+/// The expiration date to request for a new token on a Proxmox VE remote, `None` for none.
+///
+/// Tokens do not get renewed, so only request one if the token policy of the remote requires it,
+/// and then the maximum lifetime. That counts from the clock of the remote, as the remote checks
+/// the date against it. A policy that gives tokens the maximum lifetime by itself gets no date.
+async fn pve_token_expire(
+    client: &connection::PveClient,
+    policy: Option<&ClusterOptionsTokenPolicy>,
+) -> Result<Option<u64>, Error> {
+    let Some(policy) = policy else {
+        return Ok(None);
+    };
+    match policy.max_lifetime {
+        Some(_) if policy.default_to_max_lifetime.unwrap_or_default() => Ok(None),
+        Some(max_lifetime) => {
+            let now = client
+                .node_time("localhost")
+                .await
+                .map_err(|err| format_err!("error reading the time of the remote: {err}"))?
+                .time;
+            Ok(Some(now.saturating_add(max_lifetime)))
+        }
+        None if policy.require_expiry.unwrap_or_default() => bail!(
+            "the token policy of the remote requires an expiration date without setting a \
+             maximum lifetime, create a token on the remote and use that instead"
+        ),
+        None => Ok(None),
+    }
+}
+
 /// Create an API token on a Proxmox VE remote, deleting one again whose returned ID is unusable.
+///
+/// The token gets the expiration date that the token policy of the remote requires, if any.
 async fn create_pve_token(
     client: &connection::PveClient,
     user: &Userid,
     token_name: &str,
     comment: Option<String>,
 ) -> Result<(Authid, String), Error> {
+    let policy = pve_token_policy(client).await;
+    let expire = pve_token_expire(client, policy.as_ref()).await?;
+
     let token = client
         .create_token(
             user.as_str(),
             token_name,
             pve_api_types::CreateToken {
                 comment,
-                expire: None,
+                expire,
                 privsep: Some(false),
             },
         )
@@ -995,6 +1046,7 @@ pbs: pbs-offsite
     /// Answers requests with scripted responses and records what was asked.
     struct ScriptedClient {
         requests: Mutex<Vec<(Method, String)>>,
+        params: Mutex<Vec<Option<serde_json::Value>>>,
         responses: Mutex<VecDeque<Result<HttpApiResponse, ClientError>>>,
     }
 
@@ -1002,12 +1054,25 @@ pbs: pbs-offsite
         fn new(responses: Vec<Result<HttpApiResponse, ClientError>>) -> Self {
             Self {
                 requests: Mutex::new(Vec::new()),
+                params: Mutex::new(Vec::new()),
                 responses: Mutex::new(responses.into()),
             }
         }
 
         fn requests(&self) -> Vec<(Method, String)> {
             self.requests.lock().unwrap().clone()
+        }
+
+        /// The parameters of the request with the given method and path, in order.
+        fn params(&self, method: Method, path: &str) -> Vec<Option<serde_json::Value>> {
+            let requests = self.requests.lock().unwrap();
+            let params = self.params.lock().unwrap();
+            requests
+                .iter()
+                .zip(params.iter())
+                .filter(|((m, p), _)| *m == method && p == path)
+                .map(|(_, params)| params.clone())
+                .collect()
         }
     }
 
@@ -1026,7 +1091,7 @@ pbs: pbs-offsite
             &'a self,
             method: Method,
             path_and_query: &'a str,
-            _params: Option<T>,
+            params: Option<T>,
         ) -> Self::ResponseFuture<'a>
         where
             T: Serialize + 'a,
@@ -1035,6 +1100,10 @@ pbs: pbs-offsite
                 .lock()
                 .unwrap()
                 .push((method, path_and_query.to_string()));
+            self.params
+                .lock()
+                .unwrap()
+                .push(params.map(|params| serde_json::to_value(params).unwrap()));
             ready(
                 self.responses
                     .lock()
@@ -1123,6 +1192,101 @@ pbs: pbs-offsite
     }
 
     const PVE_USER_TOKEN_PATH: &str = "/api2/extjs/access/users/root%40pam/token/pdm";
+    const PVE_CLUSTER_OPTIONS_PATH: &str = "/api2/extjs/cluster/options";
+    const PVE_NODE_TIME_PATH: &str = "/api2/extjs/nodes/localhost/time";
+    const NO_TOKEN_POLICY: &str = r#"{"data":{"allowed-tags":[]},"success":true}"#;
+    const PVE_CREATED_TOKEN: &str =
+        r#"{"data":{"full-tokenid":"root@pam!pdm","info":{},"value":"secret"},"success":true}"#;
+
+    fn token_policy(policy: &str) -> String {
+        format!(r#"{{"data":{{"allowed-tags":[],"token-policy":{{{policy}}}}},"success":true}}"#)
+    }
+
+    /// The parameters of the token creation request.
+    fn pve_create_params(client: &ScriptedClient) -> serde_json::Value {
+        let mut params = client.params(Method::POST, PVE_USER_TOKEN_PATH);
+        assert_eq!(params.len(), 1);
+        params.remove(0).expect("token creation without parameters")
+    }
+
+    #[tokio::test]
+    async fn pve_token_expiry_follows_the_token_policy() {
+        let now = 1_800_000_000;
+        let node_time = format!(
+            r#"{{"data":{{"time":{now},"localtime":{now},"timezone":"UTC"}},"success":true}}"#
+        );
+        // policy read result, expected expiration date, whether the remote time is read
+        let cases = [
+            (Ok(extjs_response(NO_TOKEN_POLICY)), None, false),
+            (
+                Ok(extjs_response(&token_policy(r#""require-expiry":"0""#))),
+                None,
+                false,
+            ),
+            (
+                Ok(extjs_response(&token_policy(
+                    r#""max-lifetime":"86400","default-to-max-lifetime":"1""#,
+                ))),
+                None,
+                false,
+            ),
+            (
+                Ok(extjs_response(&token_policy(r#""max-lifetime":"86400""#))),
+                Some(now + 86400),
+                true,
+            ),
+            // an unreadable policy counts as none, the remote enforces its policy in any case
+            (
+                Err(ClientError::Api(StatusCode::FORBIDDEN, "denied".into())),
+                None,
+                false,
+            ),
+        ];
+
+        for (policy, expire, reads_time) in cases {
+            let mut responses = vec![policy];
+            if reads_time {
+                responses.push(Ok(extjs_response(&node_time)));
+            }
+            responses.push(Ok(extjs_response(PVE_CREATED_TOKEN)));
+            let client = PveClientImpl(ScriptedClient::new(responses));
+
+            let (authid, secret) =
+                create_pve_token(&client, &"root@pam".parse().unwrap(), "pdm", None)
+                    .await
+                    .expect("token creation failed");
+            assert_eq!(authid.to_string(), "root@pam!pdm");
+            assert_eq!(secret, "secret");
+
+            let params = pve_create_params(&client.0);
+            assert_eq!(params.get("expire").and_then(|v| v.as_u64()), expire);
+            assert_eq!(params["privsep"], false);
+
+            let mut requests = vec![(Method::GET, PVE_CLUSTER_OPTIONS_PATH.to_string())];
+            if reads_time {
+                requests.push((Method::GET, PVE_NODE_TIME_PATH.to_string()));
+            }
+            requests.push((Method::POST, PVE_USER_TOKEN_PATH.to_string()));
+            assert_eq!(client.0.requests(), requests);
+        }
+    }
+
+    #[tokio::test]
+    async fn pve_token_expiry_without_maximum_is_refused() {
+        let client = PveClientImpl(ScriptedClient::new(vec![Ok(extjs_response(
+            &token_policy(r#""require-expiry":"1""#),
+        ))]));
+
+        let error = create_pve_token(&client, &"root@pam".parse().unwrap(), "pdm", None)
+            .await
+            .expect_err("token without expiration date was created");
+
+        assert!(error.to_string().contains("requires an expiration date"));
+        assert_eq!(
+            client.0.requests(),
+            [(Method::GET, PVE_CLUSTER_OPTIONS_PATH.to_string())]
+        );
+    }
 
     fn deletion_failure() -> ClientError {
         ClientError::Api(
@@ -1141,6 +1305,7 @@ pbs: pbs-offsite
             (Err(deletion_failure()), "could not be confirmed"),
         ] {
             let client = PveClientImpl(ScriptedClient::new(vec![
+                Ok(extjs_response(NO_TOKEN_POLICY)),
                 Ok(extjs_response(
                     r#"{"data":{"full-tokenid":"garbage","info":{},"value":"secret"},"success":true}"#,
                 )),
@@ -1156,6 +1321,7 @@ pbs: pbs-offsite
             assert_eq!(
                 client.0.requests(),
                 [
+                    (Method::GET, PVE_CLUSTER_OPTIONS_PATH.to_string()),
                     (Method::POST, PVE_USER_TOKEN_PATH.to_string()),
                     (Method::DELETE, PVE_USER_TOKEN_PATH.to_string()),
                 ]
